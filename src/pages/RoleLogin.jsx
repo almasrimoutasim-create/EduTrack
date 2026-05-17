@@ -45,7 +45,7 @@ export default function RoleLogin({ onLogin }) {
       </div>
 
       {/* Language Switcher */}
-      <div className="absolute top-4 right-4 z-50">
+      <div className="absolute top-4 end-4 z-50">
         <button 
           onClick={toggleLanguage}
           className={`${btnOutline} h-10 px-4 font-bold text-[10px] gap-1.5 shadow-sm`}
@@ -55,12 +55,13 @@ export default function RoleLogin({ onLogin }) {
         </button>
       </div>
 
-      <div className="max-w-6xl w-full relative z-10">
-        <header className="text-center mb-8 space-y-2">
+      <div className="max-w-6xl w-full relative z-10 mx-auto px-4">
+        {/* Header - Always LTR for proper centering */}
+        <header className="text-center mb-8 space-y-2 flex flex-col items-center justify-center w-full" dir="ltr">
           <motion.div
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="inline-flex items-center justify-center h-14 w-14 rounded-xl bg-stone-900 text-white shadow-2xl mb-4"
+            className="flex items-center justify-center h-14 w-14 rounded-xl bg-stone-900 text-white shadow-2xl mb-4"
           >
             <Lock size={28} />
           </motion.div>
@@ -75,7 +76,7 @@ export default function RoleLogin({ onLogin }) {
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.1 }}
-            className="text-stone-400 text-sm font-medium max-w-lg mx-auto"
+            className="text-stone-400 text-sm font-medium max-w-lg"
           >
             {isRTL ? "نظام إدارة التعليم الذكي. اختر بوابتك للمتابعة." : "Smart Education Management System. Choose your portal to continue."}
           </motion.p>
@@ -107,29 +108,29 @@ export default function RoleLogin({ onLogin }) {
               }}
               className="group cursor-pointer"
             >
-<Card className="p-6 border-none shadow-sm hover:shadow-2xl transition-all duration-500 rounded-[24px] bg-white relative overflow-hidden h-full flex flex-col items-center text-center">
-                    <div className={`h-16 w-16 rounded-[20px] ${role.color} flex items-center justify-center mb-4 shadow-xl group-hover:scale-110 transition-transform duration-500`}>
-                      <role.icon size={32} />
-                    </div>
-                    
-                    <h3 className="text-lg font-serif font-black text-stone-900 mb-1.5 group-hover:text-primary transition-colors">
-                      {isRTL ? role.label.ar : role.label.en}
-                    </h3>
-                    <p className="text-stone-400 text-xs font-medium mb-4">
-                      {isRTL ? "تسجيل الدخول إلى حسابك الخاص." : "Secure login to your personal account."}
-                    </p>
-                    
-                    <div className="mt-auto">
-                      <div className={`h-8 w-8 rounded-full border-2 border-stone-50 flex items-center justify-center text-stone-200 group-hover:border-primary group-hover:text-primary transition-all duration-500`}>
-                        {isRTL ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
-                      </div>
-                    </div>
+              <Card className="p-6 border-none shadow-sm hover:shadow-2xl transition-all duration-500 rounded-[24px] bg-white relative overflow-hidden h-full flex flex-col items-center text-center">
+                <div className={`h-16 w-16 rounded-[20px] ${role.color} flex items-center justify-center mb-4 shadow-xl group-hover:scale-110 transition-transform duration-500`}>
+                  <role.icon size={32} />
+                </div>
+                
+                <h3 className="text-lg font-serif font-black text-stone-900 mb-1.5 group-hover:text-primary transition-colors">
+                  {isRTL ? role.label.ar : role.label.en}
+                </h3>
+                <p className="text-stone-400 text-xs font-medium mb-4">
+                  {isRTL ? "تسجيل الدخول إلى حسابك الخاص." : "Secure login to your personal account."}
+                </p>
+                
+                <div className="mt-auto">
+                  <div className={`h-8 w-8 rounded-full border-2 border-stone-50 flex items-center justify-center text-stone-200 group-hover:border-primary group-hover:text-primary transition-all duration-500`}>
+                    {isRTL ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
+                  </div>
+                </div>
 
-                    {/* Hover Background Pattern */}
-                    <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-5 transition-opacity pointer-events-none">
-                      <role.icon size={60} />
-                    </div>
-                  </Card>
+                {/* Hover Background Pattern */}
+                <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-5 transition-opacity pointer-events-none">
+                  <role.icon size={60} />
+                </div>
+              </Card>
             </motion.div>
           ))}
         </motion.div>
