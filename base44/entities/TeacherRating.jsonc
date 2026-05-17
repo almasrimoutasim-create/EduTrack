@@ -1,0 +1,81 @@
+{
+  "name": "TeacherRating",
+  "type": "object",
+  "properties": {
+    "teacher_id": {
+      "type": "string"
+    },
+    "teacher_name": {
+      "type": "string"
+    },
+    "rater_id": {
+      "type": "string"
+    },
+    "rater_name": {
+      "type": "string"
+    },
+    "rater_type": {
+      "type": "string",
+      "enum": [
+        "student",
+        "parent",
+        "admin"
+      ],
+      "default": "student"
+    },
+    "rating": {
+      "type": "number",
+      "description": "1-5 stars"
+    },
+    "comment": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "teacher_id",
+    "teacher_name",
+    "rater_name",
+    "rater_type",
+    "rating"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": {
+          "$in": [
+            "admin",
+            "teacher",
+            "student",
+            "parent",
+            "user"
+          ]
+        }
+      }
+    },
+    "read": {},
+    "update": {
+      "$or": [
+        {
+          "data.rater_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "data.rater_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

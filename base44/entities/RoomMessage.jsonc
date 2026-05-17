@@ -1,0 +1,124 @@
+{
+  "name": "RoomMessage",
+  "type": "object",
+  "properties": {
+    "room_id": {
+      "type": "string"
+    },
+    "room_code": {
+      "type": "string"
+    },
+    "sender_name": {
+      "type": "string"
+    },
+    "sender_role": {
+      "type": "string",
+      "enum": [
+        "teacher",
+        "student",
+        "admin"
+      ],
+      "default": "student"
+    },
+    "message": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "room_id",
+    "message",
+    "sender_name"
+  ],
+  "rls": {
+    "create": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "base44_entity_id": "StudyRoom",
+          "query": {
+            "$or": [
+              {
+                "data.target_grades": {
+                  "$regex": "{{user.data.grade}}"
+                }
+              },
+              {
+                "user_condition": {
+                  "role": "teacher"
+                }
+              },
+              {
+                "user_condition": {
+                  "role": "admin"
+                }
+              }
+            ]
+          },
+          "field_on_this_entity": "data.room_id",
+          "field_on_other_entity": "id"
+        }
+      ]
+    },
+    "read": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "base44_entity_id": "StudyRoom",
+          "query": {
+            "$or": [
+              {
+                "data.target_grades": {
+                  "$regex": "{{user.data.grade}}"
+                }
+              },
+              {
+                "user_condition": {
+                  "role": "teacher"
+                }
+              },
+              {
+                "user_condition": {
+                  "role": "admin"
+                }
+              }
+            ]
+          },
+          "field_on_this_entity": "data.room_id",
+          "field_on_other_entity": "id"
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "data.sender_name": "{{user.full_name}}"
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "data.sender_name": "{{user.full_name}}"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,103 @@
+{
+  "name": "FinancialRecord",
+  "type": "object",
+  "properties": {
+    "record_type": {
+      "type": "string",
+      "enum": [
+        "salary",
+        "fine_payment",
+        "bus_driver_payment",
+        "supervisor_payment",
+        "expense",
+        "income",
+        "refund"
+      ],
+      "default": "salary"
+    },
+    "recipient_type": {
+      "type": "string",
+      "enum": [
+        "teacher",
+        "bus_driver",
+        "supervisor",
+        "student",
+        "school"
+      ],
+      "default": "teacher"
+    },
+    "recipient_id": {
+      "type": "string"
+    },
+    "recipient_name": {
+      "type": "string"
+    },
+    "amount": {
+      "type": "number",
+      "default": 0
+    },
+    "description": {
+      "type": "string"
+    },
+    "month": {
+      "type": "string",
+      "description": "e.g. 2026-05"
+    },
+    "payment_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "paid",
+        "cancelled"
+      ],
+      "default": "pending"
+    },
+    "payment_method": {
+      "type": "string",
+      "enum": [
+        "bank_transfer",
+        "cash",
+        "check",
+        "card"
+      ],
+      "default": "bank_transfer"
+    },
+    "reference_no": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "record_type",
+    "recipient_name",
+    "amount"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

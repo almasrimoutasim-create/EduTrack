@@ -1,0 +1,106 @@
+{
+  "name": "StudentReport",
+  "type": "object",
+  "properties": {
+    "student_id": {
+      "type": "string"
+    },
+    "student_name": {
+      "type": "string"
+    },
+    "teacher_id": {
+      "type": "string"
+    },
+    "teacher_name": {
+      "type": "string"
+    },
+    "report_type": {
+      "type": "string",
+      "enum": [
+        "behavior",
+        "academic",
+        "attendance",
+        "general"
+      ],
+      "default": "general"
+    },
+    "content": {
+      "type": "string"
+    },
+    "sent_to": {
+      "type": "string",
+      "enum": [
+        "parent",
+        "manager",
+        "both"
+      ],
+      "default": "parent"
+    },
+    "is_read_by_parent": {
+      "type": "boolean",
+      "default": false
+    },
+    "is_read_by_manager": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "student_id",
+    "student_name",
+    "teacher_id",
+    "teacher_name",
+    "content"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "teacher"
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "data.teacher_id": "{{user.id}}"
+        },
+        {
+          "base44_entity_id": "Student",
+          "query": {
+            "$or": [
+              {
+                "data.user_email": "{{user.email}}"
+              },
+              {
+                "data.parent_email": "{{user.email}}"
+              }
+            ]
+          },
+          "field_on_this_entity": "data.student_id",
+          "field_on_other_entity": "data.student_id"
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "data.teacher_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "name": "ActivityChat",
+  "type": "object",
+  "properties": {
+    "sender_name": {
+      "type": "string"
+    },
+    "sender_email": {
+      "type": "string"
+    },
+    "sender_role": {
+      "type": "string",
+      "enum": [
+        "admin",
+        "teacher",
+        "student"
+      ],
+      "default": "student"
+    },
+    "message": {
+      "type": "string"
+    },
+    "media_url": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "sender_name",
+    "sender_email",
+    "message"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": {
+          "$in": [
+            "admin",
+            "teacher",
+            "student",
+            "user"
+          ]
+        }
+      }
+    },
+    "read": {},
+    "update": {
+      "$or": [
+        {
+          "data.sender_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "data.sender_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

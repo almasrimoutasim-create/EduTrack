@@ -1,0 +1,124 @@
+{
+  "name": "StudyGroupPost",
+  "type": "object",
+  "properties": {
+    "group_id": {
+      "type": "string"
+    },
+    "author_id": {
+      "type": "string"
+    },
+    "author_name": {
+      "type": "string"
+    },
+    "author_photo": {
+      "type": "string"
+    },
+    "content": {
+      "type": "string"
+    },
+    "media_url": {
+      "type": "string"
+    },
+    "media_type": {
+      "type": "string",
+      "enum": [
+        "none",
+        "image",
+        "video",
+        "file"
+      ],
+      "default": "none"
+    },
+    "file_name": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "group_id",
+    "author_id",
+    "author_name",
+    "content"
+  ],
+  "rls": {
+    "create": {
+      "$or": [
+        {
+          "data.author_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "base44_entity_id": "StudyGroup",
+          "query": {
+            "$or": [
+              {
+                "data.creator_id": "{{user.id}}"
+              },
+              {
+                "data.member_ids": {
+                  "$regex": "{{user.id}}"
+                }
+              }
+            ]
+          },
+          "field_on_this_entity": "data.group_id",
+          "field_on_other_entity": "id"
+        }
+      ]
+    },
+    "read": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "base44_entity_id": "StudyGroup",
+          "query": {
+            "$or": [
+              {
+                "data.creator_id": "{{user.id}}"
+              },
+              {
+                "data.member_ids": {
+                  "$regex": "{{user.id}}"
+                }
+              }
+            ]
+          },
+          "field_on_this_entity": "data.group_id",
+          "field_on_other_entity": "id"
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "data.author_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "data.author_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

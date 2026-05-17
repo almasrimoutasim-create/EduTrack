@@ -1,0 +1,122 @@
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@200;300;400;500;600;700;800;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --font-sans: 'Cairo', sans-serif;
+    --font-display: 'Cairo', sans-serif;
+
+    --background: 210 20% 98%;
+    --foreground: 220 25% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 220 25% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 25% 15%;
+    --primary: 220 80% 18%;
+    --primary-foreground: 45 100% 96%;
+    --secondary: 39 100% 50%;
+    --secondary-foreground: 220 80% 18%;
+    --muted: 210 15% 90%;
+    --muted-foreground: 220 10% 45%;
+    --accent: 39 100% 50%;
+    --accent-foreground: 220 80% 18%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 210 15% 88%;
+    --input: 210 15% 88%;
+    --ring: 220 80% 18%;
+    --radius: 0.75rem;
+    --sidebar-background: 220 80% 10%;
+    --sidebar-foreground: 210 20% 90%;
+    --sidebar-primary: 39 100% 50%;
+    --sidebar-primary-foreground: 220 80% 18%;
+    --sidebar-accent: 220 75% 18%;
+    --sidebar-accent-foreground: 210 20% 95%;
+    --sidebar-border: 220 60% 20%;
+    --sidebar-ring: 39 100% 50%;
+    --chart-1: 220 80% 40%;
+    --chart-2: 39 100% 50%;
+    --chart-3: 160 55% 42%;
+    --chart-4: 280 60% 55%;
+    --chart-5: 340 70% 52%;
+  }
+
+  .dark {
+    --background: 220 25% 12%;
+    --foreground: 210 20% 95%;
+    --card: 220 25% 16%;
+    --card-foreground: 210 20% 95%;
+    --popover: 220 25% 16%;
+    --popover-foreground: 210 20% 95%;
+    --primary: 39 100% 50%;
+    --primary-foreground: 220 80% 18%;
+    --secondary: 220 80% 25%;
+    --secondary-foreground: 210 20% 95%;
+    --muted: 220 25% 22%;
+    --muted-foreground: 210 12% 60%;
+    --accent: 39 100% 50%;
+    --accent-foreground: 220 80% 18%;
+    --destructive: 0 62% 35%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 220 25% 22%;
+    --input: 220 25% 22%;
+    --ring: 39 100% 50%;
+    --sidebar-background: 220 80% 10%;
+    --sidebar-foreground: 210 20% 90%;
+    --sidebar-primary: 39 100% 50%;
+    --sidebar-primary-foreground: 220 80% 18%;
+    --sidebar-accent: 220 75% 18%;
+    --sidebar-accent-foreground: 210 20% 95%;
+    --sidebar-border: 220 60% 20%;
+    --sidebar-ring: 39 100% 50%;
+  }
+}
+
+@layer base {
+  * { @apply border-border outline-ring/50; }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-sans);
+  }
+  
+  /* Force English numerals in RTL mode */
+  html[dir="rtl"] body,
+  html[dir="rtl"] * {
+    direction: rtl;
+    text-align: right;
+    font-family: var(--font-sans);
+    font-variant-numeric: tabular-nums;
+  }
+  
+  /* Ensure numbers always render in Latin/English */
+  .num-en,
+  .num-en * {
+    unicode-bidi: isolate;
+    direction: ltr;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@media print {
+  .no-print { display: none !important; }
+  body { background: white !important; }
+  .print-card-container {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 16px !important;
+  }
+  .print-card-container > div {
+    width: 400px !important;
+    max-width: 400px !important;
+    box-shadow: none !important;
+    break-inside: avoid !important;
+  }
+  @page {
+    margin: 1cm;
+    size: A4 portrait;
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "name": "TypingIndicator",
+  "type": "object",
+  "properties": {
+    "conversation_key": {
+      "type": "string",
+      "description": "private conv key or group_id"
+    },
+    "typer_id": {
+      "type": "string"
+    },
+    "typer_name": {
+      "type": "string"
+    },
+    "is_typing": {
+      "type": "boolean",
+      "default": false
+    },
+    "last_typed": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "conversation_key",
+    "typer_id",
+    "typer_name"
+  ],
+  "rls": {
+    "create": {
+      "data.typer_id": "{{user.id}}"
+    },
+    "read": {
+      "$or": [
+        {
+          "data.typer_id": "{{user.id}}"
+        },
+        {
+          "base44_entity_id": "PrivateMessage",
+          "query": {
+            "$or": [
+              {
+                "data.sender_id": "{{user.id}}"
+              },
+              {
+                "data.receiver_id": "{{user.id}}"
+              }
+            ]
+          },
+          "field_on_this_entity": "data.conversation_key",
+          "field_on_other_entity": "data.conversation_key"
+        },
+        {
+          "base44_entity_id": "PortalGroup",
+          "query": {
+            "$or": [
+              {
+                "data.creator_id": "{{user.id}}"
+              },
+              {
+                "data.member_ids": {
+                  "$regex": "{{user.id}}"
+                }
+              }
+            ]
+          },
+          "field_on_this_entity": "data.conversation_key",
+          "field_on_other_entity": "id"
+        }
+      ]
+    },
+    "update": {
+      "data.typer_id": "{{user.id}}"
+    },
+    "delete": {
+      "data.typer_id": "{{user.id}}"
+    }
+  }
+}

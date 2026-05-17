@@ -1,0 +1,74 @@
+{
+  "name": "Teacher",
+  "type": "object",
+  "properties": {
+    "full_name": {
+      "type": "string"
+    },
+    "employee_id": {
+      "type": "string"
+    },
+    "email": {
+      "type": "string"
+    },
+    "phone": {
+      "type": "string"
+    },
+    "subject": {
+      "type": "string"
+    },
+    "subjects": {
+      "type": "string"
+    },
+    "photo_url": {
+      "type": "string"
+    },
+    "bio": {
+      "type": "string",
+      "description": "Short professional bio shown on teacher profile"
+    },
+    "salary": {
+      "type": "number",
+      "default": 0,
+      "description": "Monthly salary"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "on_leave",
+        "resigned"
+      ],
+      "default": "active"
+    }
+  },
+  "required": [
+    "full_name",
+    "employee_id"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {},
+    "update": {
+      "$or": [
+        {
+          "created_by": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

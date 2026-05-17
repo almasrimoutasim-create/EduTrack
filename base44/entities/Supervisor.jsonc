@@ -1,0 +1,65 @@
+{
+  "name": "Supervisor",
+  "type": "object",
+  "properties": {
+    "full_name": {
+      "type": "string"
+    },
+    "employee_id": {
+      "type": "string"
+    },
+    "phone": {
+      "type": "string"
+    },
+    "bus_route": {
+      "type": "string"
+    },
+    "photo_url": {
+      "type": "string"
+    },
+    "pin": {
+      "type": "string",
+      "description": "Login PIN for the supervisor portal"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "on_leave",
+        "suspended",
+        "terminated"
+      ],
+      "default": "active"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "full_name",
+    "employee_id",
+    "bus_route"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

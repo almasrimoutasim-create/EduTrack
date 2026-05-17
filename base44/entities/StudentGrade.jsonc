@@ -1,0 +1,102 @@
+{
+  "name": "StudentGrade",
+  "type": "object",
+  "properties": {
+    "student_id": {
+      "type": "string"
+    },
+    "student_name": {
+      "type": "string"
+    },
+    "subject_name": {
+      "type": "string"
+    },
+    "grade_label": {
+      "type": "string",
+      "description": "e.g. A+, B, 92%"
+    },
+    "score": {
+      "type": "number"
+    },
+    "max_score": {
+      "type": "number",
+      "default": 100
+    },
+    "term": {
+      "type": "string",
+      "enum": [
+        "Term 1",
+        "Term 2",
+        "Term 3",
+        "Final"
+      ],
+      "default": "Term 1"
+    },
+    "academic_year": {
+      "type": "string"
+    },
+    "teacher_name": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "student_id",
+    "student_name",
+    "subject_name",
+    "score"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": {
+          "$in": [
+            "admin",
+            "teacher"
+          ]
+        }
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "base44_entity_id": "Student",
+          "query": {
+            "$or": [
+              {
+                "data.user_email": "{{user.email}}"
+              },
+              {
+                "data.parent_email": "{{user.email}}"
+              }
+            ]
+          },
+          "field_on_this_entity": "data.student_id",
+          "field_on_other_entity": "data.student_id"
+        }
+      ]
+    },
+    "update": {
+      "user_condition": {
+        "role": {
+          "$in": [
+            "admin",
+            "teacher"
+          ]
+        }
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

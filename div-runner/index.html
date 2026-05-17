@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Div Runner</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: #1a1a2e;
+            font-family: 'Courier New', monospace;
+        }
+        #gameArea {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+        }
+        #runner {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #00d2ff, #3a7bd5);
+            border-radius: 8px;
+            bottom: 60px;
+            left: 80px;
+            transition: bottom 0.1s;
+            box-shadow: 0 0 20px rgba(0, 210, 255, 0.5);
+            z-index: 10;
+        }
+        #runner.jumping {
+            animation: jump 0.6s ease-out;
+        }
+        @keyframes jump {
+            0% { bottom: 60px; }
+            50% { bottom: 200px; }
+            100% { bottom: 60px; }
+        }
+        .obstacle {
+            position: absolute;
+            bottom: 60px;
+            width: 30px;
+            background: linear-gradient(180deg, #ff416c, #ff4b2b);
+            border-radius: 4px;
+            animation: moveObstacle linear infinite;
+            box-shadow: 0 0 15px rgba(255, 65, 108, 0.4);
+        }
+        @keyframes moveObstacle {
+            from { right: -50px; }
+            to { right: calc(100vw + 50px); }
+        }
+        .coin {
+            position: absolute;
+            width: 25px;
+            height: 25px;
+            background: linear-gradient(135deg, #f7971e, #ffd200);
+            border-radius: 50%;
+            animation: moveObstacle linear infinite;
+            box-shadow: 0 0 15px rgba(255, 210, 0, 0.6);
+            z-index: 5;
+        }
+        #ground {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 60px;
+            background: linear-gradient(180deg, #16213e, #0f3460);
+            border-top: 3px solid #e94560;
+        }
+        #scoreBoard {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #fff;
+            font-size: 24px;
+            z-index: 100;
+            text-shadow: 0 0 10px rgba(0, 210, 255, 0.7);
+        }
+        #gameOver {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 200;
+        }
+        #gameOver h1 {
+            font-size: 48px;
+            color: #ff416c;
+            text-shadow: 0 0 20px rgba(255, 65, 108, 0.5);
+            margin-bottom: 20px;
+        }
+        #gameOver p {
+            font-size: 24px;
+            color: #fff;
+            margin-bottom: 30px;
+        }
+        #particleCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .trail {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: rgba(0, 210, 255, 0.6);
+            border-radius: 50%;
+            pointer-events: none;
+            animation: fadeTrail 0.3s ease-out forwards;
+        }
+        @keyframes fadeTrail {
+            from { opacity: 1; transform: scale(1); }
+            to { opacity: 0; transform: scale(0); }
+        }
+    </style>
+</head>
+<body class="bg-gray-900">
+    <div id="gameArea">
+        <canvas id="particleCanvas"></canvas>
+        <div id="ground"></div>
+        <div id="scoreBoard" class="select-none">
+            <div>🏃 النقاط: <span id="score" class="text-cyan-400">0</span></div>
+            <div class="text-sm mt-1 text-gray-400">🔥 أعلى نتيجة: <span id="highScore" class="text-yellow-400">0</span></div>
+        </div>
+        <div id="runner"></div>
+        <div id="gameOver">
+            <h1>💀 انتهت اللعبة!</h1>
+            <p>النقاط: <span id="finalScore" class="text-cyan-400">0</span></p>
+            <button id="restartBtn" class="px-8 py-3 bg-cyan-500 text-white text-xl rounded-lg hover:bg-cyan-600 transition-all shadow-lg hover:shadow-cyan-500/50">
+                🔄 إعادة اللعب
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const runner = document.getElementById('runner');
+        const gameArea = document.getElementById('gameArea');
+        const gameOverScreen = document.getElementById('gameOver');
+        const scoreEl = document.getElementById('score');
+        const highScoreEl = document.getElementById('highScore');
+        const finalScoreEl = document.getElementById('finalScore');
+        const restartBtn = document.getElementById('restartBtn');
+        const particleCanvas = document.getElementById('particleCanvas');
+        const ctx = particleCanvas.getContext('2d');
+
+        let isJumping = false;
+        let isGameOver = false;
+        let score = 0;
+        let highScore = parseInt(localStorage.getItem('divRunnerHighScore')) || 0;
+        let gameSpeed = 5;
+        let obstacles = [];
+        let coins = [];
+        let particles = [];
+        let frameCount = 0;
+
+        highScoreEl.textContent = highScore;
+
+        // حجم الكمبيوتر
+        particleCanvas.width = window.innerWidth;
+        particleCanvas.height = window.innerHeight;
+        window.addEventListener('resize', () => {
+            particleCanvas.width = window.innerWidth;
+            particleCanvas.height = window.innerHeight;
+        });
+
+        // القفز
+        function jump() {
+            if (isJumping || isGameOver) return;
+            isJumping = true;
+            runner.classList.add('jumping');
+            createJumpParticles();
+            setTimeout(() => {
+                runner.classList.remove('jumping');
+                isJumping = false;
+            }, 600);
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' || e.code === 'ArrowUp') {
+                e.preventDefault();
+                if (isGameOver) return;
+                if (gameOverScreen.style.display === 'block') {
+                    restartGame();
+                } else {
+                    jump();
+                }
+            }
+        });
+
+        gameArea.addEventListener('click', () => {
+            if (isGameOver) return;
+            if (gameOverScreen.style.display === 'block') {
+                restartGame();
+            } else {
+                jump();
+            }
+        });
+
+        // إنشاء جسيمات القفز
+        function createJumpParticles() {
+            for (let i = 0; i < 8; i++) {
+                particles.push({
+                    x: 80 + 25,
+                    y: 60 + 50,
+                    vx: (Math.random() - 0.5) * 4,
+                    vy: (Math.random() - 0.5) * 4 - 2,
+                    life: 1,
+                    color: `hsl(${190 + Math.random() * 30}, 100%, 70%)`,
+                    size: Math.random() * 4 + 2
+                });
+            }
+        }
+
+        function createObstacleParticle(x, y) {
+            for (let i = 0; i < 15; i++) {
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 6,
+                    vy: (Math.random() - 0.5) * 6 - 2,
+                    life: 1,
+                    color: `hsl(${Math.random() * 60}, 100%, 60%)`,
+                    size: Math.random() * 5 + 2
+                });
+            }
+        }
+
+        function createCoinParticle(x, y) {
+            for (let i = 0; i < 10; i++) {
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 3,
+                    vy: -Math.random() * 4 - 1,
+                    life: 1,
+                    color: '#ffd200',
+                    size: Math.random() * 3 + 1
+                });
+            }
+        }
+
+        // رسم الجسيمات
+        function drawParticles() {
+            particles = particles.filter(p => p.life > 0);
+            particles.forEach(p => {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fillStyle = p.color;
+                ctx.globalAlpha = p.life;
+                ctx.fill();
+                ctx.globalAlpha = 1;
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += 0.15;
+                p.life -= 0.02;
+            });
+        }
+
+        // إنشاء عقبات
+        function spawnObstacle() {
+            const height = Math.random() * 25 + 20;
+            const type = Math.random();
+            if (type < 0.7) {
+                obstacles.push({
+                    x: window.innerWidth + 50,
+                    width: 25,
+                    height: height,
+                    passed: false
+                });
+            } else {
+                // عقبة طائرة (عالية)
+                obstacles.push({
+                    x: window.innerWidth + 50,
+                    width: 20,
+                    height: height + 30,
+                    passed: false,
+                    flying: true
+                });
+            }
+        }
+
+        // إنشاء عملات
+        function spawnCoin() {
+            const heights = [120, 160, 200, 140, 180];
+            coins.push({
+                x: window.innerWidth + 50,
+                y: 60 + heights[Math.floor(Math.random() * heights.length)],
+                collected: false,
+                anim: Math.random() * Math.PI * 2
+            });
+        }
+
+        // تحديث العقبات
+        function updateObstacles() {
+            obstacles.forEach(obs => {
+                obs.x -= gameSpeed;
+                if (!obs.passed && obs.x + obs.width < 80) {
+                    obs.passed = true;
+                    score++;
+                    scoreEl.textContent = score;
+                }
+                // التصادم
+                const rx = 80, ry = 60 + 50 - (isJumping ? 140 : 0), rw = 50, rh = 50;
+                if (isJumping) {
+                    const jumpProgress = (parseFloat(runner.style.bottom || 60) - 60) / 140;
+                    ry = 60 + 50 * (1 - jumpProgress * 2);
+                }
+                if (obs.x < rx + rw && obs.x + obs.width > rx && 60 + obs.height > ry && obs.y < ry + rh) {
+                    gameOverFn();
+                }
+            });
+            obstacles = obstacles.filter(obs => obs.x > -50);
+        }
+
+        // تحديث العملات
+        function updateCoins() {
+            coins.forEach(coin => {
+                coin.x -= gameSpeed;
+                coin.anim += 0.1;
+                // جمع العملة
+                if (!coin.collected && Math.abs(coin.x - 95) < 30 && Math.abs(coin.y - (60 + 25)) < 30) {
+                    coin.collected = true;
+                    score += 3;
+                    scoreEl.textContent = score;
+                    createCoinParticle(coin.x, coin.y);
+                }
+            });
+            coins = coins.filter(c => c.x > -50 && !c.collected);
+        }
+
+        // رسم العقبات والعملات
+        function drawObstacles() {
+            obstacles.forEach(obs => {
+                ctx.fillStyle = obs.flying ? '#a855f7' : '#ef4444';
+                ctx.shadowColor = obs.flying ? '#a855f7' : '#ef4444';
+                ctx.shadowBlur = 15;
+                const gradient = ctx.createLinearGradient(obs.x, 60 + 60 - obs.height, obs.x, 60 + 60);
+                gradient.addColorStop(0, obs.flying ? '#c084fc' : '#f87171');
+                gradient.addColorStop(1, obs.flying ? '#7c3aed' : '#dc2626');
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.roundRect(obs.x, 60 + 60 - obs.height, obs.width, obs.height, 5);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            });
+        }
+
+        function drawCoins() {
+            coins.forEach(coin => {
+                const size = 12 + Math.sin(coin.anim) * 3;
+                ctx.beginPath();
+                ctx.arc(coin.x, coin.y, size, 0, Math.PI * 2);
+                ctx.fillStyle = '#ffd200';
+                ctx.shadowColor = '#ffd200';
+                ctx.shadowBlur = 12;
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                // رمز العملة
+                ctx.fillStyle = '#b45309';
+                ctx.font = `${size}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('💰', coin.x, coin.y);
+            });
+        }
+
+        // رسم الجري
+        function drawRunner() {
+            const x = 80;
+            const y = 60 + 60 - 50;
+            // ظل
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+            ctx.beginPath();
+            ctx.ellipse(x + 25, 60 + 55, 25, 5, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // الجسم
+            const gradient = ctx.createLinearGradient(x, y, x + 50, y + 50);
+            gradient.addColorStop(0, '#00d2ff');
+            gradient.addColorStop(1, '#3a7bd5');
+            ctx.fillStyle = gradient;
+            ctx.shadowColor = '#00d2ff';
+            ctx.shadowBlur = 15;
+            ctx.beginPath();
+            ctx.roundRect(x, y, 50, 50, 10);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+
+            // الوجه
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(x + 35, y + 18, 6, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#1a1a2e';
+            ctx.beginPath();
+            ctx.arc(x + 37, y + 18, 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // ابتسامة
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(x + 35, y + 25, 5, 0.1 * Math.PI, 0.9 * Math.PI);
+            ctx.stroke();
+        }
+
+        // الخلفية النجمية
+        let stars = [];
+        for (let i = 0; i < 100; i++) {
+            stars.push({
+                x: Math.random() * 2000,
+                y: Math.random() * 800,
+                size: Math.random() * 2 + 0.5,
+                speed: Math.random() * 2 + 0.5,
+                twinkle: Math.random() * Math.PI * 2
+            });
+        }
+
+        function drawStars() {
+            stars.forEach(star => {
+                star.x -= star.speed;
+                star.twinkle += 0.03;
+                if (star.x < -5) star.x = window.innerWidth + 5;
+                const alpha = 0.4 + Math.sin(star.twinkle) * 0.3;
+                ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+
+        function drawGround() {
+            ctx.fillStyle = '#0f3460';
+            ctx.fillRect(0, 60 + 60, window.innerWidth, 60);
+            ctx.strokeStyle = '#e94560';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(0, 60 + 60);
+            ctx.lineTo(window.innerWidth, 60 + 60);
+            ctx.stroke();
+        }
+
+        // انتهاء اللعبة
+        function gameOverFn() {
+            isGameOver = true;
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('divRunnerHighScore', highScore);
+                highScoreEl.textContent = highScore;
+            }
+            finalScoreEl.textContent = score;
+            gameOverScreen.style.display = 'block';
+            createObstacleParticle(95, 60 + 25);
+        }
+
+        // إعادة اللعب
+        function restartGame() {
+            isGameOver = false;
+            score = 0;
+            gameSpeed = 5;
+            obstacles = [];
+            coins = [];
+            particles = [];
+            scoreEl.textContent = '0';
+            gameOverScreen.style.display = 'none';
+            runner.classList.remove('jumping');
+            isJumping = false;
+        }
+
+        // حلقة اللعبة
+        let obstacleTimer = 0;
+        let coinTimer = 0;
+
+        function gameLoop() {
+            ctx.clearRect(0, 0, particleCanvas.width, particleCanvas.height);
+
+            drawStars();
+            drawGround();
+            drawCoins();
+            drawObstacles();
+            drawRunner();
+            drawParticles();
+
+            if (!isGameOver) {
+                obstacleTimer++;
+                coinTimer++;
+
+                if (obstacleTimer > 80 - Math.min(score * 0.5, 40)) {
+                    spawnObstacle();
+                    obstacleTimer = 0;
+                }
+
+                if (coinTimer > 120) {
+                    spawnCoin();
+                    coinTimer = 0;
+                }
+
+                updateObstacles();
+                updateCoins();
+
+                if (score > 0 && score % 10 === 0 && frameCount % 500 === 0) {
+                    gameSpeed += 0.2;
+                }
+
+                score++;
+                frameCount++;
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        gameLoop();
+    </script>
+</body>
+</html>
