@@ -1,39 +1,160 @@
-**Welcome to your Base44 project** 
+# إديوتراك | EduTrack
 
-**About**
+> نظام إدارة التعليم الذكي — منصة متكاملة لإدارة المؤسسات التعليمية
 
-View and Edit  your app on [Base44.com](http://Base44.com) 
+---
 
-This project contains everything you need to run your app locally.
+## نظرة عامة
 
-**Edit the code in your local development environment**
+إديوتراك هو نظام إدارة مدارس حديث وشامل مصمم لتبسيط العمليات التعليمية، وتعزيز التواصل، وتوفير بوابة موحدة للطلاب والمعلمين وأولياء الأمور والموظفين الإداريين.
 
-Any change pushed to the repo will also be reflected in the Base44 Builder.
+## المميزات الرئيسية
 
-**Prerequisites:** 
+### 🎓 إدارة الطلاب
+- ملفات طلاب شاملة مع بطاقات رقمية ورموز QR
+- دليل طلاب متقدم مع بحث وتصفية
+- استيراد وتصدير البيانات بصيغة CSV
 
-1. Clone the repository using the project's Git URL 
-2. Navigate to the project directory
-3. Install dependencies: `npm install`
-4. Create an `.env.local` file and set the right environment variables
+### 📋 الحضور والغياب
+- تتبع الحضور في الوقت الفعلي
+- إشعارات تلقائية لأولياء الأمور عند الغياب
+- تقارير وتحليلات أسبوعية وشهرية
+
+### 🏫 البوابات المتخصصة
+- **بوابة المعلم** — إدارة الفصول، الرصد، التصحيح
+- **بوابة الطالب** — الواجبات، المواد الدراسية، الألعاب التعليمية
+- **بوابة ولي الأمر** — متابعة الأبناء، الرسوم، التواصل
+- **بوابة الموظف** — الإجازات، المهام، دليل الزملاء
+- **بوابة مشرف الحافلة** — الصعود، المسار، الطوارئ
+
+### 📚 الإدارة الأكاديمية
+- إدارة المواد الدراسية والفصول
+- قاعات المذاكرة الجماعية مع حجز مباشر
+- المواد الدراسية الرقمية (PDF، فيديو، صور)
+
+### 💰 العمليات الإدارية
+- السجلات المالية وتتبع الرسوم
+- إدارة المكتبة واستعارة الكتب
+- متجر المدرسة (زي موحد، أدوات، كتب)
+- نظام الجوائز والتكريم
+
+### 🔒 الأمان والإدارة
+- سجلات تدقيق شاملة (Audit Logs)
+- إدارة الصلاحيات والوصول
+- إدارة الكادر الإداري
+
+---
+
+## التقنيات المستخدمة
+
+| التقنية | الوصف |
+|---------|-------|
+| **React 18+** | إطار العمل الأساسي |
+| **Vite** | بناء سريع وأداء محسّن |
+| **TanStack Query** | جلب وتخزين البيانات بكفاءة |
+| **Tailwind CSS** | تصميم utility-first |
+| **Framer Motion** | رسوم متحركة سلسة |
+| **Lucide React** | مكتبة الأيقونات |
+| **React Router DOM** | التنقل بين الصفحات |
+| **Cairo Font** | خط عربي موحد (200-900) |
+
+---
+
+## هيكل المشروع
 
 ```
+├── src/
+│   ├── api/              # الاتصال بالـ API وقاعدة البيانات
+│   ├── components/       # المكونات القابلة لإعادة الاستخدام
+│   │   ├── ui/           # مكونات الواجهة الأساسية
+│   │   ├── layout/       # القوالب الرئيسية (Sidebar)
+│   │   ├── shared/       # مكونات مشتركة (Dialogs)
+│   │   ├── portal/       # مكونات البوابات
+│   │   └── teacher/      # مكونات المعلم
+│   ├── pages/            # الصفحات الرئيسية
+│   ├── lib/              # الأدوات والسياقات (Auth, Language)
+│   ├── hooks/            # Hooks مخصصة
+│   └── utils/            # دوال مساعدة
+├── base44/               # إعدادات قاعدة البيانات والـ Functions
+├── server/               # الخادم المحلي
+└── public/               # الملفات الثابتة
+```
+
+---
+
+## التشغيل المحلي
+
+### المتطلبات
+- Node.js 18+
+- npm أو pnpm
+
+### خطوات التشغيل
+
+1. استنساخ المستودع:
+```bash
+git clone https://github.com/almasrimoutasim-create/EduTrack.git
+cd EduTrack
+```
+
+2. تثبيت الحزم:
+```bash
+npm install
+```
+
+3. إنشاء ملف البيئة:
+```bash
+# أنشئ ملف .env.local وأضف:
 VITE_BASE44_APP_ID=your_app_id
 VITE_BASE44_APP_BASE_URL=your_backend_url
-
-e.g.
-VITE_BASE44_APP_ID=cbef744a8545c389ef439ea6
-VITE_BASE44_APP_BASE_URL=https://my-to-do-list-81bfaad7.base44.app
 ```
 
-Run the app: `npm run dev`
+4. تشغيل التطبيق:
+```bash
+npm run dev
+```
 
-**Publish your changes**
+5. فتح المتصفح على:
+```
+http://localhost:5173
+```
 
-Open [Base44.com](http://Base44.com) and click on Publish.
+---
 
-**Docs & Support**
+## دعم اللغة العربية
 
-Documentation: [https://docs.base44.com/Integrations/Using-GitHub](https://docs.base44.com/Integrations/Using-GitHub)
+- ✅ خط Cairo موحد لجميع الواجهات
+- ✅ دعم كامل لاتجاه RTL
+- ✅ أرقام إنجليزية في الوضع العربي
+- ✅ تبديل فوري بين العربية والإنجليزية
+- ✅ نصوص عربية احترافية في جميع الصفحات
 
-Support: [https://app.base44.com/support](https://app.base44.com/support)
+---
+
+## خارطة التطوير
+
+### المرحلة الأولى: الجودة والاستقرار
+- [ ] اختبارات شاملة بـ Vitest
+- [ ] مراقبة الأخطاء بـ Sentry
+- [ ] تحسين الأداء وتحميل الصفحات
+
+### المرحلة الثانية: تعزيز المميزات
+- [ ] تحليلات ذكية بالذكاء الاصطناعي
+- [ ] نظام محادثات فوري بين المعلم وولي الأمر
+- [ ] دعم العمل بدون إنترنت (PWA)
+
+### المرحلة الثالثة: التوسع
+- [ ] تطبيق جوال بـ React Native
+- [ ] تكامل مع Google Classroom
+- [ ] تقارير ديناميكية متقدمة
+
+---
+
+## الترخيص
+
+جميع الحقوق محفوظة © 2026 إديوتراك
+
+---
+
+## الدعم
+
+للتوثيق والدعم الفني، تواصل مع فريق التطوير.
