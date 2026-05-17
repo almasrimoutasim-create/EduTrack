@@ -3,7 +3,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Clock, CreditCard, Search, UserCheck } from "lucide-react";
 import { format } from "date-fns";
@@ -152,9 +151,9 @@ export default function RoomAttendanceDialog({ room, open, onClose }) {
               disabled={scanning}
               autoComplete="off"
             />
-            <Button onClick={handleScan} disabled={scanning || !cardInput.trim()} className="gap-1.5">
+            <button onClick={handleScan} disabled={scanning || !cardInput.trim()} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed h-11 px-4 gap-1.5">
               <Search className="h-4 w-4" /> Mark
-            </Button>
+            </button>
           </div>
           <p className="text-xs text-muted-foreground mt-1">Press Enter or click Mark after scanning</p>
         </div>

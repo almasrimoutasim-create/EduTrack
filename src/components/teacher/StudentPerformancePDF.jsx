@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { base44 } from "@/api/base44Client";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -207,9 +206,9 @@ export default function StudentPerformancePDF({ teacher }) {
 
   return (
     <>
-      <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setOpen(true)}>
+      <button className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border-2 border-stone-200 bg-white text-stone-800 hover:bg-stone-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed h-8 px-3 gap-1.5" onClick={() => setOpen(true)}>
         <FileDown className="h-4 w-4" /> Export PDF Report
-      </Button>
+      </button>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
@@ -229,10 +228,10 @@ export default function StudentPerformancePDF({ teacher }) {
             {error && <p className="text-sm text-destructive">{error}</p>}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={generate} disabled={generating || !studentId.trim()} className="gap-1.5">
+            <button className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border-2 border-stone-200 bg-white text-stone-800 hover:bg-stone-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed h-11 px-4" onClick={() => setOpen(false)}>Cancel</button>
+            <button onClick={generate} disabled={generating || !studentId.trim()} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed h-11 px-4 gap-1.5">
               {generating ? <><Loader2 className="h-4 w-4 animate-spin" /> Generating...</> : <><FileDown className="h-4 w-4" /> Generate & Download</>}
-            </Button>
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

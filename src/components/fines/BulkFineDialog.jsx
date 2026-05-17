@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -81,9 +80,9 @@ export default function BulkFineDialog({ students, onDone }) {
 
   return (
     <>
-      <Button variant="outline" onClick={() => setOpen(true)} className="gap-1.5">
+      <button className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border-2 border-stone-200 bg-white text-stone-800 hover:bg-stone-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed h-11 px-4 gap-1.5" onClick={() => setOpen(true)}>
         <ZapOff className="h-4 w-4" />Bulk Issue Fine
-      </Button>
+      </button>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto max-w-lg">
@@ -162,13 +161,14 @@ export default function BulkFineDialog({ students, onDone }) {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button
+            <button className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border-2 border-stone-200 bg-white text-stone-800 hover:bg-stone-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed h-11 px-4" onClick={() => setOpen(false)}>Cancel</button>
+            <button
+              className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed h-11 px-4"
               onClick={handleSubmit}
               disabled={saving || selectedIds.size === 0 || !form.amount || !form.reason}
             >
               {saving ? "Issuing..." : `Issue to ${selectedIds.size}`}
-            </Button>
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

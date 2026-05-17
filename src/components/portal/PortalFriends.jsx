@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, UserPlus, Check, X } from "lucide-react";
 import StudentProfile from "./StudentProfile";
@@ -121,8 +120,8 @@ export default function PortalFriends({ me, onViewProfile }) {
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <Button size="sm" className="h-8 w-8 p-0" onClick={() => respond(req, "accepted")}><Check className="h-4 w-4" /></Button>
-                    <Button size="sm" variant="outline" className="h-8 w-8 p-0" onClick={() => respond(req, "declined")}><X className="h-4 w-4" /></Button>
+                    <button className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed h-8 w-8 p-0" onClick={() => respond(req, "accepted")}><Check className="h-4 w-4" /></button>
+                    <button className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border-2 border-stone-200 bg-white text-stone-800 hover:bg-stone-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed h-8 w-8 p-0" onClick={() => respond(req, "declined")}><X className="h-4 w-4" /></button>
                   </div>
                 </CardContent>
               </Card>
@@ -193,9 +192,9 @@ export default function PortalFriends({ me, onViewProfile }) {
                     ) : isPending ? (
                       <span className="text-xs text-muted-foreground">Sent</span>
                     ) : (
-                      <Button size="sm" variant="outline" className="h-8 gap-1" onClick={() => sendRequest(person)}>
+                      <button className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border-2 border-stone-200 bg-white text-stone-800 hover:bg-stone-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed h-8 px-3 gap-1" onClick={() => sendRequest(person)}>
                         <UserPlus className="h-3.5 w-3.5" /> Add
-                      </Button>
+                      </button>
                     )}
                   </CardContent>
                 </Card>

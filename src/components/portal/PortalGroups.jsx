@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { UsersRound, Plus, ArrowLeft, Send, Lock, Globe, Clock } from "lucide-react";
@@ -158,7 +157,7 @@ export default function PortalGroups({ me }) {
     return (
       <div className="flex flex-col h-[calc(100vh-200px)]">
         <div className="flex items-center gap-3 mb-3">
-          <Button variant="ghost" size="icon" onClick={() => setOpenGroup(null)}><ArrowLeft className="h-4 w-4" /></Button>
+          <button className="cursor-pointer text-stone-400 hover:text-stone-900 hover:bg-stone-100 rounded-lg px-3 py-2 h-10 w-10 p-0 flex items-center justify-center" onClick={() => setOpenGroup(null)}><ArrowLeft className="h-4 w-4" /></button>
           <div className="flex-1">
             <div className="flex items-center gap-1.5">
               <p className="font-semibold">{openGroup.name}</p>
@@ -176,8 +175,8 @@ export default function PortalGroups({ me }) {
               <div key={memberId} className="flex items-center justify-between">
                 <span className="text-xs text-amber-900">User ID: {memberId.slice(0, 8)}...</span>
                 <div className="flex gap-1.5">
-                  <Button size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={() => handlePendingMember(openGroup, memberId, true)}>Accept</Button>
-                  <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => handlePendingMember(openGroup, memberId, false)}>Decline</Button>
+                  <button className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed h-7 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={() => handlePendingMember(openGroup, memberId, true)}>Accept</button>
+                  <button className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border-2 border-stone-200 bg-white text-stone-800 hover:bg-stone-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed h-7 text-xs" onClick={() => handlePendingMember(openGroup, memberId, false)}>Decline</button>
                 </div>
               </div>
             ))}
@@ -223,7 +222,7 @@ export default function PortalGroups({ me }) {
         <div className="flex gap-2 mt-2">
           <Input placeholder="Type a message..." value={msgInput} onChange={handleInputChange}
             onKeyDown={e => e.key === "Enter" && sendMessage()} />
-          <Button size="icon" onClick={sendMessage}><Send className="h-4 w-4" /></Button>
+          <button onClick={sendMessage} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed w-10 h-10 p-0"><Send className="h-4 w-4" /></button>
         </div>
       </div>
     );
@@ -233,9 +232,9 @@ export default function PortalGroups({ me }) {
     <div className="space-y-5">
       <div className="flex justify-between items-center">
         <p className="font-semibold text-sm">My Groups</p>
-        <Button size="sm" className="gap-1" onClick={() => setShowCreate(true)}>
+        <button className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed h-8 px-3 gap-1" onClick={() => setShowCreate(true)}>
           <Plus className="h-3.5 w-3.5" /> Create
-        </Button>
+        </button>
       </div>
 
       {myGroups.length === 0 && <p className="text-sm text-muted-foreground text-center py-3">You haven't joined any groups yet.</p>}
@@ -287,9 +286,9 @@ export default function PortalGroups({ me }) {
                         <Clock className="h-3.5 w-3.5" /> Pending
                       </div>
                     ) : (
-                      <Button size="sm" variant="outline" onClick={() => joinGroup(g)} className="shrink-0">
+                      <button className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border-2 border-stone-200 bg-white text-stone-800 hover:bg-stone-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed h-8 px-3 shrink-0" onClick={() => joinGroup(g)}>
                         {g.is_private ? "Request" : "Join"}
-                      </Button>
+                      </button>
                     )}
                   </CardContent>
                 </Card>
@@ -319,7 +318,7 @@ export default function PortalGroups({ me }) {
                 <p className="text-xs text-muted-foreground">{newPrivate ? "Members must request to join and be approved" : "Anyone can join instantly"}</p>
               </div>
             </label>
-            <Button className="w-full" onClick={createGroup}>Create Group</Button>
+            <button className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed w-full h-11 px-4" onClick={createGroup}>Create Group</button>
           </div>
         </DialogContent>
       </Dialog>

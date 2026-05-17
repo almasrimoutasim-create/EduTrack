@@ -1,6 +1,5 @@
 import { useState, useRef } from "react";
 import { base44 } from "@/api/base44Client";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Upload, Video, Trash2, Loader2 } from "lucide-react";
 
@@ -25,10 +24,10 @@ export default function VideoUploadPanel({ roomId, videos = [], onVideoAdded, on
     <div className="space-y-4">
       {/* Upload Button */}
       <div className="flex gap-2 flex-wrap">
-        <Button variant="outline" className="gap-2" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+        <button className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border-2 border-stone-200 bg-white text-stone-800 hover:bg-stone-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed h-11 px-4 gap-2" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
           {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
           {uploading ? "Uploading..." : "Upload Video"}
-        </Button>
+        </button>
         <input ref={fileInputRef} type="file" accept="video/*" className="hidden" onChange={handleFileUpload} />
       </div>
 
@@ -47,9 +46,9 @@ export default function VideoUploadPanel({ roomId, videos = [], onVideoAdded, on
                   <p className="text-xs text-muted-foreground capitalize">{v.type}</p>
                 </div>
                 <div className="flex gap-1">
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => onVideoDeleted(v.id)}>
+                  <button className="cursor-pointer text-stone-400 hover:text-stone-900 hover:bg-stone-100 rounded-lg px-3 py-2 h-7 w-7 p-0 flex items-center justify-center text-destructive" onClick={() => onVideoDeleted(v.id)}>
                     <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
+                  </button>
                 </div>
               </div>
               <video src={v.video_url} controls className="w-full rounded-lg max-h-40 bg-black" />

@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -103,7 +102,7 @@ export default function StudyRoomFormDialog({ open, onClose, room }) {
               <Label>Room Code *</Label>
               <div className="flex gap-2">
                 <Input value={form.room_code} onChange={e => update("room_code", e.target.value.toUpperCase())} placeholder="e.g. ABC123" />
-                <Button type="button" variant="outline" size="sm" onClick={generateCode}>Generate</Button>
+                <button type="button" className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border-2 border-stone-200 bg-white text-stone-800 hover:bg-stone-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed h-8 px-3" onClick={generateCode}>Generate</button>
               </div>
             </div>
             <div>
@@ -151,9 +150,9 @@ export default function StudyRoomFormDialog({ open, onClose, room }) {
               </SelectContent>
             </Select>
           </div>
-          <Button onClick={handleSave} disabled={saving || !form.title || !form.room_code} className="w-full">
+          <button onClick={handleSave} disabled={saving || !form.title || !form.room_code} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed w-full h-11">
             {saving ? "Saving..." : isEdit ? "Update Room" : "Book Room"}
-          </Button>
+          </button>
         </div>
       </DialogContent>
     </Dialog>

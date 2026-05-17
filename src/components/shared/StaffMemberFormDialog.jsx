@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -109,9 +108,9 @@ export default function StaffMemberFormDialog({ open, onClose, member }) {
             <Label>Notes</Label>
             <Textarea value={form.notes} onChange={e => update("notes", e.target.value)} rows={2} />
           </div>
-          <Button onClick={handleSave} disabled={saving || !form.full_name || !form.employee_id || !form.role} className="w-full">
+          <button onClick={handleSave} disabled={saving || !form.full_name || !form.employee_id || !form.role} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed w-full h-11">
             {saving ? "Saving..." : isEdit ? "Update Staff" : "Add Staff Member"}
-          </Button>
+          </button>
         </div>
       </DialogContent>
     </Dialog>

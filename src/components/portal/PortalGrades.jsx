@@ -2,7 +2,6 @@ import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Card, CardContent } from "@/components/ui/card";
 import { BookOpen, Download } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import GradeTrendChart from "@/components/portal/GradeTrendChart";
 
 export default function PortalGrades({ student }) {
@@ -62,9 +61,9 @@ export default function PortalGrades({ student }) {
 
       <div className="flex items-center justify-between">
         <h3 className="font-semibold">My Grades</h3>
-        <Button size="sm" variant="outline" className="gap-1.5" onClick={downloadReport}>
+        <button className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border-2 border-stone-200 bg-white text-stone-800 hover:bg-stone-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed h-8 px-3 gap-1.5" onClick={downloadReport}>
           <Download className="h-3.5 w-3.5" /> Download
-        </Button>
+        </button>
       </div>
 
       {terms.map(term => (

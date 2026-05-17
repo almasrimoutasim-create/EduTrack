@@ -2,7 +2,6 @@ import { useState, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -48,9 +47,9 @@ function GroupCard({ group, me, onOpen, onJoin }) {
           </div>
         </div>
         {!joined ? (
-          <Button size="sm" className="shrink-0" onClick={e => { e.stopPropagation(); onJoin(group); }}>Join</Button>
+          <button className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed h-8 px-3 shrink-0" onClick={e => { e.stopPropagation(); onJoin(group); }}>Join</button>
         ) : (
-          <Button size="sm" variant="outline" className="shrink-0" onClick={() => onOpen(group)}>Open</Button>
+          <button className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border-2 border-stone-200 bg-white text-stone-800 hover:bg-stone-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed h-8 px-3 shrink-0" onClick={() => onOpen(group)}>Open</button>
         )}
       </CardContent>
     </Card>
@@ -226,9 +225,9 @@ function GroupFeed({ group, me, onBack }) {
               </button>
               <input ref={fileRef} type="file" className="hidden" onChange={handleFile} />
             </div>
-            <Button size="sm" onClick={submit} disabled={uploading || (!text.trim() && !mediaFile)} className="gap-1.5">
+            <button className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed h-8 px-3 gap-1.5" onClick={submit} disabled={uploading || (!text.trim() && !mediaFile)}>
               <Send className="h-3.5 w-3.5" /> {uploading ? "Posting..." : "Post"}
-            </Button>
+            </button>
           </div>
         </CardContent>
       </Card>
@@ -340,9 +339,9 @@ export default function PortalStudyGroups({ me }) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="font-bold text-lg">Study Groups</h2>
-        <Button size="sm" className="gap-1.5" onClick={() => setShowCreate(true)}>
+        <button className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed h-8 px-3 gap-1.5" onClick={() => setShowCreate(true)}>
           <Plus className="h-4 w-4" /> New Group
-        </Button>
+        </button>
       </div>
 
       {/* Search */}
@@ -397,10 +396,10 @@ export default function PortalStudyGroups({ me }) {
             </label>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
-            <Button onClick={createGroup} disabled={creating || !form.name.trim()}>
+            <button className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border-2 border-stone-200 bg-white text-stone-800 hover:bg-stone-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed h-11 px-4" onClick={() => setShowCreate(false)}>Cancel</button>
+            <button className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed h-11 px-4" onClick={createGroup} disabled={creating || !form.name.trim()}>
               {creating ? "Creating..." : "Create Group"}
-            </Button>
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

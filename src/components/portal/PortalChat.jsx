@@ -3,7 +3,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { ArrowLeft, Send, MessageCircle, Check, CheckCheck } from "lucide-react";
 
 function makeConversationKey(id1, id2) {
@@ -157,7 +156,7 @@ export default function PortalChat({ me }) {
     return (
       <div className="flex flex-col h-[calc(100vh-200px)]">
         <div className="flex items-center gap-3 mb-4">
-          <Button variant="ghost" size="icon" onClick={() => setActiveFriend(null)}><ArrowLeft className="h-4 w-4" /></Button>
+          <button className="cursor-pointer text-stone-400 hover:text-stone-900 hover:bg-stone-100 rounded-lg px-3 py-2 h-10 w-10 p-0 flex items-center justify-center" onClick={() => setActiveFriend(null)}><ArrowLeft className="h-4 w-4" /></button>
           {activeFriend.photo_url ? (
             <img src={activeFriend.photo_url} className="h-9 w-9 rounded-full object-cover" alt="" />
           ) : (
@@ -219,7 +218,7 @@ export default function PortalChat({ me }) {
             onChange={handleInputChange}
             onKeyDown={e => e.key === "Enter" && sendMessage()}
           />
-          <Button size="icon" onClick={sendMessage}><Send className="h-4 w-4" /></Button>
+          <button onClick={sendMessage} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed w-10 h-10 p-0"><Send className="h-4 w-4" /></button>
         </div>
       </div>
     );

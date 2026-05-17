@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from "react";
-import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Camera, X } from "lucide-react";
 import jsQR from "jsqr";
@@ -84,14 +83,13 @@ export default function QRCodeScanner({ onScan, isOpen, onClose }) {
           <p className="text-sm text-muted-foreground text-center">
             Point your camera at a QR code to scan
           </p>
-          <Button 
-            variant="outline" 
+          <button 
+            className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border-2 border-stone-200 bg-white text-stone-800 hover:bg-stone-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed w-full h-11 px-4 gap-2"
             onClick={() => { stopCamera(); onClose(); }} 
-            className="w-full gap-2"
           >
             <X className="h-4 w-4" />
             Cancel
-          </Button>
+          </button>
         </div>
       </DialogContent>
     </Dialog>

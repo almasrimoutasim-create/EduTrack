@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -84,7 +83,7 @@ export default function AwardsManager() {
           <Trophy className="h-5 w-5 text-yellow-500" />
           <h2 className="font-bold text-lg">Student Awards</h2>
         </div>
-        <Button onClick={() => setShowAdd(true)} className="gap-1.5"><Plus className="h-4 w-4" /> Give Award</Button>
+        <button onClick={() => setShowAdd(true)} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed h-11 px-4 gap-1.5"><Plus className="h-4 w-4" /> Give Award</button>
       </div>
 
       {Object.keys(byStudent).length === 0 ? (
@@ -180,10 +179,10 @@ export default function AwardsManager() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAdd(false)}>Cancel</Button>
-            <Button onClick={save} disabled={saving || !form.title || !selectedStudent}>
+            <button className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border-2 border-stone-200 bg-white text-stone-800 hover:bg-stone-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed h-11 px-4" onClick={() => setShowAdd(false)}>Cancel</button>
+            <button className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed h-11 px-4" onClick={save} disabled={saving || !form.title || !selectedStudent}>
               {saving ? "Saving..." : "Give Award 🏆"}
-            </Button>
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Video, LogOut } from "lucide-react";
@@ -74,27 +73,24 @@ export default function PortalCalendar({ student }) {
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold">{format(selectedDate, "MMMM yyyy")}</h3>
             <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
+              <button
+                className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border-2 border-stone-200 bg-white text-stone-800 hover:bg-stone-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed h-8 px-3"
                 onClick={() => setSelectedDate(new Date(selectedDate.getFullYear(), selectedDate.getMonth() - 1))}
               >
                 ←
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
+              </button>
+              <button
+                className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border-2 border-stone-200 bg-white text-stone-800 hover:bg-stone-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed h-8 px-3"
                 onClick={() => setSelectedDate(new Date())}
               >
                 Today
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
+              </button>
+              <button
+                className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border-2 border-stone-200 bg-white text-stone-800 hover:bg-stone-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed h-8 px-3"
                 onClick={() => setSelectedDate(new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1))}
               >
                 →
-              </Button>
+              </button>
             </div>
           </div>
 
@@ -180,14 +176,13 @@ export default function PortalCalendar({ student }) {
                         <p className="font-medium">{schedule.room || "TBA"}</p>
                       </div>
                     </div>
-                    <Button
-                      size="sm"
-                      className="w-full text-xs"
+                    <button
+                      className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed h-8 px-3 w-full text-xs"
                       onClick={() => handleJoin(schedule)}
                     >
                       <Video className="h-3 w-3 mr-1.5" />
                       {live ? "Join Class" : "Class Details"}
-                    </Button>
+                    </button>
                   </CardContent>
                 </Card>
               );
@@ -225,15 +220,13 @@ export default function PortalCalendar({ student }) {
                 📹 Live video feed would be displayed here. This is a placeholder for the video conference interface.
               </p>
             </div>
-            <Button
-              variant="destructive"
-              size="sm"
-              className="w-full"
+            <button
+              className="cursor-pointer bg-rose-500 text-white hover:bg-rose-600 rounded-xl px-4 py-2 w-full"
               onClick={handleLeave}
             >
               <LogOut className="h-3 w-3 mr-1.5" />
               Leave Class
-            </Button>
+            </button>
           </div>
           <DialogClose />
         </DialogContent>

@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { Button } from "@/components/ui/button";
 import { Bell, MessageSquare, X } from "lucide-react";
 import { format } from "date-fns";
 
@@ -116,17 +115,15 @@ export default function ClassStartNotification({ student }) {
           </div>
 
           {notif.room && (
-            <Button
-              size="sm"
-              variant="secondary"
-              className="w-full mt-3 gap-2 text-xs"
+            <button
+              className="cursor-pointer bg-stone-100 text-stone-800 hover:bg-stone-200 rounded-xl px-4 py-2 w-full mt-3 gap-2 text-xs"
               onClick={() => {
                 window.location.href = `/room-view?room=${notif.room.id}&name=${student?.full_name || "Student"}`;
               }}
             >
               <MessageSquare className="h-3 w-3" />
               Join Class Chat
-            </Button>
+            </button>
           )}
         </div>
       ))}

@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AlertCircle, Loader2, LogIn } from "lucide-react";
 import { toast } from "sonner";
@@ -73,10 +72,10 @@ export default function JoinRoomDialog({ isOpen, onClose, onJoinSuccess, student
           )}
 
           <div className="flex gap-2 pt-2">
-            <Button variant="outline" onClick={onClose} disabled={loading} className="flex-1">
+            <button className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border-2 border-stone-200 bg-white text-stone-800 hover:bg-stone-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex-1 h-11 px-4" onClick={onClose} disabled={loading}>
               Cancel
-            </Button>
-            <Button onClick={handleJoin} disabled={loading} className="flex-1 gap-2">
+            </button>
+            <button onClick={handleJoin} disabled={loading} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed flex-1 h-11 px-4 gap-2">
               {loading ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -88,7 +87,7 @@ export default function JoinRoomDialog({ isOpen, onClose, onJoinSuccess, student
                   Join Room
                 </>
               )}
-            </Button>
+            </button>
           </div>
         </div>
       </DialogContent>

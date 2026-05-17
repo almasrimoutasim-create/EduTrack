@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -122,8 +121,8 @@ export default function RateTeachersTab({ me }) {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setSelected(null)}>Cancel</Button>
-            <Button onClick={submit} disabled={saving}>{saving ? "Submitting..." : "Submit Rating"}</Button>
+            <button className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border-2 border-stone-200 bg-white text-stone-800 hover:bg-stone-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed h-11 px-4" onClick={() => setSelected(null)}>Cancel</button>
+            <button className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed h-11 px-4" onClick={submit} disabled={saving}>{saving ? "Submitting..." : "Submit Rating"}</button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

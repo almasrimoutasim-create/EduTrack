@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Send, MessageSquare } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
@@ -93,9 +92,9 @@ export default function CommunityChat({ currentUser }) {
           onKeyDown={e => e.key === "Enter" && handleSend()}
           className="h-9 text-sm"
         />
-        <Button size="icon" className="h-9 w-9 shrink-0" onClick={handleSend} disabled={sending || !text.trim()}>
+        <button onClick={handleSend} disabled={sending || !text.trim()} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed h-9 w-9 p-0 shrink-0">
           <Send className="h-4 w-4" />
-        </Button>
+        </button>
       </div>
     </Card>
   );

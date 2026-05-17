@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertCircle, CreditCard, Wallet, Lock } from "lucide-react";
@@ -115,14 +114,13 @@ export default function ParentFinesTab({ student, privacyMode }) {
               <div className="text-right shrink-0">
                 <p className="text-lg font-bold text-destructive">${fine.amount?.toFixed(2)}</p>
                 {fine.status === "pending" && (
-                  <Button
-                    size="sm"
-                    className="mt-2 bg-destructive hover:bg-destructive/90"
+                  <button
+                    className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed mt-2 h-8 px-3 bg-rose-500 hover:bg-rose-600"
                     onClick={() => handlePayFine(fine)}
                     disabled={paying === fine.id}
                   >
                     {paying === fine.id ? "Paying..." : "Pay Now"}
-                  </Button>
+                  </button>
                 )}
               </div>
             </div>
@@ -234,11 +232,11 @@ export default function ParentFinesTab({ student, privacyMode }) {
           )}
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setPaymentDialog(null)}>
+            <button className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border-2 border-stone-200 bg-white text-stone-800 hover:bg-stone-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed h-11 px-4" onClick={() => setPaymentDialog(null)}>
               Cancel
-            </Button>
-            <Button
-              className="bg-destructive hover:bg-destructive/90"
+            </button>
+            <button
+              className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed h-11 px-4 bg-rose-500 hover:bg-rose-600"
               onClick={() => confirmPayment(paymentDialog)}
               disabled={
                 paying ||
@@ -246,7 +244,7 @@ export default function ParentFinesTab({ student, privacyMode }) {
               }
             >
               {paying ? "Processing..." : `Pay $${paymentDialog?.amount?.toFixed(2)}`}
-            </Button>
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

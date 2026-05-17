@@ -5,7 +5,6 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useLanguage } from "@/lib/LanguageContext";
@@ -61,15 +60,14 @@ export default function StudentSidebar() {
         <LanguageSwitcher />
       </div>
 
-      <Button
-        variant="ghost" size="icon"
+      <button
         className={cn(
-          "fixed top-4 z-50 lg:hidden no-print bg-white/80 backdrop-blur-md shadow-sm rounded-xl border border-stone-100",
+          "fixed top-4 z-50 lg:hidden no-print bg-white/80 backdrop-blur-md shadow-sm rounded-xl border border-stone-100 cursor-pointer text-stone-400 hover:text-stone-900 hover:bg-stone-100 rounded-lg w-10 h-10 p-0 flex items-center justify-center",
           isRTL ? "right-4" : "left-4"
         )}
         onClick={() => setOpen(!open)}>
         {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-      </Button>
+      </button>
 
       {open && (
         <div className="fixed inset-0 bg-stone-900/20 backdrop-blur-sm z-30 lg:hidden" onClick={() => setOpen(false)} />

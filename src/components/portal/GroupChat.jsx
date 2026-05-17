@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Send } from "lucide-react";
 
@@ -81,9 +80,9 @@ export default function GroupChat({ group, me }) {
             onKeyDown={e => e.key === "Enter" && sendMessage()}
             disabled={sending}
           />
-          <Button onClick={sendMessage} disabled={sending || !message.trim()} size="icon">
+          <button onClick={sendMessage} disabled={sending || !message.trim()} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed w-10 h-10 p-0">
             <Send className="h-4 w-4" />
-          </Button>
+          </button>
         </div>
       </div>
     </div>

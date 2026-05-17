@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Video, LogOut, QrCode } from "lucide-react";
@@ -57,16 +56,14 @@ export default function PortalLiveClasses({ student }) {
           <Video className="h-5 w-5 text-primary" />
           <h2 className="text-lg font-semibold">Live Classes</h2>
         </div>
-        <Button
-          size="sm"
-          variant="outline"
+        <button
+          className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border-2 border-stone-200 bg-white text-stone-800 hover:bg-stone-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed h-8 px-3 gap-1.5"
           onClick={() => setShowJoinDialog(true)}
-          className="gap-1.5"
         >
           <QrCode className="h-4 w-4" />
           <span className="hidden sm:inline">Join by Code</span>
           <span className="sm:hidden">Code</span>
-        </Button>
+        </button>
       </div>
 
       {todayClasses.length === 0 ? (
@@ -98,14 +95,13 @@ export default function PortalLiveClasses({ student }) {
                       <p className="font-medium">{schedule.room || "TBA"}</p>
                     </div>
                   </div>
-                  <Button
-                    size="sm"
-                    className="w-full text-xs"
+                  <button
+                    className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed h-8 px-3 w-full text-xs"
                     onClick={() => handleJoin(schedule)}
                   >
                     <Video className="h-3 w-3 mr-1.5" />
                     {live ? "Join Class" : "View Class Details"}
-                  </Button>
+                  </button>
                 </CardContent>
               </Card>
             );
@@ -136,15 +132,13 @@ export default function PortalLiveClasses({ student }) {
                 📹 Live video feed would be displayed here. This is a placeholder for the video conference interface.
               </p>
             </div>
-            <Button
-              variant="destructive"
-              size="sm"
-              className="w-full"
+            <button
+              className="cursor-pointer bg-rose-500 text-white hover:bg-rose-600 rounded-xl px-4 py-2 w-full"
               onClick={handleLeave}
             >
               <LogOut className="h-3 w-3 mr-1.5" />
               Leave Class
-            </Button>
+            </button>
           </div>
           <DialogClose />
         </DialogContent>

@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { GraduationCap, Eye, EyeOff, AlertCircle } from "lucide-react";
@@ -100,9 +99,9 @@ export default function PortalLogin({ onLogin }) {
             </div>
           )}
 
-          <Button type="submit" className="w-full" disabled={loading || !studentId || !password}>
+          <button type="submit" className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed w-full h-11 px-4" disabled={loading || !studentId || !password}>
             {loading ? "Checking..." : "Log In"}
-          </Button>
+          </button>
         </form>
 
         <p className="text-xs text-center text-muted-foreground mt-4">

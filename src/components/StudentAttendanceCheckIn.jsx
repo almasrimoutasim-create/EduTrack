@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import QRCodeScanner from "@/components/QRCodeScanner";
 import { CheckCircle2, Clock } from "lucide-react";
@@ -93,10 +92,9 @@ export default function StudentAttendanceCheckIn({ studentId, studentName }) {
               <p className="text-sm font-medium mb-2">What are you doing?</p>
               <div className="grid grid-cols-2 gap-2">
                 {Object.entries(attendanceTypes).map(([type, config]) => (
-                  <Button
+                  <button
                     key={type}
-                    variant={attendanceType === type ? "default" : "outline"}
-                    className="flex flex-col items-center gap-1 h-auto py-3"
+                    className={`inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex-col items-center gap-1 h-auto py-3 ${attendanceType === type ? "bg-primary text-white hover:bg-primary/90 shadow-lg shadow-primary/20" : "border-2 border-stone-200 bg-white text-stone-800 hover:bg-stone-50"}`}
                     onClick={() => {
                       setAttendanceType(type);
                       setShowScanner(true);
@@ -104,7 +102,7 @@ export default function StudentAttendanceCheckIn({ studentId, studentName }) {
                   >
                     <span className="text-lg">{config.icon}</span>
                     <span className="text-xs text-center">{config.label}</span>
-                  </Button>
+                  </button>
                 ))}
               </div>
             </div>
@@ -156,13 +154,12 @@ export default function StudentAttendanceCheckIn({ studentId, studentName }) {
       />
 
       {/* Floating Check-in Button */}
-      <Button
+      <button
         onClick={() => setShowDialog(true)}
-        className="fixed bottom-6 right-6 rounded-full shadow-lg h-14 w-14 p-0"
-        size="icon"
+        className="fixed bottom-6 right-6 rounded-full shadow-lg h-14 w-14 p-0 inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         📍
-      </Button>
+      </button>
     </>
   );
 }

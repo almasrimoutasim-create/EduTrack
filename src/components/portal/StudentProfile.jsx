@@ -1,7 +1,6 @@
 import { useState, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -196,9 +195,9 @@ export default function StudentProfile({ student, me, onBack }) {
               onChange={(e) => setCommentInputs((prev) => ({ ...prev, [post.id]: e.target.value }))}
               onKeyDown={(e) => e.key === "Enter" && sendComment(post.id)} />
               
-                  <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => sendComment(post.id)}>
+                  <button className="cursor-pointer text-stone-400 hover:text-stone-900 hover:bg-stone-100 rounded-lg px-3 py-2 h-8 w-8 p-0" onClick={() => sendComment(post.id)}>
                     <Send className="h-3.5 w-3.5" />
-                  </Button>
+                  </button>
                 </div>
             }
             </div>
@@ -213,7 +212,7 @@ export default function StudentProfile({ student, me, onBack }) {
       {/* Back button */}
       {onBack &&
       <div className="flex items-center gap-2 pb-2">
-          <Button variant="ghost" size="icon" onClick={onBack}><ArrowLeft className="h-4 w-4" /></Button>
+          <button className="cursor-pointer text-stone-400 hover:text-stone-900 hover:bg-stone-100 rounded-lg px-3 py-2 h-10 w-10 p-0 flex items-center justify-center" onClick={onBack}><ArrowLeft className="h-4 w-4" /></button>
           <span className="text-sm font-medium text-muted-foreground">Back</span>
         </div>
       }
@@ -289,8 +288,8 @@ export default function StudentProfile({ student, me, onBack }) {
               className="resize-none text-sm min-h-[60px] text-left"
             />
             <div className="flex flex-col gap-1">
-              <Button size="icon" className="h-8 w-8" onClick={saveBio}><Check className="h-4 w-4" /></Button>
-              <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => { setEditingBio(false); setBioValue(displayStudent.bio || ""); }}><X className="h-4 w-4" /></Button>
+              <button className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed h-8 w-8 p-0" onClick={saveBio}><Check className="h-4 w-4" /></button>
+              <button className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border-2 border-stone-200 bg-white text-stone-800 hover:bg-stone-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed h-8 w-8 p-0" onClick={() => { setEditingBio(false); setBioValue(displayStudent.bio || ""); }}><X className="h-4 w-4" /></button>
             </div>
           </div>
         ) : (

@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Upload, AlertCircle, CheckCircle } from "lucide-react";
@@ -158,9 +157,9 @@ export default function BulkImportDialog({ open, onOpenChange }) {
               <p className="text-xs text-blue-700 dark:text-blue-300 mt-2">Optional: section, gender, parent_name, parent_email, parent_phone, date_of_birth, address</p>
             </div>
 
-            <Button onClick={handleImport} disabled={!file || loading} className="w-full">
+            <button onClick={handleImport} disabled={!file || loading} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed w-full h-11">
               {loading ? "Importing..." : "Import Students"}
-            </Button>
+            </button>
           </div>
         ) : (
           <div className="space-y-3 mt-2">
@@ -172,9 +171,9 @@ export default function BulkImportDialog({ open, onOpenChange }) {
               </div>
             </div>
 
-            <Button onClick={handleClose} className="w-full">
+            <button onClick={handleClose} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed w-full h-11">
               Done
-            </Button>
+            </button>
           </div>
         )}
       </DialogContent>

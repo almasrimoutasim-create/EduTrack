@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertCircle, Printer } from "lucide-react";
@@ -149,17 +148,17 @@ export default function BulkCardPrintDialog({ open, onOpenChange, students }) {
           )}
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button 
+        <div className="flex items-center justify-end gap-2 mt-4">
+          <button className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border-2 border-stone-200 bg-white text-stone-800 hover:bg-stone-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed h-11 px-4" onClick={() => onOpenChange(false)}>Cancel</button>
+          <button 
             onClick={handlePrint} 
             disabled={printing || filteredStudents.length === 0}
-            className="gap-2"
+            className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed h-11 px-4"
           >
             <Printer className="h-4 w-4" />
             {printing ? "Preparing..." : `Print ${filteredStudents.length} Cards`}
-          </Button>
-        </DialogFooter>
+          </button>
+        </div>
       </DialogContent>
     </Dialog>
   );

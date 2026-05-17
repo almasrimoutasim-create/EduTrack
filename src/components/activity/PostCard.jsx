@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Heart, MessageCircle, Send, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
@@ -77,9 +76,9 @@ export default function PostCard({ post, currentUser, comments, onRefresh, onAut
             </div>
           </div>
           {canDelete && (
-            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={handleDeletePost}>
+            <button className="cursor-pointer text-stone-400 hover:text-stone-900 hover:bg-stone-100 rounded-lg px-3 py-2 h-7 w-7 p-0 flex items-center justify-center text-muted-foreground hover:text-destructive" onClick={handleDeletePost}>
               <Trash2 className="h-3.5 w-3.5" />
-            </Button>
+            </button>
           )}
         </div>
 
@@ -134,9 +133,9 @@ export default function PostCard({ post, currentUser, comments, onRefresh, onAut
                 onKeyDown={e => e.key === "Enter" && handleComment()}
                 className="h-8 text-xs"
               />
-              <Button size="icon" className="h-8 w-8 shrink-0" onClick={handleComment} disabled={submitting || !commentText.trim()}>
+              <button className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed h-8 w-8 p-0 shrink-0" onClick={handleComment} disabled={submitting || !commentText.trim()}>
                 <Send className="h-3.5 w-3.5" />
-              </Button>
+              </button>
             </div>
           </div>
         )}

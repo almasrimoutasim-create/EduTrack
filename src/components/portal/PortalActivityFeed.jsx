@@ -1,7 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useState, useRef } from "react";
 import { Heart, MessageCircle, Image, Video, Send, Trash2 } from "lucide-react";
@@ -127,9 +126,9 @@ export default function PortalActivityFeed({ me }) {
               </button>
               <input ref={fileRef} type="file" accept="image/*,video/*" className="hidden" onChange={handleFileSelect} />
             </div>
-            <Button size="sm" onClick={submit} disabled={uploading || (!content.trim() && !mediaFile)} className="gap-1.5">
+            <button className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed h-8 px-3 gap-1.5" onClick={submit} disabled={uploading || (!content.trim() && !mediaFile)}>
               <Send className="h-3.5 w-3.5" /> {uploading ? "Posting..." : "Post"}
-            </Button>
+            </button>
           </div>
         </CardContent>
       </Card>
@@ -212,9 +211,9 @@ export default function PortalActivityFeed({ me }) {
                       onChange={e => setCommentInputs(prev => ({ ...prev, [post.id]: e.target.value }))}
                       onKeyDown={e => e.key === "Enter" && sendComment(post.id)}
                     />
-                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => sendComment(post.id)}>
+                    <button className="cursor-pointer text-stone-400 hover:text-stone-900 hover:bg-stone-100 rounded-lg px-3 py-2 h-8 w-8 p-0" onClick={() => sendComment(post.id)}>
                       <Send className="h-3.5 w-3.5" />
-                    </Button>
+                    </button>
                   </div>
                 </div>
               )}

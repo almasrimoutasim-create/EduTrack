@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -100,9 +99,9 @@ export default function TeacherProfileTab({ teacher, onTeacherUpdate }) {
                 <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} disabled={uploadingPhoto} />
               </label>
             </div>
-            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setShowRateDialog(true)}>
+            <button className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border-2 border-stone-200 bg-white text-stone-800 hover:bg-stone-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed h-8 px-3 gap-1.5" onClick={() => setShowRateDialog(true)}>
               <Star className="h-4 w-4 text-amber-400" /> Rate Teacher
-            </Button>
+            </button>
           </div>
 
           <h2 className="text-xl font-bold">{teacher.full_name}</h2>
@@ -137,8 +136,8 @@ export default function TeacherProfileTab({ teacher, onTeacherUpdate }) {
               <div className="space-y-2">
                 <Textarea className="resize-none" rows={3} value={bio} onChange={e => setBio(e.target.value)} placeholder="Write a short bio..." />
                 <div className="flex gap-2">
-                  <Button size="sm" onClick={saveBio} className="gap-1.5"><Save className="h-3.5 w-3.5" />Save</Button>
-                  <Button size="sm" variant="ghost" onClick={() => setEditingBio(false)}>Cancel</Button>
+                  <button onClick={saveBio} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed h-8 px-3 gap-1.5"><Save className="h-3.5 w-3.5" />Save</button>
+                  <button className="cursor-pointer text-stone-400 hover:text-stone-900 hover:bg-stone-100 rounded-lg px-3 py-2 h-8" onClick={() => setEditingBio(false)}>Cancel</button>
                 </div>
               </div>
             ) : (
@@ -215,8 +214,8 @@ export default function TeacherProfileTab({ teacher, onTeacherUpdate }) {
             <div><Label>Comment (optional)</Label><Textarea className="mt-1 resize-none" rows={3} value={rateForm.comment} onChange={e => setRateForm(f => ({ ...f, comment: e.target.value }))} /></div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowRateDialog(false)}>Cancel</Button>
-            <Button onClick={submitRating} disabled={saving || !rateForm.rater_name}>{saving ? "Submitting..." : "Submit Rating"}</Button>
+            <button className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border-2 border-stone-200 bg-white text-stone-800 hover:bg-stone-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed h-11 px-4" onClick={() => setShowRateDialog(false)}>Cancel</button>
+            <button onClick={submitRating} disabled={saving || !rateForm.rater_name} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed h-11 px-4">{saving ? "Submitting..." : "Submit Rating"}</button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

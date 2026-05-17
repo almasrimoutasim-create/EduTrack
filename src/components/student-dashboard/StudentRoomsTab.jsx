@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Video, Search, BookOpen, Clock, MessageSquare, Radio } from "lucide-react";
@@ -49,9 +48,9 @@ function RoomCard({ room }) {
         <div className="flex flex-col items-end gap-2 shrink-0">
           <span className="font-mono text-lg font-bold tracking-widest text-primary">{room.room_code}</span>
           <Link to={`/room-view?room=${room.id}`}>
-            <Button size="sm" className="gap-1.5">
+            <button className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed h-8 px-3 gap-1.5">
               <MessageSquare className="h-3.5 w-3.5" /> {isLive ? "Join" : "Open"}
-            </Button>
+            </button>
           </Link>
         </div>
       </div>
@@ -94,7 +93,7 @@ export default function StudentRoomsTab({ studentGrade }) {
             className="font-mono font-bold tracking-widest uppercase"
             maxLength={8}
           />
-          <Button onClick={handleSearch} className="gap-2 shrink-0"><Search className="h-4 w-4" /> Find</Button>
+          <button onClick={handleSearch} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed h-11 px-4 gap-2 shrink-0"><Search className="h-4 w-4" /> Find</button>
         </div>
         {notFound && <p className="text-sm text-destructive mt-2">No room found with that code.</p>}
         {searchedRoom && (

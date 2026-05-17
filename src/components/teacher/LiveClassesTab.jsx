@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -129,9 +128,9 @@ export default function LiveClassesTab({ teacher }) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="font-semibold">Live Classes</h3>
-        <Button size="sm" onClick={() => setShowCreate(true)} className="gap-1.5">
+        <button onClick={() => setShowCreate(true)} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed h-8 px-3 gap-1.5">
           <Plus className="h-4 w-4" /> Start Class
-        </Button>
+        </button>
       </div>
 
       {rooms.length === 0 ? (
@@ -177,39 +176,32 @@ export default function LiveClassesTab({ teacher }) {
               </div>
 
               <div className="flex gap-2">
-                <Button
-                  size="sm"
+                <button
                   onClick={() => startClass(room)}
-                  className="gap-1.5 flex-1"
+                  className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed h-8 px-3 gap-1.5 flex-1"
                 >
                   <Play className="h-4 w-4" /> Start Class
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
+                </button>
+                <button
                   onClick={() => openShareModal(room)}
-                  className="gap-1.5"
+                  className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border-2 border-stone-200 bg-white text-stone-800 hover:bg-stone-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed h-8 px-3 gap-1.5"
                   title="Share with students"
                 >
                   <Share2 className="h-4 w-4" />
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
+                </button>
+                <button
                   onClick={() => copyCode(room.room_code)}
-                  className="gap-1.5"
+                  className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border-2 border-stone-200 bg-white text-stone-800 hover:bg-stone-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed h-8 px-3 gap-1.5"
                   title="Copy room code"
                 >
                   <Copy className="h-4 w-4" />
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
+                </button>
+                <button
                   onClick={() => deleteRoom(room.id)}
-                  className="text-muted-foreground hover:text-destructive"
+                  className="cursor-pointer text-stone-400 hover:text-stone-900 hover:bg-stone-100 rounded-lg px-3 py-2 h-8"
                 >
                   <Trash2 className="h-4 w-4" />
-                </Button>
+                </button>
               </div>
 
               {room.room_code && (
@@ -230,20 +222,18 @@ export default function LiveClassesTab({ teacher }) {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="grid grid-cols-2 gap-2">
-              <Button 
-                variant="outline" 
+              <button 
+                className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border-2 border-stone-200 bg-white text-stone-800 hover:bg-stone-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed h-11 px-4 gap-2"
                 onClick={openGoogleMeet}
-                className="gap-2"
               >
                 <ExternalLink className="h-4 w-4" /> Google Meet
-              </Button>
-              <Button 
-                variant="outline" 
+              </button>
+              <button 
+                className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border-2 border-stone-200 bg-white text-stone-800 hover:bg-stone-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed h-11 px-4 gap-2"
                 onClick={openZoom}
-                className="gap-2"
               >
                 <ExternalLink className="h-4 w-4" /> Zoom
-              </Button>
+              </button>
             </div>
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
@@ -307,10 +297,10 @@ export default function LiveClassesTab({ teacher }) {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
-            <Button onClick={save} disabled={saving || !form.room_name || !form.subject_name}>
+            <button className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border-2 border-stone-200 bg-white text-stone-800 hover:bg-stone-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed h-11 px-4" onClick={() => setShowCreate(false)}>Cancel</button>
+            <button onClick={save} disabled={saving || !form.room_name || !form.subject_name} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed h-11 px-4">
               {saving ? "Creating..." : "Start Class"}
-            </Button>
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -344,19 +334,18 @@ export default function LiveClassesTab({ teacher }) {
               </div>
 
               <div className="space-y-2">
-                <Button 
+                <button 
                   onClick={jumpToMeeting}
-                  className="w-full gap-2"
+                  className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed w-full h-11 px-4 gap-2"
                 >
                   <ExternalLink className="h-4 w-4" /> Jump to Meeting
-                </Button>
-                <Button 
+                </button>
+                <button 
                   onClick={shareWithStudent}
-                  variant="outline"
-                  className="w-full gap-2"
+                  className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border-2 border-stone-200 bg-white text-stone-800 hover:bg-stone-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed w-full h-11 px-4 gap-2"
                 >
                   <Copy className="h-4 w-4" /> Copy & Share Details
-                </Button>
+                </button>
               </div>
             </div>
           )}
