@@ -2,7 +2,10 @@ import { neon } from '@neondatabase/serverless';
 import dotenv from 'dotenv';
 dotenv.config();
 
-const sql = neon(process.env.DATABASE_URL);
+let sql = null;
+if (process.env.DATABASE_URL) {
+  sql = neon(process.env.DATABASE_URL);
+}
 
 // Map entity names to table names
 const ENTITY_TABLE_MAP = {
@@ -71,6 +74,10 @@ function sanitizeColumn(col) {
 
 // All queries use sql.query() for dynamic table/column names
 async function dbQuery(queryStr, params = []) {
+  if (!sql) {
+    console.warn('[neon] No DATABASE_URL configured, skipping query');
+    return [];
+  }
   return sql.query(queryStr, params);
 }
 

@@ -1,7 +1,22 @@
 import base44 from "@base44/vite-plugin"
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
-import { setupApiRoutes } from './server/api.js'
+
+// Only setup Neon API middleware if DATABASE_URL is available
+const hasNeon = process.env.DATABASE_URL;
+
+let apiPlugin = [];
+if (hasNeon) {
+  import('./server/api.js').then(({ setupApiRoutes }) => {
+    apiPlugin[0] = {
+      name: 'neon-api-middleware',
+      configureServer(server) {
+        setupApiRoutes(server);
+        console.log('[neon] API routes enabled at /neon-db/entities/*');
+      }
+    };
+  });
+}
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -27,12 +42,14 @@ export default defineConfig({
       visualEditAgent: true
     }),
     react(),
-    {
+    hasNeon ? {
       name: 'neon-api-middleware',
       configureServer(server) {
-        setupApiRoutes(server);
-        console.log('[neon] API routes enabled at /neon-db/entities/*');
+        import('./server/api.js').then(({ setupApiRoutes }) => {
+          setupApiRoutes(server);
+          console.log('[neon] API routes enabled at /neon-db/entities/*');
+        });
       }
-    }
-  ]
+    } : null
+  ].filter(Boolean)
 });
