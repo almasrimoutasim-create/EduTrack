@@ -24,8 +24,12 @@ export const AuthProvider = ({ children }) => {
       setAuthError(null);
       
       // First, check app public settings
+      // Use direct Base44 URL in production (Vite proxy /api only works in dev)
+      const base44Base = import.meta.env.DEV
+        ? '/api/apps/public'
+        : 'https://api.base44.io/apps/public';
       const appClient = createAxiosClient({
-        baseURL: `/api/apps/public`,
+        baseURL: base44Base,
         headers: {
           'X-App-Id': appParams.appId
         },
@@ -41,8 +45,16 @@ export const AuthProvider = ({ children }) => {
         const storedUser = localStorage.getItem('portal_user');
         const storedAuth = localStorage.getItem('portal_is_auth');
         if (storedUser && storedAuth === 'true') {
-          setUser(JSON.parse(storedUser));
-          setIsAuthenticated(true);
+          try {
+            setUser(JSON.parse(storedUser));
+            setIsAuthenticated(true);
+          } catch {
+            // corrupted storage
+            localStorage.removeItem('portal_user');
+            localStorage.removeItem('portal_is_auth');
+            setIsAuthenticated(false);
+            setUser(null);
+          }
         } else {
           setIsAuthenticated(false);
           setUser(null);
@@ -96,8 +108,15 @@ export const AuthProvider = ({ children }) => {
     const storedUser = localStorage.getItem('portal_user');
     const storedAuth = localStorage.getItem('portal_is_auth');
     if (storedUser && storedAuth === 'true') {
-      setUser(JSON.parse(storedUser));
-      setIsAuthenticated(true);
+      try {
+        setUser(JSON.parse(storedUser));
+        setIsAuthenticated(true);
+      } catch {
+        localStorage.removeItem('portal_user');
+        localStorage.removeItem('portal_is_auth');
+        setIsAuthenticated(false);
+        setUser(null);
+      }
     } else {
       setIsAuthenticated(false);
       setUser(null);
@@ -109,12 +128,19 @@ export const AuthProvider = ({ children }) => {
   const login = async (role, identifier, password) => {
     setAuthError(null);
     try {
-      const response = await fetch('/neon-db/auth/login', {
+      const apiBase = import.meta.env.VITE_BACKEND_URL || '';
+      const loginUrl = apiBase ? `${apiBase.replace(/\/$/, '')}/neon-db/auth/login` : '/neon-db/auth/login';
+      const response = await fetch(loginUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role, identifier, password })
       });
-      const data = await response.json();
+      let data;
+      try {
+        data = await response.json();
+      } catch {
+        throw new Error('استجابة غير صالحة من الخادم. تأكد من تشغيل الباكند وإعداد VITE_BACKEND_URL في Vercel');
+      }
       if (!response.ok) {
         throw new Error(data.error || 'Failed to login');
       }

@@ -4,7 +4,10 @@
  * which connects to Neon PostgreSQL.
  */
 
-const API_BASE = '/neon-db/entities';
+const BACKEND = import.meta.env.VITE_BACKEND_URL || '';
+const API_BASE = BACKEND 
+  ? `${BACKEND.replace(/\/$/, '')}/neon-db/entities` 
+  : '/neon-db/entities';
 
 class EntityClient {
   constructor(entityName) {
@@ -36,7 +39,11 @@ class EntityClient {
       const err = await response.json().catch(() => ({ error: response.statusText }));
       throw new Error(err.error || 'Failed to list entities');
     }
-    return response.json();
+    try {
+      return await response.json();
+    } catch {
+      throw new Error('فشل في قراءة استجابة الخادم (Backend غير متاح أو خطأ في الـ deploy). استخدم الوضع المحلي أو أعد ضبط VITE_BACKEND_URL');
+    }
   }
 
   async get(id) {
@@ -45,7 +52,11 @@ class EntityClient {
       const err = await response.json().catch(() => ({ error: response.statusText }));
       throw new Error(err.error || 'Entity not found');
     }
-    return response.json();
+    try {
+      return await response.json();
+    } catch {
+      throw new Error('فشل في قراءة استجابة الخادم (Backend غير متاح أو خطأ في الـ deploy). استخدم الوضع المحلي أو أعد ضبط VITE_BACKEND_URL');
+    }
   }
 
   async create(data) {
@@ -58,7 +69,11 @@ class EntityClient {
       const err = await response.json().catch(() => ({ error: response.statusText }));
       throw new Error(err.error || 'Failed to create entity');
     }
-    return response.json();
+    try {
+      return await response.json();
+    } catch {
+      throw new Error('فشل في قراءة استجابة الخادم (Backend غير متاح أو خطأ في الـ deploy). استخدم الوضع المحلي أو أعد ضبط VITE_BACKEND_URL');
+    }
   }
 
   async update(id, data) {
@@ -71,7 +86,11 @@ class EntityClient {
       const err = await response.json().catch(() => ({ error: response.statusText }));
       throw new Error(err.error || 'Failed to update entity');
     }
-    return response.json();
+    try {
+      return await response.json();
+    } catch {
+      throw new Error('فشل في قراءة استجابة الخادم (Backend غير متاح أو خطأ في الـ deploy). استخدم الوضع المحلي أو أعد ضبط VITE_BACKEND_URL');
+    }
   }
 
   async delete(id) {
@@ -82,7 +101,11 @@ class EntityClient {
       const err = await response.json().catch(() => ({ error: response.statusText }));
       throw new Error(err.error || 'Failed to delete entity');
     }
-    return response.json();
+    try {
+      return await response.json();
+    } catch {
+      throw new Error('فشل في قراءة استجابة الخادم (Backend غير متاح أو خطأ في الـ deploy). استخدم الوضع المحلي أو أعد ضبط VITE_BACKEND_URL');
+    }
   }
 
   async filter(filters, order = '-created_at') {
