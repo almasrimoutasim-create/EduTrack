@@ -43,7 +43,7 @@ export default function StaffPortal() {
       icon: GraduationCap, 
       label: { ar: "الإدارة الأكاديمية", en: "Academic Admin" }, 
       color: "bg-indigo-600 text-white",
-      path: "/admin-dashboard"
+      path: "/"
     },
     { 
       id: "hr", 
