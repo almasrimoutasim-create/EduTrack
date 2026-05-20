@@ -1,6 +1,7 @@
 import base44 from "@base44/vite-plugin"
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
+import { createApiHandler } from "./server/api.js"
 
 const hasNeon = process.env.DATABASE_URL;
 
@@ -66,10 +67,8 @@ export default defineConfig({
     hasNeon ? {
       name: 'neon-api-middleware',
       configureServer(server) {
-        import('./server/api.js').then(({ setupApiRoutes }) => {
-          setupApiRoutes(server);
-          console.log('[neon] API routes enabled at /neon-db/entities/*');
-        });
+        server.middlewares.use(createApiHandler());
+        console.log('[neon] API routes enabled synchronously at /neon-db/*');
       }
     } : null
   ].filter(Boolean)

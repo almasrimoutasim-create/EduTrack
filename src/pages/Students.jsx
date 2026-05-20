@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { 
@@ -12,9 +12,9 @@ import {
   ChevronLeft,
   ChevronRight,
   RefreshCw,
-  Eye,
-  Pencil,
-  Trash2
+  Trash2,
+  Printer,
+  FileText
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useLanguage } from "@/lib/LanguageContext";
@@ -38,7 +38,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import StudentFormDialog from "@/components/students/StudentFormDialog.jsx";
+import StudentForm from "@/components/students/StudentForm.jsx";
+import AdminStudentProfile from "@/components/students/AdminStudentProfile.jsx";
+import { AnimatePresence } from "framer-motion";
 
 const btnOutline = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border-2 border-stone-300 bg-white text-stone-800 hover:bg-stone-50 hover:border-stone-400 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
 const btnPrimary = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed";
@@ -53,7 +55,7 @@ export default function Students() {
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [view, setView] = useState("list"); // "list" | "add" | "edit" | "profile"
   const [dialogStudent, setDialogStudent] = useState(null);
   const queryClient = useQueryClient();
 
@@ -117,12 +119,24 @@ export default function Students() {
 
   const handleAddStudent = () => {
     setDialogStudent(null);
-    setDialogOpen(true);
+    setView("add");
   };
 
-  const handleEditStudent = (student) => {
+  const handleViewProfile = (student) => {
     setDialogStudent(student);
-    setDialogOpen(true);
+    setView("profile");
+  };
+
+  const handleEditFromProfile = (student) => {
+    setDialogStudent(student);
+    setView("edit");
+  };
+
+  const handlePrintProfile = (student) => {
+    setDialogStudent(student);
+    setView("profile");
+    // Trigger print after a short delay so the profile renders first
+    setTimeout(() => window.print(), 600);
   };
 
   const handleDeleteStudent = async (studentId) => {
@@ -143,272 +157,325 @@ export default function Students() {
   };
 
   return (
-    <div className="space-y-6 pb-20" dir={isRTL ? "rtl" : "ltr"}>
-      <PageHeader 
-        title={t("students.title", language)} 
-        subtitle={t("students.subtitle", language)}
-      >
-        <div className="flex gap-2">
-          <button 
-            onClick={handleRefresh}
-            className={`${btnOutline} h-11 px-4`}
+    <div className="pb-20" dir={isRTL ? "rtl" : "ltr"}>
+      <AnimatePresence mode="wait">
+        {view === "profile" ? (
+          <AdminStudentProfile
+            key="profile"
+            student={dialogStudent}
+            onClose={() => { setDialogStudent(null); setView("list"); }}
+            onEdit={handleEditFromProfile}
+          />
+        ) : view === "add" || view === "edit" ? (
+          <StudentForm
+            key="form"
+            student={dialogStudent}
+            onClose={() => {
+              if (dialogStudent) {
+                // If we were editing a student, return to their profile
+                setView("profile");
+              } else {
+                // If we were adding a new student, return to list
+                setView("list");
+              }
+            }}
+          />
+        ) : (
+          <motion.div 
+            key="list"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="space-y-6"
           >
-            <RefreshCw size={16} />
-            <span className="num-en">{t("common.refresh", language) || "Refresh"}</span>
-          </button>
-          <button 
-            className={`${btnPrimary} h-11 px-5`}
-            onClick={handleAddStudent}
-          >
-            <Plus size={18} />
-            <span>{t("students.addStudent", language)}</span>
-          </button>
-        </div>
-      </PageHeader>
-
-      {/* Filters Section */}
-      <Card className="p-5 border shadow-sm bg-white">
-        <div className="flex flex-col lg:flex-row gap-4 items-end">
-          <div className="relative flex-1 w-full">
-            <Search className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 text-stone-400`} size={18} />
-            <Input 
-              placeholder={t("common.search", language)} 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className={`${isRTL ? 'pr-10 pl-4' : 'pl-10 pr-4'} bg-white border-stone-200 rounded-xl h-11`}
-              dir={isRTL ? "rtl" : "ltr"}
-            />
-          </div>
-          <div className="flex flex-col lg:flex-row gap-3 w-full lg:w-auto">
-            <div className="flex flex-col gap-1.5">
-              <Label className="text-xs font-semibold text-stone-500">{t("students.grade", language)}</Label>
-              <select 
-                value={selectedGrade}
-                onChange={(e) => setSelectedGrade(e.target.value)}
-                aria-label={t("students.grade", language)}
-                className="bg-white border border-stone-200 rounded-xl h-11 px-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20"
-                dir={isRTL ? "rtl" : "ltr"}
-              >
-                <option value="all">{t("common.all", language) || "All Grades"}</option>
-                {["1","2","3","4","5","6","7","8","9","10","11","12"].map(g => (
-                  <option key={g} value={g}>{t("students.grade", language)} <span className="num-en">{g}</span></option>
-                ))}
-              </select>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label className="text-xs font-semibold text-stone-500">{t("common.status", language)}</Label>
-              <select 
-                value={selectedStatus}
-                onChange={(e) => setSelectedStatus(e.target.value)}
-                aria-label={t("common.status", language)}
-                className="bg-white border border-stone-200 rounded-xl h-11 px-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20"
-                dir={isRTL ? "rtl" : "ltr"}
-              >
-                <option value="all">{t("common.all", language) || "All Status"}</option>
-                <option value="active">{t("common.active", language)}</option>
-                <option value="inactive">{t("common.inactive", language)}</option>
-              </select>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label className="text-xs font-semibold text-stone-500">{t("students.section", language)}</Label>
-              <select
-                value={selectedSection}
-                onChange={(e) => setSelectedSection(e.target.value)}
-                aria-label={t("students.section", language)}
-                className="bg-white border border-stone-200 rounded-xl h-11 px-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20"
-                dir={isRTL ? "rtl" : "ltr"}
-              >
-                <option value="all">{t("common.all", language) || "All Sections"}</option>
-                {sectionOptions.map(section => (
-                  <option key={section} value={section}>{section}</option>
-                ))}
-              </select>
-            </div>
-            <button 
-              onClick={clearFilters}
-              className={`${btnOutline} h-11 px-4`}
-              title={t("common.clear", language) || "Clear"}
+            <PageHeader 
+              title={t("students.title", language)} 
+              subtitle={t("students.subtitle", language)}
             >
-              <Filter size={16} />
-              <span className="hidden sm:inline">{t("common.clear", language) || "Clear"}</span>
-            </button>
-          </div>
-        </div>
-      </Card>
-
-      {/* Results Summary */}
-      <div className="flex justify-between items-center text-sm text-stone-600">
-        <span>
-          {t("common.total", language) || "Total"}: <span className="num-en font-bold">{filteredStudents.length}</span> {t("common.records", language) || "records"}
-        </span>
-        <select 
-          value={rowsPerPage}
-          onChange={(e) => {
-            setRowsPerPage(Number(e.target.value));
-            setCurrentPage(1);
-          }}
-          className="bg-white border border-stone-200 rounded-lg px-2 py-1 text-xs font-semibold"
-          dir={isRTL ? "rtl" : "ltr"}
-        >
-          <option value={10}><span className="num-en">10</span> {t("common.perPage", language) || "per page"}</option>
-          <option value={20}><span className="num-en">20</span> {t("common.perPage", language) || "per page"}</option>
-          <option value={50}><span className="num-en">50</span> {t("common.perPage", language) || "per page"}</option>
-          <option value={100}><span className="num-en">100</span> {t("common.perPage", language) || "per page"}</option>
-        </select>
-      </div>
-
-      {/* Students Table */}
-      <Card className="border shadow-sm bg-white overflow-hidden">
-        <div className="space-y-4">
-          {isLoading ? (
-            <div className="w-full py-16 text-center text-stone-500">
-              <div className="flex items-center justify-center gap-3">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                <span>{t("common.loading", language)}</span>
+              <div className="flex gap-2">
+                <button 
+                  onClick={handleRefresh}
+                  className={`${btnOutline} h-11 px-4`}
+                >
+                  <RefreshCw size={16} />
+                  <span className="num-en">{t("common.refresh", language) || "Refresh"}</span>
+                </button>
+                <button 
+                  className={`${btnPrimary} h-11 px-5`}
+                  onClick={handleAddStudent}
+                >
+                  <Plus size={18} />
+                  <span>{t("students.addStudent", language)}</span>
+                </button>
               </div>
-            </div>
-          ) : paginatedStudents.length === 0 ? (
-            <div className="py-12 text-center text-stone-400">
-              <div className="flex flex-col items-center">
-                <div className="h-16 w-16 rounded-full bg-stone-50 flex items-center justify-center mb-3">
-                  <Users size={32} className="opacity-20" />
+            </PageHeader>
+
+            {/* Filters Section */}
+            <Card className="p-5 border shadow-sm bg-white">
+              <div className="flex flex-col lg:flex-row gap-4 items-end">
+                <div className="relative flex-1 w-full">
+                  <Search className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 text-stone-400`} size={18} />
+                  <Input 
+                    placeholder={t("common.search", language)} 
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className={`${isRTL ? 'pr-10 pl-4' : 'pl-10 pr-4'} bg-white border-stone-200 rounded-xl h-11`}
+                    dir={isRTL ? "rtl" : "ltr"}
+                  />
                 </div>
-                <p className="font-bold text-lg">{t("common.noRecords", language)}</p>
-                <p className="text-sm">{t("common.noRecordsHint", language) || "Try changing search criteria"}</p>
-              </div>
-            </div>
-          ) : (
-            Object.entries(groupedStudents).map(([groupLabel, studentsInGroup]) => (
-              <div key={groupLabel} className="rounded-xl border border-stone-200 overflow-hidden shadow-sm">
-                <div className="bg-stone-50 px-5 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                  <div>
-                    <p className="text-sm font-bold text-stone-900">{groupLabel}</p>
-                    <p className="text-xs text-stone-500"><span className="num-en">{studentsInGroup.length}</span> {t("common.records", language)}</p>
-                  </div>
-                  <div className="text-xs text-stone-500">
-                    {t("students.grade", language)} <span className="num-en">{studentsInGroup[0].grade}</span> · {t("students.section", language)} {studentsInGroup[0].section || "-"}
-                  </div>
-                </div>
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="border-b border-stone-200 bg-stone-50/50">
-                        <TableHead className="w-[50px] num-en">#</TableHead>
-                        <TableHead>{t("students.name", language) || "Name"}</TableHead>
-                        <TableHead>{t("students.id", language) || "ID"}</TableHead>
-                        <TableHead>{t("students.grade", language)}</TableHead>
-                        <TableHead>{t("students.section", language)}</TableHead>
-                        <TableHead>{t("common.status", language)}</TableHead>
-                        <TableHead>{t("students.contact", language) || "Contact"}</TableHead>
-                        <TableHead className={isRTL ? "text-left" : "text-right"}>{t("common.actions", language)}</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {studentsInGroup.map((student, index) => (
-                        <motion.tr
-                          key={student.id}
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: index * 0.02 }}
-                          className="border-b border-stone-100 hover:bg-stone-50/50 transition-colors"
-                        >
-                          <TableCell className="font-medium text-stone-500 num-en">
-                            {(currentPage - 1) * rowsPerPage + index + 1}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-3">
-                              <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center text-primary">
-                                <Users size={16} />
-                              </div>
-                              <span className="font-semibold text-stone-900">{student.full_name || student.name}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="font-mono text-stone-600 num-en">#{student.id}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className="rounded-lg bg-stone-50 border-stone-200 num-en">
-                              {student.grade}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>{student.section || "-"}</TableCell>
-                          <TableCell>{getStatusBadge(student.status)}</TableCell>
-                          <TableCell>
-                            <div className="space-y-1">
-                              <div className="flex items-center gap-2 text-xs text-stone-500">
-                                <Mail size={12} />
-                                <span className="truncate max-w-[150px]">{student.email || '-'}</span>
-                              </div>
-                              <div className="flex items-center gap-2 text-xs text-stone-500">
-                                <Phone size={12} />
-                                <span className="num-en">{student.phone || '-'}</span>
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell className={isRTL ? "text-left" : "text-right"}>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <button className={`${btnOutline} h-9 px-3 text-xs`}>
-                                  <MoreVertical size={14} />
-                                  {t("common.actions", language)}
-                                </button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align={isRTL ? "start" : "end"} className="rounded-xl">
-                                <DropdownMenuItem className="gap-2 text-sm" onClick={() => handleEditStudent(student)}>
-                                  <Eye size={14} className="shrink-0" />
-                                  <span>{t("common.view", language)}</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem className="gap-2 text-sm" onClick={() => handleEditStudent(student)}>
-                                  <Pencil size={14} className="shrink-0" />
-                                  <span>{t("common.edit", language)}</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem className="text-rose-500 gap-2 text-sm" onClick={() => handleDeleteStudent(student.id)}>
-                                  <Trash2 size={14} className="shrink-0" />
-                                  <span>{t("common.delete", language)}</span>
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
-                        </motion.tr>
+                <div className="flex flex-col lg:flex-row gap-3 w-full lg:w-auto">
+                  <div className="flex flex-col gap-1.5">
+                    <Label className="text-xs font-semibold text-stone-500">{t("students.grade", language)}</Label>
+                    <select 
+                      value={selectedGrade}
+                      onChange={(e) => setSelectedGrade(e.target.value)}
+                      aria-label={t("students.grade", language)}
+                      className="bg-white border border-stone-200 rounded-xl h-11 px-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      dir={isRTL ? "rtl" : "ltr"}
+                    >
+                      <option value="all">{t("common.all", language) || "All Grades"}</option>
+                      {["1","2","3","4","5","6","7","8","9","10","11","12"].map(g => (
+                        <option key={g} value={g}>{t("students.grade", language)} <span className="num-en">{g}</span></option>
                       ))}
-                    </TableBody>
-                  </Table>
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label className="text-xs font-semibold text-stone-500">{t("common.status", language)}</Label>
+                    <select 
+                      value={selectedStatus}
+                      onChange={(e) => setSelectedStatus(e.target.value)}
+                      aria-label={t("common.status", language)}
+                      className="bg-white border border-stone-200 rounded-xl h-11 px-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      dir={isRTL ? "rtl" : "ltr"}
+                    >
+                      <option value="all">{t("common.all", language) || "All Status"}</option>
+                      <option value="active">{t("common.active", language)}</option>
+                      <option value="inactive">{t("common.inactive", language)}</option>
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label className="text-xs font-semibold text-stone-500">{t("students.section", language)}</Label>
+                    <select
+                      value={selectedSection}
+                      onChange={(e) => setSelectedSection(e.target.value)}
+                      aria-label={t("students.section", language)}
+                      className="bg-white border border-stone-200 rounded-xl h-11 px-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      dir={isRTL ? "rtl" : "ltr"}
+                    >
+                      <option value="all">{t("common.all", language) || "All Sections"}</option>
+                      {sectionOptions.map(section => (
+                        <option key={section} value={section}>{section}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <button 
+                    onClick={clearFilters}
+                    className={`${btnOutline} h-11 px-4`}
+                    title={t("common.clear", language) || "Clear"}
+                  >
+                    <Filter size={16} />
+                    <span className="hidden sm:inline">{t("common.clear", language) || "Clear"}</span>
+                  </button>
                 </div>
               </div>
-            ))
-          )}
-        </div>
+            </Card>
 
-        {/* Pagination */}
-        {filteredStudents.length > 0 && (
-          <div className="flex items-center justify-between p-4 border-t border-stone-200 bg-stone-50/30">
-            <div className="text-sm text-stone-600">
-              {t("common.page", language) || "Page"} <span className="num-en font-bold">{currentPage}</span> {t("common.of", language) || "of"} <span className="num-en font-bold">{totalPages}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                className={`${btnOutline} h-9 px-3`}
+            {/* Results Summary */}
+            <div className="flex justify-between items-center text-sm text-stone-600">
+              <span>
+                {t("common.total", language) || "Total"}: <span className="num-en font-bold">{filteredStudents.length}</span> {t("common.records", language) || "records"}
+              </span>
+              <select 
+                value={rowsPerPage}
+                onChange={(e) => {
+                  setRowsPerPage(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="bg-white border border-stone-200 rounded-lg px-2 py-1 text-xs font-semibold"
+                dir={isRTL ? "rtl" : "ltr"}
               >
-                {isRTL ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-                <span className="hidden sm:inline">{t("common.back", language)}</span>
-              </button>
-              <button
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
-                className={`${btnOutline} h-9 px-3`}
-              >
-                <span className="hidden sm:inline">{t("common.next", language) || "التالي"}</span>
-                {isRTL ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
-              </button>
+                <option value={10}><span className="num-en">10</span> {t("common.perPage", language) || "per page"}</option>
+                <option value={20}><span className="num-en">20</span> {t("common.perPage", language) || "per page"}</option>
+                <option value={50}><span className="num-en">50</span> {t("common.perPage", language) || "per page"}</option>
+                <option value={100}><span className="num-en">100</span> {t("common.perPage", language) || "per page"}</option>
+              </select>
             </div>
-          </div>
+
+            {/* Students Table */}
+            <Card className="border shadow-sm bg-white overflow-hidden">
+              <div className="space-y-4">
+                {isLoading ? (
+                  <div className="w-full py-16 text-center text-stone-500">
+                    <div className="flex items-center justify-center gap-3">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                      <span>{t("common.loading", language)}</span>
+                    </div>
+                  </div>
+                ) : paginatedStudents.length === 0 ? (
+                  <div className="py-12 text-center text-stone-400">
+                    <div className="flex flex-col items-center">
+                      <div className="h-16 w-16 rounded-full bg-stone-50 flex items-center justify-center mb-3">
+                        <Users size={32} className="opacity-20" />
+                      </div>
+                      <p className="font-bold text-lg">{t("common.noRecords", language)}</p>
+                      <p className="text-sm">{t("common.noRecordsHint", language) || "Try changing search criteria"}</p>
+                    </div>
+                  </div>
+                ) : (
+                  Object.entries(groupedStudents).map(([groupLabel, studentsInGroup]) => (
+                    <div key={groupLabel} className="rounded-xl border border-stone-200 overflow-hidden shadow-sm">
+                      <div className="bg-stone-50 px-5 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-bold text-stone-900">{groupLabel}</p>
+                          <p className="text-xs text-stone-500"><span className="num-en">{studentsInGroup.length}</span> {t("common.records", language)}</p>
+                        </div>
+                        <div className="text-xs text-stone-500">
+                          {t("students.grade", language)} <span className="num-en">{studentsInGroup[0].grade}</span> · {t("students.section", language)} {studentsInGroup[0].section || "-"}
+                        </div>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="border-b border-stone-200 bg-stone-50/50">
+                              <TableHead className="w-[50px] num-en">#</TableHead>
+                              <TableHead>{t("students.name", language) || "Name"}</TableHead>
+                              <TableHead>{t("students.id", language) || "ID"}</TableHead>
+                              <TableHead>{t("students.grade", language)}</TableHead>
+                              <TableHead>{t("students.section", language)}</TableHead>
+                              <TableHead>{t("common.status", language)}</TableHead>
+                              <TableHead>{t("students.contact", language) || "Contact"}</TableHead>
+                              <TableHead className={isRTL ? "text-left" : "text-right"}>{t("common.actions", language)}</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {studentsInGroup.map((student, index) => (
+                              <motion.tr
+                                key={student.id}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: index * 0.02 }}
+                                className="border-b border-stone-100 hover:bg-stone-50/50 transition-colors"
+                              >
+                                <TableCell className="font-medium text-stone-500 num-en">
+                                  {(currentPage - 1) * rowsPerPage + index + 1}
+                                </TableCell>
+                                <TableCell>
+                                  <button
+                                    onClick={() => handleViewProfile(student)}
+                                    className="flex items-center gap-3 hover:opacity-70 transition-opacity group"
+                                  >
+                                    {student.photo_url ? (
+                                      <div className="h-9 w-9 rounded-lg overflow-hidden border border-stone-200/60 shadow-sm shrink-0 group-hover:ring-2 group-hover:ring-primary/20 transition-all">
+                                        <img 
+                                          src={student.photo_url} 
+                                          alt="" 
+                                          className="h-full w-full object-cover" 
+                                        />
+                                      </div>
+                                    ) : (
+                                      <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center text-primary shrink-0 group-hover:ring-2 group-hover:ring-primary/20 transition-all">
+                                        <Users size={16} />
+                                      </div>
+                                    )}
+                                    <span className="font-semibold text-stone-900 group-hover:text-primary transition-colors underline-offset-2 group-hover:underline">{student.full_name || student.name}</span>
+                                  </button>
+                                </TableCell>
+                                <TableCell className="font-mono text-stone-600 num-en">#{student.student_id}</TableCell>
+                                <TableCell>
+                                  <Badge variant="outline" className="rounded-lg bg-stone-50 border-stone-200 num-en">
+                                    {student.grade}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell>{student.section || "-"}</TableCell>
+                                <TableCell>{getStatusBadge(student.status)}</TableCell>
+                                <TableCell>
+                                  <div className="space-y-1">
+                                    <div className="flex items-center gap-2 text-xs text-stone-500">
+                                      <Mail size={12} className="shrink-0" />
+                                      <a 
+                                        href={`mailto:${student.user_email}`}
+                                        className="truncate max-w-[150px] hover:text-primary hover:underline transition-colors"
+                                        title={student.user_email}
+                                      >
+                                        {student.user_email || '-'}
+                                      </a>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-xs text-stone-500">
+                                      <Phone size={12} className="shrink-0" />
+                                      <a 
+                                        href={`tel:${student.parent_phone}`}
+                                        className="num-en hover:text-primary hover:underline transition-colors"
+                                        title={student.parent_phone}
+                                      >
+                                        {student.parent_phone || '-'}
+                                      </a>
+                                    </div>
+                                  </div>
+                                </TableCell>
+                                <TableCell className={isRTL ? "text-left" : "text-right"}>
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <button className={`${btnOutline} h-9 px-3 text-xs`}>
+                                        <MoreVertical size={14} />
+                                        {t("common.actions", language)}
+                                      </button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align={isRTL ? "start" : "end"} className="rounded-xl">
+                                      <DropdownMenuItem className="gap-2 text-sm" onClick={() => handleViewProfile(student)}>
+                                        <FileText size={14} className="shrink-0" />
+                                        <span>{isRTL ? "عرض الملف الشامل" : "View Full Profile"}</span>
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem className="gap-2 text-sm" onClick={() => handlePrintProfile(student)}>
+                                        <Printer size={14} className="shrink-0" />
+                                        <span>{isRTL ? "طباعة وتصدير PDF" : "Print & Export PDF"}</span>
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem className="text-rose-500 gap-2 text-sm" onClick={() => handleDeleteStudent(student.id)}>
+                                        <Trash2 size={14} className="shrink-0" />
+                                        <span>{t("common.delete", language)}</span>
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </TableCell>
+                              </motion.tr>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Pagination */}
+              {filteredStudents.length > 0 && (
+                <div className="flex items-center justify-between p-4 border-t border-stone-200 bg-stone-50/30">
+                  <div className="text-sm text-stone-650">
+                    {t("common.page", language) || "Page"} <span className="num-en font-bold">{currentPage}</span> {t("common.of", language) || "of"} <span className="num-en font-bold">{totalPages}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className={`${btnOutline} h-9 px-3`}
+                    >
+                      {isRTL ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+                      <span className="hidden sm:inline">{t("common.back", language)}</span>
+                    </button>
+                    <button
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                      className={`${btnOutline} h-9 px-3`}
+                    >
+                      <span className="hidden sm:inline">{t("common.next", language) || "التالي"}</span>
+                      {isRTL ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </Card>
+          </motion.div>
         )}
-      </Card>
-      <StudentFormDialog
-        open={dialogOpen}
-        onClose={() => setDialogOpen(false)}
-        student={dialogStudent}
-      />
+      </AnimatePresence>
     </div>
   );
 }

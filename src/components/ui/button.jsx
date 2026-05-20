@@ -52,7 +52,9 @@ const Button = React.forwardRef(
       className={cn(buttonVariants({ variant, size, className }))}
       ref={ref}
       style={{ color: textColor }}
-      {...props} />)
+      {...props}>
+      {children}
+    </Comp>)
   );
 })
 Button.displayName = "Button"

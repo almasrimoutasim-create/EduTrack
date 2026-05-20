@@ -17,7 +17,6 @@ import {
   Edit3
 } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
-import { t } from "@/lib/translations";
 import PageHeader from "@/components/shared/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";

@@ -1,6 +1,12 @@
 import { neon } from '@neondatabase/serverless';
 import dotenv from 'dotenv';
+import crypto from 'crypto';
 dotenv.config();
+
+function hashPassword(password) {
+  if (!password) return '';
+  return crypto.createHash('sha256').update(password + 'edutrack_salt_2026').digest('hex');
+}
 
 let sql = null;
 if (process.env.DATABASE_URL) {
@@ -81,8 +87,187 @@ async function dbQuery(queryStr, params = []) {
   return sql.query(queryStr, params);
 }
 
-export function setupApiRoutes(server) {
-  server.middlewares.use(async (req, res, next) => {
+export function createApiHandler() {
+  return async (req, res, next) => {
+    // 1. Intercept unified Auth login endpoint
+    if (req.url === '/neon-db/auth/login' && req.method === 'POST') {
+      res.setHeader('Content-Type', 'application/json');
+      try {
+        const body = await parseBody(req);
+        const { role, identifier, password } = body;
+
+        if (!identifier || !password) {
+          res.statusCode = 400;
+          return res.end(JSON.stringify({ error: 'Email/ID and password are required' }));
+        }
+
+        // 1. Admin login
+        if (role === 'admin') {
+          if (identifier === 'admin@edutrack.com' && password === 'admin123') {
+            return res.end(JSON.stringify({
+              success: true,
+              user: {
+                id: 'admin-id',
+                full_name: 'System Admin',
+                email: 'admin@edutrack.com',
+                role: 'admin'
+              }
+            }));
+          } else {
+            res.statusCode = 401;
+            return res.end(JSON.stringify({ error: 'Invalid admin credentials' }));
+          }
+        }
+
+        // 2. Teacher login
+        if (role === 'teacher') {
+          const rows = await dbQuery(
+            'SELECT * FROM teachers WHERE (email = $1 OR employee_id = $1) AND status = \'active\'',
+            [identifier]
+          );
+          if (rows.length === 0) {
+            res.statusCode = 401;
+            return res.end(JSON.stringify({ error: 'Teacher account not found or inactive' }));
+          }
+          const teacher = rows[0];
+          const hashed = hashPassword(password);
+          if (teacher.portal_password !== hashed) {
+            res.statusCode = 401;
+            return res.end(JSON.stringify({ error: 'Invalid password' }));
+          }
+          return res.end(JSON.stringify({
+            success: true,
+            user: {
+              id: teacher.id,
+              full_name: teacher.full_name,
+              email: teacher.email,
+              role: 'teacher'
+            }
+          }));
+        }
+
+        // 3. Student login
+        if (role === 'student') {
+          const rows = await dbQuery(
+            'SELECT * FROM students WHERE (user_email = $1 OR student_id = $1) AND status = \'active\'',
+            [identifier]
+          );
+          if (rows.length === 0) {
+            res.statusCode = 401;
+            return res.end(JSON.stringify({ error: 'Student account not found or inactive' }));
+          }
+          const student = rows[0];
+          const hashed = hashPassword(password);
+          if (student.portal_password !== hashed) {
+            res.statusCode = 401;
+            return res.end(JSON.stringify({ error: 'Invalid password' }));
+          }
+          return res.end(JSON.stringify({
+            success: true,
+            user: {
+              id: student.id,
+              full_name: student.full_name,
+              email: student.user_email,
+              role: 'student'
+            }
+          }));
+        }
+
+        // 4. Parent login
+        if (role === 'parent') {
+          const rows = await dbQuery(
+            'SELECT * FROM students WHERE parent_email = $1 AND status = \'active\'',
+            [identifier]
+          );
+          if (rows.length === 0) {
+            res.statusCode = 401;
+            return res.end(JSON.stringify({ error: 'No student accounts found linked to this parent email' }));
+          }
+          const student = rows[0];
+          const hashed = hashPassword(password);
+          if (student.parent_password !== hashed) {
+            res.statusCode = 401;
+            return res.end(JSON.stringify({ error: 'Invalid password' }));
+          }
+          return res.end(JSON.stringify({
+            success: true,
+            user: {
+              id: 'parent-' + student.id,
+              full_name: student.parent_name || 'Parent',
+              email: student.parent_email,
+              role: 'parent',
+              student_id: student.id
+            }
+          }));
+        }
+
+        // 5. Bus supervisor login (supervisors table)
+        if (role === 'bus') {
+          const rows = await dbQuery(
+            'SELECT * FROM supervisors WHERE email = $1 AND status = \'active\'',
+            [identifier]
+          );
+          if (rows.length === 0) {
+            res.statusCode = 401;
+            return res.end(JSON.stringify({ error: 'Bus supervisor account not found or inactive' }));
+          }
+          const supervisor = rows[0];
+          const hashed = hashPassword(password);
+          if (supervisor.portal_password !== hashed) {
+            res.statusCode = 401;
+            return res.end(JSON.stringify({ error: 'Invalid password' }));
+          }
+          return res.end(JSON.stringify({
+            success: true,
+            user: {
+              id: supervisor.id,
+              full_name: supervisor.full_name,
+              email: supervisor.email,
+              role: 'bus'
+            }
+          }));
+        }
+
+        // 6. Staff members login (staff_members table)
+        if (role === 'staff') {
+          const rows = await dbQuery(
+            'SELECT * FROM staff_members WHERE (email = $1 OR employee_id = $1) AND status = \'active\'',
+            [identifier]
+          );
+          if (rows.length === 0) {
+            res.statusCode = 401;
+            return res.end(JSON.stringify({ error: 'Staff account not found or inactive' }));
+          }
+          const staff = rows[0];
+          const hashed = hashPassword(password);
+          if (staff.portal_password !== hashed) {
+            res.statusCode = 401;
+            return res.end(JSON.stringify({ error: 'Invalid password' }));
+          }
+          
+          let staffRole = staff.role || 'staff';
+          if (staffRole === 'store_keeper') staffRole = 'store';
+
+          return res.end(JSON.stringify({
+            success: true,
+            user: {
+              id: staff.id,
+              full_name: staff.full_name,
+              email: staff.email,
+              role: staffRole
+            }
+          }));
+        }
+
+        res.statusCode = 400;
+        return res.end(JSON.stringify({ error: 'Invalid portal role selected' }));
+
+      } catch (error) {
+        res.statusCode = 500;
+        return res.end(JSON.stringify({ error: error.message }));
+      }
+    }
+
     if (!req.url.startsWith('/neon-db/entities/')) return next();
 
     res.setHeader('Content-Type', 'application/json');
@@ -180,6 +365,22 @@ export function setupApiRoutes(server) {
       // ===== CREATE =====
       if (req.method === 'POST') {
         const body = await parseBody(req);
+        
+        if (body.portal_password !== undefined) {
+          if (body.portal_password === '') {
+            delete body.portal_password;
+          } else {
+            body.portal_password = hashPassword(body.portal_password);
+          }
+        }
+        if (body.parent_password !== undefined) {
+          if (body.parent_password === '') {
+            delete body.parent_password;
+          } else {
+            body.parent_password = hashPassword(body.parent_password);
+          }
+        }
+
         const keys = Object.keys(body).filter(k => body[k] !== undefined && sanitizeColumn(k));
         if (keys.length === 0) {
           res.statusCode = 400;
@@ -197,6 +398,22 @@ export function setupApiRoutes(server) {
       // ===== UPDATE =====
       if (req.method === 'PUT' && entityId) {
         const body = await parseBody(req);
+
+        if (body.portal_password !== undefined) {
+          if (body.portal_password === '') {
+            delete body.portal_password;
+          } else {
+            body.portal_password = hashPassword(body.portal_password);
+          }
+        }
+        if (body.parent_password !== undefined) {
+          if (body.parent_password === '') {
+            delete body.parent_password;
+          } else {
+            body.parent_password = hashPassword(body.parent_password);
+          }
+        }
+
         const keys = Object.keys(body).filter(k =>
           k !== 'id' && k !== 'created_at' && k !== 'updated_at' && body[k] !== undefined && sanitizeColumn(k)
         );
@@ -233,5 +450,9 @@ export function setupApiRoutes(server) {
       res.statusCode = 500;
       res.end(JSON.stringify({ error: error.message }));
     }
-  });
+  };
+}
+
+export function setupApiRoutes(server) {
+  server.middlewares.use(createApiHandler());
 }

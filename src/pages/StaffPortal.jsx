@@ -9,8 +9,7 @@ import {
   BookOpen,
   ChevronRight,
   ChevronLeft,
-  ArrowLeft,
-  Lock
+  ArrowLeft
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useLanguage } from "@/lib/LanguageContext";

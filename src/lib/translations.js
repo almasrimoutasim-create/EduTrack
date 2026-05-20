@@ -1,4 +1,4 @@
-﻿export const translations = {
+export const translations = {
   en: {
     common: {
       logout: 'Log Out',
@@ -76,8 +76,8 @@
       subtitle: 'Manage and view all students',
       addStudent: 'Add Student',
       grade: 'Grade',
-      section: 'Section',
-      id: 'ID',
+      section: 'Class Name',
+      id: 'School ID',
       name: 'Name',
       contact: 'Contact',
     },
@@ -169,8 +169,8 @@
       subtitle: 'إدارة وعرض جميع الطلاب',
       addStudent: 'إضافة طالب',
       grade: 'الصف',
-      section: 'الشعبة',
-      id: 'المعرف',
+      section: 'اسم الفصل',
+      id: 'الرقم المدرسي',
       name: 'الاسم',
       contact: 'التواصل',
     },

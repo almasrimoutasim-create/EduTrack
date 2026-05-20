@@ -8,17 +8,10 @@ import {
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useLanguage } from "@/lib/LanguageContext";
 import { t } from "@/lib/translations";
 import { toast } from "sonner";
-
-const handleLogout = () => {
-  localStorage.removeItem("portal_role");
-  localStorage.removeItem("portal_user_id");
-  localStorage.removeItem("portal_user_name");
-  window.location.href = "/";
-};
+import { useAuth } from "@/lib/AuthContext";
 
 const BRAND_CONFIGS = {
   admin: {
@@ -81,6 +74,7 @@ export default function Sidebar() {
   const location = useLocation();
   const [open, setOpen] = useState(false);
   const { language } = useLanguage();
+  const { logout } = useAuth();
   const isRTL = language === "ar";
 
   const portalRole = localStorage.getItem("portal_role") || "admin";
@@ -326,12 +320,6 @@ export default function Sidebar() {
 
   return (
     <>
-      <div className={cn(
-        "fixed top-4 z-50 no-print transition-all duration-300",
-        isRTL ? "left-4" : "right-4"
-      )}>
-        <LanguageSwitcher />
-      </div>
 
       <button
         className={cn(
@@ -447,7 +435,7 @@ export default function Sidebar() {
           )}
           
           <button
-            onClick={handleLogout}
+            onClick={() => logout()}
             className="flex items-center gap-3 w-full px-4 py-3 text-sm font-bold text-rose-500 hover:bg-rose-50 rounded-2xl transition-all"
           >
             <LogOut className="h-5 w-5" />

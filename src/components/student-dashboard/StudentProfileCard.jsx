@@ -1,6 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { User, CreditCard, Bus, Star, XCircle, Clock } from "lucide-react";
+import { User, CreditCard, Bus, Star, XCircle, Clock, Zap } from "lucide-react";
+import { displayStudentId } from "@/utils/studentIdFormatter";
 
 const STATUS_COLOR = { active: "default", suspended: "destructive", graduated: "secondary", transferred: "outline" };
 
@@ -8,6 +9,9 @@ export default function StudentProfileCard({ student }) {
   const score = student.attendance_score ?? 100;
   const scoreColor = score >= 80 ? "text-emerald-600" : score >= 60 ? "text-amber-600" : "text-red-600";
   const scoreBg = score >= 80 ? "bg-emerald-50 border-emerald-200" : score >= 60 ? "bg-amber-50 border-amber-200" : "bg-red-50 border-red-200";
+
+  // Format student ID with leading zeros (0001, 0002, etc.)
+  const formattedStudentId = displayStudentId(student.student_id);
 
   return (
     <Card className="p-6 border shadow-sm">
@@ -22,8 +26,14 @@ export default function StudentProfileCard({ student }) {
             <h2 className="font-display text-2xl font-bold">{student.full_name}</h2>
             <Badge variant={STATUS_COLOR[student.status]} className="capitalize">{student.status}</Badge>
           </div>
-          <p className="text-sm text-muted-foreground font-mono mt-0.5">ID: {student.student_id}</p>
-          <div className="flex flex-wrap gap-3 mt-3">
+          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20">
+              <Zap className="h-4 w-4 text-primary" />
+              <span className="text-sm font-mono font-bold text-primary">{formattedStudentId}</span>
+            </div>
+            <span className="text-xs text-muted-foreground">({student.grade && student.section ? `${student.grade}-${student.section}` : `Grade ${student.grade || '?'}`})</span>
+          </div>
+          <div className="flex flex-wrap gap-3 mt-2.5">
             <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
               <User className="h-3.5 w-3.5" />
               Grade {student.grade}{student.section ? `-${student.section}` : ""}

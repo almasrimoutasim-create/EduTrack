@@ -22,6 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/lib/AuthContext";
 import StudentSidebar from "@/components/layout/StudentSidebar";
+import StudentIDCard from "@/components/student-dashboard/StudentIDCard";
 
 const btnOutline = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-sm font-semibold transition-all border-2 border-stone-300 bg-white text-stone-800 hover:bg-stone-50 hover:border-stone-400 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
 const btnPrimary = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-sm font-semibold transition-all bg-stone-900 text-white hover:bg-black cursor-pointer shadow-lg shadow-stone-200 disabled:opacity-50 disabled:cursor-not-allowed";
@@ -109,7 +110,21 @@ export default function StudentPortal() {
         </div>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      {/* Student ID Quick Access */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+        className="mt-8"
+      >
+        <StudentIDCard 
+          studentId={student.student_id} 
+          studentName={student.full_name}
+          size="md"
+        />
+      </motion.div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mt-8">
         {/* Daily Schedule - Left Side */}
         <section className="lg:col-span-8 space-y-8">
           <div className="flex items-center justify-between">

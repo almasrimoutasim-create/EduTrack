@@ -23,8 +23,7 @@ export const AuthProvider = ({ children }) => {
       setIsLoadingPublicSettings(true);
       setAuthError(null);
       
-      // First, check app public settings (with token if available)
-      // This will tell us if auth is required, user not registered, etc.
+      // First, check app public settings
       const appClient = createAxiosClient({
         baseURL: `/api/apps/public`,
         headers: {
@@ -38,14 +37,18 @@ export const AuthProvider = ({ children }) => {
         const publicSettings = await appClient.get(`/prod/public-settings/by-id/${appParams.appId}`);
         setAppPublicSettings(publicSettings);
         
-        // If we got the app public settings successfully, check if user is authenticated
-        if (appParams.token) {
-          await checkUserAuth();
+        // Check our local secure login session
+        const storedUser = localStorage.getItem('portal_user');
+        const storedAuth = localStorage.getItem('portal_is_auth');
+        if (storedUser && storedAuth === 'true') {
+          setUser(JSON.parse(storedUser));
+          setIsAuthenticated(true);
         } else {
-          setIsLoadingAuth(false);
           setIsAuthenticated(false);
-          setAuthChecked(true);
+          setUser(null);
         }
+        setIsLoadingAuth(false);
+        setAuthChecked(true);
         setIsLoadingPublicSettings(false);
       } catch (appError) {
         console.error('App state check failed:', appError);
@@ -90,46 +93,69 @@ export const AuthProvider = ({ children }) => {
   };
 
   const checkUserAuth = async () => {
-    try {
-      // Now check if the user is authenticated
-      setIsLoadingAuth(true);
-      const currentUser = await base44.auth.me();
-      setUser(currentUser);
+    const storedUser = localStorage.getItem('portal_user');
+    const storedAuth = localStorage.getItem('portal_is_auth');
+    if (storedUser && storedAuth === 'true') {
+      setUser(JSON.parse(storedUser));
       setIsAuthenticated(true);
-      setIsLoadingAuth(false);
-      setAuthChecked(true);
-    } catch (error) {
-      console.error('User auth check failed:', error);
-      setIsLoadingAuth(false);
+    } else {
       setIsAuthenticated(false);
-      setAuthChecked(true);
-      
-      // If user auth fails, it might be an expired token
-      if (error.status === 401 || error.status === 403) {
-        setAuthError({
-          type: 'auth_required',
-          message: 'Authentication required'
-        });
+      setUser(null);
+    }
+    setIsLoadingAuth(false);
+    setAuthChecked(true);
+  };
+
+  const login = async (role, identifier, password) => {
+    setAuthError(null);
+    try {
+      const response = await fetch('/neon-db/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role, identifier, password })
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to login');
       }
+      
+      const loggedUser = data.user;
+      setUser(loggedUser);
+      setIsAuthenticated(true);
+      
+      // Persist in localStorage
+      localStorage.setItem('portal_role', loggedUser.role);
+      localStorage.setItem('portal_user', JSON.stringify(loggedUser));
+      localStorage.setItem('portal_user_id', loggedUser.id);
+      localStorage.setItem('portal_user_name', loggedUser.full_name);
+      localStorage.setItem('portal_is_auth', 'true');
+      
+      return loggedUser;
+    } catch (error) {
+      setAuthError({
+        type: 'login_failed',
+        message: error.message || 'Login failed. Please check your credentials.'
+      });
+      throw error;
     }
   };
 
   const logout = (shouldRedirect = true) => {
     setUser(null);
     setIsAuthenticated(false);
+    localStorage.removeItem('portal_role');
+    localStorage.removeItem('portal_user');
+    localStorage.removeItem('portal_user_id');
+    localStorage.removeItem('portal_user_name');
+    localStorage.removeItem('portal_is_auth');
     
     if (shouldRedirect) {
-      // Use the SDK's logout method which handles token cleanup and redirect
-      base44.auth.logout(window.location.href);
-    } else {
-      // Just remove the token without redirect
-      base44.auth.logout();
+      window.location.href = '/';
     }
   };
 
   const navigateToLogin = () => {
-    // Use the SDK's redirectToLogin method
-    base44.auth.redirectToLogin(window.location.href);
+    window.location.href = '/';
   };
 
   return (
@@ -141,6 +167,7 @@ export const AuthProvider = ({ children }) => {
       authError,
       appPublicSettings,
       authChecked,
+      login,
       logout,
       navigateToLogin,
       checkUserAuth,

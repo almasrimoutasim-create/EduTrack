@@ -13,13 +13,13 @@ export default function TeacherFormDialog({ open, onClose, teacher }) {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(teacher || {
     full_name: "", employee_id: "", email: "", phone: "",
-    subject: "", subjects: "", photo_url: "", bio: "", salary: 0, status: "active"
+    subject: "", subjects: "", photo_url: "", bio: "", salary: 0, status: "active", portal_password: ""
   });
 
   useEffect(() => {
     setForm(teacher || {
       full_name: "", employee_id: "", email: "", phone: "",
-      subject: "", subjects: "", photo_url: "", bio: "", salary: 0, status: "active"
+      subject: "", subjects: "", photo_url: "", bio: "", salary: 0, status: "active", portal_password: ""
     });
   }, [teacher]);
 
@@ -69,9 +69,20 @@ export default function TeacherFormDialog({ open, onClose, teacher }) {
               <Input value={form.phone} onChange={e => update("phone", e.target.value)} />
             </div>
           </div>
-          <div>
-            <Label>Primary Subject</Label>
-            <Input value={form.subject} onChange={e => update("subject", e.target.value)} placeholder="e.g. Mathematics" />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>Primary Subject</Label>
+              <Input value={form.subject} onChange={e => update("subject", e.target.value)} placeholder="e.g. Mathematics" />
+            </div>
+            <div>
+              <Label>Portal Password</Label>
+              <Input 
+                type="password" 
+                value={form.portal_password || ""} 
+                onChange={e => update("portal_password", e.target.value)} 
+                placeholder={isEdit ? "Leave blank to keep existing" : "••••••••"} 
+              />
+            </div>
           </div>
           <div>
             <Label>All Subjects (comma separated)</Label>

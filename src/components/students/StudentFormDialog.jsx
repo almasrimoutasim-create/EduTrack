@@ -17,14 +17,14 @@ export default function StudentFormDialog({ open, onClose, student }) {
   const isRTL = language === "ar";
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(student || {
-    full_name: "", student_id: "", grade: "1", section: "A",
+    full_name: "", student_id: "", user_email: "", portal_password: "", parent_password: "", grade: "1", section: "A",
     date_of_birth: "", parent_name: "", parent_phone: "", parent_email: "",
     address: "", card_balance: 0, bus_registered: false, bus_route: "", status: "active"
   });
 
   useEffect(() => {
     setForm(student || {
-      full_name: "", student_id: "", grade: "1", section: "A",
+      full_name: "", student_id: "", user_email: student?.user_email || "", portal_password: "", parent_password: "", grade: "1", section: "A",
       date_of_birth: "", parent_name: "", parent_phone: "", parent_email: "",
       address: "", card_balance: 0, bus_registered: false, bus_route: "", status: "active"
     });
@@ -72,7 +72,11 @@ export default function StudentFormDialog({ open, onClose, student }) {
     busRoutePlaceholder: isRTL ? "مسار الحافلة" : "Bus route",
     saving: isRTL ? "جاري الحفظ..." : "Saving...",
     save: isRTL ? "حفظ البيانات" : "Save Student",
-    update: isRTL ? "تحديث البيانات" : "Update Student"
+    update: isRTL ? "تحديث البيانات" : "Update Student",
+    studentEmail: isRTL ? "البريد الإلكتروني للطالب" : "Student Email",
+    studentPassword: isRTL ? "كلمة مرور بوابة الطالب" : "Student Portal Password",
+    parentPassword: isRTL ? "كلمة مرور بوابة ولي الأمر" : "Parent Portal Password",
+    passwordPlaceholder: isRTL ? "اتركه فارغاً للاحتفاظ بكلمة المرور الحالية" : "Leave blank to keep existing"
   };
 
   return (
@@ -153,14 +157,47 @@ export default function StudentFormDialog({ open, onClose, student }) {
               />
             </div>
           </div>
-          <div>
-            <Label className="text-stone-700 font-medium">{t.parentEmail}</Label>
-            <Input 
-              value={form.parent_email} 
-              onChange={e => update("parent_email", e.target.value)} 
-              className="mt-1 rounded-lg border-stone-200 num-en"
-              placeholder="parent@example.com" 
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label className="text-stone-700 font-medium">{t.studentEmail}</Label>
+              <Input 
+                value={form.user_email || ""} 
+                onChange={e => update("user_email", e.target.value)} 
+                className="mt-1 rounded-lg border-stone-200 num-en"
+                placeholder="student@example.com" 
+              />
+            </div>
+            <div>
+              <Label className="text-stone-700 font-medium">{t.studentPassword}</Label>
+              <Input 
+                type="password"
+                value={form.portal_password || ""} 
+                onChange={e => update("portal_password", e.target.value)} 
+                className="mt-1 rounded-lg border-stone-200"
+                placeholder={isEdit ? t.passwordPlaceholder : "••••••••"} 
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label className="text-stone-700 font-medium">{t.parentEmail}</Label>
+              <Input 
+                value={form.parent_email} 
+                onChange={e => update("parent_email", e.target.value)} 
+                className="mt-1 rounded-lg border-stone-200 num-en"
+                placeholder="parent@example.com" 
+              />
+            </div>
+            <div>
+              <Label className="text-stone-700 font-medium">{t.parentPassword}</Label>
+              <Input 
+                type="password"
+                value={form.parent_password || ""} 
+                onChange={e => update("parent_password", e.target.value)} 
+                className="mt-1 rounded-lg border-stone-200"
+                placeholder={isEdit ? t.passwordPlaceholder : "••••••••"} 
+              />
+            </div>
           </div>
           <div>
             <Label className="text-stone-700 font-medium">{t.address}</Label>

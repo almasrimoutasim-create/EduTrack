@@ -57,12 +57,6 @@ export default function ParentSidebar() {
 
   return (
     <>
-      <div className={cn(
-        "fixed top-4 z-50 no-print transition-all duration-300",
-        isRTL ? "left-4" : "right-4"
-      )}>
-        <LanguageSwitcher />
-      </div>
 
       <button
         className={cn(
@@ -139,6 +133,13 @@ export default function ParentSidebar() {
 
         {/* Sidebar Footer */}
         <div className="p-6 border-t border-stone-50 space-y-4">
+          <div className="flex items-center justify-between pb-2 border-b border-stone-50">
+            <span className="text-[10px] font-black uppercase tracking-widest text-stone-400">
+              {isRTL ? "اللغة" : "Language"}
+            </span>
+            <LanguageSwitcher />
+          </div>
+          
           <button
             onClick={handleLogout}
             className="flex items-center gap-3 w-full px-4 py-3 text-sm font-bold text-rose-500 hover:bg-rose-50 rounded-2xl transition-all"

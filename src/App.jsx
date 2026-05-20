@@ -98,15 +98,15 @@ function App() {
   return (
     <LanguageProvider>
       <Router>
-        <RoleGate>
-          <AuthProvider>
+        <AuthProvider>
+          <RoleGate>
             <QueryClientProvider client={queryClientInstance}>
               <AuthenticatedApp />
               <Toaster />
               <SonnerToaster richColors position="top-right" />
             </QueryClientProvider>
-          </AuthProvider>
-        </RoleGate>
+          </RoleGate>
+        </AuthProvider>
       </Router>
     </LanguageProvider>
   );

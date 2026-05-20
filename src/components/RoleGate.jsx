@@ -1,19 +1,9 @@
-import { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
+import { useAuth } from "@/lib/AuthContext";
 import RoleLogin from "@/pages/RoleLogin";
 
-const PORTAL_PATHS = [
-  "/teacher-portal", 
-  "/student-portal", 
-  "/parent-portal", 
-  "/bus-supervisor", 
-  "/staff-portal",
-  "/student-directory",
-  "/staff-control",
-  "/finance",
-  "/store",
-  "/library"
-];
 const PORTAL_REDIRECTS = { 
+  admin: "/",
   teacher: "/teacher-portal", 
   student: "/student-portal", 
   parent: "/parent-portal",
@@ -26,55 +16,86 @@ const PORTAL_REDIRECTS = {
   library: "/library"
 };
 
+const isPathAllowed = (role, path) => {
+  if (role === 'admin') return true;
+
+  if (role === 'teacher') return path.startsWith('/teacher-portal');
+  if (role === 'student') return path.startsWith('/student-portal');
+  if (role === 'parent') return path.startsWith('/parent-portal');
+  if (role === 'bus') return path.startsWith('/bus-supervisor');
+  
+  if (role === 'staff') return path.startsWith('/staff-portal');
+
+  if (role === 'registrar') {
+    return path.startsWith('/staff-portal') || 
+           path.startsWith('/student-directory') || 
+           path.startsWith('/attendance') || 
+           path.startsWith('/attendance-summary') || 
+           path.startsWith('/weekly-attendance') || 
+           path.startsWith('/subjects') || 
+           path.startsWith('/materials') || 
+           path.startsWith('/study-rooms') || 
+           path.startsWith('/room-view') || 
+           path.startsWith('/activity') || 
+           path.startsWith('/awards') || 
+           path.startsWith('/card');
+  }
+
+  if (role === 'hr') {
+    return path.startsWith('/staff-portal') || path.startsWith('/staff-control');
+  }
+
+  if (role === 'library') {
+    return path.startsWith('/staff-portal') || path.startsWith('/library');
+  }
+
+  if (role === 'store') {
+    return path.startsWith('/staff-portal') || path.startsWith('/store');
+  }
+
+  if (role === 'accountant') {
+    return path.startsWith('/staff-portal') || path.startsWith('/finance');
+  }
+
+  return false;
+};
+
 export default function RoleGate({ children }) {
-  const [role, setRole] = useState(null);
-  const [checked, setChecked] = useState(false);
+  const { user, isAuthenticated, isLoadingAuth } = useAuth();
+  const [redirecting, setRedirecting] = useState(false);
   const path = window.location.pathname;
 
   useEffect(() => {
-    // If already on a portal page, no gate needed
-    if (PORTAL_PATHS.some(p => path.startsWith(p))) {
-      setChecked(true);
-      return;
-    }
-    const stored = localStorage.getItem("portal_role");
-    setRole(stored);
-    setChecked(true);
-  }, []);
+    if (isLoadingAuth || redirecting) return;
 
-  if (!checked) {
+    if (isAuthenticated && user) {
+      const userRole = user.role;
+      // Validate path authorization
+      if (!isPathAllowed(userRole, path)) {
+        console.warn(`Unauthorized access attempt to ${path} by role: ${userRole}`);
+        setRedirecting(true);
+        const defaultRedirect = PORTAL_REDIRECTS[userRole] || "/";
+        window.location.href = defaultRedirect;
+      }
+    }
+  }, [isAuthenticated, user, path, isLoadingAuth, redirecting]);
+
+  if (isLoadingAuth || redirecting) {
     return (
-      <div className="fixed inset-0 flex items-center justify-center bg-slate-900">
-        <div className="w-8 h-8 border-4 border-amber-400/30 border-t-amber-400 rounded-full animate-spin" />
+      <div className="fixed inset-0 flex items-center justify-center bg-[#FDFCF8]">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-amber-400/30 border-t-amber-500 rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-sm font-semibold text-stone-600 font-sans">EduTrack | جاري التحقق من الصلاحيات...</p>
+        </div>
       </div>
     );
   }
 
-  // Portal pages bypass the gate
-  if (PORTAL_PATHS.some(p => path.startsWith(p))) return children;
-
-  // No role → show login
-  if (!role) {
-    return (
-      <RoleLogin
-        onLogin={(selectedRole) => {
-          if (PORTAL_REDIRECTS[selectedRole]) {
-            window.location.href = PORTAL_REDIRECTS[selectedRole];
-          } else {
-            // admin → just re-render (base44 auth will handle it)
-            setRole("admin");
-          }
-        }}
-      />
-    );
+  // Not authenticated? Show secure portal login
+  if (!isAuthenticated) {
+    return <RoleLogin />;
   }
 
-  // Non-admin with stored role → redirect to their portal
-  if (role !== "admin" && PORTAL_REDIRECTS[role]) {
-    window.location.href = PORTAL_REDIRECTS[role];
-    return null;
-  }
-
-  // Admin → show the full app
+  // Authenticated & authorized? Let the children render!
   return children;
 }
