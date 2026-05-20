@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: edutrack
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      # Optional: set if you want frontend to call a separate backend URL
+      # - key: VITE_BACKEND_URL
+      #   sync: false
