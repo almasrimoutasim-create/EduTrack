@@ -1,4 +1,5 @@
 import express from 'express';
+import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createApiHandler } from './server/api.js';
@@ -9,6 +10,19 @@ const __dirname = path.dirname(__filename);
 const app = express();
 
 const PORT = process.env.PORT || 3000;
+
+// Enable CORS for Vercel frontend + local dev
+app.use(cors({
+  origin: [
+    'https://edu-track-smoky-two.vercel.app',
+    'https://edu-track-f93fvpqkt-almasrimoutasim-creates-projects.vercel.app',
+    /^https:\/\/.*\.vercel\.app$/,
+    'http://localhost:5173',
+    'http://localhost:3000'
+  ],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
 // Mount Neon DB API routes FIRST (before static or body parsers)
 app.use(createApiHandler());
