@@ -68,12 +68,21 @@ export default function StaffPortal() {
     },
   ];
 
-  const handlePortalClick = (path) => {
-    navigate(path);
+  const handlePortalClick = (path, id) => {
+    if (id === "academic") {
+      localStorage.setItem("portal_role", "admin");
+      window.location.href = "/admin-dashboard";
+    } else {
+      localStorage.setItem("portal_role", id);
+      window.location.href = path;
+    }
   };
 
   const handleBack = () => {
-    navigate("/");
+    localStorage.removeItem("portal_role");
+    localStorage.removeItem("portal_user_id");
+    localStorage.removeItem("portal_user_name");
+    window.location.href = "/";
   };
 
   const containerVariants = {
@@ -139,7 +148,7 @@ export default function StaffPortal() {
               key={portal.id}
               variants={{ hidden: { y: 20, opacity: 0 }, visible: { y: 0, opacity: 1 } }}
               whileHover={{ y: -5 }}
-              onClick={() => handlePortalClick(portal.path)}
+              onClick={() => handlePortalClick(portal.path, portal.id)}
               className="group cursor-pointer"
             >
               <Card className="p-8 border-none shadow-sm hover:shadow-2xl transition-all duration-500 rounded-[24px] bg-white relative overflow-hidden h-full flex flex-col items-center text-center">

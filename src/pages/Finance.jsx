@@ -13,7 +13,9 @@ import {
   PieChart,
   ShieldCheck,
   MoreVertical,
-  Clock
+  Clock,
+  Edit2,
+  Trash2
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
@@ -24,6 +26,13 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import FinancialRecordFormDialog from "@/components/shared/FinancialRecordFormDialog";
+import { toast } from "sonner";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const btnOutline = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border-2 border-stone-300 bg-white text-stone-800 hover:bg-stone-50 hover:border-stone-400 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
 const btnPrimary = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed";
@@ -33,6 +42,16 @@ export default function Finance() {
   const isRTL = language === "ar";
   const [searchTerm, setSearchTerm] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedRecord, setSelectedRecord] = useState(null);
+
+  const handleDelete = async (recordId) => {
+    try {
+      await base44.entities.FinancialRecord.delete(recordId);
+      toast.success(isRTL ? "تم حذف المعاملة" : "Transaction deleted");
+    } catch (err) {
+      toast.error(isRTL ? "فشل حذف المعاملة" : "Failed to delete");
+    }
+  };
 
   const { data: purchases = [], isLoading } = useQuery({ 
     queryKey: ["finance-purchases"], 
@@ -62,7 +81,10 @@ export default function Finance() {
     return db.localeCompare(da);
   }).slice(0, 15);
 
-  const handleAdd = () => setDialogOpen(true);
+  const handleAdd = () => {
+    setSelectedRecord(null);
+    setDialogOpen(true);
+  };
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -207,10 +229,43 @@ export default function Finance() {
                           </Badge>
                         </td>
                         <td className="px-5 py-4 text-left">
-                          <button className={`${btnOutline} h-9 px-3 text-xs`}>
-                            <MoreVertical size={14} />
-                            {t("common.actions", language)}
-                          </button>
+                          {t._type === "record" ? (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <button className={`${btnOutline} h-9 px-3 text-xs cursor-pointer`}>
+                                  <MoreVertical size={14} />
+                                  {isRTL ? "خيارات" : "Actions"}
+                                </button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align={isRTL ? "start" : "end"} className="w-36">
+                                <DropdownMenuItem 
+                                  onClick={() => {
+                                    setSelectedRecord(t);
+                                    setDialogOpen(true);
+                                  }} 
+                                  className="flex items-center gap-2 cursor-pointer text-stone-700"
+                                >
+                                  <Edit2 size={12} />
+                                  <span className="text-xs">{isRTL ? "تعديل" : "Edit"}</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem 
+                                  onClick={() => {
+                                    if (confirm(isRTL ? "هل أنت متأكد من حذف هذه المعاملة؟" : "Are you sure you want to delete this transaction?")) {
+                                      handleDelete(t.id);
+                                    }
+                                  }} 
+                                  className="flex items-center gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 cursor-pointer"
+                                >
+                                  <Trash2 size={12} />
+                                  <span className="text-xs">{isRTL ? "حذف" : "Delete"}</span>
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          ) : (
+                            <Badge className="bg-stone-100 text-stone-400 border-none rounded-lg text-[10px] font-bold px-2 py-0.5">
+                              {isRTL ? "شراء تلقائي" : "Auto Purchase"}
+                            </Badge>
+                          )}
                         </td>
                       </tr>
                     );
@@ -301,7 +356,7 @@ export default function Finance() {
           </Card>
         </aside>
       </div>
-      <FinancialRecordFormDialog open={dialogOpen} onClose={() => setDialogOpen(false)} />
+      <FinancialRecordFormDialog open={dialogOpen} onClose={() => setDialogOpen(false)} record={selectedRecord} />
     </div>
   );
 }

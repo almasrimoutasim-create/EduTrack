@@ -28,7 +28,7 @@ export default function RoleLogin({ onLogin }) {
     { id: "teacher", icon: GraduationCap, label: { ar: "بوابة المعلم", en: "Teacher Portal" }, color: "bg-indigo-600 text-white", path: "/teacher-portal" },
     { id: "student", icon: User, label: { ar: "بوابة الطالب", en: "Student Portal" }, color: "bg-teal-600 text-white", path: "/student-portal" },
     { id: "parent", icon: Users, label: { ar: "بوابة ولي الأمر", en: "Parent Portal" }, color: "bg-rose-600 text-white", path: "/parent-portal" },
-    { id: "bus", icon: Bus, label: { ar: "مشرف الحافلة", en: "Bus Supervisor" }, color: "bg-amber-500 text-stone-900", path: "/bus-portal" },
+    { id: "bus", icon: Bus, label: { ar: "مشرف الحافلة", en: "Bus Supervisor" }, color: "bg-amber-500 text-stone-900", path: "/bus-supervisor" },
     { id: "staff", icon: ShieldCheck, label: { ar: "بوابة الموظف", en: "Staff Portal" }, color: "bg-blue-600 text-white", path: "/staff-portal" }
   ];
 

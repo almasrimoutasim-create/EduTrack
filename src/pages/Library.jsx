@@ -11,8 +11,17 @@ import {
   Layers,
   History,
   CheckCircle2,
-  Clock
+  Clock,
+  MoreVertical,
+  Edit2,
+  Trash2
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/lib/LanguageContext";
 import { t } from "@/lib/translations";
@@ -155,9 +164,35 @@ export default function Library() {
                       <div className="absolute inset-0 flex items-center justify-center text-stone-300">
                         <Book size={64} className="group-hover:scale-110 transition-transform duration-500 opacity-20" />
                       </div>
-                      <Badge className="absolute top-5 right-5 bg-white/90 backdrop-blur-md text-stone-900 border-none rounded-lg font-bold text-[10px] px-3 py-1 shadow-md">
-                        {book.category || (isRTL ? "عام" : "General")}
-                      </Badge>
+                      <div className={`absolute top-5 ${isRTL ? 'left-5' : 'right-5'} flex items-center gap-1.5 z-10`}>
+                        <Badge className="bg-white/90 backdrop-blur-md text-stone-900 border-none rounded-lg font-bold text-[10px] px-2.5 py-1 shadow-md">
+                          {book.subject_name || (isRTL ? "عام" : "General")}
+                        </Badge>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button className="bg-white/90 hover:bg-white backdrop-blur-md text-stone-800 h-7 w-7 rounded-lg flex items-center justify-center shadow-md cursor-pointer transition-colors">
+                              <MoreVertical size={13} />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align={isRTL ? "start" : "end"} className="w-32">
+                            <DropdownMenuItem onClick={() => { setSelectedBook(book); setDialogOpen(true); }} className="flex items-center gap-2 cursor-pointer text-stone-700">
+                              <Edit2 size={12} />
+                              <span className="text-xs">{isRTL ? "تعديل" : "Edit"}</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => {
+                                if (confirm(isRTL ? "هل أنت متأكد من حذف هذا الكتاب؟" : "Are you sure you want to delete this book?")) {
+                                  handleDelete(book);
+                                }
+                              }} 
+                              className="flex items-center gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 cursor-pointer"
+                            >
+                              <Trash2 size={12} />
+                              <span className="text-xs">{isRTL ? "حذف" : "Delete"}</span>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
                       {book.status === 'available' && (
                         <div className={`absolute bottom-5 ${isRTL ? 'left-5' : 'right-5'} bg-emerald-500 text-white h-9 w-9 rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/30`}>
                           <CheckCircle2 size={18} />

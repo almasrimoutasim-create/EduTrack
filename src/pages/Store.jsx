@@ -9,8 +9,17 @@ import {
   ShoppingCart, 
   Package, 
   TrendingUp,
-  AlertCircle
+  AlertCircle,
+  MoreVertical,
+  Edit2,
+  Trash2
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/lib/LanguageContext";
 import { t } from "@/lib/translations";
@@ -213,9 +222,35 @@ export default function Store() {
                       <div className="absolute inset-0 flex items-center justify-center text-stone-200">
                         <Package size={56} className="opacity-20" />
                       </div>
-                      <Badge className="absolute top-5 right-5 bg-white/90 backdrop-blur-md text-stone-900 border-none rounded-lg font-bold text-[10px] px-3 py-1 shadow-md">
-                        {item.category || (isRTL ? "منتج" : "Product")}
-                      </Badge>
+                      <div className={`absolute top-5 ${isRTL ? 'left-5' : 'right-5'} flex items-center gap-1.5 z-10`}>
+                        <Badge className="bg-white/90 backdrop-blur-md text-stone-900 border-none rounded-lg font-bold text-[10px] px-2.5 py-1 shadow-md">
+                          {item.category || (isRTL ? "منتج" : "Product")}
+                        </Badge>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button className="bg-white/90 hover:bg-white backdrop-blur-md text-stone-800 h-7 w-7 rounded-lg flex items-center justify-center shadow-md cursor-pointer transition-colors">
+                              <MoreVertical size={13} />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align={isRTL ? "start" : "end"} className="w-32">
+                            <DropdownMenuItem onClick={() => { setSelectedItem(item); setDialogOpen(true); }} className="flex items-center gap-2 cursor-pointer text-stone-700">
+                              <Edit2 size={12} />
+                              <span className="text-xs">{isRTL ? "تعديل" : "Edit"}</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => {
+                                if (confirm(isRTL ? "هل أنت متأكد من حذف هذا المنتج؟" : "Are you sure you want to delete this product?")) {
+                                  handleDelete(item);
+                                }
+                              }} 
+                              className="flex items-center gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 cursor-pointer"
+                            >
+                              <Trash2 size={12} />
+                              <span className="text-xs">{isRTL ? "حذف" : "Delete"}</span>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
                       {item.stock <= 5 && (
                         <Badge className="absolute top-5 left-5 bg-rose-500 text-white border-none rounded-lg font-bold text-[8px] px-2 py-0.5 shadow-md animate-pulse">
                           {isRTL ? "كمية محدودة" : "Low Stock"}

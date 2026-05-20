@@ -1,8 +1,30 @@
 import { useState, useEffect } from "react";
 import RoleLogin from "@/pages/RoleLogin";
 
-const PORTAL_PATHS = ["/teacher-portal", "/student-portal", "/parent-portal", "/bus-supervisor", "/staff-portal"];
-const PORTAL_REDIRECTS = { teacher: "/teacher-portal", student: "/student-portal", parent: "/parent-portal" };
+const PORTAL_PATHS = [
+  "/teacher-portal", 
+  "/student-portal", 
+  "/parent-portal", 
+  "/bus-supervisor", 
+  "/staff-portal",
+  "/student-directory",
+  "/staff-control",
+  "/finance",
+  "/store",
+  "/library"
+];
+const PORTAL_REDIRECTS = { 
+  teacher: "/teacher-portal", 
+  student: "/student-portal", 
+  parent: "/parent-portal",
+  bus: "/bus-supervisor",
+  staff: "/staff-portal",
+  registrar: "/student-directory",
+  hr: "/staff-control",
+  accountant: "/finance",
+  store: "/store",
+  library: "/library"
+};
 
 export default function RoleGate({ children }) {
   const [role, setRole] = useState(null);

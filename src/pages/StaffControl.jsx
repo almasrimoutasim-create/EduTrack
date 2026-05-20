@@ -15,8 +15,16 @@ import {
   Clock,
   Briefcase,
   UserCheck,
-  ShieldAlert
+  ShieldAlert,
+  Edit2,
+  Trash2
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { motion } from "framer-motion";
 import { useLanguage } from "@/lib/LanguageContext";
 import { t } from "@/lib/translations";
@@ -173,10 +181,31 @@ export default function StaffControl() {
                     </div>
                     <div className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-emerald-500 border-3 border-white" />
                   </div>
-                  <button className={`${btnOutline} rounded-lg gap-1 text-xs h-8 px-3`}>
-                    <MoreVertical size={14} />
-                    {t("common.actions", language)}
-                  </button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button className={`${btnOutline} rounded-lg gap-1 text-xs h-8 px-3`}>
+                        <MoreVertical size={14} />
+                        {t("common.actions", language)}
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align={isRTL ? "start" : "end"} className="w-40">
+                      <DropdownMenuItem onClick={() => { setSelectedMember(member); setDialogOpen(true); }} className="flex items-center gap-2 cursor-pointer text-stone-700">
+                        <Edit2 size={14} />
+                        <span>{isRTL ? "تعديل" : "Edit"}</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        onClick={() => {
+                          if (confirm(isRTL ? "هل أنت متأكد من حذف هذا الموظف؟" : "Are you sure you want to delete this staff member?")) {
+                            handleDelete(member);
+                          }
+                        }} 
+                        className="flex items-center gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 cursor-pointer"
+                      >
+                        <Trash2 size={14} />
+                        <span>{isRTL ? "حذف" : "Delete"}</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
 
                 <div className="mb-6 flex-1">

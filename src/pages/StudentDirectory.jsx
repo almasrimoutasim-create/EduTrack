@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { 
   Users, 
@@ -24,6 +24,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
+import StudentFormDialog from "@/components/students/StudentFormDialog";
 
 const btnOutline = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border-2 border-stone-200 bg-white text-stone-800 hover:bg-stone-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
 const btnPrimary = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed";
@@ -31,7 +32,10 @@ const btnPrimary = "inline-flex items-center justify-center gap-2 whitespace-now
 export default function StudentDirectory() {
   const { language } = useLanguage();
   const isRTL = language === "ar";
+  const qc = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState(null);
 
   const { data: students = [], isLoading } = useQuery({ 
     queryKey: ["student-directory-list"], 
@@ -39,10 +43,32 @@ export default function StudentDirectory() {
   });
 
   const filteredStudents = students.filter(s =>
-    (s.full_name || s.name)?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.student_id?.includes(searchTerm) ||
-    s.grade?.includes(searchTerm)
+    (s.full_name || s.name || "")?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (s.student_id || "")?.includes(searchTerm) ||
+    (s.grade || "")?.includes(searchTerm)
   );
+
+  const handleAdd = () => {
+    setSelectedStudent(null);
+    setDialogOpen(true);
+  };
+
+  const handleEdit = (student) => {
+    setSelectedStudent(student);
+    setDialogOpen(true);
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm(isRTL ? "هل أنت متأكد من حذف هذا الطالب نهائياً؟" : "Are you sure you want to delete this student permanently?")) return;
+    try {
+      await base44.entities.Student.delete(id);
+      qc.invalidateQueries({ queryKey: ["student-directory-list"] });
+      qc.invalidateQueries({ queryKey: ["students"] });
+      toast.success(isRTL ? "تم حذف الطالب بنجاح" : "Student deleted successfully");
+    } catch (err) {
+      toast.error(isRTL ? "فشل حذف الطالب" : "Failed to delete student");
+    }
+  };
 
   const exportCSV = () => {
     const headers = ["ID", "Full Name", "Student ID", "Grade", "Section", "Parent Name", "Parent Phone", "Parent Email", "Status", "Bus Route"];
@@ -85,7 +111,7 @@ export default function StudentDirectory() {
             <Download size={18} />
             <span>{isRTL ? "تصدير البيانات" : "Export CSV"}</span>
           </button>
-          <button className={`${btnPrimary} h-11 px-5`}>
+          <button onClick={handleAdd} className={`${btnPrimary} h-11 px-5`}>
             <UserPlus size={18} />
             <span>{isRTL ? "إضافة طالب جديد" : "Add Student"}</span>
           </button>
@@ -145,11 +171,11 @@ export default function StudentDirectory() {
                 <th className="px-6 py-4 text-center w-10">
                   <Checkbox className="rounded-md" />
                 </th>
-                <th className="px-6 py-4 text-[10px] font-bold text-stone-400 uppercase tracking-wide">{isRTL ? "اسم الطالب" : "Student Name"}</th>
-                <th className="px-6 py-4 text-[10px] font-bold text-stone-400 uppercase tracking-wide">{isRTL ? "الرقم الجامعي" : "Student ID"}</th>
-                <th className="px-6 py-4 text-[10px] font-bold text-stone-400 uppercase tracking-wide">{isRTL ? "الصف" : "Grade"}</th>
-                <th className="px-6 py-4 text-[10px] font-bold text-stone-400 uppercase tracking-wide">{isRTL ? "حالة الملف" : "Status"}</th>
-                <th className="px-6 py-4 text-[10px] font-bold text-stone-400 uppercase tracking-wide">{isRTL ? "الإجراءات" : "Actions"}</th>
+                <th className="px-6 py-4 text-[10px] font-bold text-stone-400 uppercase tracking-wide text-start">{isRTL ? "اسم الطالب" : "Student Name"}</th>
+                <th className="px-6 py-4 text-[10px] font-bold text-stone-400 uppercase tracking-wide text-start">{isRTL ? "الرقم الجامعي" : "Student ID"}</th>
+                <th className="px-6 py-4 text-[10px] font-bold text-stone-400 uppercase tracking-wide text-start">{isRTL ? "الصف" : "Grade"}</th>
+                <th className="px-6 py-4 text-[10px] font-bold text-stone-400 uppercase tracking-wide text-start">{isRTL ? "حالة الملف" : "Status"}</th>
+                <th className="px-6 py-4 text-[10px] font-bold text-stone-400 uppercase tracking-wide text-end">{isRTL ? "الإجراءات" : "Actions"}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-50">
@@ -165,47 +191,48 @@ export default function StudentDirectory() {
                     {isRTL ? "لا توجد نتائج" : "No results found"}
                   </td>
                 </tr>
-              ) : filteredStudents.map((student, i) => (
+              ) : filteredStudents.map((student) => (
                 <tr key={student.id} className="hover:bg-stone-50/30 transition-colors group">
                   <td className="px-6 py-4 text-center">
                     <Checkbox className="rounded-md" />
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-6 py-4 text-start">
                     <div className="flex items-center gap-3">
                       <div className="h-10 w-10 rounded-lg bg-stone-100 flex items-center justify-center font-bold text-stone-400 group-hover:bg-primary group-hover:text-white transition-all">
                         {(student.full_name || student.name)?.[0]}
                       </div>
                       <div>
                         <span className="text-sm font-semibold text-stone-900 block group-hover:text-primary transition-colors">{student.full_name || student.name}</span>
-                        <span className="text-[10px] font-semibold text-stone-400 uppercase">{student.email || 'student@edu.ae'}</span>
+                        <span className="text-[10px] font-semibold text-stone-400 uppercase">{student.parent_email || 'student@edu.ae'}</span>
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-sm font-bold text-stone-600 num-en">{student.id}</td>
-                  <td className="px-6 py-4">
+                  <td className="px-6 py-4 text-sm font-bold text-stone-600 num-en text-start">{student.student_id || student.id}</td>
+                  <td className="px-6 py-4 text-start">
                     <Badge className="bg-stone-50 text-stone-600 border-none rounded-lg text-[9px] font-bold px-2 py-0.5 num-en">
-                      {student.grade || '10-A'}
+                      {isRTL ? `الصف ${student.grade || '10'}` : `Grade ${student.grade || '10'}`}-{student.section || 'A'}
                     </Badge>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-6 py-4 text-start">
                     <div className="flex items-center gap-2">
-                      <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                      <span className="text-[10px] font-bold text-stone-400 uppercase">{isRTL ? "مكتمل" : "Active"}</span>
+                      <div className={`h-1.5 w-1.5 rounded-full ${student.status === 'active' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                      <span className="text-[10px] font-bold text-stone-500 uppercase">
+                        {student.status === 'active' ? (isRTL ? "نشط" : "Active") : (isRTL ? "موقف" : "Suspended")}
+                      </span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-left">
+                  <td className="px-6 py-4 text-end">
                     <div className="flex items-center justify-end gap-2">
-                      <button className={`${btnOutline} rounded-lg gap-1 text-xs h-8 px-3`}>
+                      <button onClick={() => handleEdit(student)} className={`${btnOutline} rounded-lg gap-1 text-xs h-8 px-3`}>
                         <Edit3 size={14} />
-                        {t("common.edit", language)}
+                        <span>{isRTL ? "تعديل" : "Edit"}</span>
                       </button>
-                      <button className={`${btnOutline} rounded-lg gap-1 text-xs h-8 px-3 border-rose-200 hover:bg-rose-50 hover:text-rose-600`}>
+                      <button onClick={() => handleDelete(student.id)} className={`${btnOutline} rounded-lg gap-1 text-xs h-8 px-3 border-rose-200 hover:bg-rose-50 hover:text-rose-600`}>
                         <Trash2 size={14} />
-                        {t("common.delete", language)}
+                        <span>{isRTL ? "حذف" : "Delete"}</span>
                       </button>
                       <button className={`${btnOutline} rounded-lg gap-1 text-xs h-8 px-3`}>
                         <MoreVertical size={14} />
-                        {t("common.options", language)}
                       </button>
                     </div>
                   </td>
@@ -226,6 +253,7 @@ export default function StudentDirectory() {
           </div>
         </div>
       </Card>
+      <StudentFormDialog open={dialogOpen} onClose={() => setDialogOpen(false)} student={selectedStudent} />
     </div>
   );
 }
