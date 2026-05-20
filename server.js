@@ -30,8 +30,13 @@ app.use(createApiHandler());
 // Serve built frontend static files
 app.use(express.static(path.join(__dirname, 'dist')));
 
-// SPA fallback for client-side routing
-app.get('*', (req, res) => {
+// Health check (useful for Render)
+app.get('/health', (_req, res) => {
+  res.json({ status: 'ok', time: new Date().toISOString() });
+});
+
+// SPA fallback for client-side routing (Express 5 compatible syntax)
+app.get('/*', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
