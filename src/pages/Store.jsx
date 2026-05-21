@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { 
   ShoppingBag, 
@@ -12,7 +12,10 @@ import {
   AlertCircle,
   MoreVertical,
   Edit2,
-  Trash2
+  Trash2,
+  CreditCard,
+  Wallet,
+  ArrowLeft
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -29,6 +32,13 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import StoreItemFormDialog from "@/components/shared/StoreItemFormDialog";
 import { toast } from "sonner";
+import { useAuth } from "@/lib/AuthContext";
+import { loadStripe } from "@stripe/stripe-js";
+import { Elements } from "@stripe/react-stripe-js";
+import StripePaymentForm from "@/components/portal/StripePaymentForm";
+
+// @ts-ignore
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
 const btnOutline = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border-2 border-stone-300 bg-white text-stone-800 hover:bg-stone-50 hover:border-stone-400 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
 const btnPrimary = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed";
@@ -36,11 +46,47 @@ const btnPrimary = "inline-flex items-center justify-center gap-2 whitespace-now
 export default function Store() {
   const { language } = useLanguage();
   const isRTL = language === "ar";
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const role = user?.role || localStorage.getItem("portal_role") || "student";
+
   const [searchTerm, setSearchTerm] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
   const [cart, setCart] = useState([]);
   const [showCart, setShowCart] = useState(false);
+  const [checkoutStep, setCheckoutStep] = useState("cart"); // "cart", "payment_method", "stripe"
+
+  // Student specific logic
+  const studentId = user?.id || localStorage.getItem("portal_user_id") || "S-505";
+  const { data: studentProfile } = useQuery({
+    queryKey: ["student-profile", studentId],
+    enabled: role === "student",
+    queryFn: () => base44.entities.Student.get(studentId)
+  });
+
+  // Parent specific logic
+  const parentId = user?.id || localStorage.getItem("portal_user_id") || "P-101";
+  const { data: children = [] } = useQuery({ 
+    queryKey: ["parent-children", parentId], 
+    enabled: role === "parent",
+    queryFn: () => base44.entities.Student.list("-created_at", { parent_id: parentId }) 
+  });
+
+  const [selectedStudentId, setSelectedStudentId] = useState(null);
+
+  React.useEffect(() => {
+    if (children.length > 0 && !selectedStudentId) {
+      setSelectedStudentId(children[0].id);
+    }
+  }, [children, selectedStudentId]);
+
+  const activeStudent = role === "student" 
+    ? studentProfile 
+    : (role === "parent" ? children.find(c => c.id === selectedStudentId) : null);
+
+  const cardBalance = activeStudent ? (parseFloat(activeStudent.card_balance) || 0) : 0;
+  const canManage = role === "admin" || role === "staff" || role === "store";
 
   const { data: storeItems = [], isLoading } = useQuery({ 
     queryKey: ["store-items"], 
@@ -100,25 +146,80 @@ export default function Store() {
   const cartTotal = cart.reduce((sum, c) => sum + c.price * c.quantity, 0);
   const cartCount = cart.reduce((sum, c) => sum + c.quantity, 0);
 
-  const handleCheckout = async () => {
+  const handleCheckout = async (chosenMethod = "wallet") => {
     if (cart.length === 0) return;
+
+    if (!activeStudent && !canManage) {
+      toast.error(isRTL ? "يرجى تسجيل الدخول للقيام بالشراء" : "Please login to purchase");
+      return;
+    }
+
+    if (chosenMethod === "wallet" && activeStudent && cardBalance < cartTotal) {
+      toast.error(
+        isRTL 
+          ? "رصيد بطاقتك الذكية غير كافٍ لإتمام عملية الشراء." 
+          : "Insufficient smart card balance to complete checkout."
+      );
+      return;
+    }
+
     try {
+      // 1. If student/parent using wallet, deduct balance
+      if (activeStudent && chosenMethod === "wallet") {
+        const finalBalance = cardBalance - cartTotal;
+        await base44.entities.Student.update(activeStudent.id, { card_balance: finalBalance });
+      }
+
+      // 2. Process items (decrement stock, create purchases)
       for (const c of cart) {
+        const storeItem = storeItems.find(item => item.id === c.item_id);
+        if (storeItem) {
+          const newStock = Math.max(0, (storeItem.stock || 0) - c.quantity);
+          await base44.entities.StoreItem.update(c.item_id, { stock: newStock });
+        }
+
         await base44.entities.Purchase.create({
-          student_id: "admin",
-          student_name: "Admin",
+          student_id: activeStudent ? (activeStudent.id || activeStudent.student_id) : "admin",
+          student_name: activeStudent ? (activeStudent.full_name || activeStudent.name) : "Admin",
           item_id: c.item_id,
           item_name: c.name,
           quantity: c.quantity,
-          unit_price: c.price,
-          total_amount: c.price * c.quantity,
-          date: new Date().toISOString().split("T")[0]
+          total_price: c.price * c.quantity,
+          payment_method: chosenMethod === "wallet" ? "card" : "credit_card"
         });
       }
-      toast.success(isRTL ? "تم إتمام الشراء بنجاح" : "Checkout successful");
+
+      // 3. Create financial record (school income)
+      await base44.entities.FinancialRecord.create({
+        record_type: "income",
+        recipient_type: activeStudent ? "student" : "school",
+        recipient_name: activeStudent ? (activeStudent.full_name || activeStudent.name) : "School Store",
+        recipient_id: activeStudent ? (activeStudent.id || activeStudent.student_id) : "store",
+        amount: cartTotal,
+        description: isRTL 
+          ? `مشتريات المتجر: ${cart.map(i => `${i.name} (x${i.quantity})`).join(', ')}`
+          : `Store Purchases: ${cart.map(i => `${i.name} (x${i.quantity})`).join(', ')}`,
+        payment_date: new Date().toISOString().split('T')[0],
+        status: "paid",
+        payment_method: chosenMethod === "wallet" ? "card" : "credit_card"
+      });
+
+      // 4. Invalidate queries
+      queryClient.invalidateQueries(["store-items"]);
+      queryClient.invalidateQueries(["store-purchases"]);
+      if (role === "student") {
+        queryClient.invalidateQueries(["student-profile", studentId]);
+      } else if (role === "parent") {
+        queryClient.invalidateQueries(["parent-children", parentId]);
+      }
+      queryClient.invalidateQueries(["financial-records"]);
+
+      toast.success(isRTL ? "تم الشراء بنجاح!" : "Checkout successful!");
       setCart([]);
       setShowCart(false);
+      setCheckoutStep("cart");
     } catch (err) {
+      console.error(err);
       toast.error(isRTL ? "فشل إتمام الشراء" : "Checkout failed");
     }
   };
@@ -142,30 +243,127 @@ export default function Store() {
               <span className="absolute -top-1 -right-1 h-5 w-5 bg-rose-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white num-en">{cartCount}</span>
             )}
           </button>
-          <button onClick={handleAdd} className={`${btnPrimary} h-11 px-5`}>
-            <Plus size={18} />
-            <span>{isRTL ? "إضافة منتج" : "Add Product"}</span>
-          </button>
+          {canManage && (
+            <button onClick={handleAdd} className={`${btnPrimary} h-11 px-5`}>
+              <Plus size={18} />
+              <span>{isRTL ? "إضافة منتج" : "Add Product"}</span>
+            </button>
+          )}
         </div>
       </PageHeader>
 
-      {/* Store Highlights Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {[
-          { label: isRTL ? "إجمالي المنتجات" : "Total Products", value: storeItems.length, icon: Package, color: "text-primary", bg: "bg-primary/10" },
-          { label: isRTL ? "مبيعات الشهر" : "Monthly Sales", value: `$${totalSales.toLocaleString()}`, icon: TrendingUp, color: "text-emerald-600", bg: "bg-emerald-50" },
-          { label: isRTL ? "نواقص المخزون" : "Low Stock", value: lowStockItems, icon: AlertCircle, color: "text-rose-600", bg: "bg-rose-50" },
-          { label: isRTL ? "طلبات قيد التنفيذ" : "Active Orders", value: purchases.length, icon: ShoppingBag, color: "text-amber-600", bg: "bg-amber-50" },
-        ].map((stat, i) => (
-          <Card key={i} className="p-5 border shadow-sm bg-white rounded-xl group">
-            <div className={`h-11 w-11 rounded-lg ${stat.bg} flex items-center justify-center ${stat.color} mb-3 group-hover:scale-110 transition-transform`}>
-              <stat.icon size={22} />
+      {/* Smart Card Wallet Widget for Students and Parents */}
+      {(role === "student" || role === "parent") && activeStudent && (
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="grid grid-cols-1 md:grid-cols-3 gap-6"
+        >
+          {/* Visual Digital Smart Card */}
+          <Card className="md:col-span-2 relative w-full overflow-hidden bg-gradient-to-br from-teal-900 via-stone-850 to-emerald-950 text-white rounded-[32px] shadow-2xl border-none p-8 flex flex-col justify-between aspect-[2.1/1] min-h-[220px]">
+            <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '24px 24px' }} />
+            <div className="absolute -top-24 -right-24 w-64 h-64 bg-emerald-500/20 rounded-full blur-[80px]" />
+            <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-teal-500/10 rounded-full blur-[80px]" />
+            
+            <div className="relative z-10 flex justify-between items-start">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/10">
+                  <ShoppingBag size={20} className="text-teal-300" />
+                </div>
+                <div>
+                  <h4 className="font-serif font-black tracking-tight text-base">Edu<span className="text-emerald-400">Wallet</span></h4>
+                  <p className="text-[8px] font-bold text-stone-400 uppercase tracking-widest">{isRTL ? "محفظة الطالب الرقمية" : "Digital Wallet"}</p>
+                </div>
+              </div>
+              <Badge className="bg-white/10 backdrop-blur-md text-white border border-white/10 rounded-lg text-[8px] font-black px-2 py-1 tracking-wider">
+                NFC SMART CARD
+              </Badge>
             </div>
-            <p className="text-stone-400 text-[10px] font-semibold uppercase tracking-wide mb-0.5">{stat.label}</p>
-            <h4 className="text-xl font-bold text-stone-900 num-en">{stat.value}</h4>
+
+            <div className="relative z-10 my-4">
+              <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">{isRTL ? "الرصيد المتاح بالشريحة الذكية" : "NFC Chip Balance"}</p>
+              <p className="text-4xl font-black text-emerald-400 num-en">${cardBalance.toFixed(2)}</p>
+            </div>
+
+            <div className="relative z-10 flex justify-between items-end">
+              <div>
+                <h5 className="text-sm font-bold">{activeStudent.full_name || activeStudent.name}</h5>
+                <p className="text-stone-400 text-[9px] font-bold uppercase tracking-widest mt-1">ID: {activeStudent.id || activeStudent.student_id}</p>
+              </div>
+              <div className="h-12 w-12 bg-white/10 backdrop-blur-md rounded-xl flex items-center justify-center border border-white/10">
+                <ShoppingBag className="h-6 w-6 text-white" />
+              </div>
+            </div>
           </Card>
-        ))}
-      </div>
+
+          {/* Selector & Shop Info card */}
+          <Card className="p-8 border shadow-sm bg-white rounded-[32px] flex flex-col justify-between">
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-teal-50 flex items-center justify-center text-teal-600">
+                  <ShoppingBag size={20} />
+                </div>
+                <div>
+                  <h4 className="font-serif font-bold text-lg text-stone-900">{isRTL ? "من يتسوق الآن؟" : "Who is Shopping?"}</h4>
+                  <p className="text-stone-400 text-xs">{isRTL ? "حدد الطالب المستفيد لإتمام الشراء باسمه." : "Select the shopping student to debit."}</p>
+                </div>
+              </div>
+
+              {role === "parent" && children.length > 0 && (
+                <div className="space-y-1.5 mt-2">
+                  <label className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">{isRTL ? "الابن النشط:" : "Active Child:"}</label>
+                  <select
+                    value={selectedStudentId || ""}
+                    onChange={e => setSelectedStudentId(e.target.value)}
+                    className="w-full h-11 px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-teal-500/20 cursor-pointer"
+                  >
+                    {children.map(c => (
+                      <option key={c.id} value={c.id}>{c.full_name || c.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              {role === "student" && (
+                <div className="p-4 bg-teal-50/50 border border-teal-100 rounded-2xl">
+                  <p className="text-xs font-semibold text-teal-800 leading-relaxed">
+                    {isRTL 
+                      ? "أهلاً بك! يتم خصم قيمة المشتريات تلقائياً من رصيد بطاقتك الذكية عند الشراء."
+                      : "Welcome! Purchases are automatically debited from your NFC Smart Card balance."}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="pt-4 border-t border-stone-100 mt-4 flex items-center justify-between text-xs font-bold uppercase tracking-wider text-stone-400">
+              <span>{isRTL ? "حالة البطاقة" : "Card Status"}</span>
+              <span className="text-emerald-500 flex items-center gap-1">
+                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                {isRTL ? "نشطة وجاهزة" : "Active & Ready"}
+              </span>
+            </div>
+          </Card>
+        </motion.div>
+      )}
+
+      {/* Admin stats */}
+      {canManage && (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {[
+            { label: isRTL ? "إجمالي المنتجات" : "Total Products", value: storeItems.length, icon: Package, color: "text-primary", bg: "bg-primary/10" },
+            { label: isRTL ? "مبيعات الشهر" : "Monthly Sales", value: `$${totalSales.toLocaleString()}`, icon: TrendingUp, color: "text-emerald-600", bg: "bg-emerald-50" },
+            { label: isRTL ? "نواقص المخزون" : "Low Stock", value: lowStockItems, icon: AlertCircle, color: "text-rose-600", bg: "bg-rose-50" },
+            { label: isRTL ? "طلبات قيد التنفيذ" : "Active Orders", value: purchases.length, icon: ShoppingBag, color: "text-amber-600", bg: "bg-amber-50" },
+          ].map((stat, i) => (
+            <Card key={i} className="p-5 border shadow-sm bg-white rounded-xl group">
+              <div className={`h-11 w-11 rounded-lg ${stat.bg} flex items-center justify-center ${stat.color} mb-3 group-hover:scale-110 transition-transform`}>
+                <stat.icon size={22} />
+              </div>
+              <p className="text-stone-400 text-[10px] font-semibold uppercase tracking-wide mb-0.5">{stat.label}</p>
+              <h4 className="text-xl font-bold text-stone-900 num-en">{stat.value}</h4>
+            </Card>
+          ))}
+        </div>
+      )}
 
       {/* Shopping Interface */}
       <section className="space-y-6">
@@ -218,38 +416,48 @@ export default function Store() {
                   className="group"
                 >
                   <Card className="p-0 border shadow-sm hover:shadow-lg transition-all duration-300 rounded-2xl bg-white overflow-hidden h-full flex flex-col">
-                    <div className="h-48 bg-stone-50 relative overflow-hidden group-hover:scale-105 transition-transform duration-500">
-                      <div className="absolute inset-0 flex items-center justify-center text-stone-200">
-                        <Package size={56} className="opacity-20" />
-                      </div>
+                    <div className="h-48 bg-stone-50 relative overflow-hidden">
+                      {item.image_url ? (
+                        <img 
+                          src={item.image_url} 
+                          alt={item.name} 
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        />
+                      ) : (
+                        <div className="absolute inset-0 flex items-center justify-center text-stone-200">
+                          <Package size={56} className="opacity-20" />
+                        </div>
+                      )}
                       <div className={`absolute top-5 ${isRTL ? 'left-5' : 'right-5'} flex items-center gap-1.5 z-10`}>
                         <Badge className="bg-white/90 backdrop-blur-md text-stone-900 border-none rounded-lg font-bold text-[10px] px-2.5 py-1 shadow-md">
                           {item.category || (isRTL ? "منتج" : "Product")}
                         </Badge>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <button className="bg-white/90 hover:bg-white backdrop-blur-md text-stone-800 h-7 w-7 rounded-lg flex items-center justify-center shadow-md cursor-pointer transition-colors">
-                              <MoreVertical size={13} />
-                            </button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align={isRTL ? "start" : "end"} className="w-32">
-                            <DropdownMenuItem onClick={() => { setSelectedItem(item); setDialogOpen(true); }} className="flex items-center gap-2 cursor-pointer text-stone-700">
-                              <Edit2 size={12} />
-                              <span className="text-xs">{isRTL ? "تعديل" : "Edit"}</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => {
-                                if (confirm(isRTL ? "هل أنت متأكد من حذف هذا المنتج؟" : "Are you sure you want to delete this product?")) {
-                                  handleDelete(item);
-                                }
-                              }} 
-                              className="flex items-center gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 cursor-pointer"
-                            >
-                              <Trash2 size={12} />
-                              <span className="text-xs">{isRTL ? "حذف" : "Delete"}</span>
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                        {canManage && (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button className="bg-white/90 hover:bg-white backdrop-blur-md text-stone-800 h-7 w-7 rounded-lg flex items-center justify-center shadow-md cursor-pointer transition-colors">
+                                <MoreVertical size={13} />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align={isRTL ? "start" : "end"} className="w-32">
+                              <DropdownMenuItem onClick={() => { setSelectedItem(item); setDialogOpen(true); }} className="flex items-center gap-2 cursor-pointer text-stone-700">
+                                <Edit2 size={12} />
+                                <span className="text-xs">{isRTL ? "تعديل" : "Edit"}</span>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => {
+                                  if (confirm(isRTL ? "هل أنت متأكد من حذف هذا المنتج؟" : "Are you sure you want to delete this product?")) {
+                                    handleDelete(item);
+                                  }
+                                }} 
+                                className="flex items-center gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 cursor-pointer"
+                              >
+                                <Trash2 size={12} />
+                                <span className="text-xs">{isRTL ? "حذف" : "Delete"}</span>
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
                       </div>
                       {item.stock <= 5 && (
                         <Badge className="absolute top-5 left-5 bg-rose-500 text-white border-none rounded-lg font-bold text-[8px] px-2 py-0.5 shadow-md animate-pulse">
@@ -267,7 +475,7 @@ export default function Store() {
                       </div>
                       
                       <p className="text-xs text-stone-400 mb-5 line-clamp-2">
-                        {isRTL ? "مستلزمات دراسية عالية الجودة تلبي احتياجات الطلاب اليومية." : "High-quality school supplies meeting daily student needs."}
+                        {item.description || (isRTL ? "مستلزمات دراسية عالية الجودة تلبي احتياجات الطلاب اليومية." : "High-quality school supplies meeting daily student needs.")}
                       </p>
 
                       <div className="mt-auto space-y-3">
@@ -302,8 +510,8 @@ export default function Store() {
             exit={{ y: 100, opacity: 0 }}
             className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 w-full max-w-lg px-4"
           >
-            <Card className="bg-primary text-white p-5 rounded-2xl shadow-2xl shadow-primary/40 border border-white/10 backdrop-blur-xl">
-              <div className="flex items-center justify-between mb-4">
+            <Card className="bg-primary text-white p-5 rounded-2xl shadow-2xl shadow-primary/40 border border-white/10 backdrop-blur-xl transition-all duration-300">
+              <div className="flex items-center justify-between mb-4 pb-3 border-b border-white/10">
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-lg bg-secondary flex items-center justify-center">
                     <ShoppingCart size={18} />
@@ -313,27 +521,107 @@ export default function Store() {
                     <p className="font-bold"><span className="num-en">{cartCount}</span> {isRTL ? "منتجات" : "Items"} · <span className="num-en">${cartTotal.toFixed(2)}</span></p>
                   </div>
                 </div>
-                <button onClick={() => setShowCart(false)} className={`${btnOutline} h-8 px-3 text-xs border-white/30 text-white hover:bg-white/10 hover:text-white`}>
+                <button 
+                  onClick={() => { setShowCart(false); setCheckoutStep("cart"); }} 
+                  className={`${btnOutline} h-8 px-3 text-xs border-white/30 text-white hover:bg-white/10 hover:text-white`}
+                >
                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
                   {t("common.close", language) || "إغلاق"}
                 </button>
               </div>
-              <div className="space-y-2.5 max-h-44 overflow-y-auto mb-4">
-                {cart.map(c => (
-                  <div key={c.item_id} className="flex items-center justify-between text-sm">
-                    <span className="font-semibold truncate flex-1">{c.name}</span>
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => updateCartQty(c.item_id, c.quantity - 1)} className="h-6 w-6 rounded-full bg-white/10 flex items-center justify-center text-xs hover:bg-white/20 num-en">-</button>
-                      <span className="w-6 text-center font-bold num-en">{c.quantity}</span>
-                      <button onClick={() => updateCartQty(c.item_id, c.quantity + 1)} className="h-6 w-6 rounded-full bg-white/10 flex items-center justify-center text-xs hover:bg-white/20 num-en">+</button>
-                      <span className="w-16 text-right font-bold num-en">${(c.price * c.quantity).toFixed(2)}</span>
-                    </div>
+
+              {checkoutStep === "cart" && (
+                <div className="space-y-4">
+                  <div className="space-y-2.5 max-h-44 overflow-y-auto pr-1">
+                    {cart.map(c => (
+                      <div key={c.item_id} className="flex items-center justify-between text-sm">
+                        <span className="font-semibold truncate flex-1">{c.name}</span>
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => updateCartQty(c.item_id, c.quantity - 1)} className="h-6 w-6 rounded-full bg-white/10 flex items-center justify-center text-xs hover:bg-white/20 num-en">-</button>
+                          <span className="w-6 text-center font-bold num-en">{c.quantity}</span>
+                          <button onClick={() => updateCartQty(c.item_id, c.quantity + 1)} className="h-6 w-6 rounded-full bg-white/10 flex items-center justify-center text-xs hover:bg-white/20 num-en">+</button>
+                          <span className="w-16 text-right font-bold num-en">${(c.price * c.quantity).toFixed(2)}</span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-              <button onClick={handleCheckout} className="w-full bg-white text-stone-900 hover:bg-stone-100 rounded-xl h-11 font-bold">
-                {isRTL ? "إتمام الشراء" : "Checkout"} — <span className="num-en">${cartTotal.toFixed(2)}</span>
-              </button>
+                  <button 
+                    onClick={() => role === "parent" ? setCheckoutStep("payment_method") : handleCheckout("wallet")} 
+                    className="w-full bg-white text-stone-900 hover:bg-stone-100 rounded-xl h-11 font-bold transition-all transform hover:scale-[1.01]"
+                  >
+                    {isRTL ? "إتمام الشراء" : "Checkout"} — <span className="num-en">${cartTotal.toFixed(2)}</span>
+                  </button>
+                </div>
+              )}
+
+              {checkoutStep === "payment_method" && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <button onClick={() => setCheckoutStep("cart")} className="p-1 hover:bg-white/10 rounded-lg text-white">
+                      <ArrowLeft size={16} className={isRTL ? "rotate-180" : ""} />
+                    </button>
+                    <h5 className="font-bold text-sm">{isRTL ? "اختر طريقة الدفع" : "Select Payment Method"}</h5>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-3">
+                    {/* Wallet Option */}
+                    <button 
+                      onClick={() => handleCheckout("wallet")}
+                      className="flex items-center justify-between p-4 rounded-xl border border-white/20 hover:border-white/50 bg-white/5 hover:bg-white/10 transition-all text-right w-full cursor-pointer"
+                    >
+                      <div className="flex items-center gap-3 text-start">
+                        <div className="h-9 w-9 rounded-lg bg-teal-500/20 text-teal-300 flex items-center justify-center">
+                          <Wallet size={18} />
+                        </div>
+                        <div>
+                          <p className="font-bold text-sm">{isRTL ? "بطاقة الطالب الذكية (EduWallet)" : "Smart Card (EduWallet)"}</p>
+                          <p className="text-[10px] text-white/60">{isRTL ? `رصيد الابن: $${cardBalance.toFixed(2)}` : `Child's Balance: $${cardBalance.toFixed(2)}`}</p>
+                        </div>
+                      </div>
+                      <span className="text-xs font-black text-emerald-400 num-en">${cartTotal.toFixed(2)}</span>
+                    </button>
+
+                    {/* Credit Card (Stripe) Option */}
+                    <button 
+                      onClick={() => setCheckoutStep("stripe")}
+                      className="flex items-center justify-between p-4 rounded-xl border border-white/20 hover:border-white/50 bg-white/5 hover:bg-white/10 transition-all text-right w-full cursor-pointer"
+                    >
+                      <div className="flex items-center gap-3 text-start">
+                        <div className="h-9 w-9 rounded-lg bg-indigo-500/20 text-indigo-300 flex items-center justify-center">
+                          <CreditCard size={18} />
+                        </div>
+                        <div>
+                          <p className="font-bold text-sm">{isRTL ? "بطاقة بنكية آمنة (Stripe)" : "Secure Credit Card (Stripe)"}</p>
+                          <p className="text-[10px] text-white/60">{isRTL ? "ادفع مباشرة بالبطاقة الائتمانية" : "Pay securely via credit card"}</p>
+                        </div>
+                      </div>
+                      <span className="text-xs font-black text-teal-300 num-en">${cartTotal.toFixed(2)}</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {checkoutStep === "stripe" && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <button onClick={() => setCheckoutStep("payment_method")} className="p-1 hover:bg-white/10 rounded-lg text-white">
+                      <ArrowLeft size={16} className={isRTL ? "rotate-180" : ""} />
+                    </button>
+                    <h5 className="font-bold text-sm">{isRTL ? "الدفع ببطاقة الائتمان" : "Pay with Credit Card"}</h5>
+                  </div>
+
+                  <div className="bg-white text-stone-900 p-4 rounded-xl">
+                    <Elements stripe={stripePromise}>
+                      <StripePaymentForm 
+                        amount={cartTotal}
+                        onSuccess={() => handleCheckout("credit_card")}
+                        onCancel={() => setCheckoutStep("payment_method")}
+                        language={language}
+                      />
+                    </Elements>
+                  </div>
+                </div>
+              )}
             </Card>
           </motion.div>
         )}

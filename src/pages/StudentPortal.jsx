@@ -13,7 +13,8 @@ import {
   FileText,
   Award,
   ArrowUpRight,
-  LogOut
+  LogOut,
+  ShoppingBag
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useLanguage } from "@/lib/LanguageContext";
@@ -46,6 +47,11 @@ export default function StudentPortal() {
   const { data: student = {} } = useQuery({ 
     queryKey: ["student-profile", studentId], 
     queryFn: () => base44.entities.Student.get(studentId) 
+  });
+
+  const { data: storePurchases = [] } = useQuery({
+    queryKey: ["store-purchases", studentId],
+    queryFn: () => base44.entities.Purchase.list("-date", { student_id: studentId })
   });
 
   const { data: materials = [] } = useQuery({
@@ -110,19 +116,56 @@ export default function StudentPortal() {
         </div>
       </header>
 
-      {/* Student ID Quick Access */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-        className="mt-8"
-      >
-        <StudentIDCard 
-          studentId={student.student_id} 
-          studentName={student.full_name}
-          size="md"
-        />
-      </motion.div>
+      {/* Digital Wallet & Student ID side-by-side */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
+          <StudentIDCard 
+            studentId={student.student_id || student.id} 
+            studentName={student.full_name || student.name}
+            size="lg"
+          />
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35 }}
+        >
+          <Card className="relative overflow-hidden bg-gradient-to-br from-teal-900 via-stone-850 to-emerald-950 text-white rounded-[32px] shadow-xl border-none p-6 flex flex-col justify-between h-full min-h-[140px] group">
+            <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '24px 24px' }} />
+            <div className="absolute -top-24 -right-24 w-64 h-64 bg-emerald-500/20 rounded-full blur-[80px]" />
+            
+            <div className="relative z-10 flex justify-between items-start">
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-lg bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/10">
+                  <Star size={16} className="text-teal-300" />
+                </div>
+                <div>
+                  <h4 className="font-serif font-black tracking-tight text-sm">Edu<span className="text-emerald-400">Wallet</span></h4>
+                  <p className="text-[8px] font-bold text-stone-400 uppercase tracking-widest">{isRTL ? "محفظة الطالب الرقمية" : "Digital Wallet"}</p>
+                </div>
+              </div>
+              <Badge className="bg-white/10 backdrop-blur-md text-white border border-white/10 rounded-lg text-[8px] font-black px-2 py-0.5 tracking-wider">
+                NFC SMART CARD
+              </Badge>
+            </div>
+
+            <div className="relative z-10 my-3">
+              <p className="text-[9px] font-bold text-stone-400 uppercase tracking-widest mb-0.5">{isRTL ? "الرصيد المتاح بالشريحة" : "Smart Card Wallet Balance"}</p>
+              <p className="text-3xl font-black text-emerald-400 num-en">${(parseFloat(student.card_balance || 0)).toFixed(2)}</p>
+            </div>
+
+            <div className="relative z-10 flex justify-between items-end">
+              <span className="text-[9px] font-bold text-stone-400 uppercase tracking-widest">{isRTL ? "البطاقة نشطة" : "Card Active"}</span>
+              <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+            </div>
+          </Card>
+        </motion.div>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mt-8">
         {/* Daily Schedule - Left Side */}
@@ -234,6 +277,43 @@ export default function StudentPortal() {
                   </button>
                 </div>
               ))}
+            </div>
+          </Card>
+          
+          {/* Recent Store Purchases */}
+          <Card className="p-8 border-none shadow-sm bg-white rounded-[40px]">
+            <div className="flex items-center justify-between mb-8">
+              <h4 className="font-bold text-stone-900 font-serif">{isRTL ? "مشتريات المتجر الأخيرة" : "Recent Purchases"}</h4>
+              <span className="text-[10px] font-bold text-stone-450 uppercase tracking-wider bg-stone-50 px-2.5 py-1 rounded-lg num-en">
+                {storePurchases.length} {isRTL ? "عمليات" : "Txns"}
+              </span>
+            </div>
+
+            <div className="space-y-6">
+              {storePurchases.length === 0 ? (
+                <div className="text-center py-6 text-stone-400 text-xs font-semibold">
+                  {isRTL ? "لا توجد مشتريات مؤخراً." : "No recent purchases found."}
+                </div>
+              ) : (
+                storePurchases.slice(0, 4).map((p, i) => (
+                  <div key={p.id || i} className="flex items-center justify-between gap-4 group">
+                    <div className="flex gap-3 items-center">
+                      <div className="h-10 w-10 rounded-xl bg-teal-50 flex items-center justify-center text-teal-600 group-hover:bg-teal-100 transition-colors">
+                        <ShoppingBag size={18} />
+                      </div>
+                      <div>
+                        <h5 className="text-sm font-bold text-stone-800 leading-snug truncate max-w-[120px]">{p.item_name}</h5>
+                        <p className="text-[10px] font-bold text-stone-400 num-en">
+                          {p.date} · {p.quantity} {isRTL ? "قطع" : "units"}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-sm font-extrabold text-stone-900 num-en">
+                      -${(p.total_amount || (p.unit_price * p.quantity) || 0).toFixed(2)}
+                    </span>
+                  </div>
+                ))
+              )}
             </div>
           </Card>
 

@@ -1,7 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, BookOpen, ClipboardCheck,
-  FileText, Menu, X, Calendar, Star, Trophy, Rocket, LogOut
+  FileText, Menu, X, Calendar, Star, Trophy, Rocket, LogOut, ShoppingBag
 } from "lucide-react";
 import { useState } from "react";
 import { motion } from "framer-motion";
@@ -30,7 +30,8 @@ export default function StudentSidebar() {
       label: isRTL ? "الرئيسية" : "Overview",
       items: [
         { label: isRTL ? "لوحة التحكم" : "Dashboard", path: "/student-portal", icon: LayoutDashboard },
-        { label: isRTL ? "الجدول الدراسي" : "Schedule", path: "#", icon: Calendar }
+        { label: isRTL ? "الجدول الدراسي" : "Schedule", path: "#", icon: Calendar },
+        { label: isRTL ? "متجر المدرسة" : "School Store", path: "/store", icon: ShoppingBag }
       ]
     },
     {

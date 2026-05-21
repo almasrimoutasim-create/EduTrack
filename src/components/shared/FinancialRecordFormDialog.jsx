@@ -8,29 +8,34 @@ import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLanguage } from "@/lib/LanguageContext";
 
-export default function FinancialRecordFormDialog({ open, onClose, record }) {
+export default function FinancialRecordFormDialog({ open, onClose, record, prefill, onSuccess }) {
   const isEdit = !!record;
   const qc = useQueryClient();
   const { language } = useLanguage();
   const isRTL = language === "ar";
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState(record || {
+
+  const defaultForm = {
     record_type: "salary", recipient_type: "teacher", recipient_id: "",
     recipient_name: "", amount: 0, description: "", month: "",
     payment_date: new Date().toISOString().split("T")[0],
     status: "pending", payment_method: "bank_transfer",
     reference_no: "", notes: ""
-  });
+  };
+
+  const getInitialForm = () => {
+    if (record) return record;
+    if (prefill) return { ...defaultForm, ...prefill };
+    return defaultForm;
+  };
+
+  const [form, setForm] = useState(getInitialForm());
 
   useEffect(() => {
-    setForm(record || {
-      record_type: "salary", recipient_type: "teacher", recipient_id: "",
-      recipient_name: "", amount: 0, description: "", month: "",
-      payment_date: new Date().toISOString().split("T")[0],
-      status: "pending", payment_method: "bank_transfer",
-      reference_no: "", notes: ""
-    });
-  }, [record]);
+    if (open) {
+      setForm(getInitialForm());
+    }
+  }, [record, prefill, open]);
 
   const update = (key, val) => setForm(f => ({ ...f, [key]: val }));
 
@@ -38,13 +43,21 @@ export default function FinancialRecordFormDialog({ open, onClose, record }) {
     if (!form.recipient_name || form.amount <= 0) return;
     setSaving(true);
     try {
+      let res;
+      // Derive the required database 'type' column (income vs expense)
+      const derivedType = (form.record_type === "income" || form.record_type === "fine_payment") ? "income" : "expense";
+      const payload = { ...form, type: derivedType };
+
       if (isEdit) {
-        await base44.entities.FinancialRecord.update(record.id, form);
+        res = await base44.entities.FinancialRecord.update(record.id, payload);
       } else {
-        await base44.entities.FinancialRecord.create(form);
+        res = await base44.entities.FinancialRecord.create(payload);
       }
       qc.invalidateQueries({ queryKey: ["finance-purchases"] });
       qc.invalidateQueries({ queryKey: ["financial-records"] });
+      if (onSuccess) {
+        await onSuccess(res || payload);
+      }
       onClose();
     } catch (err) {
       console.error("Failed to save financial record:", err);
@@ -106,7 +119,7 @@ export default function FinancialRecordFormDialog({ open, onClose, record }) {
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" dir={isRTL ? "rtl" : "ltr"}>
-        <DialogHeader>
+        <DialogHeader className="">
           <DialogTitle className="font-display text-xl text-stone-900 font-bold">
             {isEdit ? t.titleEdit : t.titleAdd}
           </DialogTitle>

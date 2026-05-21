@@ -6,9 +6,18 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertCircle, CreditCard, Wallet, Lock } from "lucide-react";
 import { toast } from "sonner";
+import { loadStripe } from "@stripe/stripe-js";
+import { Elements } from "@stripe/react-stripe-js";
+import StripePaymentForm from "./StripePaymentForm";
+import { useLanguage } from "@/lib/LanguageContext";
+
+// @ts-ignore
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
 export default function ParentFinesTab({ student, privacyMode }) {
   const qc = useQueryClient();
+  const { language } = useLanguage();
+  const isRTL = language === "ar";
   const [paying, setPaying] = useState(null);
   const [paymentDialog, setPaymentDialog] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState("wallet");
@@ -39,6 +48,7 @@ export default function ParentFinesTab({ student, privacyMode }) {
       
       // Track payment in financial records
       await base44.entities.FinancialRecord.create({
+        type: "income",
         record_type: "fine_payment",
         recipient_type: "student",
         recipient_name: student.full_name,
@@ -50,10 +60,43 @@ export default function ParentFinesTab({ student, privacyMode }) {
         payment_method: "digital_wallet"
       });
 
-      qc.invalidateQueries(["parent-fines", student.id]);
+      qc.invalidateQueries({ queryKey: ["parent-fines", student.id] });
       setPaying(null);
       setPaymentDialog(null);
       toast.success(`Fine of $${fine.amount.toFixed(2)} paid successfully from digital wallet`);
+    }
+  };
+
+  const handleStripeSuccess = async (paymentIntent) => {
+    setPaying(paymentDialog.id);
+    try {
+      await base44.entities.Fine.update(paymentDialog.id, { status: "paid" });
+      
+      // Track payment in financial records
+      await base44.entities.FinancialRecord.create({
+        type: "income",
+        record_type: "fine_payment",
+        recipient_type: "student",
+        recipient_name: student.full_name,
+        recipient_id: student.id,
+        amount: paymentDialog.amount,
+        description: `Fine Payment (Stripe): ${paymentDialog.reason}`,
+        payment_date: new Date().toISOString().split('T')[0],
+        status: "paid",
+        payment_method: "credit_card"
+      });
+
+      qc.invalidateQueries({ queryKey: ["parent-fines", student.id] });
+      qc.invalidateQueries({ queryKey: ["parent-fine-history", student.id] });
+      qc.invalidateQueries({ queryKey: ["student-detail", student.id] });
+      qc.invalidateQueries({ queryKey: ["parent-children"] });
+      
+      setPaymentDialog(null);
+    } catch (err) {
+      console.error(err);
+      toast.error(isRTL ? "فشل تحديث سجل الغرامة في قاعدة البيانات" : "Failed to update fine record in database");
+    } finally {
+      setPaying(null);
     }
   };
 
@@ -150,7 +193,7 @@ export default function ParentFinesTab({ student, privacyMode }) {
       {/* Payment Dialog */}
       <Dialog open={!!paymentDialog} onOpenChange={(open) => !open && setPaymentDialog(null)}>
         <DialogContent className="max-w-sm">
-          <DialogHeader>
+          <DialogHeader className="">
             <DialogTitle>Secure Fine Payment</DialogTitle>
           </DialogHeader>
 
@@ -176,54 +219,79 @@ export default function ParentFinesTab({ student, privacyMode }) {
 
               {/* Payment Method Selection */}
               <div className="space-y-2">
-                <p className="text-sm font-semibold text-muted-foreground">Payment Method</p>
+                <p className="text-sm font-semibold text-stone-500 uppercase tracking-wider">
+                  {isRTL ? "طريقة الدفع" : "Payment Method"}
+                </p>
                 <div className="grid gap-2">
                   <button
+                    type="button"
                     onClick={() => setPaymentMethod("wallet")}
                     className={`p-3 rounded-lg border-2 text-left transition-all ${
                       paymentMethod === "wallet"
                         ? "border-primary bg-primary/5"
-                        : "border-border hover:border-muted-foreground"
+                        : "border-stone-200 hover:border-stone-400"
                     }`}
                   >
                     <div className="flex items-center gap-2">
-                      <Wallet className={`h-5 w-5 ${paymentMethod === "wallet" ? "text-primary" : "text-muted-foreground"}`} />
+                      <Wallet className={`h-5 w-5 ${paymentMethod === "wallet" ? "text-primary" : "text-stone-400"}`} />
                       <div>
-                        <p className="font-medium text-sm">Digital Wallet</p>
-                        <p className="text-xs text-muted-foreground">Pay from student card balance</p>
+                        <p className="font-semibold text-sm">{isRTL ? "المحفظة الرقمية للطالب" : "Digital Wallet"}</p>
+                        <p className="text-xs text-stone-500">{isRTL ? "الدفع من رصيد بطاقة الطالب" : "Pay from student card balance"}</p>
                       </div>
                     </div>
                   </button>
                   <button
+                    type="button"
                     onClick={() => setPaymentMethod("card")}
-                    disabled
-                    className="p-3 rounded-lg border-2 border-border text-left opacity-50 cursor-not-allowed"
+                    className={`p-3 rounded-lg border-2 text-left transition-all ${
+                      paymentMethod === "card"
+                        ? "border-primary bg-primary/5"
+                        : "border-stone-200 hover:border-stone-400"
+                    }`}
                   >
                     <div className="flex items-center gap-2">
-                      <CreditCard className="h-5 w-5 text-muted-foreground" />
+                      <CreditCard className={`h-5 w-5 ${paymentMethod === "card" ? "text-primary" : "text-stone-400"}`} />
                       <div>
-                        <p className="font-medium text-sm">Credit/Debit Card</p>
-                        <p className="text-xs text-muted-foreground">Coming soon</p>
+                        <p className="font-semibold text-sm">{isRTL ? "بطاقة الائتمان (Stripe)" : "Credit/Debit Card"}</p>
+                        <p className="text-xs text-stone-500">{isRTL ? "دفع رقمي آمن عبر Stripe" : "Secure digital payment via Stripe"}</p>
                       </div>
                     </div>
                   </button>
                 </div>
               </div>
 
+              {/* Stripe Payment Form */}
+              {paymentMethod === "card" && (
+                <div className="pt-4 border-t border-stone-100">
+                  <Elements stripe={stripePromise}>
+                    <StripePaymentForm
+                      amount={paymentDialog.amount}
+                      onSuccess={handleStripeSuccess}
+                      onCancel={() => setPaymentDialog(null)}
+                      language={language}
+                    />
+                  </Elements>
+                </div>
+              )}
+
               {/* Security Notice */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 flex gap-2">
-                <Lock className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
-                <p className="text-xs text-blue-700">All payments are encrypted and securely processed through our payment system.</p>
-              </div>
+              {paymentMethod === "wallet" && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 flex gap-2">
+                  <Lock className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
+                  <p className="text-xs text-blue-700">{isRTL ? "جميع المعاملات مشفرة وتتم بأمان تام." : "All payments are encrypted and securely processed through our payment system."}</p>
+                </div>
+              )}
 
               {/* Balance Check */}
               {paymentMethod === "wallet" && (student.card_balance || 0) < paymentDialog.amount && (
                 <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 flex gap-2">
                   <AlertCircle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-xs font-semibold text-red-700">Insufficient Balance</p>
+                    <p className="text-xs font-semibold text-red-700">{isRTL ? "رصيد غير كافٍ" : "Insufficient Balance"}</p>
                     <p className="text-xs text-red-600">
-                      You need ${(paymentDialog.amount - (student.card_balance || 0)).toFixed(2)} more to pay this fine.
+                      {isRTL 
+                        ? `تحتاج إلى شحن $${(paymentDialog.amount - (student.card_balance || 0)).toFixed(2)} إضافية للسداد.`
+                        : `You need $${(paymentDialog.amount - (student.card_balance || 0)).toFixed(2)} more to pay this fine.`}
                     </p>
                   </div>
                 </div>
@@ -231,20 +299,27 @@ export default function ParentFinesTab({ student, privacyMode }) {
             </div>
           )}
 
-          <DialogFooter>
-            <button className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border-2 border-stone-200 bg-white text-stone-800 hover:bg-stone-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed h-11 px-4" onClick={() => setPaymentDialog(null)}>
-              Cancel
-            </button>
-            <button
-              className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed h-11 px-4 bg-rose-500 hover:bg-rose-600"
-              onClick={() => confirmPayment(paymentDialog)}
-              disabled={
-                paying ||
-                paymentMethod === "wallet" && (student.card_balance || 0) < paymentDialog?.amount
-              }
-            >
-              {paying ? "Processing..." : `Pay $${paymentDialog?.amount?.toFixed(2)}`}
-            </button>
+          <DialogFooter className="">
+            {paymentMethod === "wallet" && (
+              <>
+                <button 
+                  className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border-2 border-stone-200 bg-white text-stone-800 hover:bg-stone-50 cursor-pointer h-11 px-4" 
+                  onClick={() => setPaymentDialog(null)}
+                >
+                  {isRTL ? "إلغاء" : "Cancel"}
+                </button>
+                <button
+                  className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-stone-900 text-white hover:bg-black cursor-pointer shadow-lg shadow-stone-200 disabled:opacity-50 disabled:cursor-not-allowed h-11 px-4"
+                  onClick={() => confirmPayment(paymentDialog)}
+                  disabled={
+                    paying ||
+                    (student.card_balance || 0) < paymentDialog?.amount
+                  }
+                >
+                  {paying ? (isRTL ? "جاري الدفع..." : "Paying...") : (isRTL ? `ادفع $${paymentDialog?.amount?.toFixed(2)}` : `Pay $${paymentDialog?.amount?.toFixed(2)}`)}
+                </button>
+              </>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -20,7 +20,8 @@ import {
   Copy, 
   Eye, 
   EyeOff,
-  Bus
+  Bus,
+  Plus
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/lib/LanguageContext";
@@ -28,6 +29,7 @@ import { t } from "@/lib/translations";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import FinancialRecordFormDialog from "@/components/shared/FinancialRecordFormDialog";
 
 export default function AdminStudentProfile({ student: initialStudent, onClose, onEdit }) {
   const { language } = useLanguage();
@@ -38,6 +40,7 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
   const [showStudentPass, setShowStudentPass] = useState(false);
   const [showParentPass, setShowParentPass] = useState(false);
   const [copiedField, setCopiedField] = useState(null);
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
 
   // Sync / refetch student from database for live updates
   const { data: student = initialStudent } = useQuery({
@@ -65,6 +68,13 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
   const { data: dbPurchases = [] } = useQuery({
     queryKey: ["student-purchases", student?.student_id],
     queryFn: () => base44.entities.Purchase.filter({ student_id: student?.student_id }),
+    enabled: !!student?.student_id
+  });
+
+  // Fetch financial records
+  const { data: dbFinancialRecords = [] } = useQuery({
+    queryKey: ["financial-records", student?.student_id],
+    queryFn: () => base44.entities.FinancialRecord.filter({ recipient_id: student?.student_id }),
     enabled: !!student?.student_id
   });
 
@@ -98,6 +108,84 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
     { id: "b1", title: isRTL ? "تاريخ الفيزياء والعلوم المعاصرة" : "History of Physics & Modern Science", author: "Dr. Stephen Hawking", category: isRTL ? "علوم طبيعية" : "Natural Sciences", borrow_date: "2026-05-05", due_date: "2026-05-25", status: "borrowed" },
     { id: "b2", title: isRTL ? "البلاد العربية في العهد العثماني" : "The Arab Lands in Ottoman Era", author: isRTL ? "د. ألبرت حوراني" : "Albert Hourani", category: isRTL ? "تاريخ وجغرافيا" : "History & Geography", borrow_date: "2026-04-10", due_date: "2026-04-24", status: "returned" },
   ];
+
+  const getRecordTypeLabel = (record) => {
+    if (record.description) return record.description;
+    
+    switch (record.record_type) {
+      case "salary":
+        return isRTL ? "راتب" : "Salary";
+      case "fine_payment":
+        return isRTL ? "سداد غرامة" : "Fine Payment";
+      case "bus_driver_payment":
+        return isRTL ? "أجر سائق حافلة" : "Bus Driver Payment";
+      case "supervisor_payment":
+        return isRTL ? "أجر مشرف حافلة" : "Supervisor Payment";
+      case "expense":
+        return isRTL ? "مصاريف" : "Expense";
+      case "income":
+        return isRTL ? "سداد رسوم دراسية" : "Tuition Payment";
+      case "refund":
+        return isRTL ? "مسترجع" : "Refund";
+      default:
+        return isRTL ? "دفعة مالية" : "Financial Payment";
+    }
+  };
+
+  const getPaymentMethodLabel = (method) => {
+    switch (method) {
+      case "bank_transfer":
+        return isRTL ? "تحويل بنكي" : "Bank Transfer";
+      case "cash":
+        return isRTL ? "نقداً" : "Cash";
+      case "check":
+        return isRTL ? "شيك" : "Check";
+      case "card":
+        return isRTL ? "بطاقة ائتمان" : "Card";
+      default:
+        return method || "";
+    }
+  };
+
+  const studentTransactions = dbFinancialRecords.length > 0
+    ? dbFinancialRecords.map(r => ({
+        id: r.id,
+        date: r.payment_date || r.created_at?.split("T")[0] || "",
+        type: getRecordTypeLabel(r),
+        amount: parseFloat(r.amount) || 0,
+        method: getPaymentMethodLabel(r.payment_method),
+        status: r.status || "completed"
+      }))
+    : mockTransactions;
+
+  const handleSaveSuccess = async (newRecord) => {
+    if (newRecord?.recipient_type === "student") {
+      try {
+        const studentAmount = parseFloat(newRecord.amount) || 0;
+        const desc = (newRecord.description || "").toLowerCase();
+        
+        // Decide if it's a top-up or tuition payment
+        const isTopUp = desc.includes("شحن") || desc.includes("top-up") || desc.includes("top up") || desc.includes("بطاقة") || desc.includes("card");
+        
+        if (isTopUp) {
+          const currentBalance = parseFloat(student.card_balance) || 0;
+          const newBalance = currentBalance + studentAmount;
+          await base44.entities.Student.update(student.id, { card_balance: newBalance });
+          toast.success(isRTL ? "تم شحن رصيد البطاقة الذكية بنجاح!" : "Smart card balance topped up successfully!");
+        } else {
+          const currentPaid = parseFloat(student.tuition_paid) || 0;
+          const newPaid = currentPaid + studentAmount;
+          await base44.entities.Student.update(student.id, { tuition_paid: newPaid });
+          toast.success(isRTL ? "تم تسجيل دفعة الرسوم الدراسية بنجاح!" : "Tuition payment recorded successfully!");
+        }
+        
+        _qc.invalidateQueries({ queryKey: ["student-profile", student.id] });
+        _qc.invalidateQueries({ queryKey: ["financial-records", student?.student_id] });
+      } catch (err) {
+        console.error("Failed to update student financial balances:", err);
+      }
+    }
+  };
 
   const gradesData = dbGrades.length > 0 ? dbGrades : mockGrades;
   const awardsData = dbAwards.length > 0 ? dbAwards : mockAwards;
@@ -639,9 +727,18 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
 
                     {/* Financial Transactions history */}
                     <Card className="border border-stone-200/80 rounded-2xl p-5 bg-white shadow-sm space-y-4">
-                      <div className="flex items-center gap-2 border-b border-stone-100 pb-2">
-                        <DollarSign className="text-primary" size={18} />
-                        <h4 className="font-display font-bold text-stone-800 text-sm">{isRTL ? "سجل المعاملات والمدفوعات المالية" : "Transactions Ledger & Top-ups"}</h4>
+                      <div className="flex items-center justify-between border-b border-stone-100 pb-2">
+                        <div className="flex items-center gap-2">
+                          <DollarSign className="text-primary" size={18} />
+                          <h4 className="font-display font-bold text-stone-800 text-sm">{isRTL ? "سجل المعاملات والمدفوعات المالية" : "Transactions Ledger & Top-ups"}</h4>
+                        </div>
+                        <button 
+                          onClick={() => setPaymentDialogOpen(true)} 
+                          className="inline-flex items-center gap-1 bg-primary text-white text-xs px-3 py-1.5 rounded-lg hover:bg-primary/90 font-bold transition-all shadow-sm cursor-pointer"
+                        >
+                          <Plus size={14} />
+                          <span>{isRTL ? "تسجيل دفعة / شحن رصيد" : "Add Payment / Top-up"}</span>
+                        </button>
                       </div>
 
                       <div className="overflow-x-auto">
@@ -656,7 +753,7 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
                             </tr>
                           </thead>
                           <tbody>
-                            {mockTransactions.map((t) => (
+                            {studentTransactions.map((t) => (
                               <tr key={t.id} className="border-b border-stone-150/40 hover:bg-stone-50/30 transition-colors">
                                 <td className="py-3 px-3 text-stone-550 font-mono text-xs num-en">{t.date}</td>
                                 <td className="py-3 px-3 font-bold text-stone-800">{t.type}</td>
@@ -890,7 +987,7 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
               </tr>
             </thead>
             <tbody>
-              {mockTransactions.map((t) => (
+              {studentTransactions.map((t) => (
                 <tr key={t.id} className="border-b border-slate-100">
                   <td className="py-2 px-2 font-mono text-slate-500 num-en">{t.date}</td>
                   <td className="py-2 px-2 font-extrabold text-slate-800">{t.type}</td>
@@ -1004,6 +1101,24 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
           </div>
         </div>
       </div>
+
+      {paymentDialogOpen && (
+        <FinancialRecordFormDialog 
+          open={paymentDialogOpen} 
+          onClose={() => setPaymentDialogOpen(false)} 
+          record={null} 
+          prefill={{
+            recipient_type: "student",
+            recipient_id: student?.student_id,
+            recipient_name: student?.full_name,
+            record_type: "income",
+            amount: remainingTuition > 0 ? remainingTuition : 0,
+            payment_method: "bank_transfer",
+            description: isRTL ? "سداد رسوم دراسية" : "Tuition Fee Payment"
+          }}
+          onSuccess={handleSaveSuccess}
+        />
+      )}
     </div>
   );
 }

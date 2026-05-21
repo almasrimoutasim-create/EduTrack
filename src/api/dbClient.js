@@ -4,6 +4,7 @@
  * which connects to Neon PostgreSQL.
  */
 
+// @ts-ignore
 const BACKEND = import.meta.env.VITE_BACKEND_URL || '';
 const API_BASE = BACKEND 
   ? `${BACKEND.replace(/\/$/, '')}/neon-db/entities` 
@@ -15,10 +16,10 @@ class EntityClient {
     this.baseUrl = `${API_BASE}/${entityName}`;
   }
 
-  async list(order = '-created_at', filtersOrLimit = null, limitOrOffset = 200, offset = 0) {
+  async list(order = '-created_at', filtersOrLimit = null, limitOrOffset = null, offset = null) {
     let filters = null;
     let limit = 200;
-    let finalOffset = offset;
+    let finalOffset = 0;
 
     if (typeof filtersOrLimit === 'number') {
       limit = filtersOrLimit;
@@ -26,6 +27,10 @@ class EntityClient {
     } else if (filtersOrLimit && typeof filtersOrLimit === 'object') {
       filters = filtersOrLimit;
       limit = typeof limitOrOffset === 'number' ? limitOrOffset : 200;
+      finalOffset = typeof offset === 'number' ? offset : 0;
+    } else {
+      limit = typeof limitOrOffset === 'number' ? limitOrOffset : 200;
+      finalOffset = typeof offset === 'number' ? offset : 0;
     }
 
     const params = new URLSearchParams();
@@ -126,7 +131,7 @@ const entityNames = [
   'PortalAccessConfig', 'PortalGroup', 'PortalGroupMessage',
   'PortalNotification', 'PrivateMessage', 'RoomMessage',
   'RoomVideo', 'BookReview', 'MessageReadReceipt',
-  'TypingIndicator',
+  'TypingIndicator', 'Fine',
 ];
 
 const entities = {};

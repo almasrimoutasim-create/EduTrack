@@ -54,7 +54,37 @@ const ENTITY_TABLE_MAP = {
   BookReview: 'book_reviews',
   MessageReadReceipt: 'message_read_receipts',
   TypingIndicator: 'typing_indicators',
+  Fine: 'fines',
 };
+
+async function createStripePaymentIntent(amount, currency) {
+  const secretKey = process.env.STRIPE_SECRET_KEY;
+  if (!secretKey) {
+    throw new Error('STRIPE_SECRET_KEY is not configured in .env');
+  }
+
+  // Convert amount to cents (Stripe expects integers in cents)
+  const amountInCents = Math.round(amount * 100);
+
+  const response = await fetch('https://api.stripe.com/v1/payment_intents', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${secretKey}`,
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: new URLSearchParams({
+      amount: amountInCents.toString(),
+      currency: currency.toLowerCase(),
+      'payment_method_types[]': 'card'
+    }).toString()
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error?.message || 'Failed to create payment intent');
+  }
+  return data;
+}
 
 const ALLOWED_TABLES = new Set(Object.values(ENTITY_TABLE_MAP));
 
@@ -89,6 +119,27 @@ async function dbQuery(queryStr, params = []) {
 
 export function createApiHandler() {
   return async (req, res, next) => {
+    // Intercept Stripe payment intent creation endpoint
+    if (req.url === '/neon-db/payments/create-intent' && req.method === 'POST') {
+      res.setHeader('Content-Type', 'application/json');
+      try {
+        const body = await parseBody(req);
+        const { amount, currency = 'USD' } = body;
+        if (!amount || isNaN(amount) || parseFloat(amount) <= 0) {
+          res.statusCode = 400;
+          return res.end(JSON.stringify({ error: 'Valid amount is required' }));
+        }
+        const intent = await createStripePaymentIntent(parseFloat(amount), currency);
+        return res.end(JSON.stringify({
+          clientSecret: intent.client_secret,
+          id: intent.id
+        }));
+      } catch (error) {
+        res.statusCode = 500;
+        return res.end(JSON.stringify({ error: error.message }));
+      }
+    }
+
     // 1. Intercept unified Auth login endpoint
     if (req.url === '/neon-db/auth/login' && req.method === 'POST') {
       res.setHeader('Content-Type', 'application/json');

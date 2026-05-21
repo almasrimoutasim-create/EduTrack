@@ -20,8 +20,8 @@ const isPathAllowed = (role, path) => {
   if (role === 'admin') return true;
 
   if (role === 'teacher') return path.startsWith('/teacher-portal');
-  if (role === 'student') return path.startsWith('/student-portal');
-  if (role === 'parent') return path.startsWith('/parent-portal');
+  if (role === 'student') return path.startsWith('/student-portal') || path.startsWith('/store');
+  if (role === 'parent') return path.startsWith('/parent-portal') || path.startsWith('/store');
   if (role === 'bus') return path.startsWith('/bus-supervisor');
   
   if (role === 'staff') return path.startsWith('/staff-portal');

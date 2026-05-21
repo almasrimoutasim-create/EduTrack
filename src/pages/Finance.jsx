@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { 
   CreditCard, 
@@ -25,6 +25,7 @@ import PageHeader from "@/components/shared/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import FinancialRecordFormDialog from "@/components/shared/FinancialRecordFormDialog";
 import { toast } from "sonner";
 import {
@@ -38,9 +39,11 @@ const btnOutline = "inline-flex items-center justify-center gap-2 whitespace-now
 const btnPrimary = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed";
 
 export default function Finance() {
+  const qc = useQueryClient();
   const { language } = useLanguage();
   const isRTL = language === "ar";
   const [searchTerm, setSearchTerm] = useState("");
+  const [typeFilter, setTypeFilter] = useState("all"); // "all" | "purchase" | "salary" | "tuition" | "expense"
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState(null);
 
@@ -63,23 +66,51 @@ export default function Finance() {
     queryFn: () => base44.entities.FinancialRecord.list("-payment_date", 50) 
   });
 
-  const totalRevenue = purchases.reduce((sum, p) => sum + (p.total_amount || 0), 0);
+  const totalRevenue = 
+    purchases.reduce((sum, p) => sum + (parseFloat(p.total_amount) || 0), 0) +
+    financialRecords
+      .filter(r => (r.type === "income" || r.record_type === "income" || r.record_type === "fine_payment" || r.record_type === "tuition") && r.status !== "cancelled")
+      .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+
   const totalExpenses = financialRecords
-    .filter(r => r.record_type === "expense" || r.record_type === "salary")
-    .reduce((sum, r) => sum + (r.amount || 0), 0);
+    .filter(r => (r.type === "expense" || r.record_type === "expense" || r.record_type === "salary" || r.record_type === "bus_driver_payment" || r.record_type === "supervisor_payment" || r.record_type === "refund") && r.status !== "cancelled")
+    .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+
   const pendingPayments = financialRecords
     .filter(r => r.status === "pending")
-    .reduce((sum, r) => sum + (r.amount || 0), 0);
+    .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+
   const netProfit = totalRevenue - totalExpenses;
 
+  /** @type {any[]} */
   const allTransactions = [
     ...purchases.map(p => ({ ...p, _type: "purchase" })),
     ...financialRecords.map(r => ({ ...r, _type: "record" }))
   ].sort((a, b) => {
-    const da = a.created_date || a.payment_date || "";
-    const db = b.created_date || b.payment_date || "";
+    const da = a['created_at'] || a['created_date'] || a['payment_date'] || a['date'] || "";
+    const db = b['created_at'] || b['created_date'] || b['payment_date'] || b['date'] || "";
     return db.localeCompare(da);
-  }).slice(0, 15);
+  });
+
+  const filteredTransactions = allTransactions.filter(t => {
+    // 1. Search term filter
+    const name = (t.student_name || t.recipient_name || "").toLowerCase();
+    const item = (t.item_name || t.record_type || t.description || "").toLowerCase();
+    const matchesSearch = name.includes(searchTerm.toLowerCase()) || item.includes(searchTerm.toLowerCase());
+    
+    if (!matchesSearch) return false;
+    
+    // 2. Type filter
+    if (typeFilter === "all") return true;
+    if (typeFilter === "purchase") return t._type === "purchase";
+    if (typeFilter === "salary") return t._type === "record" && t.record_type === "salary";
+    if (typeFilter === "tuition") return t._type === "record" && (t.record_type === "income" || t.record_type === "fine_payment" || t.record_type === "tuition");
+    if (typeFilter === "expense") return t._type === "record" && (t.record_type === "expense" || t.record_type === "bus_driver_payment" || t.record_type === "supervisor_payment" || t.record_type === "refund");
+    
+    return true;
+  });
+
+  const displayedTransactions = filteredTransactions.slice(0, 15);
 
   const handleAdd = () => {
     setSelectedRecord(null);
@@ -147,18 +178,33 @@ export default function Finance() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Main Transactions List */}
         <section className="lg:col-span-8 space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <h3 className="text-xl font-bold text-stone-900">{isRTL ? "سجل المعاملات" : "Transaction History"}</h3>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <div className="relative">
                 <Search className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 text-stone-400`} size={16} />
                 <Input 
                   placeholder={t("common.search", language)} 
                   className={`h-10 ${isRTL ? 'pr-10' : 'pl-10'} rounded-xl border-stone-200 bg-white w-48 lg:w-64`}
                   dir={isRTL ? "rtl" : "ltr"}
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
                 />
               </div>
-              <button className={`${btnOutline} h-10 w-10 p-0`}><Filter size={18} /></button>
+              <div className="w-40 md:w-48">
+                <Select value={typeFilter} onValueChange={setTypeFilter}>
+                  <SelectTrigger className="h-10 rounded-xl border-stone-200 bg-white shadow-sm font-semibold text-stone-700">
+                    <SelectValue placeholder={isRTL ? "نوع المعاملة" : "Transaction Type"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{isRTL ? "الكل" : "All"}</SelectItem>
+                    <SelectItem value="purchase">{isRTL ? "مشتريات المتجر" : "Store Purchases"}</SelectItem>
+                    <SelectItem value="salary">{isRTL ? "الرواتب والأجور" : "Salaries & Payments"}</SelectItem>
+                    <SelectItem value="tuition">{isRTL ? "الرسوم الدراسية" : "Tuition & Fees"}</SelectItem>
+                    <SelectItem value="expense">{isRTL ? "المصاريف العامة" : "General Expenses"}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
 
@@ -168,7 +214,7 @@ export default function Finance() {
                 <thead>
                   <tr className="bg-stone-50/50 border-b border-stone-100">
                     <th className="px-5 py-4 text-xs font-bold text-stone-400 uppercase tracking-wide">{isRTL ? "التاريخ" : "Date"}</th>
-                    <th className="px-5 py-4 text-xs font-bold text-stone-400 uppercase tracking-wide">{isRTL ? "الطالب" : "Student"}</th>
+                    <th className="px-5 py-4 text-xs font-bold text-stone-400 uppercase tracking-wide">{isRTL ? "الطرف / المستفيد" : "Party / Recipient"}</th>
                     <th className="px-5 py-4 text-xs font-bold text-stone-400 uppercase tracking-wide">{isRTL ? "المادة/البند" : "Item"}</th>
                     <th className="px-5 py-4 text-xs font-bold text-stone-400 uppercase tracking-wide">{isRTL ? "المبلغ" : "Amount"}</th>
                     <th className="px-5 py-4 text-xs font-bold text-stone-400 uppercase tracking-wide text-center">{isRTL ? "الحالة" : "Status"}</th>
@@ -182,16 +228,45 @@ export default function Finance() {
                         <td colSpan={6} className="px-5 py-5 h-14 bg-stone-50/50" />
                       </tr>
                     ))
-                  ) : allTransactions.length === 0 ? (
+                  ) : displayedTransactions.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="px-5 py-10 text-center text-stone-400">
                         {isRTL ? "لا توجد معاملات بعد" : "No transactions yet"}
                       </td>
                     </tr>
-                  ) : allTransactions.map((t) => {
-                    const date = t.created_date || t.payment_date;
+                  ) : displayedTransactions.map((t) => {
+                    const date = t.created_at || t.created_date || t.payment_date || t.date;
                     const name = t.student_name || t.recipient_name;
-                    const item = t.item_name || t.record_type;
+                    
+                    const getLocalizedItem = (record) => {
+                      if (record._type === "purchase") {
+                        return record.item_name || (isRTL ? "وجبة مدرسية / متجر" : "School Meal / Store");
+                      }
+                      
+                      if (record.description) return record.description;
+                      
+                      switch (record.record_type) {
+                        case "salary":
+                          return isRTL ? "راتب" : "Salary";
+                        case "fine_payment":
+                          return isRTL ? "سداد غرامة" : "Fine Payment";
+                        case "bus_driver_payment":
+                          return isRTL ? "أجر سائق حافلة" : "Bus Driver Payment";
+                        case "supervisor_payment":
+                          return isRTL ? "أجر مشرف حافلة" : "Supervisor Payment";
+                        case "expense":
+                          return isRTL ? "مصاريف عامة" : "General Expense";
+                        case "income":
+                        case "tuition":
+                          return isRTL ? "رسوم دراسية" : "Tuition Fee";
+                        case "refund":
+                          return isRTL ? "مسترجع" : "Refund";
+                        default:
+                          return record.record_type || (isRTL ? "معاملة مالية" : "Financial Transaction");
+                      }
+                    };
+
+                    const item = getLocalizedItem(t);
                     const amount = t.total_amount || t.amount || 0;
                     const status = t.status || "paid";
                     const statusLabel = status === "paid" || status === "completed"
@@ -356,7 +431,15 @@ export default function Finance() {
           </Card>
         </aside>
       </div>
-      <FinancialRecordFormDialog open={dialogOpen} onClose={() => setDialogOpen(false)} record={selectedRecord} />
+      <FinancialRecordFormDialog 
+        open={dialogOpen} 
+        onClose={() => setDialogOpen(false)} 
+        record={selectedRecord} 
+        prefill={null}
+        onSuccess={async () => {
+          qc.invalidateQueries({ queryKey: ["financial-records"] });
+        }}
+      />
     </div>
   );
 }
