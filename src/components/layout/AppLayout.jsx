@@ -1,5 +1,7 @@
 import { Outlet } from "react-router-dom";
 import Sidebar from "./Sidebar";
+import StudentSidebar from "./StudentSidebar";
+import ParentSidebar from "./ParentSidebar";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useAuth } from "@/lib/AuthContext";
 import { cn } from "@/lib/utils";
@@ -11,9 +13,17 @@ export default function AppLayout() {
   const { user } = useAuth();
   const isRTL = language === "ar";
 
+  const portalRole = localStorage.getItem("portal_role") || user?.role || "admin";
+
   return (
     <div className="min-h-screen bg-[#FDFCF8]" dir={isRTL ? "rtl" : "ltr"}>
-      <Sidebar />
+      {portalRole === "student" ? (
+        <StudentSidebar />
+      ) : portalRole === "parent" ? (
+        <ParentSidebar />
+      ) : (
+        <Sidebar />
+      )}
       <main className={cn(
         "min-h-screen transition-all duration-300 flex flex-col",
         isRTL ? "lg:mr-64" : "lg:ml-64"

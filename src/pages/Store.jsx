@@ -66,11 +66,14 @@ export default function Store() {
   });
 
   // Parent specific logic
-  const parentId = user?.id || localStorage.getItem("portal_user_id") || "P-101";
+  const portalUserStr = localStorage.getItem("portal_user");
+  const portalUser = portalUserStr ? JSON.parse(portalUserStr) : null;
+  const parentEmail = portalUser?.email || user?.email || "abdo@gmail.com";
+
   const { data: children = [] } = useQuery({ 
-    queryKey: ["parent-children", parentId], 
+    queryKey: ["parent-children", parentEmail], 
     enabled: role === "parent",
-    queryFn: () => base44.entities.Student.list("-created_at", { parent_id: parentId }) 
+    queryFn: () => base44.entities.Student.list("-created_at", { parent_email: parentEmail }) 
   });
 
   const [selectedStudentId, setSelectedStudentId] = useState(null);
@@ -104,7 +107,7 @@ export default function Store() {
   );
 
   const lowStockItems = storeItems.filter(i => i.stock <= (i.low_stock_threshold || 5)).length;
-  const totalSales = purchases.reduce((sum, p) => sum + (p.total_amount || 0), 0);
+  const totalSales = purchases.reduce((sum, p) => sum + (parseFloat(p.total_price || p.total_amount || 0)), 0);
 
   const handleAdd = () => {
     setSelectedItem(null);
@@ -304,8 +307,22 @@ export default function Store() {
                   <ShoppingBag size={20} />
                 </div>
                 <div>
-                  <h4 className="font-serif font-bold text-lg text-stone-900">{isRTL ? "من يتسوق الآن؟" : "Who is Shopping?"}</h4>
-                  <p className="text-stone-400 text-xs">{isRTL ? "حدد الطالب المستفيد لإتمام الشراء باسمه." : "Select the shopping student to debit."}</p>
+                  <h4 className="font-serif font-bold text-lg text-stone-900">
+                    {role === "student"
+                      ? (isRTL 
+                          ? `أهلاً بك يا ${activeStudent?.full_name || activeStudent?.name || localStorage.getItem("portal_user_name") || 'بطلنا'}` 
+                          : `Welcome, ${activeStudent?.full_name || activeStudent?.name || localStorage.getItem("portal_user_name") || 'Hero'}`)
+                      : (isRTL ? "من يتسوق الآن؟" : "Who is Shopping?")
+                    }
+                  </h4>
+                  <p className="text-stone-400 text-xs">
+                    {role === "student"
+                      ? (isRTL 
+                          ? "تتسوق الآن باسمك ويتم الخصم مباشرة من بطاقتك الذكية." 
+                          : "You are currently shopping using your NFC Smart Card.")
+                      : (isRTL ? "حدد الطالب المستفيد لإتمام الشراء باسمه." : "Select the shopping student to debit.")
+                    }
+                  </p>
                 </div>
               </div>
 

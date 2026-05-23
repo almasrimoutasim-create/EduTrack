@@ -1,6 +1,7 @@
 import React from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { toast } from "sonner";
 import { 
   Sparkles, 
   Trophy, 
@@ -18,6 +19,7 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useLanguage } from "@/lib/LanguageContext";
+import { t } from "@/lib/translations";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -32,6 +34,47 @@ export default function StudentPortal() {
   const { language } = useLanguage();
   const isRTL = language === "ar";
   const { logout } = useAuth();
+  const queryClient = useQueryClient();
+  const [isSwiping, setIsSwiping] = React.useState(null); // null | "gate_in" | "gate_out"
+
+  const handleGateSwipe = async (type) => {
+    if (!student.id) return;
+    setIsSwiping(type);
+    try {
+      const timeStr = new Date().toLocaleTimeString(isRTL ? "ar-EG" : "en-US", { 
+        hour: "2-digit", 
+        minute: "2-digit" 
+      });
+
+      await base44.entities.Attendance.create({
+        student_id: student.id,
+        student_name: student.full_name || student.name,
+        student_card_id: student.student_id || student.id,
+        date: new Date().toISOString().split('T')[0],
+        type: type,
+        status: "present",
+        time: timeStr,
+        recorded_by: "NFC Smart Gate Simulator",
+        notes: isRTL ? "تم مسح بطاقة الطالب NFC بنجاح عند البوابة المدرسية." : "Student NFC card swiped successfully at school gate."
+      });
+
+      // Invalidate queries to refresh data in parent and student portals
+      queryClient.invalidateQueries({ queryKey: ["student-attendance", student.id] });
+      queryClient.invalidateQueries({ queryKey: ["student-attendance", student.student_id] });
+      queryClient.invalidateQueries({ queryKey: ["student-profile", studentId] });
+
+      toast.success(
+        isRTL 
+          ? `📲 تم تسجيل ${type === "gate_in" ? "الدخول" : "الخروج"} بنجاح عند البوابة المدرسية (${timeStr})!` 
+          : `📲 Swipe ${type === "gate_in" ? "Entrance" : "Exit"} recorded successfully at gate (${timeStr})!`
+      );
+    } catch (err) {
+      console.error(err);
+      toast.error(isRTL ? "فشل تسجيل حضور البوابة الذكية" : "Failed to record smart gate attendance");
+    } finally {
+      setIsSwiping(null);
+    }
+  };
   
   const handleLogout = () => {
     localStorage.removeItem("portal_role");
@@ -51,7 +94,12 @@ export default function StudentPortal() {
 
   const { data: storePurchases = [] } = useQuery({
     queryKey: ["store-purchases", studentId],
-    queryFn: () => base44.entities.Purchase.list("-date", { student_id: studentId })
+    queryFn: () => base44.entities.Purchase.list("-created_at", { student_id: studentId })
+  });
+
+  const { data: attendanceLogs = [] } = useQuery({
+    queryKey: ["student-attendance", studentId],
+    queryFn: () => base44.entities.Attendance.list("-date", { student_id: studentId })
   });
 
   const { data: materials = [] } = useQuery({
@@ -166,6 +214,117 @@ export default function StudentPortal() {
           </Card>
         </motion.div>
       </div>
+
+      {/* NFC Smart Card Gate Attendance Simulator (Frontend Design) */}
+      <motion.div
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4 }}
+        className="mt-8"
+      >
+        <Card className="relative overflow-hidden bg-gradient-to-br from-stone-900 via-stone-850 to-emerald-950 text-white rounded-[40px] shadow-2xl border-none p-8">
+          {/* Subtle grid background texture & radial accent glows */}
+          <div className="absolute inset-0 opacity-5 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)', backgroundSize: '16px 16px' }} />
+          <div className="absolute -top-32 -left-32 w-80 h-80 bg-teal-500/10 rounded-full blur-[100px]" />
+          <div className="absolute -bottom-32 -right-32 w-80 h-80 bg-emerald-500/15 rounded-full blur-[100px]" />
+
+          <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+            {/* Left section: Simulator details */}
+            <div className="lg:col-span-7 space-y-5">
+              <div className="flex items-center gap-3">
+                <div className="h-12 w-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                  <Sparkles size={24} className="animate-pulse" />
+                </div>
+                <div>
+                  <h4 className="font-serif text-2xl font-black tracking-tight">{isRTL ? "محاكي بوابات الحضور والانصراف بالبطاقة الذكية" : "NFC Smart Gate Simulator"}</h4>
+                  <p className="text-stone-400 text-xs font-semibold">{isRTL ? "اضغط لمحاكاة تمرير بطاقتك الذكية عند بوابات الدخول والخروج لتسجيل حضورك الفعلي في قاعدة البيانات." : "Tap to simulate swiping your student smart card at the gates to log your status in real-time."}</p>
+                </div>
+              </div>
+
+              {/* Status details */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                <div className="bg-white/5 border border-white/10 p-4 rounded-2xl flex items-center gap-3">
+                  <div className="h-8 w-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+                    <Clock size={16} />
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-bold text-stone-400 uppercase tracking-widest">{isRTL ? "آخر مسح مسجل" : "Last Activity"}</p>
+                    <p className="text-xs font-bold truncate num-en">
+                      {attendanceLogs.length > 0 
+                        ? `${attendanceLogs[0].type === "gate_in" ? (isRTL ? "دخول" : "Gate-In") : (isRTL ? "خروج" : "Gate-Out")} • ${attendanceLogs[0].time}`
+                        : (isRTL ? "لا توجد سجلات اليوم" : "No swipes today")
+                      }
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-white/5 border border-white/10 p-4 rounded-2xl flex items-center gap-3">
+                  <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${attendanceLogs.length > 0 && attendanceLogs[0].type === "gate_in" ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"}`}>
+                    <Sparkles size={16} />
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-bold text-stone-400 uppercase tracking-widest">{isRTL ? "الموقع الحالي المفترض" : "Current Location"}</p>
+                    <p className="text-xs font-bold">
+                      {attendanceLogs.length > 0 && attendanceLogs[0].type === "gate_in" 
+                        ? (isRTL ? "داخل الحرم المدرسي 🏫" : "Inside Campus 🏫")
+                        : (isRTL ? "خارج المدرسة 🏡" : "Outside School 🏡")
+                      }
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Right section: Pulsing NFC Swiping simulator panel */}
+            <div className="lg:col-span-5 flex flex-col items-center justify-center p-6 bg-white/5 border border-white/10 rounded-[32px] relative overflow-hidden">
+              {/* Pulsing Scan rings when swiping */}
+              {isSwiping && (
+                <div className="absolute inset-0 bg-emerald-500/5 flex items-center justify-center pointer-events-none z-0">
+                  <span className="absolute h-32 w-32 rounded-full border-4 border-emerald-500/20 animate-ping" />
+                  <span className="absolute h-24 w-24 rounded-full border-4 border-teal-500/30 animate-pulse" />
+                </div>
+              )}
+
+              <div className="relative z-10 w-full text-center space-y-5">
+                {/* Visual NFC Reader device representation */}
+                <div className="flex flex-col items-center">
+                  <div className={`h-16 w-16 rounded-full flex items-center justify-center border transition-all duration-300 ${
+                    isSwiping 
+                      ? "bg-emerald-500 text-stone-950 border-emerald-400 shadow-lg shadow-emerald-500/40 scale-110" 
+                      : "bg-white/10 text-emerald-300 border-white/10"
+                  }`}>
+                    <Sparkles className={`h-8 w-8 ${isSwiping ? "animate-spin" : "animate-pulse"}`} />
+                  </div>
+                  <span className="text-[9px] font-bold text-stone-400 uppercase tracking-widest mt-2">
+                    {isSwiping ? (isRTL ? "جاري قراءة بطاقة NFC..." : "Reading NFC Chip...") : (isRTL ? "جاهز للمسح الذكي" : "NFC Reader Online")}
+                  </span>
+                </div>
+
+                {/* Simulation Actions */}
+                <div className="grid grid-cols-2 gap-3 w-full">
+                  <button
+                    disabled={!!isSwiping}
+                    onClick={() => handleGateSwipe("gate_in")}
+                    className="h-12 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-stone-950 hover:text-stone-900 rounded-2xl font-black text-xs cursor-pointer shadow-lg shadow-emerald-500/10 flex items-center justify-center gap-2 transform active:scale-95 transition-all disabled:opacity-50"
+                  >
+                    <span>📲</span>
+                    <span>{isRTL ? "مسح دخول (IN)" : "Gate IN"}</span>
+                  </button>
+
+                  <button
+                    disabled={!!isSwiping}
+                    onClick={() => handleGateSwipe("gate_out")}
+                    className="h-12 bg-white/10 hover:bg-white/20 text-white rounded-2xl font-bold text-xs cursor-pointer flex items-center justify-center gap-2 border border-white/10 transform active:scale-95 transition-all disabled:opacity-50"
+                  >
+                    <span>🚶‍♂️</span>
+                    <span>{isRTL ? "مسح خروج (OUT)" : "Gate OUT"}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </motion.div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mt-8">
         {/* Daily Schedule - Left Side */}
@@ -304,12 +463,12 @@ export default function StudentPortal() {
                       <div>
                         <h5 className="text-sm font-bold text-stone-800 leading-snug truncate max-w-[120px]">{p.item_name}</h5>
                         <p className="text-[10px] font-bold text-stone-400 num-en">
-                          {p.date} · {p.quantity} {isRTL ? "قطع" : "units"}
+                          {p.created_at ? p.created_at.split('T')[0] : "—"} · {p.quantity} {isRTL ? "قطع" : "units"}
                         </p>
                       </div>
                     </div>
                     <span className="text-sm font-extrabold text-stone-900 num-en">
-                      -${(p.total_amount || (p.unit_price * p.quantity) || 0).toFixed(2)}
+                      -${(parseFloat(p.total_price || p.total_amount || 0)).toFixed(2)}
                     </span>
                   </div>
                 ))

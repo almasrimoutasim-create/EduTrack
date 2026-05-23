@@ -2,25 +2,20 @@ import { neon } from '@neondatabase/serverless';
 import dotenv from 'dotenv';
 dotenv.config();
 
-async function listTables() {
+async function checkIdType() {
   const url = process.env.DATABASE_URL;
-  if (!url) {
-    console.error('DATABASE_URL is not set!');
-    return;
-  }
-
   try {
     const sql = neon(url);
-    const tables = await sql`
-      SELECT table_name 
-      FROM information_schema.tables 
-      WHERE table_schema = 'public'
+    const rows = await sql`
+      SELECT id, student_id, full_name FROM students LIMIT 1
     `;
-    console.log('Tables in database:');
-    console.log(tables.map(t => t.table_name));
+    if (rows.length > 0) {
+      const row = rows[0];
+      console.log('ID Field Type:', typeof row.id, 'Value:', row.id);
+      console.log('STUDENT_ID Field Type:', typeof row.student_id, 'Value:', row.student_id);
+    }
   } catch (err) {
-    console.error('Failed to list tables:', err);
+    console.error(err);
   }
 }
-
-listTables();
+checkIdType();

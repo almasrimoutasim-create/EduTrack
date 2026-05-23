@@ -1,0 +1,69 @@
+{
+  "name": "ParentLinkRequest",
+  "type": "object",
+  "properties": {
+    "parent_email": {
+      "type": "string"
+    },
+    "parent_name": {
+      "type": "string"
+    },
+    "student_id": {
+      "type": "string"
+    },
+    "student_name": {
+      "type": "string"
+    },
+    "relationship": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "approved",
+        "rejected"
+      ],
+      "default": "pending"
+    }
+  },
+  "required": [
+    "parent_email",
+    "student_id",
+    "student_name"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": {
+          "$in": [
+            "admin",
+            "parent"
+          ]
+        }
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "data.parent_email": "{{user.email}}"
+        }
+      ]
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

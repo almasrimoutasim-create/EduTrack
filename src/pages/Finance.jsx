@@ -67,7 +67,7 @@ export default function Finance() {
   });
 
   const totalRevenue = 
-    purchases.reduce((sum, p) => sum + (parseFloat(p.total_amount) || 0), 0) +
+    purchases.reduce((sum, p) => sum + (parseFloat(p.total_price || p.total_amount || 0)), 0) +
     financialRecords
       .filter(r => (r.type === "income" || r.record_type === "income" || r.record_type === "fine_payment" || r.record_type === "tuition") && r.status !== "cancelled")
       .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
@@ -267,7 +267,7 @@ export default function Finance() {
                     };
 
                     const item = getLocalizedItem(t);
-                    const amount = t.total_amount || t.amount || 0;
+                    const amount = parseFloat(t.total_price || t.total_amount || t.amount || 0);
                     const status = t.status || "paid";
                     const statusLabel = status === "paid" || status === "completed"
                       ? (isRTL ? "مكتمل" : "Completed")

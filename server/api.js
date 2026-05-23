@@ -11,6 +11,24 @@ function hashPassword(password) {
 let sql = null;
 if (process.env.DATABASE_URL) {
   sql = neon(process.env.DATABASE_URL);
+  // Auto-create parent_link_requests table
+  sql`
+    CREATE TABLE IF NOT EXISTS parent_link_requests (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      parent_email TEXT NOT NULL,
+      parent_name TEXT,
+      student_id TEXT NOT NULL,
+      student_name TEXT,
+      relationship TEXT,
+      status TEXT NOT NULL DEFAULT 'pending',
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `.then(() => {
+    console.log('[neon] parent_link_requests table verified/created');
+  }).catch(err => {
+    console.error('[neon] failed to verify/create parent_link_requests table:', err.message);
+  });
 }
 
 // Map entity names to table names
@@ -55,6 +73,7 @@ const ENTITY_TABLE_MAP = {
   MessageReadReceipt: 'message_read_receipts',
   TypingIndicator: 'typing_indicators',
   Fine: 'fines',
+  ParentLinkRequest: 'parent_link_requests',
 };
 
 async function createStripePaymentIntent(amount, currency) {

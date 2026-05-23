@@ -42,7 +42,7 @@ export default function ParentSidebar() {
     {
       label: isRTL ? "المدفوعات والخدمات" : "Payments & Services",
       items: [
-        { label: isRTL ? "الفواتير والغرامات" : "Fines & Invoices", path: "/parent-portal?tab=payments", icon: CreditCard },
+        { label: isRTL ? "الفواتير والمدفوعات" : "Invoices & Payments", path: "/parent-portal?tab=payments", icon: CreditCard },
         { label: isRTL ? "شحن المحفظة" : "Wallet Top-up", path: "/parent-portal?tab=payments", icon: CreditCard },
         { label: isRTL ? "متجر المدرسة" : "School Store", path: "/store", icon: ShoppingBag }
       ]

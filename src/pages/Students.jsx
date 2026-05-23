@@ -14,8 +14,11 @@ import {
   RefreshCw,
   Trash2,
   Printer,
-  FileText
+  FileText,
+  Check,
+  X
 } from "lucide-react";
+import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { useLanguage } from "@/lib/LanguageContext";
 import { t } from "@/lib/translations";
@@ -58,6 +61,67 @@ export default function Students() {
   const [view, setView] = useState("list"); // "list" | "add" | "edit" | "profile"
   const [dialogStudent, setDialogStudent] = useState(null);
   const queryClient = useQueryClient();
+
+  const [activeAdminTab, setActiveAdminTab] = useState("directory"); // "directory" | "requests"
+
+  const { data: linkRequests = [], refetch: refetchRequests } = useQuery({
+    queryKey: ["parent-link-requests"],
+    // @ts-ignore
+    queryFn: () => base44.entities.ParentLinkRequest.list("-created_at")
+  });
+
+  const pendingRequestsCount = linkRequests.filter(r => r.status === "pending").length;
+
+  const handleApproveLink = async (request) => {
+    try {
+      // Find target student by student_id
+      const matchedStudents = await base44.entities.Student.list("-created_at", { student_id: request.student_id });
+      if (matchedStudents.length === 0) {
+        toast.error(isRTL ? "الطالب المستهدف غير موجود في النظام." : "Target student not found in system.");
+        return;
+      }
+      
+      const student = matchedStudents[0];
+
+      // Update Student's parent contact info and login email
+      const updatePayload = {
+        parent_email: request.parent_email,
+        parent_name: request.parent_name
+      };
+
+      // Set default parent password if empty
+      if (!student.parent_password) {
+        updatePayload.parent_password = "Parent123";
+      }
+
+      await base44.entities.Student.update(student.id, updatePayload);
+
+      // Approve request in database
+      await base44.entities.ParentLinkRequest.update(request.id, { status: "approved" });
+
+      // Refresh queries
+      queryClient.invalidateQueries({ queryKey: ["students"] });
+      queryClient.invalidateQueries({ queryKey: ["parent-link-requests"] });
+      refetchRequests();
+
+      toast.success(isRTL ? "تمت الموافقة على ربط ولي الأمر بالطالب بنجاح!" : "Parent-student link approved successfully!");
+    } catch (err) {
+      console.error(err);
+      toast.error(isRTL ? "فشل الموافقة على الطلب." : "Failed to approve request.");
+    }
+  };
+
+  const handleRejectLink = async (requestId) => {
+    try {
+      await base44.entities.ParentLinkRequest.update(requestId, { status: "rejected" });
+      queryClient.invalidateQueries({ queryKey: ["parent-link-requests"] });
+      refetchRequests();
+      toast.info(isRTL ? "تم رفض طلب الربط." : "Link request rejected.");
+    } catch (err) {
+      console.error(err);
+      toast.error(isRTL ? "فشل رفض الطلب." : "Failed to reject request.");
+    }
+  };
 
   const { data: students = [], isLoading, refetch } = useQuery({ 
     queryKey: ["students", refreshKey], 
@@ -210,8 +274,39 @@ export default function Students() {
               </div>
             </PageHeader>
 
-            {/* Filters Section */}
-            <Card className="p-5 border shadow-sm bg-white">
+            {/* Tab Selection */}
+            <div className="flex gap-2 p-1 bg-stone-100 rounded-xl w-fit border border-stone-200/50">
+              <button
+                onClick={() => setActiveAdminTab("directory")}
+                className={`px-5 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  activeAdminTab === "directory"
+                    ? "bg-white text-stone-900 shadow-sm font-extrabold"
+                    : "text-stone-500 hover:text-stone-850"
+                }`}
+              >
+                {isRTL ? "دليل الطلاب" : "Student Directory"}
+              </button>
+              <button
+                onClick={() => setActiveAdminTab("requests")}
+                className={`px-5 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
+                  activeAdminTab === "requests"
+                    ? "bg-white text-stone-900 shadow-sm font-extrabold"
+                    : "text-stone-500 hover:text-stone-850"
+                }`}
+              >
+                <span>{isRTL ? "طلبات ربط أولياء الأمور" : "Parent Link Requests"}</span>
+                {pendingRequestsCount > 0 && (
+                  <span className="h-5 min-w-[20px] px-1.5 bg-rose-500 text-white text-[10px] font-black rounded-full flex items-center justify-center animate-pulse">
+                    {pendingRequestsCount}
+                  </span>
+                )}
+              </button>
+            </div>
+
+            {activeAdminTab === "directory" ? (
+              <>
+                {/* Filters Section */}
+                <Card className="p-5 border shadow-sm bg-white">
               <div className="flex flex-col lg:flex-row gap-4 items-end">
                 <div className="relative flex-1 w-full">
                   <Search className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 text-stone-400`} size={18} />
@@ -473,6 +568,102 @@ export default function Students() {
                 </div>
               )}
             </Card>
+          </>
+        ) : (
+              /* Parent Link Requests Section */
+              <Card className="p-8 border shadow-sm bg-white rounded-[40px] space-y-6">
+                <div>
+                  <h3 className="font-serif text-2xl font-bold text-stone-900">{isRTL ? "طلبات ربط أولياء الأمور المعلقة" : "Parent-Student Linking Requests"}</h3>
+                  <p className="text-stone-400 text-xs mt-1">
+                    {isRTL ? "مراجعة واعتماد طلبات ربط أولياء الأمور بالطلاب يدوياً بعد التحقق من البيانات." : "Review and approve parent-student manual link requests after verification."}
+                  </p>
+                </div>
+
+                {linkRequests.length === 0 ? (
+                  <div className="py-12 text-center text-stone-400">
+                    <p className="font-bold text-lg">{isRTL ? "لا توجد طلبات ربط مسجلة" : "No linking requests found"}</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto rounded-xl border border-stone-200 shadow-sm">
+                    <Table>
+                      <TableHeader className="bg-stone-50">
+                        <TableRow>
+                          <TableHead className="w-[50px] num-en">#</TableHead>
+                          <TableHead>{isRTL ? "ولي الأمر" : "Parent Details"}</TableHead>
+                          <TableHead>{isRTL ? "الطالب المستهدف" : "Target Student"}</TableHead>
+                          <TableHead>{isRTL ? "العلاقة" : "Relationship"}</TableHead>
+                          <TableHead>{isRTL ? "تاريخ الطلب" : "Submitted Date"}</TableHead>
+                          <TableHead className="text-center">{isRTL ? "الحالة" : "Status"}</TableHead>
+                          <TableHead className={isRTL ? "text-left" : "text-right"}>{isRTL ? "الإجراءات" : "Actions"}</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {linkRequests.map((req, idx) => (
+                          <TableRow key={req.id || idx} className="hover:bg-stone-50/50">
+                            <TableCell className="font-medium text-stone-500 num-en">{idx + 1}</TableCell>
+                            <TableCell>
+                              <div className="space-y-1">
+                                <p className="font-bold text-stone-900">{req.parent_name}</p>
+                                <p className="text-xs text-stone-400 font-medium num-en">{req.parent_email}</p>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="space-y-1">
+                                <p className="font-bold text-stone-900">{req.student_name}</p>
+                                <p className="text-xs text-stone-400 font-medium num-en">ID: #{req.student_id}</p>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <span className="text-sm font-semibold text-stone-700">
+                                {req.relationship === "father" ? (isRTL ? "أب" : "Father") :
+                                 req.relationship === "mother" ? (isRTL ? "أم" : "Mother") :
+                                 (isRTL ? "ولي أمر / وصي" : "Guardian")}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-xs text-stone-400 font-bold num-en">
+                              {req.created_at ? new Date(req.created_at).toLocaleDateString(isRTL ? "ar-EG" : "en-US") : "-"}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <Badge className={`border-none rounded-lg font-bold ${
+                                req.status === "pending" ? "bg-amber-50 text-amber-600" :
+                                req.status === "approved" ? "bg-emerald-50 text-emerald-600" :
+                                "bg-rose-50 text-rose-600"
+                              }`}>
+                                {req.status === "pending" ? (isRTL ? "قيد الانتظار" : "Pending") :
+                                 req.status === "approved" ? (isRTL ? "مقبول" : "Approved") :
+                                 (isRTL ? "مرفوض" : "Rejected")}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className={isRTL ? "text-left" : "text-right"}>
+                              {req.status === "pending" ? (
+                                <div className="flex gap-2 justify-end">
+                                  <button
+                                    onClick={() => handleApproveLink(req)}
+                                    className="h-9 w-9 rounded-xl bg-emerald-50 text-emerald-600 hover:bg-emerald-100 flex items-center justify-center shadow-inner cursor-pointer"
+                                    title={isRTL ? "موافقة" : "Approve"}
+                                  >
+                                    <Check size={16} />
+                                  </button>
+                                  <button
+                                    onClick={() => handleRejectLink(req.id)}
+                                    className="h-9 w-9 rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-100 flex items-center justify-center shadow-inner cursor-pointer"
+                                    title={isRTL ? "رفض" : "Reject"}
+                                  >
+                                    <X size={16} />
+                                  </button>
+                                </div>
+                              ) : (
+                                <span className="text-xs font-bold text-stone-400">-</span>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </Card>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

@@ -65,18 +65,18 @@ export default function StudentForm({ student, onClose }) {
   }, [student]);
 
   // Auto-generate next sequential school ID (0001, 0002, ...) for new students
-  const { data: allStudentsForId = [] } = useQuery({
+  const { data: allStudentsForId, isLoading: isLoadingId } = useQuery({
     queryKey: ["students-for-id-gen"],
     queryFn: () => base44.entities.Student.list(),
     enabled: !isEdit
   });
 
   useEffect(() => {
-    if (!isEdit && allStudentsForId.length >= 0 && !form.student_id) {
+    if (!isEdit && !isLoadingId && allStudentsForId && !form.student_id) {
       const nextId = getNextStudentId(allStudentsForId);
       setForm(f => ({ ...f, student_id: nextId }));
     }
-  }, [isEdit, allStudentsForId]);
+  }, [isEdit, allStudentsForId, isLoadingId, form.student_id]);
 
   const update = (key, val) => setForm(f => ({ ...f, [key]: val }));
 

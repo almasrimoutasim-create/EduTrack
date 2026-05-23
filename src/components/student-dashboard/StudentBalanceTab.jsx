@@ -7,7 +7,7 @@ import { format } from "date-fns";
 export default function StudentBalanceTab({ student }) {
   const { data: purchases = [], isLoading: loadingPurchases } = useQuery({
     queryKey: ["purchases", student.id],
-    queryFn: () => base44.entities.Purchase.filter({ student_id: student.id }, "-date"),
+    queryFn: () => base44.entities.Purchase.filter({ student_id: student.id }, "-created_at"),
     enabled: !!student.id,
   });
 
@@ -71,10 +71,14 @@ export default function StudentBalanceTab({ student }) {
               <Card key={p.id} className="p-3 border shadow-sm flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium">{p.item_name}</p>
-                  {p.date && <p className="text-xs text-muted-foreground">{p.date}</p>}
+                  {p.created_at && (
+                    <p className="text-xs text-muted-foreground">
+                      {format(new Date(p.created_at), "MMM d, yyyy")}
+                    </p>
+                  )}
                   {p.quantity > 1 && <p className="text-xs text-muted-foreground">x{p.quantity}</p>}
                 </div>
-                <span className="font-bold text-destructive">-${(p.total_amount || 0).toFixed(2)}</span>
+                <span className="font-bold text-destructive">-${(parseFloat(p.total_price || p.total_amount || 0)).toFixed(2)}</span>
               </Card>
             ))}
           </div>

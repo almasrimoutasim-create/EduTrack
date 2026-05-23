@@ -131,7 +131,7 @@ const entityNames = [
   'PortalAccessConfig', 'PortalGroup', 'PortalGroupMessage',
   'PortalNotification', 'PrivateMessage', 'RoomMessage',
   'RoomVideo', 'BookReview', 'MessageReadReceipt',
-  'TypingIndicator', 'Fine',
+  'TypingIndicator', 'Fine', 'ParentLinkRequest',
 ];
 
 const entities = {};
