@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DatePicker } from "@/components/ui/date-picker";
 import { ZapOff } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -136,7 +137,7 @@ export default function BulkFineDialog({ students, onDone }) {
               </div>
               <div>
                 <Label>Date</Label>
-                <Input type="date" value={form.date} onChange={e => upd("date", e.target.value)} className="mt-1" />
+                <DatePicker value={form.date} onChange={val => upd("date", val)} className="mt-1" />
               </div>
             </div>
 

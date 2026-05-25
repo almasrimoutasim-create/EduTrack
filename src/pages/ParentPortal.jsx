@@ -19,7 +19,13 @@ import {
   Clock,
   Sparkles,
   BookOpen,
-  ArrowRight
+  ArrowRight,
+  Printer,
+  Download,
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown,
+  FileText
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useLanguage } from "@/lib/LanguageContext";
@@ -86,6 +92,10 @@ export default function ParentPortal() {
   });
 
   const [selectedStudentId, setSelectedStudentId] = React.useState(null);
+  const [canteenPage, setCanteenPage] = React.useState(1);
+  const [finesCollapsed, setFinesCollapsed] = React.useState(false);
+  const [historyCollapsed, setHistoryCollapsed] = React.useState(false);
+  const [purchasesCollapsed, setPurchasesCollapsed] = React.useState(false);
 
   React.useEffect(() => {
     if (children.length > 0 && !selectedStudentId) {
@@ -197,6 +207,7 @@ export default function ParentPortal() {
 
       qc.invalidateQueries({ queryKey: ["parent-children", parentEmail] });
       qc.invalidateQueries({ queryKey: ["financial-records"] });
+      qc.invalidateQueries({ queryKey: ["parent-student-records", currentStudent.id] });
 
       toast.success(isRTL ? `تم دفع الرسوم الدراسية بقيمة $${tuitionPayAmount.toFixed(2)} بنجاح!` : `Tuition paid by $${tuitionPayAmount.toFixed(2)} successfully!`);
       setIsTuitionDialogOpen(false);
@@ -245,6 +256,7 @@ export default function ParentPortal() {
 
       qc.invalidateQueries({ queryKey: ["parent-children", parentEmail] });
       qc.invalidateQueries({ queryKey: ["financial-records"] });
+      qc.invalidateQueries({ queryKey: ["parent-student-records", currentStudent.id] });
 
       toast.success(isRTL ? `تم خصم $${tuitionPayAmount.toFixed(2)} من بطاقة الطالب وسداد الرسوم بنجاح!` : `Paid $${tuitionPayAmount.toFixed(2)} from smart card successfully!`);
       setIsTuitionDialogOpen(false);
@@ -271,6 +283,43 @@ export default function ParentPortal() {
     queryFn: () => base44.entities.Purchase.list("-created_at", { student_id: selectedStudentId })
   });
 
+  const { data: fines = [] } = useQuery({
+    queryKey: ["parent-fines", selectedStudentId],
+    enabled: !!selectedStudentId,
+    // @ts-ignore
+    queryFn: () => base44.entities.Fine.filter({ student_id: selectedStudentId }, "-created_date")
+  });
+
+  const { data: currentStudentRecords = [] } = useQuery({
+    queryKey: ["parent-student-records", currentStudent?.id],
+    enabled: !!currentStudent?.id,
+    // @ts-ignore
+    queryFn: async () => {
+      // recipient_id can store UUID or student_id, query both to be 100% robust
+      const list1 = await base44.entities.FinancialRecord.filter({ recipient_id: currentStudent.id });
+      const list2 = await base44.entities.FinancialRecord.filter({ recipient_id: currentStudent.student_id });
+      const merged = [...list1, ...list2];
+      const unique = Array.from(new Map(merged.map(item => [item.id, item])).values());
+      return unique;
+    }
+  });
+
+  const dynamicTuitionPaid = currentStudentRecords
+    .filter(r => {
+      const isTuitionType = r.record_type === "tuition" || r.record_type === "income";
+      const isPaid = r.status === "paid" || r.status === "completed" || !r.status;
+      const desc = (r.description || "").toLowerCase();
+      const isTopUp = desc.includes("top-up") || 
+                      desc.includes("top up") || 
+                      desc.includes("شحن") || 
+                      desc.includes("بطاقة") || 
+                      desc.includes("card") ||
+                      desc.includes("wallet") ||
+                      desc.includes("محفظة");
+      return isTuitionType && isPaid && !isTopUp;
+    })
+    .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+
   // Query performance-related child data
   const { data: studentGrades = [] } = useQuery({
     queryKey: ["student-grades", perfStudentId],
@@ -292,6 +341,180 @@ export default function ParentPortal() {
     // @ts-ignore
     queryFn: () => base44.entities.StudentAward.list("-created_at", { student_id: perfStudentId })
   });
+
+  const handlePrintPurchases = () => {
+    const printWindow = window.open("", "_blank");
+    const titleText = isRTL ? "تقرير مشتريات المقصف والمتجر" : "Canteen & Store Purchases Report";
+    const studentName = currentStudent?.full_name || currentStudent?.name || "";
+    
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>${titleText}</title>
+          <style>
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; color: #1c1917; direction: ${isRTL ? 'rtl' : 'ltr'}; text-align: ${isRTL ? 'right' : 'left'}; }
+            h1 { font-family: serif; color: #1c1917; margin-bottom: 5px; }
+            p { color: #78716c; font-size: 14px; margin-top: 0; }
+            table { width: 100%; border-collapse: collapse; margin-top: 30px; }
+            th, td { padding: 12px 15px; border-bottom: 1px solid #e7e5e4; text-align: ${isRTL ? 'right' : 'left'}; }
+            th { background-color: #f5f5f4; font-size: 12px; text-transform: uppercase; color: #78716c; }
+            td { font-size: 14px; font-weight: 600; }
+            .price { color: #e11d48; font-weight: 800; }
+            .footer { margin-top: 50px; font-size: 11px; color: #a8a29e; border-top: 1px solid #f5f5f4; padding-top: 20px; text-align: center; }
+          </style>
+        </head>
+        <body>
+          <h1>${titleText}</h1>
+          <p>${isRTL ? 'اسم الطالب:' : 'Student Name:'} <strong>${studentName}</strong> | ${isRTL ? 'التاريخ:' : 'Date:'} ${new Date().toLocaleDateString()}</p>
+          <table>
+            <thead>
+              <tr>
+                <th>${isRTL ? "المنتج" : "Item"}</th>
+                <th>${isRTL ? "التاريخ" : "Date"}</th>
+                <th>${isRTL ? "الكمية" : "Qty"}</th>
+                <th>${isRTL ? "الإجمالي" : "Total"}</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${storePurchases.map(p => `
+                <tr>
+                  <td>${p.item_name}</td>
+                  <td>${p.created_at ? p.created_at.split('T')[0] : "—"}</td>
+                  <td>${p.quantity}</td>
+                  <td class="price">$${parseFloat(p.total_price || p.total_amount || 0).toFixed(2)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          <div class="footer">EduTrack Portal © ${new Date().getFullYear()}</div>
+          <script>
+            window.onload = function() { window.print(); window.close(); }
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
+  const handlePrintFines = () => {
+    const printWindow = window.open("", "_blank");
+    const titleText = isRTL ? "تقرير الرسوم والمستحقات المفتوحة" : "Outstanding Fees & Fines Report";
+    const studentName = currentStudent?.full_name || currentStudent?.name || "";
+    const pendingFines = fines.filter(f => f.status === "pending");
+    
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>${titleText}</title>
+          <style>
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; color: #1c1917; direction: ${isRTL ? 'rtl' : 'ltr'}; text-align: ${isRTL ? 'right' : 'left'}; }
+            h1 { font-family: serif; color: #1c1917; margin-bottom: 5px; }
+            p { color: #78716c; font-size: 14px; margin-top: 0; }
+            table { width: 100%; border-collapse: collapse; margin-top: 30px; }
+            th, td { padding: 12px 15px; border-bottom: 1px solid #e7e5e4; text-align: ${isRTL ? 'right' : 'left'}; }
+            th { background-color: #f5f5f4; font-size: 12px; text-transform: uppercase; color: #78716c; }
+            td { font-size: 14px; font-weight: 600; }
+            .price { color: #dc2626; font-weight: 850; }
+            .badge { display: inline-block; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; background-color: #fee2e2; color: #991b1b; }
+            .footer { margin-top: 50px; font-size: 11px; color: #a8a29e; border-top: 1px solid #f5f5f4; padding-top: 20px; text-align: center; }
+          </style>
+        </head>
+        <body>
+          <h1>${titleText}</h1>
+          <p>${isRTL ? 'اسم الطالب:' : 'Student Name:'} <strong>${studentName}</strong> | ${isRTL ? 'التاريخ:' : 'Date:'} ${new Date().toLocaleDateString()}</p>
+          <table>
+            <thead>
+              <tr>
+                <th>${isRTL ? "المستحق / السبب" : "Reason"}</th>
+                <th>${isRTL ? "الفئة" : "Category"}</th>
+                <th>${isRTL ? "التاريخ" : "Date"}</th>
+                <th>${isRTL ? "القيمة" : "Amount"}</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${pendingFines.length === 0 ? `<tr><td colspan="4" style="text-align:center; color:#a8a29e; padding: 30px;">${isRTL ? "لا توجد مستحقات معلقة حالياً." : "No outstanding dues found."}</td></tr>` : 
+              pendingFines.map(f => `
+                <tr>
+                  <td>${f.reason}</td>
+                  <td>${f.category || "—"}</td>
+                  <td>${f.date}</td>
+                  <td class="price">$${parseFloat(f.amount || 0).toFixed(2)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          <div class="footer">EduTrack Portal © ${new Date().getFullYear()}</div>
+          <script>
+            window.onload = function() { window.print(); window.close(); }
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
+  const handlePrintHistory = () => {
+    const printWindow = window.open("", "_blank");
+    const titleText = isRTL ? "كشف المدفوعات والعمليات السابقة" : "Cleared Payments Ledger Report";
+    const studentName = currentStudent?.full_name || currentStudent?.name || "";
+    const paidFines = fines.filter(f => f.status === "paid");
+    
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>${titleText}</title>
+          <style>
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; color: #1c1917; direction: ${isRTL ? 'rtl' : 'ltr'}; text-align: ${isRTL ? 'right' : 'left'}; }
+            h1 { font-family: serif; color: #1c1917; margin-bottom: 5px; }
+            p { color: #78716c; font-size: 14px; margin-top: 0; }
+            table { width: 100%; border-collapse: collapse; margin-top: 30px; }
+            th, td { padding: 12px 15px; border-bottom: 1px solid #e7e5e4; text-align: ${isRTL ? 'right' : 'left'}; }
+            th { background-color: #f5f5f4; font-size: 12px; text-transform: uppercase; color: #78716c; }
+            td { font-size: 14px; font-weight: 600; }
+            .price { color: #059669; font-weight: 850; }
+            .badge { display: inline-block; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; background-color: #d1fae5; color: #065f46; }
+            .footer { margin-top: 50px; font-size: 11px; color: #a8a29e; border-top: 1px solid #f5f5f4; padding-top: 20px; text-align: center; }
+          </style>
+        </head>
+        <body>
+          <h1>${titleText}</h1>
+          <p>${isRTL ? 'اسم الطالب:' : 'Student Name:'} <strong>${studentName}</strong> | ${isRTL ? 'التاريخ:' : 'Date:'} ${new Date().toLocaleDateString()}</p>
+          <table>
+            <thead>
+              <tr>
+                <th>${isRTL ? "المستحق / السبب" : "Reason"}</th>
+                <th>${isRTL ? "الفئة" : "Category"}</th>
+                <th>${isRTL ? "التاريخ" : "Date"}</th>
+                <th>${isRTL ? "القيمة المسددة" : "Amount Paid"}</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${paidFines.length === 0 ? `<tr><td colspan="4" style="text-align:center; color:#a8a29e; padding: 30px;">${isRTL ? "لا يوجد سجل للمدفوعات السابقة." : "No payment history found."}</td></tr>` : 
+              paidFines.map(f => `
+                <tr>
+                  <td>${f.reason}</td>
+                  <td>${f.category || "—"}</td>
+                  <td>${f.date}</td>
+                  <td class="price">$${parseFloat(f.amount || 0).toFixed(2)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          <div class="footer">EduTrack Portal © ${new Date().getFullYear()}</div>
+          <script>
+            window.onload = function() { window.print(); window.close(); }
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
+  const purchasesPerPage = 5;
+  const indexOfLastPurchase = canteenPage * purchasesPerPage;
+  const indexOfFirstPurchase = indexOfLastPurchase - purchasesPerPage;
+  const currentPurchases = storePurchases.slice(indexOfFirstPurchase, indexOfLastPurchase);
+  const totalCanteenPages = Math.ceil(storePurchases.length / purchasesPerPage) || 1;
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -320,13 +543,12 @@ export default function ParentPortal() {
             </div>
           </PageHeader>
 
-          {activeTab === "payments" ? (
+          {activeTab === "wallet" && (
             <div className="space-y-8 animate-fadeIn">
-              {/* Header */}
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                  <h3 className="font-serif text-3xl font-bold text-stone-900">{isRTL ? "إدارة المدفوعات والبطاقة الرقمية" : "Payments & Digital Wallet"}</h3>
-                  <p className="text-stone-400 text-sm font-medium">{isRTL ? "اشحن بطاقة طفلك الذكية، وسدد المدفوعات والفواتير بأمان." : "Top up your child's smart card, and pay outstanding fees securely."}</p>
+                  <h3 className="font-serif text-3xl font-bold text-stone-900">{isRTL ? "شحن المحفظة والبطاقة الرقمية" : "Wallet Top-up & Smart Card"}</h3>
+                  <p className="text-stone-400 text-sm font-medium">{isRTL ? "إدارة الرصيد المتاح للبطاقة الذكية للابن وشحن الرصيد بأمان." : "Manage your child's smart card balance and top up securely."}</p>
                 </div>
                 {/* Student selector */}
                 {children.length > 1 && (
@@ -347,7 +569,7 @@ export default function ParentPortal() {
 
               {currentStudent ? (
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                  {/* Left Column: Wallet & Topup */}
+                  {/* Left Column: Wallet View */}
                   <div className="lg:col-span-5 space-y-8">
                     {/* Visual Smart Card */}
                     <Card className="relative w-full aspect-[1.6/1] bg-gradient-to-br from-stone-900 via-stone-850 to-indigo-950 text-white rounded-[40px] shadow-2xl overflow-hidden group border-none">
@@ -387,8 +609,10 @@ export default function ParentPortal() {
                         </div>
                       </div>
                     </Card>
+                  </div>
 
-                    {/* Top-up Form */}
+                  {/* Right Column: Top-up Form */}
+                  <div className="lg:col-span-7 space-y-8">
                     <Card className="p-8 border-none shadow-sm bg-white rounded-[40px] space-y-6">
                       <div>
                         <h4 className="font-serif text-xl font-bold text-stone-900">{isRTL ? "شحن رصيد المحفظة" : "Top Up Wallet"}</h4>
@@ -431,7 +655,7 @@ export default function ParentPortal() {
                         </div>
                       </div>
 
-                      {/* Stripe Payment Integration for Top-up */}
+                      {/* Stripe Payment Integration */}
                       {topUpAmount > 0 ? (
                         <div className="pt-6 border-t border-stone-100 space-y-4">
                           <p className="text-xs font-bold text-stone-400 uppercase tracking-widest">{isRTL ? "الدفع الآمن ببطاقة الائتمان" : "Secure Card Payment"}</p>
@@ -452,125 +676,458 @@ export default function ParentPortal() {
                       )}
                     </Card>
                   </div>
+                </div>
+              ) : (
+                <Card className="p-12 text-center border-dashed border-2 border-stone-200 bg-stone-50/50 text-stone-400 rounded-[40px]">
+                  <Wallet size={48} className="mb-4 opacity-20 mx-auto" />
+                  <p className="font-bold text-lg">{isRTL ? "يرجى اختيار طالب لعرض المحفظة" : "Select a child to view wallet details"}</p>
+                </Card>
+              )}
+            </div>
+          )}
 
-                  {/* Right Column: Fines list, Tuition Fees & History */}
-                  <div className="lg:col-span-7 space-y-8">
-                    {/* School Tuition Fees Card */}
-                    <Card className="p-8 border-none shadow-sm bg-white rounded-[40px] space-y-6">
-                      <div className="flex items-center justify-between border-b border-stone-100 pb-4">
-                        <div>
-                          <h4 className="font-serif text-2xl font-bold text-stone-900">{isRTL ? "الرسوم الدراسية السنوية" : "Annual Tuition Fees"}</h4>
-                          <p className="text-stone-400 text-xs mt-1">
-                            {isRTL ? "عرض ومتابعة دفع الأقساط والرسوم الأكاديمية السنوية للابن." : "View and pay outstanding school tuition fees for your child."}
-                          </p>
-                        </div>
-                        <span className="text-[10px] font-bold text-teal-650 bg-teal-50 border border-teal-100 px-3 py-1 rounded-xl uppercase tracking-widest">
-                          {isRTL ? "المالية" : "Finance"}
-                        </span>
+          {activeTab === "payments" && (
+            <div className="space-y-8 animate-fadeIn">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <h3 className="font-serif text-3xl font-bold text-stone-900">{isRTL ? "الرسوم والمدفوعات الدراسية" : "Tuition & Fees"}</h3>
+                  <p className="text-stone-400 text-sm font-medium">{isRTL ? "سدد الأقساط الدراسية وتابع حركة الفواتير والمدفوعات المترتبة." : "Pay outstanding school tuition fees and view complete invoice ledger."}</p>
+                </div>
+                {/* Student selector */}
+                {children.length > 1 && (
+                  <div className="flex items-center gap-3 bg-white px-5 py-3 rounded-2xl border border-stone-100 shadow-sm">
+                    <span className="text-xs font-bold text-stone-500 uppercase tracking-widest">{isRTL ? "الابن النشط:" : "Active Child:"}</span>
+                    <select 
+                      value={selectedStudentId || ""} 
+                      onChange={e => setSelectedStudentId(e.target.value)}
+                      className="bg-transparent border-none text-sm font-bold focus:outline-none cursor-pointer text-stone-850"
+                    >
+                      {children.map(c => (
+                        <option key={c.id} value={c.id}>{c.full_name || c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              {currentStudent ? (
+                <div className="space-y-10">
+                  {/* Top Metrics Row */}
+                  {(() => {
+                    const tuitionTotal = parseFloat(currentStudent.tuition_total) || 5000;
+                    const remainingTuition = Math.max(0, tuitionTotal - dynamicTuitionPaid);
+                    const percentPaid = Math.round((dynamicTuitionPaid / tuitionTotal) * 100) || 0;
+                    
+                    return (
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {/* Metric 1: Total Tuition */}
+                        <Card className="relative p-6 border-none shadow-md bg-white rounded-3xl overflow-hidden group hover:shadow-xl transition-all duration-300">
+                          <div className="absolute inset-0 bg-gradient-to-tr from-stone-50 via-transparent to-stone-50/10 pointer-events-none" />
+                          <div className="absolute top-0 right-0 p-6 opacity-[0.03] text-stone-900 group-hover:scale-110 transition-transform duration-500">
+                            <CreditCard size={90} />
+                          </div>
+                          
+                          <div className="relative z-10 flex flex-col justify-between h-full space-y-4">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-black text-stone-450 uppercase tracking-wider">{isRTL ? "إجمالي الرسوم السنوية" : "Annual Tuition"}</span>
+                              <div className="h-9 w-9 rounded-xl bg-stone-100/80 flex items-center justify-center text-stone-600 border border-stone-150">
+                                <CreditCard size={16} />
+                              </div>
+                            </div>
+                            <div>
+                              <p className="text-3xl font-black text-stone-900 num-en leading-none">${tuitionTotal.toFixed(2)}</p>
+                              <p className="text-[10px] text-stone-400 font-bold mt-1 uppercase tracking-widest">{isRTL ? "السنة الأكاديمية الحالية" : "Current Academic Year"}</p>
+                            </div>
+                          </div>
+                        </Card>
+
+                        {/* Metric 2: Paid Fees */}
+                        <Card className="relative p-6 border-none shadow-md bg-emerald-500/5 backdrop-blur-sm rounded-3xl border border-emerald-500/10 overflow-hidden group hover:shadow-lg hover:bg-emerald-500/10 transition-all duration-300">
+                          <div className="absolute -top-12 -right-12 w-28 h-28 bg-emerald-400/10 rounded-full blur-2xl" />
+                          
+                          <div className="relative z-10 flex items-center justify-between gap-4 h-full">
+                            <div className="flex flex-col justify-between h-full space-y-4">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-black text-emerald-700 uppercase tracking-wider">{isRTL ? "إجمالي المدفوع" : "Total Paid"}</span>
+                                <Badge className="bg-emerald-100 hover:bg-emerald-100 text-emerald-700 border-none rounded-lg text-[9px] font-black px-1.5 py-0.5">
+                                  {isRTL ? "مكتمل" : "Verified"}
+                                </Badge>
+                              </div>
+                              <div>
+                                <p className="text-3xl font-black text-emerald-600 num-en leading-none">${dynamicTuitionPaid.toFixed(2)}</p>
+                                <p className="text-[10px] text-emerald-500/80 font-bold mt-1 uppercase tracking-widest">{isRTL ? "مدفوعات إلكترونية ومحفظة" : "Digital & Wallet payments"}</p>
+                              </div>
+                            </div>
+
+                            {/* Circular Progress Gauge */}
+                            <div className="relative h-16 w-16 shrink-0 flex items-center justify-center">
+                              <svg className="w-full h-full transform -rotate-90">
+                                <circle
+                                  cx="32"
+                                  cy="32"
+                                  r="26"
+                                  className="stroke-emerald-100/50"
+                                  strokeWidth="4"
+                                  fill="transparent"
+                                />
+                                <circle
+                                  cx="32"
+                                  cy="32"
+                                  r="26"
+                                  className="stroke-emerald-500 transition-all duration-1000 ease-out"
+                                  strokeWidth="4"
+                                  fill="transparent"
+                                  strokeDasharray={2 * Math.PI * 26}
+                                  strokeDashoffset={2 * Math.PI * 26 * (1 - percentPaid / 100)}
+                                />
+                              </svg>
+                              <span className="absolute text-[11px] font-black text-emerald-600 num-en">{percentPaid}%</span>
+                            </div>
+                          </div>
+                        </Card>
+
+                        {/* Metric 3: Remaining Due */}
+                        <Card className="relative p-6 border-none shadow-md bg-amber-500/5 backdrop-blur-sm rounded-3xl border border-amber-500/10 overflow-hidden group hover:shadow-lg transition-all duration-300">
+                          <div className="absolute -top-12 -right-12 w-28 h-28 bg-amber-400/10 rounded-full blur-2xl" />
+                          
+                          <div className="relative z-10 flex flex-col justify-between h-full space-y-4">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-black text-amber-700 uppercase tracking-wider">{isRTL ? "المتبقي المستحق" : "Remaining"}</span>
+                              {remainingTuition > 0 ? (
+                                <Badge className="bg-amber-100 text-amber-700 border-none rounded-lg text-[9px] font-black px-1.5 py-0.5 animate-pulse">
+                                  {isRTL ? "مستحق سداد" : "Action Required"}
+                                </Badge>
+                              ) : (
+                                <Badge className="bg-emerald-100 text-emerald-700 border-none rounded-lg text-[9px] font-black px-1.5 py-0.5">
+                                  {isRTL ? "مسدد بالكامل" : "Fully Settled"}
+                                </Badge>
+                              )}
+                            </div>
+                            
+                            <div className="flex items-end justify-between gap-4">
+                              <div>
+                                <p className={`text-3xl font-black num-en leading-none ${remainingTuition > 0 ? "text-amber-600" : "text-stone-400"}`}>
+                                  ${remainingTuition.toFixed(2)}
+                                </p>
+                                <p className="text-[10px] text-amber-500/80 font-bold mt-1 uppercase tracking-widest">{isRTL ? "أقساط ورسوم معلقة" : "Outstanding installments"}</p>
+                              </div>
+
+                              {remainingTuition > 0 && (
+                                <button
+                                  onClick={() => {
+                                    setTuitionPayAmount(0);
+                                    setCustomTuitionPay("");
+                                    setIsTuitionDialogOpen(true);
+                                  }}
+                                  className="h-9 px-4 rounded-xl bg-stone-900 hover:bg-black text-white hover:scale-105 text-xs font-bold shadow-md cursor-pointer transition-all flex items-center justify-center gap-1.5 select-none shrink-0"
+                                >
+                                  <DollarSign size={13} />
+                                  <span>{isRTL ? "سدد الآن" : "Pay Now"}</span>
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </Card>
                       </div>
+                    );
+                  })()}
 
-                      <div className="grid grid-cols-3 gap-3">
-                        <div className="bg-stone-50/50 p-4 rounded-2xl border border-stone-150/40 text-center">
-                          <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider mb-1">{isRTL ? "إجمالي الرسوم" : "Total Fees"}</p>
-                          <p className="text-lg font-black text-stone-800 num-en">${(parseFloat(currentStudent.tuition_total) || 5000).toFixed(2)}</p>
-                        </div>
-                        <div className="bg-emerald-50/30 p-4 rounded-2xl border border-emerald-100/50 text-center">
-                          <p className="text-[10px] text-emerald-700 font-bold uppercase tracking-wider mb-1">{isRTL ? "المدفوع" : "Paid"}</p>
-                          <p className="text-lg font-black text-emerald-600 num-en">${(parseFloat(currentStudent.tuition_paid) || 0).toFixed(2)}</p>
-                        </div>
-                        <div className="bg-amber-50/30 p-4 rounded-2xl border border-amber-100/50 text-center">
-                          <p className="text-[10px] text-amber-700 font-bold uppercase tracking-wider mb-1">{isRTL ? "المتبقي" : "Remaining"}</p>
-                          <p className={`text-lg font-black num-en ${((parseFloat(currentStudent.tuition_total) || 5000) - (parseFloat(currentStudent.tuition_paid) || 0)) > 0 ? "text-amber-600 animate-pulse" : "text-stone-400"}`}>
-                            ${Math.max(0, (parseFloat(currentStudent.tuition_total) || 5000) - (parseFloat(currentStudent.tuition_paid) || 0)).toFixed(2)}
-                          </p>
-                        </div>
-                      </div>
-
-                      {((parseFloat(currentStudent.tuition_total) || 5000) - (parseFloat(currentStudent.tuition_paid) || 0)) > 0 && (
-                        <button
-                          onClick={() => {
-                            setTuitionPayAmount(0);
-                            setCustomTuitionPay("");
-                            setIsTuitionDialogOpen(true);
-                          }}
-                          className="w-full bg-stone-900 hover:bg-black text-white rounded-2xl h-12 font-bold shadow-lg shadow-stone-200 cursor-pointer flex items-center justify-center gap-2"
+                  {/* Main Grid Layout */}
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    {/* Right Column (Core Operations) - lg:col-span-8 */}
+                    <div className="lg:col-span-8 space-y-6">
+                      {/* Outstanding Payments Panel */}
+                      <Card className="p-5 border-none shadow-sm bg-white rounded-3xl space-y-4">
+                        <div 
+                          className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-stone-100 pb-3 cursor-pointer select-none group gap-3"
+                          onClick={() => setFinesCollapsed(!finesCollapsed)}
                         >
-                          <DollarSign className="h-4 w-4" />
-                          <span>{isRTL ? "سدد جزءاً من الرسوم الآن" : "Pay Tuition Installment Now"}</span>
-                        </button>
-                      )}
-                    </Card>
-
-                    {/* Active Fines */}
-                    <Card className="p-8 border-none shadow-sm bg-white rounded-[40px] space-y-6">
-                      <h4 className="font-serif text-2xl font-bold text-stone-900">{isRTL ? "المدفوعات والرسوم المستحقة" : "Outstanding Payments & Fees"}</h4>
-                      <ParentFinesTab student={currentStudent} privacyMode={false} />
-                    </Card>
-
-                    {/* History */}
-                    <Card className="p-8 border-none shadow-sm bg-white rounded-[40px] space-y-6">
-                      <h4 className="font-serif text-2xl font-bold text-stone-900">{isRTL ? "سجل السداد والمدفوعات السابقة" : "Payment Ledger & History"}</h4>
-                      <FineTransactionHistory student={currentStudent} privacyMode={false} />
-                    </Card>
-
-                    {/* Canteen & Store Purchases */}
-                    <Card className="p-8 border-none shadow-sm bg-white rounded-[40px] space-y-6">
-                      <div className="flex items-center justify-between border-b border-stone-100 pb-4">
-                        <div>
-                          <h4 className="font-serif text-2xl font-bold text-stone-900">{isRTL ? "مشتريات المقصف والمتجر" : "Canteen & Store Purchases"}</h4>
-                          <p className="text-stone-400 text-xs mt-1">
-                            {isRTL ? "السجل الكامل لمشتريات الطالب باستخدام البطاقة الذكية." : "Complete ledger of student purchases using the smart card."}
-                          </p>
+                          <div className="flex items-center gap-2.5">
+                            <div className="h-8 w-8 rounded-xl bg-rose-50 text-rose-500 flex items-center justify-center shrink-0">
+                              <FileText size={15} />
+                            </div>
+                            <div>
+                              <h4 className="font-serif text-lg font-bold text-stone-900 leading-none group-hover:text-rose-500 transition-colors">{isRTL ? "المدفوعات والرسوم المستحقة" : "Outstanding Payments & Fees"}</h4>
+                              <p className="text-[10px] text-stone-400 mt-1">{isRTL ? "قائمة بجميع الغرامات والمستحقات المترتبة على الطالب وحالتها المالية." : "List of all outstanding fines and student dues."}</p>
+                            </div>
+                          </div>
+                          
+                          {/* Print & Export buttons */}
+                          <div className="flex items-center gap-1.5 self-start sm:self-center">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handlePrintFines(); }}
+                              className="px-2.5 h-8 rounded-lg border border-stone-200 bg-white hover:bg-stone-50 text-stone-600 flex items-center justify-center gap-1 text-[11px] font-bold transition-all cursor-pointer shadow-sm hover:border-stone-300"
+                              title={isRTL ? "طباعة" : "Print"}
+                            >
+                              <Printer size={12} />
+                              <span>{isRTL ? "طباعة" : "Print"}</span>
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handlePrintFines(); }}
+                              className="px-2.5 h-8 rounded-lg bg-stone-900 hover:bg-black text-white flex items-center justify-center gap-1 text-[11px] font-bold transition-all cursor-pointer shadow-md shadow-stone-200"
+                              title={isRTL ? "تصدير PDF" : "Export PDF"}
+                            >
+                              <Download size={12} />
+                              <span>{isRTL ? "تصدير PDF" : "Export PDF"}</span>
+                            </button>
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); setFinesCollapsed(!finesCollapsed); }}
+                              className="h-8 w-8 rounded-lg bg-stone-50 group-hover:bg-stone-100 text-stone-500 flex items-center justify-center border border-stone-200 transition-all select-none cursor-pointer"
+                            >
+                              <ChevronDown size={14} className={`transform transition-transform duration-300 ${finesCollapsed ? "" : "rotate-180"}`} />
+                            </button>
+                          </div>
                         </div>
-                        <span className="text-[10px] font-bold text-indigo-650 bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-xl num-en">
-                          {storePurchases.length} {isRTL ? "عمليات" : "Txns"}
-                        </span>
-                      </div>
+                        <motion.div
+                          initial={false}
+                          animate={{ height: finesCollapsed ? 0 : "auto", opacity: finesCollapsed ? 0 : 1 }}
+                          transition={{ duration: 0.25, ease: "easeInOut" }}
+                          className="overflow-hidden"
+                        >
+                          <div className="pt-1">
+                            <ParentFinesTab student={currentStudent} privacyMode={false} />
+                          </div>
+                        </motion.div>
+                      </Card>
 
-                      <div className="space-y-4">
-                        {storePurchases.length === 0 ? (
-                          <div className="text-center py-8 text-stone-400 text-sm font-semibold border-dashed border border-stone-200 rounded-3xl">
-                            {isRTL ? "لا توجد عمليات شراء مسجلة." : "No recorded purchases found."}
+                      {/* Payment History Panel (Moved here under Outstanding) */}
+                      <Card className="p-5 border-none shadow-sm bg-white rounded-3xl space-y-4">
+                        <div 
+                          className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-stone-100 pb-3 cursor-pointer select-none group gap-3"
+                          onClick={() => setHistoryCollapsed(!historyCollapsed)}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <div className="h-8 w-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                              <Clock size={15} />
+                            </div>
+                            <div>
+                              <h4 className="font-serif text-lg font-bold text-stone-900 leading-none group-hover:text-emerald-600 transition-colors">{isRTL ? "سجل السداد والمدفوعات السابقة" : "Payment Ledger & History"}</h4>
+                              <p className="text-[10px] text-stone-450 mt-1">{isRTL ? "سجل بكافة المعاملات المالية المكتملة." : "Record of all completed payments."}</p>
+                            </div>
                           </div>
-                        ) : (
-                          <div className="overflow-x-auto">
-                            <table className="w-full text-right md:text-left">
-                              <thead>
-                                <tr className="text-[10px] font-bold text-stone-400 uppercase tracking-widest border-b border-stone-150">
-                                  <th className={`pb-3 ${isRTL ? "text-right" : "text-left"}`}>{isRTL ? "المنتج" : "Item"}</th>
-                                  <th className={`pb-3 ${isRTL ? "text-right" : "text-left"}`}>{isRTL ? "التاريخ" : "Date"}</th>
-                                  <th className="pb-3 text-center">{isRTL ? "الكمية" : "Qty"}</th>
-                                  <th className={`pb-3 ${isRTL ? "text-left" : "text-right"}`}>{isRTL ? "الإجمالي" : "Total"}</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-stone-50">
-                                {storePurchases.map((p, i) => (
-                                  <tr key={p.id || i} className="group hover:bg-stone-50/50 transition-colors">
-                                    <td className="py-4">
-                                      <div className="flex items-center gap-3">
-                                        <div className="h-9 w-9 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 group-hover:scale-110 transition-transform">
-                                          <ShoppingBag size={16} />
-                                        </div>
-                                        <span className="font-bold text-sm text-stone-850">{p.item_name}</span>
-                                      </div>
-                                    </td>
-                                    <td className="py-4 text-xs font-bold text-stone-400 num-en">
-                                      {p.created_at ? p.created_at.split('T')[0] : "—"}
-                                    </td>
-                                    <td className="py-4 text-center font-bold text-stone-600 num-en">
-                                      {p.quantity}
-                                    </td>
-                                    <td className={`py-4 font-extrabold text-sm text-rose-500 num-en ${isRTL ? "text-left" : "text-right"}`}>
-                                      -${(parseFloat(p.total_price || p.total_amount || 0)).toFixed(2)}
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
+                          
+                          {/* Print & Export buttons */}
+                          <div className="flex items-center gap-1.5 self-start sm:self-center">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handlePrintHistory(); }}
+                              className="px-2.5 h-8 rounded-lg border border-stone-200 bg-white hover:bg-stone-50 text-stone-600 flex items-center justify-center gap-1 text-[11px] font-bold transition-all cursor-pointer shadow-sm hover:border-stone-300"
+                              title={isRTL ? "طباعة" : "Print"}
+                            >
+                              <Printer size={12} />
+                              <span>{isRTL ? "طباعة" : "Print"}</span>
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handlePrintHistory(); }}
+                              className="px-2.5 h-8 rounded-lg bg-stone-900 hover:bg-black text-white flex items-center justify-center gap-1 text-[11px] font-bold transition-all cursor-pointer shadow-md shadow-stone-200"
+                              title={isRTL ? "تصدير PDF" : "Export PDF"}
+                            >
+                              <Download size={12} />
+                              <span>{isRTL ? "تصدير PDF" : "Export PDF"}</span>
+                            </button>
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); setHistoryCollapsed(!historyCollapsed); }}
+                              className="h-8 w-8 rounded-lg bg-stone-50 group-hover:bg-stone-100 text-stone-500 flex items-center justify-center border border-stone-200 transition-all select-none cursor-pointer"
+                            >
+                              <ChevronDown size={14} className={`transform transition-transform duration-300 ${historyCollapsed ? "" : "rotate-180"}`} />
+                            </button>
                           </div>
-                        )}
-                      </div>
-                    </Card>
+                        </div>
+                        <motion.div
+                          initial={false}
+                          animate={{ height: historyCollapsed ? 0 : "auto", opacity: historyCollapsed ? 0 : 1 }}
+                          transition={{ duration: 0.25, ease: "easeInOut" }}
+                          className="overflow-hidden"
+                        >
+                          <div className="pt-1">
+                            <FineTransactionHistory student={currentStudent} privacyMode={false} />
+                          </div>
+                        </motion.div>
+                      </Card>
+
+                      {/* Canteen & Store Purchases Panel */}
+                      <Card className="p-5 border-none shadow-sm bg-white rounded-3xl space-y-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-stone-100 pb-3 gap-3">
+                          <div 
+                            className="flex items-center gap-2.5 cursor-pointer select-none group"
+                            onClick={() => setPurchasesCollapsed(!purchasesCollapsed)}
+                          >
+                            <div className="h-8 w-8 rounded-xl bg-indigo-50 text-indigo-500 flex items-center justify-center shrink-0">
+                              <ShoppingBag size={15} />
+                            </div>
+                            <div>
+                              <h4 className="font-serif text-lg font-bold text-stone-900 leading-none group-hover:text-indigo-500 transition-colors">{isRTL ? "مشتريات المقصف والمتجر" : "Canteen & Store Purchases"}</h4>
+                              <p className="text-[10px] text-stone-400 mt-1">
+                                {isRTL ? "السجل الكامل لمشتريات الطالب باستخدام البطاقة الذكية." : "Complete ledger of student purchases using the smart card."}
+                              </p>
+                            </div>
+                          </div>
+                          
+                          {/* Print & Export buttons */}
+                          <div className="flex items-center gap-1.5 self-start sm:self-center">
+                            <button
+                              onClick={handlePrintPurchases}
+                              className="px-2.5 h-8 rounded-lg border border-stone-200 bg-white hover:bg-stone-50 text-stone-600 flex items-center justify-center gap-1 text-[11px] font-bold transition-all cursor-pointer shadow-sm hover:border-stone-300"
+                              title={isRTL ? "طباعة" : "Print"}
+                            >
+                              <Printer size={12} />
+                              <span>{isRTL ? "طباعة" : "Print"}</span>
+                            </button>
+                            <button
+                              onClick={handlePrintPurchases}
+                              className="px-2.5 h-8 rounded-lg bg-stone-900 hover:bg-black text-white flex items-center justify-center gap-1 text-[11px] font-bold transition-all cursor-pointer shadow-md shadow-stone-200"
+                              title={isRTL ? "تصدير PDF" : "Export PDF"}
+                            >
+                              <Download size={12} />
+                              <span>{isRTL ? "تصدير PDF" : "Export PDF"}</span>
+                            </button>
+                            
+                            <button 
+                              onClick={() => setPurchasesCollapsed(!purchasesCollapsed)}
+                              className="h-8 w-8 rounded-lg bg-stone-50 hover:bg-stone-100 text-stone-500 flex items-center justify-center border border-stone-200 transition-colors cursor-pointer select-none"
+                            >
+                              <ChevronDown size={14} className={`transform transition-transform duration-300 ${purchasesCollapsed ? "" : "rotate-180"}`} />
+                            </button>
+                          </div>
+                        </div>
+
+                        <motion.div
+                          initial={false}
+                          animate={{ height: purchasesCollapsed ? 0 : "auto", opacity: purchasesCollapsed ? 0 : 1 }}
+                          transition={{ duration: 0.25, ease: "easeInOut" }}
+                          className="overflow-hidden"
+                        >
+                          <div className="space-y-3 pt-1">
+                            {storePurchases.length === 0 ? (
+                              <div className="text-center py-10 text-stone-400 text-xs font-semibold border-dashed border border-stone-200 rounded-2xl bg-stone-50/30">
+                                {isRTL ? "لا توجد عمليات شراء مسجلة." : "No recorded purchases found."}
+                              </div>
+                            ) : (
+                              <>
+                                <div className="overflow-x-auto">
+                                  <table className="w-full text-right md:text-left">
+                                    <thead>
+                                      <tr className="text-[9px] font-bold text-stone-400 uppercase tracking-widest border-b border-stone-150">
+                                        <th className={`pb-2 ${isRTL ? "text-right" : "text-left"}`}>{isRTL ? "المنتج" : "Item"}</th>
+                                        <th className={`pb-2 ${isRTL ? "text-right" : "text-left"}`}>{isRTL ? "التاريخ" : "Date"}</th>
+                                        <th className="pb-2 text-center">{isRTL ? "الكمية" : "Qty"}</th>
+                                        <th className={`pb-2 ${isRTL ? "text-left" : "text-right"}`}>{isRTL ? "الإجمالي" : "Total"}</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-stone-50">
+                                      {currentPurchases.map((p, i) => (
+                                        <tr key={p.id || i} className="group hover:bg-stone-50/50 transition-colors">
+                                          <td className="py-2.5">
+                                            <div className="flex items-center gap-2">
+                                              <div className="h-7.5 w-7.5 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 group-hover:scale-105 transition-transform shrink-0">
+                                                <ShoppingBag size={13} />
+                                              </div>
+                                              <span className="font-bold text-xs text-stone-850">{p.item_name}</span>
+                                            </div>
+                                          </td>
+                                          <td className="py-2.5 text-[11px] font-bold text-stone-400 num-en">
+                                            {p.created_at ? p.created_at.split('T')[0] : "—"}
+                                          </td>
+                                          <td className="py-2.5 text-center font-bold text-[11px] text-stone-600 num-en">
+                                            {p.quantity}
+                                          </td>
+                                          <td className={`py-2.5 font-extrabold text-xs text-rose-500 num-en ${isRTL ? "text-left" : "text-right"}`}>
+                                            -${(parseFloat(p.total_price || p.total_amount || 0)).toFixed(2)}
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+
+                                {/* Pagination Controls */}
+                                {totalCanteenPages > 1 && (
+                                  <div className="flex items-center justify-between border-t border-stone-100 pt-3">
+                                    <span className="text-[10px] font-bold text-stone-400">
+                                      {isRTL 
+                                        ? `عرض ${indexOfFirstPurchase + 1}-${Math.min(indexOfLastPurchase, storePurchases.length)} من ${storePurchases.length}`
+                                        : `Showing ${indexOfFirstPurchase + 1}-${Math.min(indexOfLastPurchase, storePurchases.length)} of ${storePurchases.length}`
+                                      }
+                                    </span>
+                                    <div className="flex items-center gap-1">
+                                      <button
+                                        onClick={() => setCanteenPage(p => Math.max(1, p - 1))}
+                                        disabled={canteenPage === 1}
+                                        className="p-1 rounded-md border border-stone-200 bg-white hover:bg-stone-50 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                                      >
+                                        {isRTL ? <ChevronRight size={13} /> : <ChevronLeft size={13} />}
+                                      </button>
+                                      <span className="text-[10px] font-extrabold text-stone-850 px-1.5 num-en">
+                                        {canteenPage} / {totalCanteenPages}
+                                      </span>
+                                      <button
+                                        onClick={() => setCanteenPage(p => Math.min(totalCanteenPages, p + 1))}
+                                        disabled={canteenPage === totalCanteenPages}
+                                        className="p-1 rounded-md border border-stone-200 bg-white hover:bg-stone-50 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                                      >
+                                        {isRTL ? <ChevronLeft size={13} /> : <ChevronRight size={13} />}
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </motion.div>
+                      </Card>
+                    </div>
+
+                    {/* Left Column (Metadata, Quick Actions) - lg:col-span-4 */}
+                    <div className="lg:col-span-4 space-y-6">
+                      {/* Active Child's Mini Smart Card */}
+                      <Card className="relative w-full aspect-[1.58/1] bg-gradient-to-br from-stone-900 via-stone-850 to-emerald-950 text-white rounded-3xl shadow-xl overflow-hidden group border-none">
+                        <div className="absolute inset-0 opacity-5 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '16px 16px' }} />
+                        <div className="absolute -top-16 -right-16 w-44 h-44 bg-emerald-500/20 rounded-full blur-[50px] group-hover:scale-125 transition-transform duration-700" />
+                        <div className="absolute -bottom-16 -left-16 w-44 h-44 bg-rose-500/10 rounded-full blur-[50px]" />
+                        
+                        <div className="relative z-10 h-full p-6 flex flex-col justify-between">
+                          <div className="flex justify-between items-start">
+                            <div className="flex items-center gap-2.5">
+                              <div className="h-8 w-8 rounded-lg bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/10">
+                                <Wallet size={16} className="text-emerald-300" />
+                              </div>
+                              <div>
+                                <h4 className="font-serif font-black tracking-tight text-sm">Edu<span className="text-rose-500">Wallet</span></h4>
+                                <p className="text-[7px] font-bold text-stone-400 uppercase tracking-widest">{isRTL ? "بطاقة الابن الرقمية" : "Digital Smart Card"}</p>
+                              </div>
+                            </div>
+                            <Badge className="bg-white/10 backdrop-blur-md text-white border border-white/10 rounded-md text-[7px] font-black px-1.5 py-0.5">
+                              SMART CARD
+                            </Badge>
+                          </div>
+
+                          <div className="my-auto pt-2">
+                            <p className="text-[8px] font-bold text-stone-400 uppercase tracking-widest mb-0.5">{isRTL ? "الرصيد المتاح" : "Card Balance"}</p>
+                            <div className="flex items-baseline justify-between">
+                              <p className="text-2xl font-black text-emerald-400 num-en">${parseFloat(currentStudent.card_balance || 0).toFixed(2)}</p>
+                              
+                              {/* Quick click to Top Up tab */}
+                              <button
+                                onClick={() => setSearchParams({ tab: "wallet" })}
+                                className="text-[9px] font-extrabold text-white/95 hover:text-emerald-400 bg-white/10 hover:bg-white/15 px-2 py-1 rounded-lg border border-white/10 flex items-center gap-1 transition-all cursor-pointer select-none"
+                              >
+                                <span>{isRTL ? "شحن رصيد" : "Top Up"}</span>
+                                <ArrowRight size={10} className={`transform transition-transform ${isRTL ? "rotate-180" : ""}`} />
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="flex justify-between items-end border-t border-white/5 pt-2">
+                            <div>
+                              <h5 className="text-xs font-bold leading-none">{currentStudent.full_name || currentStudent.name}</h5>
+                              <p className="text-stone-400 text-[8px] font-bold tracking-widest mt-1 num-en">{currentStudent.id}</p>
+                            </div>
+                            <div className="h-9 w-9 bg-white/10 backdrop-blur-md rounded-lg flex items-center justify-center border border-white/10">
+                              <Wallet className="h-4.5 w-4.5 text-white" />
+                            </div>
+                          </div>
+                        </div>
+                      </Card>
+                    </div>
                   </div>
                 </div>
               ) : (
@@ -580,7 +1137,9 @@ export default function ParentPortal() {
                 </Card>
               )}
             </div>
-          ) : activeTab === "performance" ? (
+          )}
+
+          {activeTab === "performance" && (
             <div className="space-y-8 animate-fadeIn">
               {/* Back to children button */}
               <button
@@ -727,7 +1286,9 @@ export default function ParentPortal() {
                 </Card>
               )}
             </div>
-          ) : (
+          )}
+
+          {activeTab === "overview" && (
             <>
               {/* Children Overview */}
               <section>
@@ -867,7 +1428,7 @@ export default function ParentPortal() {
                         <div className="flex flex-col">
                           <span className="text-[10px] font-bold text-indigo-300 uppercase tracking-widest">{isRTL ? "المبلغ المستحق" : "Balance Due"}</span>
                           <span className="text-xl font-black num-en">
-                            ${currentStudent ? Math.max(0, (parseFloat(currentStudent.tuition_total) || 5000) - (parseFloat(currentStudent.tuition_paid) || 0)).toFixed(2) : "0.00"}
+                            ${currentStudent ? Math.max(0, (parseFloat(currentStudent.tuition_total) || 5000) - dynamicTuitionPaid).toFixed(2) : "0.00"}
                           </span>
                         </div>
                       </div>
@@ -1021,7 +1582,7 @@ export default function ParentPortal() {
               <div className="p-4 bg-amber-50/50 border border-amber-100 rounded-2xl flex items-center justify-between text-sm font-semibold">
                 <span className="text-stone-500">{isRTL ? "إجمالي المبلغ المتبقي المستحق:" : "Total remaining due:"}</span>
                 <span className="text-amber-600 font-extrabold num-en">
-                  ${Math.max(0, (parseFloat(currentStudent.tuition_total) || 5000) - (parseFloat(currentStudent.tuition_paid) || 0)).toFixed(2)}
+                  ${Math.max(0, (parseFloat(currentStudent.tuition_total) || 5000) - dynamicTuitionPaid).toFixed(2)}
                 </span>
               </div>
 
@@ -1030,7 +1591,7 @@ export default function ParentPortal() {
                 <label className="text-xs font-bold text-stone-500 uppercase tracking-widest block">{isRTL ? "اختر مبلغاً للسداد" : "Select Payment Amount"}</label>
                 <div className="grid grid-cols-3 gap-2">
                   {[250, 500, 1000].map(amt => {
-                    const maxRemaining = Math.max(0, (parseFloat(currentStudent.tuition_total) || 5000) - (parseFloat(currentStudent.tuition_paid) || 0));
+                    const maxRemaining = Math.max(0, (parseFloat(currentStudent.tuition_total) || 5000) - dynamicTuitionPaid);
                     const disabled = amt > maxRemaining;
                     return (
                       <button
@@ -1062,7 +1623,7 @@ export default function ParentPortal() {
                     id="customTuitionPay"
                     type="number"
                     min="1"
-                    max={Math.max(0, (parseFloat(currentStudent.tuition_total) || 5000) - (parseFloat(currentStudent.tuition_paid) || 0))}
+                    max={Math.max(0, (parseFloat(currentStudent.tuition_total) || 5000) - dynamicTuitionPaid)}
                     value={customTuitionPay}
                     onChange={e => {
                       setCustomTuitionPay(e.target.value);

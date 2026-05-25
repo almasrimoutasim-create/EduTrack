@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { base44 } from "@/api/base44Client";
@@ -373,10 +374,9 @@ export default function StudentForm({ student, onClose }) {
               </div>
               <div className="space-y-1.5">
                 <Label className="text-stone-700 font-bold text-xs">{t.dob}</Label>
-                <Input 
-                  type="date" 
+                <DatePicker 
                   value={form.date_of_birth || ""} 
-                  onChange={e => update("date_of_birth", e.target.value)} 
+                  onChange={val => update("date_of_birth", val)} 
                   className="rounded-xl border-stone-200 h-11 focus-visible:ring-primary/20 num-en"
                 />
               </div>

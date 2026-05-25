@@ -16,6 +16,7 @@ import { t } from "@/lib/translations";
 import PageHeader from "@/components/shared/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
@@ -73,12 +74,10 @@ export default function Attendance() {
         subtitle={t("attendance.subtitle", language)}
       >
         <div className="flex items-center gap-3">
-          <Input 
-            type="date" 
+          <DatePicker 
             value={selectedDate} 
-            onChange={(e) => setSelectedDate(e.target.value)}
+            onChange={(val) => setSelectedDate(val)}
             className="w-44 bg-white border-stone-200 rounded-xl h-11 shadow-sm"
-            dir="ltr"
           />
           <button className={`${btnPrimary} px-5`}>
             {t("attendance.markAttendance", language)}

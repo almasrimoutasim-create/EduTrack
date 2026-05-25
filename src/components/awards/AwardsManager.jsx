@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Trophy, Plus, Trash2, Star, Medal, Crown, Award, Zap, Heart, Flame } from "lucide-react";
 
 const AWARD_ICONS = {
@@ -175,7 +176,7 @@ export default function AwardsManager() {
             </div>
             <div>
               <Label>Date</Label>
-              <Input className="mt-1" type="date" value={form.awarded_date} onChange={e => upd("awarded_date", e.target.value)} />
+              <DatePicker className="mt-1" value={form.awarded_date} onChange={val => upd("awarded_date", val)} />
             </div>
           </div>
           <DialogFooter>

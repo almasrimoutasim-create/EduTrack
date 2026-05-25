@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { DatePicker } from "@/components/ui/date-picker";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useQuery } from "@tanstack/react-query";
@@ -131,7 +132,7 @@ export default function AwardFormDialog({ open, onClose, award }) {
             </div>
             <div>
               <Label>Date</Label>
-              <Input type="date" value={form.awarded_date} onChange={e => update("awarded_date", e.target.value)} />
+              <DatePicker value={form.awarded_date} onChange={val => update("awarded_date", val)} />
             </div>
           </div>
           <button onClick={handleSave} disabled={saving || !form.student_id || !form.title} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed w-full h-11">

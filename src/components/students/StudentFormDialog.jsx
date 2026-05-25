@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DatePicker } from "@/components/ui/date-picker";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
 import { Switch } from "@/components/ui/switch";
@@ -129,10 +130,9 @@ export default function StudentFormDialog({ open, onClose, student }) {
             </div>
             <div>
               <Label className="text-stone-700 font-medium">{t.dob}</Label>
-              <Input 
-                type="date" 
+              <DatePicker 
                 value={form.date_of_birth} 
-                onChange={e => update("date_of_birth", e.target.value)} 
+                onChange={val => update("date_of_birth", val)} 
                 className="mt-1 rounded-lg border-stone-200"
               />
             </div>

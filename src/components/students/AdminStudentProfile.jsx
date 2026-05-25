@@ -21,7 +21,8 @@ import {
   Eye, 
   EyeOff,
   Bus,
-  Plus
+  Plus,
+  AlertCircle
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/lib/LanguageContext";
@@ -41,6 +42,359 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
   const [showParentPass, setShowParentPass] = useState(false);
   const [copiedField, setCopiedField] = useState(null);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+
+  // States for other outstanding dues & fines form
+  const [fineCategory, setFineCategory] = useState("general");
+  const [fineReason, setFineReason] = useState("");
+  const [fineAmount, setFineAmount] = useState("");
+  const [fineIssuedBy, setFineIssuedBy] = useState("");
+  const [fineDate, setFineDate] = useState(new Date().toISOString().split("T")[0]);
+  const [fineNotes, setFineNotes] = useState("");
+  const [isSubmittingFine, setIsSubmittingFine] = useState(false);
+  
+  // Edit mode state for fines
+  const [editingFineId, setEditingFineId] = useState(null);
+  
+  // Pagination state for fines
+  const [finesPage, setFinesPage] = useState(1);
+
+  const handleEditFineClick = (fine) => {
+    setEditingFineId(fine.id);
+    setFineCategory(fine.category || "general");
+    setFineReason(fine.reason || "");
+    setFineAmount(fine.amount ? String(fine.amount) : "");
+    setFineIssuedBy(fine.issued_by || "");
+    setFineDate(fine.date || new Date().toISOString().split("T")[0]);
+    setFineNotes(fine.notes || "");
+    toast.info(isRTL ? "تم تحميل بيانات المستحق للتعديل في الاستمارة الجانبية" : "Due details loaded into the form for editing");
+  };
+
+  const handleCancelEdit = () => {
+    setEditingFineId(null);
+    setFineReason("");
+    setFineAmount("");
+    setFineIssuedBy("");
+    setFineDate(new Date().toISOString().split("T")[0]);
+    setFineNotes("");
+    setFineCategory("general");
+  };
+
+  const handleAddFine = async (e) => {
+    e.preventDefault();
+    if (!fineReason.trim() || !fineAmount) {
+      toast.error(isRTL ? "يرجى تعبئة الحقول الأساسية (السبب والمبلغ)" : "Please fill required fields (Reason and Amount)");
+      return;
+    }
+
+    setIsSubmittingFine(true);
+    try {
+      if (editingFineId) {
+        // Update existing fine
+        await base44.entities.Fine.update(editingFineId, {
+          category: fineCategory,
+          reason: fineReason,
+          amount: parseFloat(fineAmount),
+          date: fineDate,
+          issued_by: fineIssuedBy || (isRTL ? "إدارة المدرسة" : "School Administration"),
+          notes: fineNotes
+        });
+        toast.success(isRTL ? "تم تحديث المستحق بنجاح!" : "Due updated successfully!");
+        setEditingFineId(null);
+      } else {
+        // Create new fine
+        await base44.entities.Fine.create({
+          student_id: student.id,
+          amount: parseFloat(fineAmount),
+          reason: fineReason,
+          category: fineCategory,
+          issued_by: fineIssuedBy || (isRTL ? "إدارة المدرسة" : "School Administration"),
+          status: "pending",
+          date: fineDate,
+          notes: fineNotes
+        });
+        toast.success(isRTL ? "تم إضافة المستحق بنجاح وربطه ببوابة ولي الأمر!" : "Due added successfully and linked to Parent Portal!");
+      }
+      
+      // Reset form
+      setFineReason("");
+      setFineAmount("");
+      setFineIssuedBy("");
+      setFineDate(new Date().toISOString().split("T")[0]);
+      setFineNotes("");
+      setFineCategory("general");
+      setFinesPage(1); // Reset to page 1 to see the new due
+
+      // Refetch and invalidate query caches
+      refetchFines();
+      _qc.invalidateQueries({ queryKey: ["admin-student-fines", student.id] });
+      _qc.invalidateQueries({ queryKey: ["parent-fines", student.id] });
+      _qc.invalidateQueries({ queryKey: ["student-detail", student.id] });
+    } catch (err) {
+      console.error("Failed to save fine:", err);
+      toast.error(isRTL ? "فشل حفظ المستحق. يرجى المحاولة لاحقاً." : "Failed to save due. Please try again.");
+    } finally {
+      setIsSubmittingFine(false);
+    }
+  };
+
+  const handleDeleteFine = async (fineId) => {
+    if (!window.confirm(isRTL ? "هل أنت متأكد من حذف هذا المستحق/الغرامة؟" : "Are you sure you want to delete this due/fine?")) {
+      return;
+    }
+
+    try {
+      await base44.entities.Fine.delete(fineId);
+      toast.success(isRTL ? "تم حذف المستحق بنجاح!" : "Due deleted successfully!");
+      setFinesPage(1);
+      refetchFines();
+      _qc.invalidateQueries({ queryKey: ["admin-student-fines", student.id] });
+      _qc.invalidateQueries({ queryKey: ["parent-fines", student.id] });
+      _qc.invalidateQueries({ queryKey: ["student-detail", student.id] });
+    } catch (err) {
+      console.error("Failed to delete fine:", err);
+      toast.error(isRTL ? "فشل حذف المستحق. يرجى المحاولة لاحقاً." : "Failed to delete due.");
+    }
+  };
+
+  const handlePayFineManually = async (fine) => {
+    if (!window.confirm(isRTL ? `هل تريد تسجيل دفع يدوي بقيمة $${parseFloat(fine.amount).toFixed(2)} لهذا المستحق؟` : `Do you want to record a manual payment of $${parseFloat(fine.amount).toFixed(2)} for this due?`)) {
+      return;
+    }
+
+    try {
+      // 1. Update status
+      await base44.entities.Fine.update(fine.id, { status: "paid" });
+
+      // 2. Track payment in financial records
+      await base44.entities.FinancialRecord.create({
+        type: "income",
+        record_type: "fine_payment",
+        recipient_type: "student",
+        recipient_name: student.full_name,
+        recipient_id: student.id,
+        amount: parseFloat(fine.amount),
+        description: isRTL ? `دفع يدوي للغرامة: ${fine.reason}` : `Manual Fine Payment: ${fine.reason}`,
+        payment_date: new Date().toISOString().split('T')[0],
+        status: "paid",
+        payment_method: "cash"
+      });
+
+      toast.success(isRTL ? "تم تسجيل الدفع اليدوي بنجاح!" : "Manual payment recorded successfully!");
+      
+      // 3. Invalidate caches
+      refetchFines();
+      _qc.invalidateQueries({ queryKey: ["admin-student-fines", student.id] });
+      _qc.invalidateQueries({ queryKey: ["parent-fines", student.id] });
+      _qc.invalidateQueries({ queryKey: ["financial-records", student?.id] });
+      _qc.invalidateQueries({ queryKey: ["student-profile", student.id] });
+    } catch (err) {
+      console.error("Failed to pay fine manually:", err);
+      toast.error(isRTL ? "فشل تسجيل الدفع اليدوي. يرجى المحاولة لاحقاً." : "Failed to record manual payment.");
+    }
+  };
+
+  const handleExportFines = () => {
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      toast.error(isRTL ? "يرجى السماح بالنوافذ المنبثقة لتصدير التقرير" : "Please allow pop-ups to export the report");
+      return;
+    }
+
+    const pendingFines = studentFines.filter(f => f.status === "pending");
+    const paidFines = studentFines.filter(f => f.status === "paid");
+    const totalPending = pendingFines.reduce((sum, f) => sum + (parseFloat(f.amount) || 0), 0);
+    const totalPaid = paidFines.reduce((sum, f) => sum + (parseFloat(f.amount) || 0), 0);
+
+    const categoryMap = {
+      sports: isRTL ? "أنشطة رياضية" : "Sports",
+      discipline: isRTL ? "انضباط سلوكي" : "Discipline",
+      library: isRTL ? "المكتبة المدرسية" : "Library",
+      general: isRTL ? "رسوم عامة" : "General"
+    };
+
+    const tableRows = studentFines.map(fine => `
+      <tr style="border-bottom: 1px solid #e2e8f0;">
+        <td style="padding: 12px; font-family: monospace;">${fine.date}</td>
+        <td style="padding: 12px; font-weight: bold;">${categoryMap[fine.category] || fine.category}</td>
+        <td style="padding: 12px;">${fine.reason}</td>
+        <td style="padding: 12px;">${fine.issued_by || "-"}</td>
+        <td style="padding: 12px; font-weight: bold; color: ${fine.status === "pending" ? "#e11d48" : "#10b981"};">
+          ${fine.status === "pending" ? (isRTL ? "معلق" : "Pending") : (isRTL ? "مقبول/مدفوع" : "Paid")}
+        </td>
+        <td style="padding: 12px; font-weight: bold; text-align: right;">$${parseFloat(fine.amount).toFixed(2)}</td>
+      </tr>
+    `).join("");
+
+    printWindow.document.write(`
+      <html dir="${isRTL ? "rtl" : "ltr"}" lang="${isRTL ? "ar" : "en"}">
+      <head>
+        <title>${isRTL ? `كشف مستحقات - ${student.full_name}` : `Statement of Dues - ${student.full_name}`}</title>
+        <meta charset="utf-8" />
+        <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;750;900&display=swap" rel="stylesheet" />
+        <style>
+          body {
+            font-family: 'Cairo', sans-serif;
+            margin: 40px;
+            color: #1e293b;
+            background: #ffffff;
+          }
+          .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 4px solid #0f172a;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+          }
+          .title {
+            font-size: 24px;
+            font-weight: 900;
+            color: #0f172a;
+          }
+          .student-info {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+          }
+          .student-info div span {
+            color: #64748b;
+            font-weight: 600;
+            display: block;
+            font-size: 12px;
+            text-transform: uppercase;
+          }
+          .student-info div strong {
+            font-size: 15px;
+            color: #0f172a;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+          }
+          th {
+            background: #f1f5f9;
+            color: #475569;
+            font-weight: 750;
+            text-align: ${isRTL ? "right" : "left"};
+            padding: 12px;
+            font-size: 13px;
+          }
+          .summary {
+            display: flex;
+            justify-content: flex-end;
+            gap: 20px;
+            margin-top: 30px;
+            border-top: 2px solid #e2e8f0;
+            padding-top: 20px;
+          }
+          .summary-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 15px 25px;
+            text-align: center;
+          }
+          .summary-card.pending {
+            border-color: #fecdd3;
+            background: #fff1f2;
+          }
+          .summary-card.paid {
+            border-color: #a7f3d0;
+            background: #ecfdf5;
+          }
+          .footer {
+            margin-top: 60px;
+            text-align: center;
+            font-size: 11px;
+            color: #94a3b8;
+            border-top: 1px dashed #cbd5e1;
+            padding-top: 20px;
+          }
+          @media print {
+            body { margin: 0; }
+            .no-print { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div>
+            <div class="title">${isRTL ? "مدارس إديوتراك النموذجية" : "EduTrack Model School"}</div>
+            <div style="font-size: 12px; color: #64748b; font-weight: bold; margin-top: 5px;">${isRTL ? "إدارة الشؤون المالية والطلابية" : "Finance & Student Affairs Department"}</div>
+          </div>
+          <div style="text-align: ${isRTL ? "left" : "right"};">
+            <div style="font-size: 16px; font-weight: bold; color: #1e293b;">${isRTL ? "كشف حساب المستحقات والغرامات" : "Student Statement of Dues"}</div>
+            <div style="font-size: 11px; color: #64748b; margin-top: 5px;">${isRTL ? "تاريخ التصدير:" : "Issued Date:"} ${new Date().toLocaleDateString(isRTL ? "ar-EG" : "en-US", { dateStyle: "medium" })}</div>
+          </div>
+        </div>
+
+        <div class="student-info">
+          <div>
+            <span>${isRTL ? "اسم الطالب بالكامل:" : "Student Name:"}</span>
+            <strong>${student.full_name}</strong>
+          </div>
+          <div>
+            <span>${isRTL ? "الرقم المدرسي:" : "School ID:"}</span>
+            <strong>#${student.student_id}</strong>
+          </div>
+          <div>
+            <span>${isRTL ? "الصف الدراسي / الفصل:" : "Grade / Section:"}</span>
+            <strong>${student.grade} / ${student.section || "-"}</strong>
+          </div>
+          <div>
+            <span>${isRTL ? "اسم ولي الأمر:" : "Parent Name:"}</span>
+            <strong>${student.parent_name || "-"}</strong>
+          </div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>${isRTL ? "التاريخ" : "Date"}</th>
+              <th>${isRTL ? "القسم" : "Category"}</th>
+              <th>${isRTL ? "البيان / السبب" : "Description / Reason"}</th>
+              <th>${isRTL ? "بواسطة" : "Issued By"}</th>
+              <th>${isRTL ? "الحالة" : "Status"}</th>
+              <th style="text-align: right;">${isRTL ? "المبلغ" : "Amount"}</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${tableRows}
+          </tbody>
+        </table>
+
+        <div class="summary">
+          <div class="summary-card paid">
+            <span style="font-size: 11px; color: #047857; font-weight: bold; display: block;">${isRTL ? "إجمالي المسدد" : "Total Settled"}</span>
+            <strong style="font-size: 18px; color: #065f46;">$${totalPaid.toFixed(2)}</strong>
+          </div>
+          <div class="summary-card pending">
+            <span style="font-size: 11px; color: #be123c; font-weight: bold; display: block;">${isRTL ? "إجمالي المتبقي المستحق" : "Total Outstanding"}</span>
+            <strong style="font-size: 18px; color: #9f1239;">$${totalPending.toFixed(2)}</strong>
+          </div>
+        </div>
+
+        <div class="footer">
+          ${isRTL ? "هذا الكشف مستخرج إلكترونياً من نظام الإدارة المدرسية الموحد ولا يتطلب توقيع رسمي." : "This statement was generated electronically from the school unified management system."}
+        </div>
+
+        <script>
+          window.onload = function() {
+            window.print();
+            setTimeout(function() { window.close(); }, 500);
+          };
+        </script>
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
 
   // Sync / refetch student from database for live updates
   const { data: student = initialStudent } = useQuery({
@@ -73,9 +427,24 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
 
   // Fetch financial records
   const { data: dbFinancialRecords = [] } = useQuery({
-    queryKey: ["financial-records", student?.student_id],
-    queryFn: () => base44.entities.FinancialRecord.filter({ recipient_id: student?.student_id }),
-    enabled: !!student?.student_id
+    queryKey: ["financial-records", student?.id],
+    enabled: !!student?.id,
+    // @ts-ignore
+    queryFn: async () => {
+      // recipient_id can store UUID or student_id, query both to be 100% robust
+      const list1 = await base44.entities.FinancialRecord.filter({ recipient_id: student.id });
+      const list2 = await base44.entities.FinancialRecord.filter({ recipient_id: student.student_id });
+      const merged = [...list1, ...list2];
+      const unique = Array.from(new Map(merged.map(item => [item.id, item])).values());
+      return unique;
+    }
+  });
+
+  // Fetch other outstanding dues / fines
+  const { data: studentFines = [], refetch: refetchFines } = useQuery({
+    queryKey: ["admin-student-fines", student?.id],
+    enabled: !!student?.id,
+    queryFn: () => base44.entities.Fine.filter({ student_id: student.id }, "-created_date")
   });
 
   // Mock fallbacks for missing data to ensure high-fidelity presentation
@@ -150,7 +519,7 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
   const studentTransactions = dbFinancialRecords.length > 0
     ? dbFinancialRecords.map(r => ({
         id: r.id,
-        date: r.payment_date || r.created_at?.split("T")[0] || "",
+        date: (r.payment_date || r.created_at || "").split("T")[0] || "",
         type: getRecordTypeLabel(r),
         amount: parseFloat(r.amount) || 0,
         method: getPaymentMethodLabel(r.payment_method),
@@ -180,7 +549,7 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
         }
         
         _qc.invalidateQueries({ queryKey: ["student-profile", student.id] });
-        _qc.invalidateQueries({ queryKey: ["financial-records", student?.student_id] });
+        _qc.invalidateQueries({ queryKey: ["financial-records", student?.id] });
       } catch (err) {
         console.error("Failed to update student financial balances:", err);
       }
@@ -204,7 +573,23 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
 
   // Safe arithmetic for remaining tuition
   const totalTuition = parseFloat(student?.tuition_total) || 0;
-  const paidTuition = parseFloat(student?.tuition_paid) || 0;
+  const dynamicPaid = dbFinancialRecords
+    .filter(r => {
+      const isTuitionType = r.record_type === "tuition" || r.record_type === "income";
+      const isPaid = r.status === "paid" || r.status === "completed" || !r.status;
+      const desc = (r.description || "").toLowerCase();
+      const isTopUp = desc.includes("top-up") || 
+                      desc.includes("top up") || 
+                      desc.includes("شحن") || 
+                      desc.includes("بطاقة") || 
+                      desc.includes("card") ||
+                      desc.includes("wallet") ||
+                      desc.includes("محفظة");
+      return isTuitionType && isPaid && !isTopUp;
+    })
+    .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+  
+  const paidTuition = dbFinancialRecords.length > 0 ? dynamicPaid : (parseFloat(student?.tuition_paid) || 0);
   const remainingTuition = Math.max(0, totalTuition - paidTuition);
 
   const getStatusColor = (status) => {
@@ -465,7 +850,8 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
                 { id: "overview", label: isRTL ? "معلومات الطالب" : "General Info", icon: ClipboardList },
                 { id: "academics", label: isRTL ? "الأكاديميات والدرجات" : "Academics", icon: GraduationCap },
                 { id: "finance", label: isRTL ? "الرسوم والمالية" : "Tuition & Finance", icon: DollarSign },
-                { id: "activity", label: isRTL ? "المتجر والمكتبة" : "Canteen & Library", icon: ShoppingBag }
+                { id: "activity", label: isRTL ? "المتجر والمكتبة" : "Canteen & Library", icon: ShoppingBag },
+                { id: "fines", label: isRTL ? "المستحقات الأخرى" : "Other Dues & Fines", icon: AlertCircle }
               ].map(tab => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
@@ -847,6 +1233,372 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
                           ))}
                         </div>
                       </Card>
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* 5. Other Outstanding Dues & Fines Tab */}
+                {activeTab === "fines" && (
+                  <motion.div
+                    key="fines"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="space-y-6"
+                  >
+                    {/* Summary Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <Card className="p-5 border border-stone-200/80 bg-white shadow-sm rounded-xl relative overflow-hidden">
+                        <div className="absolute right-0 top-0 w-1.5 h-full bg-rose-500" />
+                        <span className="text-[10px] text-stone-400 font-bold block uppercase tracking-wider">{isRTL ? "المستحقات المعلقة" : "Pending Payments"}</span>
+                        <span className="text-2xl font-black text-rose-600 mt-1.5 block num-en">
+                          {studentFines.filter(f => f.status === "pending").length}
+                        </span>
+                        <span className="text-[10px] text-stone-500 mt-1 block font-medium">{isRTL ? "عدد الرسوم بانتظار السداد" : "Number of unpaid dues"}</span>
+                      </Card>
+
+                      <Card className="p-5 border border-stone-200/80 bg-white shadow-sm rounded-xl relative overflow-hidden">
+                        <div className="absolute right-0 top-0 w-1.5 h-full bg-amber-500" />
+                        <span className="text-[10px] text-stone-400 font-bold block uppercase tracking-wider">{isRTL ? "إجمالي المطلوب" : "Total Owed"}</span>
+                        <span className="text-2xl font-black text-amber-600 mt-1.5 block num-en">
+                          ${studentFines.filter(f => f.status === "pending").reduce((sum, f) => sum + (parseFloat(f.amount) || 0), 0).toFixed(2)}
+                        </span>
+                        <span className="text-[10px] text-stone-500 mt-1 block font-medium">{isRTL ? "إجمالي قيمة المستحقات المعلقة" : "Total pending due amount"}</span>
+                      </Card>
+
+                      <Card className="p-5 border border-stone-200/80 bg-white shadow-sm rounded-xl relative overflow-hidden">
+                        <div className="absolute right-0 top-0 w-1.5 h-full bg-emerald-500" />
+                        <span className="text-[10px] text-stone-400 font-bold block uppercase tracking-wider">{isRTL ? "المستحقات المسددة" : "Settled Payments"}</span>
+                        <span className="text-2xl font-black text-emerald-600 mt-1.5 block num-en">
+                          {studentFines.filter(f => f.status === "paid").length}
+                        </span>
+                        <span className="text-[10px] text-stone-500 mt-1 block font-medium">{isRTL ? "رسوم تم تسويتها بنجاح" : "Successfully settled dues"}</span>
+                      </Card>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                      
+                      {/* Left: Fine List */}
+                      <div className="lg:col-span-2 space-y-4">
+                        <Card className="border border-stone-200/80 rounded-2xl p-5 bg-white shadow-sm space-y-4">
+                          <div className="flex items-center justify-between border-b border-stone-100 pb-2">
+                            <div className="flex items-center gap-2">
+                              <AlertCircle className="text-primary" size={18} />
+                              <h4 className="font-display font-bold text-stone-800 text-sm">{isRTL ? "سجل المستحقات والغرامات المسجلة" : "Outstanding Dues & Fines Record"}</h4>
+                            </div>
+                            <button 
+                              type="button"
+                              onClick={handleExportFines}
+                              className="inline-flex items-center gap-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs px-3 py-1.5 rounded-xl font-bold transition-all shadow-sm cursor-pointer border-none"
+                            >
+                              <Printer size={14} />
+                              <span>{isRTL ? "تصدير الكشف / طباعة" : "Export Statement / Print"}</span>
+                            </button>
+                          </div>
+
+                          <div className="space-y-4">
+                            {studentFines.length === 0 ? (
+                              <div className="py-12 text-center text-stone-400 text-xs">
+                                <AlertCircle size={32} className="mx-auto mb-2 opacity-50 text-stone-400" />
+                                {isRTL ? "لا توجد مستحقات أخرى أو غرامات مسجلة لهذا الطالب." : "No other dues or fines registered for this student."}
+                              </div>
+                            ) : (
+                              (() => {
+                                const finesPageSize = 3;
+                                const totalFinesPages = Math.ceil(studentFines.length / finesPageSize) || 1;
+                                const paginatedFines = studentFines.slice((finesPage - 1) * finesPageSize, finesPage * finesPageSize);
+
+                                return (
+                                  <>
+                                    {paginatedFines.map((fine) => {
+                                      const isPending = fine.status === "pending";
+                                      // Custom inlined simple translation helper
+                                      const translateText = (text) => {
+                                        if (!text || !isRTL) return text;
+                                        const textStr = String(text).trim();
+                                        const map = {
+                                          "sports": "أنشطة رياضية",
+                                          "Sports": "أنشطة رياضية",
+                                          "discipline": "انضباط سلوكي",
+                                          "Discipline": "انضباط سلوكي",
+                                          "library": "المكتبة المدرسية",
+                                          "Library": "المكتبة المدرسية",
+                                          "general": "رسوم عامة",
+                                          "General": "رسوم عامة",
+                                          "Lost sports equipment (Basketball)": "فقدان معدات رياضية (كرة السلة)",
+                                          "Mock Fine: Lost sports equipment (Basketball)": "فقدان معدات رياضية (كرة السلة)",
+                                          "Damaged science lab equipment": "تلف وتخريب أدوات مختبر العلوم",
+                                          "Mock Fine: Damaged science lab equipment": "تلف وتخريب أدوات مختبر العلوم",
+                                          "Late library return for book \"Introduction to Algorithms\"": "تأخير إرجاع كتاب \"مقدمة في الخوارزميات\" للمكتبة",
+                                          "Mock Fine: Late library return for book \"Introduction to Algorithms\"": "تأخير إرجاع كتاب \"مقدمة في الخوارزميات\" للمكتبة",
+                                          "Mock Fine: Late library return for book \"Introduction to Algorithms": "تأخير إرجاع كتاب \"مقدمة في الخوارزميات\" للمكتبة",
+                                          "Damaged beaker during chemistry class": "كسر وتلف أنبوب اختبار زجاجي أثناء حصة الكيمياء العملي.",
+                                          "Book was overdue by 5 days": "تأخر في إرجاع الكتاب المستعار عن الموعد المحدد بـ 5 أيام."
+                                        };
+                                        if (map[textStr]) return map[textStr];
+                                        if (textStr.includes("Lost sports equipment (Basketball)")) return "فقدان معدات رياضية (كرة السلة)";
+                                        if (textStr.includes("Damaged science lab equipment")) return "تلف وتخريب أدوات مختبر العلوم";
+                                        if (textStr.includes("Late library return") || textStr.includes("Introduction to Algorithms")) return "تأخير إرجاع كتاب \"مقدمة في الخوارزميات\" للمكتبة";
+                                        if (textStr.includes("Damaged beaker")) return "كسر وتلف أنبوب اختبار زجاجي أثناء حصة الكيمياء العملي.";
+                                        if (textStr.includes("Book was overdue")) return "تأخر في إرجاع الكتاب المستعار عن الموعد المحدد بـ 5 أيام.";
+                                        return text;
+                                      };
+
+                                      return (
+                                        <div 
+                                          key={fine.id} 
+                                          className={`p-4 rounded-xl border transition-all ${
+                                            isPending 
+                                              ? "border-rose-200 bg-rose-50/10 hover:bg-rose-50/20" 
+                                              : "border-stone-150 bg-stone-50/25 hover:bg-stone-50/40"
+                                          }`}
+                                        >
+                                          <div className="flex items-start justify-between gap-3">
+                                            <div className="flex-1 space-y-2">
+                                              <div className="flex flex-wrap items-center gap-2">
+                                                <p className="font-bold text-sm text-stone-850">
+                                                  {translateText(fine.reason)}
+                                                </p>
+                                                <Badge 
+                                                  variant={isPending ? "destructive" : "default"} 
+                                                  className={`text-[10px] font-bold rounded px-2 py-0.5 border-none ${
+                                                    isPending 
+                                                      ? "bg-rose-500/10 text-rose-600 hover:bg-rose-500/20" 
+                                                      : "bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20"
+                                                  }`}
+                                                >
+                                                  {isPending ? (isRTL ? "معلق" : "Pending") : (isRTL ? "مقبول/مدفوع" : "Paid")}
+                                                </Badge>
+                                              </div>
+
+                                              <p className="text-xs text-stone-500 font-semibold num-en">
+                                                {fine.date} {fine.issued_by && `• ${isRTL ? "بواسطة" : "Issued by"} ${fine.issued_by}`}
+                                              </p>
+
+                                              <div className="flex items-center justify-between pt-1">
+                                                {fine.category && (
+                                                  <Badge 
+                                                    variant="outline" 
+                                                    className={`text-[10px] font-bold border ${
+                                                      fine.category === "sports" ? "bg-blue-50 text-blue-600 border-blue-200" :
+                                                      fine.category === "discipline" ? "bg-purple-50 text-purple-600 border-purple-200" :
+                                                      fine.category === "library" ? "bg-emerald-50 text-emerald-600 border-emerald-200" :
+                                                      "bg-stone-50 text-stone-600 border-stone-200"
+                                                    }`}
+                                                  >
+                                                    {fine.category === "sports" ? (isRTL ? "أنشطة رياضية" : "Sports") :
+                                                     fine.category === "discipline" ? (isRTL ? "انضباط سلوكي" : "Discipline") :
+                                                     fine.category === "library" ? (isRTL ? "المكتبة المدرسية" : "Library") :
+                                                     (isRTL ? "رسوم عامة" : "General")}
+                                                  </Badge>
+                                                )}
+
+                                                <div className="flex items-center gap-2">
+                                                  <button 
+                                                    onClick={() => handleDeleteFine(fine.id)}
+                                                    className="text-rose-600 hover:text-rose-800 text-[11px] font-bold transition-colors cursor-pointer"
+                                                  >
+                                                    {isRTL ? "حذف السجل" : "Delete Record"}
+                                                  </button>
+                                                  
+                                                  <span className="text-stone-300">•</span>
+                                                  <button 
+                                                    onClick={() => handleEditFineClick(fine)}
+                                                    className="text-primary hover:text-primary/80 text-[11px] font-bold transition-colors cursor-pointer"
+                                                  >
+                                                    {isRTL ? "تعديل" : "Edit"}
+                                                  </button>
+
+                                                  {isPending && (
+                                                    <>
+                                                      <span className="text-stone-300">•</span>
+                                                      <button 
+                                                        onClick={() => handlePayFineManually(fine)}
+                                                        className="text-emerald-600 hover:text-emerald-800 text-[11px] font-bold transition-colors cursor-pointer"
+                                                      >
+                                                        {isRTL ? "تسجيل دفع يدوي" : "Record Manual Payment"}
+                                                      </button>
+                                                    </>
+                                                  )}
+                                                </div>
+                                              </div>
+
+                                              {fine.notes && (
+                                                <p className="text-xs text-stone-500 italic mt-2 bg-stone-50/50 p-2 rounded-lg border border-stone-100/50">
+                                                  {translateText(fine.notes)}
+                                                </p>
+                                              )}
+                                            </div>
+
+                                            <div className="text-end shrink-0">
+                                              <span className="text-base font-black text-rose-600 num-en">
+                                                ${parseFloat(fine.amount || 0).toFixed(2)}
+                                              </span>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+
+                                    {studentFines.length > finesPageSize && (
+                                      <div className="flex items-center justify-between border-t border-stone-100 pt-4 mt-2">
+                                        <button
+                                          type="button"
+                                          disabled={finesPage === 1}
+                                          onClick={() => setFinesPage(prev => Math.max(prev - 1, 1))}
+                                          className="px-3.5 h-9 inline-flex items-center justify-center gap-1.5 font-bold rounded-xl border border-stone-250 hover:bg-stone-50 text-stone-700 text-xs transition-all disabled:opacity-40 disabled:hover:bg-transparent cursor-pointer bg-white"
+                                        >
+                                          {isRTL ? <ArrowRight size={14} /> : <ArrowLeft size={14} />}
+                                          <span>{isRTL ? "السابق" : "Previous"}</span>
+                                        </button>
+                                        
+                                        <span className="text-xs font-semibold text-stone-500 num-en">
+                                          {isRTL 
+                                            ? `صفحة ${finesPage} من ${totalFinesPages}`
+                                            : `Page ${finesPage} of ${totalFinesPages}`
+                                          }
+                                        </span>
+
+                                        <button
+                                          type="button"
+                                          disabled={finesPage === totalFinesPages}
+                                          onClick={() => setFinesPage(prev => Math.min(prev + 1, totalFinesPages))}
+                                          className="px-3.5 h-9 inline-flex items-center justify-center gap-1.5 font-bold rounded-xl border border-stone-250 hover:bg-stone-50 text-stone-700 text-xs transition-all disabled:opacity-40 disabled:hover:bg-transparent cursor-pointer bg-white"
+                                        >
+                                          <span>{isRTL ? "التالي" : "Next"}</span>
+                                          {isRTL ? <ArrowLeft size={14} /> : <ArrowRight size={14} />}
+                                        </button>
+                                      </div>
+                                    )}
+                                  </>
+                                );
+                              })()
+                            )}
+                          </div>
+                        </Card>
+                      </div>
+
+                      {/* Right: Add Form */}
+                      <div className="lg:col-span-1">
+                        <Card className="border border-stone-200/80 rounded-2xl p-5 bg-white shadow-sm space-y-4">
+                          <div className="flex items-center gap-2 border-b border-stone-100 pb-2">
+                            <Plus className="text-primary" size={18} />
+                            <h4 className="font-display font-bold text-stone-800 text-sm">
+                              {editingFineId 
+                                ? (isRTL ? "تعديل المستحق المالي" : "Edit Financial Due") 
+                                : (isRTL ? "إضافة مستحق جديد" : "Add New Due / Fine")
+                              }
+                            </h4>
+                          </div>
+
+                          <form onSubmit={handleAddFine} className="space-y-4">
+                            
+                            <div>
+                              <label className="block text-xs font-bold text-stone-600 mb-1.5">{isRTL ? "الفئة / القسم *" : "Category *"}</label>
+                              <select 
+                                value={fineCategory} 
+                                onChange={(e) => setFineCategory(e.target.value)}
+                                className="w-full h-11 px-3 rounded-xl border border-stone-200 bg-white text-stone-800 font-medium focus:border-primary focus:outline-none text-sm cursor-pointer"
+                              >
+                                <option value="general">{isRTL ? "رسوم عامة" : "General Fee"}</option>
+                                <option value="library">{isRTL ? "المكتبة المدرسية" : "Library Overdue / Loss"}</option>
+                                <option value="discipline">{isRTL ? "انضباط سلوكي / تلفيات" : "Discipline / Damages"}</option>
+                                <option value="sports">{isRTL ? "أنشطة رياضية" : "Sports Gear / Uniform"}</option>
+                              </select>
+                            </div>
+
+                            <div>
+                              <label className="block text-xs font-bold text-stone-650 mb-1.5">{isRTL ? "السبب / نوع المستحق *" : "Reason / Type *"}</label>
+                              <input 
+                                type="text"
+                                value={fineReason}
+                                onChange={(e) => setFineReason(e.target.value)}
+                                placeholder={isRTL ? "مثال: فقدان معدات رياضية (كرة السلة)" : "e.g., Lost sports equipment"}
+                                className="w-full h-11 px-3.5 rounded-xl border border-stone-200 bg-white text-stone-800 font-medium placeholder:text-stone-400 focus:border-primary focus:outline-none text-sm"
+                                required
+                              />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3.5">
+                              <div>
+                                <label className="block text-xs font-bold text-stone-650 mb-1.5">{isRTL ? "المبلغ ($) *" : "Amount ($) *"}</label>
+                                <input 
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={fineAmount}
+                                  onChange={(e) => setFineAmount(e.target.value)}
+                                  placeholder="50.00"
+                                  className="w-full h-11 px-3.5 rounded-xl border border-stone-200 bg-white text-stone-800 font-medium focus:border-primary focus:outline-none text-sm num-en"
+                                  required
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-bold text-stone-650 mb-1.5">{isRTL ? "التاريخ *" : "Date *"}</label>
+                                <input 
+                                  type="date"
+                                  value={fineDate}
+                                  onChange={(e) => setFineDate(e.target.value)}
+                                  className="w-full h-11 px-3 rounded-xl border border-stone-200 bg-white text-stone-800 font-medium focus:border-primary focus:outline-none text-sm num-en"
+                                  required
+                                />
+                              </div>
+                            </div>
+
+                            <div>
+                              <label className="block text-xs font-bold text-stone-650 mb-1.5">{isRTL ? "مُصدر الغرامة / بواسطة" : "Issued By"}</label>
+                              <input 
+                                type="text"
+                                value={fineIssuedBy}
+                                onChange={(e) => setFineIssuedBy(e.target.value)}
+                                placeholder={isRTL ? "مثال: Coach Ibrahim" : "e.g., Coach Ibrahim"}
+                                className="w-full h-11 px-3.5 rounded-xl border border-stone-200 bg-white text-stone-800 font-medium focus:border-primary focus:outline-none text-sm"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-xs font-bold text-stone-650 mb-1.5">{isRTL ? "تفاصيل إضافية / ملاحظات" : "Additional Notes"}</label>
+                              <textarea 
+                                value={fineNotes}
+                                onChange={(e) => setFineNotes(e.target.value)}
+                                placeholder={isRTL ? "تفاصيل إضافية حول التلفيات أو التوقيت..." : "Details about damages, library book overdue days..."}
+                                rows={3}
+                                className="w-full p-3 rounded-xl border border-stone-200 bg-white text-stone-800 font-medium focus:border-primary focus:outline-none text-sm resize-none"
+                              />
+                            </div>
+
+                            <div className="flex flex-col gap-2.5">
+                              <button
+                                type="submit"
+                                disabled={isSubmittingFine}
+                                className="w-full h-11 inline-flex items-center justify-center gap-2 font-bold rounded-xl bg-primary text-white hover:bg-primary/95 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                              >
+                                <Plus size={16} />
+                                <span>
+                                  {isSubmittingFine 
+                                    ? (isRTL ? "جاري الحفظ..." : "Saving...") 
+                                    : (editingFineId 
+                                        ? (isRTL ? "حفظ التعديلات" : "Save Changes") 
+                                        : (isRTL ? "إضافة المستحق المالي" : "Add Financial Charge")
+                                      )
+                                  }
+                                </span>
+                              </button>
+
+                              {editingFineId && (
+                                <button
+                                  type="button"
+                                  onClick={handleCancelEdit}
+                                  className="w-full h-11 inline-flex items-center justify-center gap-2 font-bold rounded-xl border-2 border-stone-200 bg-white text-stone-850 hover:bg-stone-50 transition-all cursor-pointer"
+                                >
+                                  <span>{isRTL ? "إلغاء التعديل" : "Cancel Edit"}</span>
+                                </button>
+                              )}
+                            </div>
+                          </form>
+                        </Card>
+                      </div>
+
                     </div>
                   </motion.div>
                 )}

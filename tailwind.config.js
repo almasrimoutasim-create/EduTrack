@@ -1,7 +1,11 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   darkMode: ["class"],
-  content: ["./index.html", "./src/**/*.{ts,tsx,js,jsx}"],
+  content: [
+    "./index.html", 
+    "./src/**/*.{ts,tsx,js,jsx}",
+    "./node_modules/react-tailwindcss-datepicker/dist/index.esm.js"
+  ],
   theme: {
     extend: {
       fontFamily: {

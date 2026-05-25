@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import {
-  LayoutDashboard, Users, ClipboardCheck, Calendar, CreditCard, MessageCircle, LogOut, Menu, X, ShoppingBag
+  LayoutDashboard, Users, ClipboardCheck, Calendar, CreditCard, MessageCircle, LogOut, Menu, X, ShoppingBag, Wallet
 } from "lucide-react";
 import { useState } from "react";
 import { motion } from "framer-motion";
@@ -43,7 +43,7 @@ export default function ParentSidebar() {
       label: isRTL ? "المدفوعات والخدمات" : "Payments & Services",
       items: [
         { label: isRTL ? "الفواتير والمدفوعات" : "Invoices & Payments", path: "/parent-portal?tab=payments", icon: CreditCard },
-        { label: isRTL ? "شحن المحفظة" : "Wallet Top-up", path: "/parent-portal?tab=payments", icon: CreditCard },
+        { label: isRTL ? "شحن المحفظة" : "Wallet Top-up", path: "/parent-portal?tab=wallet", icon: Wallet },
         { label: isRTL ? "متجر المدرسة" : "School Store", path: "/store", icon: ShoppingBag }
       ]
     },
@@ -100,7 +100,9 @@ export default function ParentSidebar() {
               </p>
               <div className="space-y-1">
                 {group.items.map((item) => {
-                  const isActive = location.pathname === item.path;
+                  const currentPath = location.pathname + location.search;
+                  const isActive = currentPath === item.path || 
+                                   (item.path === "/parent-portal" && (currentPath === "/parent-portal?tab=overview" || !location.search));
                   return (
                     <Link
                       key={item.label}
