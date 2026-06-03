@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { 
   BookOpen, 
@@ -14,13 +14,17 @@ import {
   Music,
   Eye,
   Pencil,
-  Trash2
+  Trash2,
+  Power,
+  User,
+  GraduationCap
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useLanguage } from "@/lib/LanguageContext";
 import { t } from "@/lib/translations";
 import PageHeader from "@/components/shared/PageHeader";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,6 +42,7 @@ export default function Subjects() {
   const isRTL = language === "ar";
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState(null);
+  const qc = useQueryClient();
 
   const { data: subjects = [], isLoading } = useQuery({ 
     queryKey: ["subjects"], 
@@ -57,9 +62,29 @@ export default function Subjects() {
   const handleDelete = async (subject) => {
     try {
       await base44.entities.Subject.delete(subject.id);
+      qc.invalidateQueries({ queryKey: ["subjects"] });
       toast.success(isRTL ? "تم حذف المادة" : "Subject deleted");
     } catch (err) {
       toast.error(isRTL ? "فشل الحذف" : "Failed to delete");
+    }
+  };
+
+  const handleToggleStatus = async (subject) => {
+    const newStatus = subject.status === "inactive" ? "active" : "inactive";
+    try {
+      await base44.entities.Subject.update(subject.id, { 
+        ...subject, 
+        status: newStatus 
+      });
+      qc.invalidateQueries({ queryKey: ["subjects"] });
+      toast.success(
+        isRTL 
+          ? `تم ${newStatus === "active" ? "تفعيل" : "تعطيل"} المادة بنجاح` 
+          : `Subject successfully ${newStatus === "active" ? "activated" : "deactivated"}`
+      );
+    } catch (err) {
+      console.error(err);
+      toast.error(isRTL ? "فشلت العملية" : "Operation failed");
     }
   };
 
@@ -67,7 +92,7 @@ export default function Subjects() {
     const n = name?.toLowerCase();
     if (n?.includes("math") || n?.includes("رياضيات")) return Calculator;
     if (n?.includes("science") || n?.includes("علوم")) return FlaskConical;
-    if (n?.includes("arabic") || n?.includes("عربي") || n?.includes("english")) return Languages;
+    if (n?.includes("arabic") || n?.includes("عربي") || n?.includes("english") || n?.includes("انجليزي")) return Languages;
     if (n?.includes("art") || n?.includes("فنون")) return Palette;
     if (n?.includes("music") || n?.includes("موسيقى")) return Music;
     return BookOpen;
@@ -86,7 +111,7 @@ export default function Subjects() {
     <div className="space-y-6 pb-20" dir={isRTL ? "rtl" : "ltr"}>
       <PageHeader 
         title={t("common.subjects", language)} 
-        subtitle={isRTL ? "المناهج والخطط الدراسية المعتمدة" : "Approved curricula and study plans"}
+        subtitle={isRTL ? "المناهج والخطط الدراسية المعتمدة وتفعيلها" : "Approved curricula, study plans, and activation status"}
       >
         <button onClick={handleAdd} className={`${btnPrimary} h-11 px-5`}>
           <Plus size={18} />
@@ -105,6 +130,7 @@ export default function Subjects() {
           {subjects.map((subject, i) => {
             const Icon = getSubjectIcon(subject.name);
             const colorClass = colors[i % colors.length];
+            const isActive = subject.status !== "inactive";
             
             return (
               <motion.div
@@ -115,35 +141,44 @@ export default function Subjects() {
                 whileHover={{ scale: 1.02 }}
                 className="group"
               >
-                <Card className="p-6 border shadow-sm hover:shadow-lg transition-all duration-300 rounded-2xl bg-white relative overflow-hidden h-full">
+                <Card className={`p-6 border shadow-sm hover:shadow-lg transition-all duration-300 rounded-2xl bg-white relative overflow-hidden h-full flex flex-col ${!isActive ? 'opacity-70 border-stone-200 bg-stone-50/55' : ''}`}>
                   <div className={`absolute top-0 ${isRTL ? 'left-0' : 'right-0'} w-24 h-24 bg-gradient-to-br ${colorClass} opacity-5 group-hover:opacity-10 rounded-full -translate-y-8 translate-x-8 blur-xl transition-opacity`} />
                   
-                  <div className="flex justify-between items-start mb-6">
-                    <div className={`h-14 w-14 rounded-xl bg-gradient-to-br ${colorClass} flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform duration-300`}>
+                  <div className="flex justify-between items-start mb-6 relative z-10">
+                    <div className={`h-14 w-14 rounded-xl bg-gradient-to-br ${isActive ? colorClass : 'from-stone-400 to-stone-500'} flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform duration-300`}>
                       <Icon size={28} />
                     </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button className={`${btnOutline} h-9 px-3 text-xs`}>
-                          <MoreVertical size={14} />
-                          {t("common.actions", language)}
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align={isRTL ? "start" : "end"} className="rounded-xl">
-                        <DropdownMenuItem className="gap-2 text-sm" onClick={() => handleEdit(subject)}>
-                          <Eye size={14} className="shrink-0" />
-                          <span>{t("common.view", language)}</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="gap-2 text-sm" onClick={() => handleEdit(subject)}>
-                          <Pencil size={14} className="shrink-0" />
-                          <span>{t("common.edit", language)}</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="text-rose-500 gap-2 text-sm" onClick={() => handleDelete(subject)}>
-                          <Trash2 size={14} className="shrink-0" />
-                          <span>{t("common.delete", language)}</span>
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <div className="flex items-center gap-2">
+                      <Badge className={`border-none rounded-lg text-[10px] font-bold px-2 py-0.5 ${isActive ? 'bg-emerald-500 text-white' : 'bg-stone-200 text-stone-500'}`}>
+                        {isRTL ? (isActive ? 'نشط' : 'غير نشط') : (isActive ? 'Active' : 'Inactive')}
+                      </Badge>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button className={`${btnOutline} h-9 px-3 text-xs`}>
+                            <MoreVertical size={14} />
+                            {t("common.actions", language)}
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align={isRTL ? "start" : "end"} className="rounded-xl">
+                          <DropdownMenuItem className="gap-2 text-sm" onClick={() => handleEdit(subject)}>
+                            <Eye size={14} className="shrink-0" />
+                            <span>{t("common.view", language)}</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="gap-2 text-sm" onClick={() => handleEdit(subject)}>
+                            <Pencil size={14} className="shrink-0" />
+                            <span>{t("common.edit", language)}</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="gap-2 text-sm font-semibold" onClick={() => handleToggleStatus(subject)}>
+                            <Power size={14} className={`shrink-0 ${isActive ? 'text-amber-600' : 'text-emerald-600'}`} />
+                            <span>{isActive ? (isRTL ? "تعطيل المادة" : "Deactivate") : (isRTL ? "تفعيل المادة" : "Activate")}</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="text-rose-500 gap-2 text-sm font-semibold" onClick={() => handleDelete(subject)}>
+                            <Trash2 size={14} className="shrink-0" />
+                            <span>{t("common.delete", language)}</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </div>
 
                   <h4 className="text-xl font-bold text-stone-900 mb-3 group-hover:text-primary transition-colors">
@@ -155,23 +190,30 @@ export default function Subjects() {
                       <Layout size={14} className="text-stone-400" />
                       <span className="num-en">{subject.code || 'SUB-101'}</span>
                     </div>
-                    <div className="flex items-center gap-2 px-3 py-1.5 bg-stone-50 rounded-lg text-xs font-semibold text-stone-500">
-                      <Clock size={14} className="text-stone-400" /> <span className="num-en">6</span> {isRTL ? "ساعات / أسبوع" : "hrs/week"}
-                    </div>
+                    {subject.grade && (
+                      <div className="flex items-center gap-2 px-3 py-1.5 bg-stone-50 rounded-lg text-xs font-semibold text-stone-500">
+                        <span className="text-stone-400">الصف / Grade:</span>
+                        <span className="num-en font-bold">{subject.grade}</span>
+                      </div>
+                    )}
                   </div>
 
-                  <div className="pt-5 border-t border-stone-100 flex items-center justify-between">
-                    <div className="flex -space-x-2 rtl:space-x-reverse">
-                      {[1,2,3].map(j => (
-                        <div key={j} className="h-8 w-8 rounded-full border-2 border-white bg-stone-200 flex items-center justify-center text-[10px] font-bold text-stone-500 num-en">
-                          {j}
-                        </div>
-                      ))}
-                      <div className="h-8 w-8 rounded-full border-2 border-white bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary num-en">
-                        +12
+                  <p className="text-stone-500 text-sm mb-6 flex-grow">
+                    {subject.description || (isRTL ? "لا يوجد وصف لهذه المادة" : "No description provided")}
+                  </p>
+
+                  <div className="pt-5 border-t border-stone-100 flex items-center justify-between mt-auto">
+                    <div className="flex items-center gap-2">
+                      <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                        <GraduationCap size={16} />
                       </div>
+                      <span className="text-sm font-bold text-stone-700">
+                        {subject.teacher_name || (isRTL ? "لم يحدد بعد" : "Not assigned yet")}
+                      </span>
                     </div>
-                    <span className="text-xs font-semibold text-stone-400">{isRTL ? "المدرسون المرتبطون" : "Related Teachers"}</span>
+                    <span className="text-xs font-semibold text-stone-400">
+                      {isRTL ? "المعلم المسؤول" : "Responsible Teacher"}
+                    </span>
                   </div>
                 </Card>
               </motion.div>
@@ -184,10 +226,13 @@ export default function Subjects() {
         <div className="flex flex-col items-center justify-center py-20 text-stone-300">
           <BookOpen size={64} className="mb-4 opacity-10" />
           <p className="font-bold text-xl">{t("common.noRecords", language)}</p>
-          <button className="text-primary mt-2 font-semibold hover:underline">{isRTL ? "أضف مادتك الأولى الآن" : "Add your first subject"}</button>
+          <button onClick={handleAdd} className="text-primary mt-2 font-semibold hover:underline">
+            {isRTL ? "أضف مادتك الأولى الآن" : "Add your first subject"}
+          </button>
         </div>
       )}
       <SubjectFormDialog open={dialogOpen} onClose={() => setDialogOpen(false)} subject={selectedSubject} />
     </div>
   );
 }
+

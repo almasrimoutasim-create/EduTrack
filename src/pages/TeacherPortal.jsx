@@ -16,7 +16,8 @@ import {
   AlertCircle,
   FileText,
   Star,
-  LogOut
+  LogOut,
+  Video
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useLanguage } from "@/lib/LanguageContext";
@@ -46,7 +47,7 @@ export default function TeacherPortal() {
 
   const { data: classes = [] } = useQuery({ 
     queryKey: ["teacher-classes"], 
-    queryFn: () => base44.entities.Subject.list("-created_at", { teacher_id: "T-202" }) 
+    queryFn: () => base44.entities.Subject.filter({ teacher_id: "T-202" }) 
   });
 
   const containerVariants = {
@@ -145,12 +146,24 @@ export default function TeacherPortal() {
                         </div>
                       </div>
 
-                      <div className="flex gap-2">
-                        <button className={`flex-1 ${btnPrimary} rounded-2xl h-12`}>
-                          {isRTL ? "إدارة الفصل" : "Manage Class"}
-                        </button>
-                        <button className={`${btnOutline} h-12 w-12 rounded-2xl`}>
-                          <ChevronRight size={20} className={isRTL ? "rotate-180" : ""} />
+                      <div className="flex flex-col gap-2 w-full">
+                        <div className="flex gap-2">
+                          <button className={`flex-1 ${btnPrimary} rounded-2xl h-12`}>
+                            {isRTL ? "إدارة الفصل" : "Manage Class"}
+                          </button>
+                          <button className={`${btnOutline} h-12 w-12 rounded-2xl`}>
+                            <ChevronRight size={20} className={isRTL ? "rotate-180" : ""} />
+                          </button>
+                        </div>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            window.location.href = `/virtual-classroom/${cls.id}`;
+                          }}
+                          className="w-full inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-xs font-black transition-all bg-teal-650 text-teal-600 border border-teal-200 hover:bg-teal-50 h-11"
+                        >
+                          <Video size={14} />
+                          {isRTL ? "بدء حصة افتراضية مباشر" : "Start Live Virtual Class"}
                         </button>
                       </div>
                     </Card>

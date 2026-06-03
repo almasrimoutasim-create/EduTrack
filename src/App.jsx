@@ -37,6 +37,7 @@ import StudentDirectory from './pages/StudentDirectory';
 import AuditLog from './pages/AuditLog';
 import Library from './pages/Library';
 import ArabicShowcase from './pages/ArabicShowcase';
+import VirtualClassroom from './pages/VirtualClassroom';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -83,6 +84,7 @@ const AuthenticatedApp = () => {
         <Route path="/audit-log" element={<AuditLog />} />
         <Route path="/library" element={<Library />} />
         <Route path="/arabic-showcase" element={<ArabicShowcase />} />
+        <Route path="/virtual-classroom/:id" element={<VirtualClassroom />} />
       </Route>
       <Route path="/student-portal" element={<StudentPortal />} />
       <Route path="/teacher-portal" element={<TeacherPortal />} />

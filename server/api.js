@@ -29,6 +29,71 @@ if (process.env.DATABASE_URL) {
   }).catch(err => {
     console.error('[neon] failed to verify/create parent_link_requests table:', err.message);
   });
+
+  // Auto-create virtual_sessions table
+  sql`
+    CREATE TABLE IF NOT EXISTS virtual_sessions (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      title TEXT NOT NULL,
+      teacher_id TEXT,
+      teacher_name TEXT,
+      subject_id UUID,
+      subject_name TEXT,
+      room_name TEXT UNIQUE NOT NULL,
+      scheduled_at TIMESTAMP WITH TIME ZONE,
+      started_at TIMESTAMP WITH TIME ZONE,
+      ended_at TIMESTAMP WITH TIME ZONE,
+      status TEXT NOT NULL DEFAULT 'scheduled',
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `.then(() => {
+    console.log('[neon] virtual_sessions table verified/created');
+  }).catch(err => {
+    console.error('[neon] failed to verify/create virtual_sessions table:', err.message);
+  });
+
+  // Auto-create session_participants table
+  sql`
+    CREATE TABLE IF NOT EXISTS session_participants (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      session_id UUID NOT NULL,
+      user_id TEXT NOT NULL,
+      user_name TEXT,
+      role TEXT NOT NULL,
+      joined_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      left_at TIMESTAMP WITH TIME ZONE,
+      attendance_minutes INTEGER DEFAULT 0,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `.then(() => {
+    console.log('[neon] session_participants table verified/created');
+    // Alter table to support mic, video and hand-raising synchronization
+    sql`
+      ALTER TABLE session_participants 
+      ADD COLUMN IF NOT EXISTS hand_raised BOOLEAN DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS mic_active BOOLEAN DEFAULT TRUE,
+      ADD COLUMN IF NOT EXISTS video_active BOOLEAN DEFAULT TRUE;
+    `.catch(err => console.error('[neon] failed to alter session_participants:', err.message));
+  }).catch(err => {
+    console.error('[neon] failed to verify/create session_participants table:', err.message);
+  });
+
+  // Auto-create room_messages table
+  sql`
+    CREATE TABLE IF NOT EXISTS room_messages (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      room_name TEXT NOT NULL,
+      sender_name TEXT NOT NULL,
+      sender_role TEXT NOT NULL,
+      message_text TEXT NOT NULL,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `.then(() => {
+    console.log('[neon] room_messages table verified/created');
+  }).catch(err => {
+    console.error('[neon] failed to verify/create room_messages table:', err.message);
+  });
 }
 
 // Map entity names to table names
@@ -74,6 +139,8 @@ const ENTITY_TABLE_MAP = {
   TypingIndicator: 'typing_indicators',
   Fine: 'fines',
   ParentLinkRequest: 'parent_link_requests',
+  VirtualSession: 'virtual_sessions',
+  SessionParticipant: 'session_participants',
 };
 
 async function createStripePaymentIntent(amount, currency) {
@@ -516,6 +583,10 @@ export function createApiHandler() {
       res.end(JSON.stringify({ error: 'Method not allowed' }));
 
     } catch (error) {
+      if (error.message && error.message.includes('invalid input syntax for type uuid')) {
+        res.statusCode = 404;
+        return res.end(JSON.stringify({ error: 'Not found (Invalid UUID format)' }));
+      }
       console.error('API Error:', error.message);
       res.statusCode = 500;
       res.end(JSON.stringify({ error: error.message }));

@@ -362,7 +362,10 @@ export default function StudentPortal() {
                   </div>
                   
                   {session.active ? (
-                    <button className={`${btnPrimary.split(' ').filter(c => !c.includes('shadow')).join(' ')} bg-teal-600 hover:bg-teal-700 text-white rounded-2xl px-6 h-12`}>
+                    <button 
+                      onClick={() => window.location.href = `/virtual-classroom/grade10-math`}
+                      className={`${btnPrimary.split(' ').filter(c => !c.includes('shadow')).join(' ')} bg-teal-600 hover:bg-teal-700 text-white rounded-2xl px-6 h-12`}
+                    >
                       <PlayCircle size={18} />
                       {isRTL ? "انضم للحصة" : "Join Class"}
                     </button>

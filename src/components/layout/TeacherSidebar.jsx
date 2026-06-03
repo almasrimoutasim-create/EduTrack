@@ -1,7 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, Users, BookOpen, ClipboardCheck,
-  FileText, Menu, X, Calendar, MessageCircle, Star, LogOut
+  FileText, Menu, X, Calendar, MessageCircle, Star, LogOut, Video
 } from "lucide-react";
 import { useState } from "react";
 import { motion } from "framer-motion";
@@ -37,6 +37,7 @@ export default function TeacherSidebar() {
       label: isRTL ? "الأكاديميات" : "Academics",
       items: [
         { label: isRTL ? "فصولي" : "My Classes", path: "#", icon: BookOpen },
+        { label: isRTL ? "الفصول الافتراضية" : "Virtual Classroom", path: "/virtual-classroom/demo", icon: Video },
         { label: isRTL ? "طلابي" : "My Students", path: "#", icon: Users },
         { label: isRTL ? "الحضور" : "Attendance", path: "#", icon: ClipboardCheck },
         { label: isRTL ? "الواجبات والتصحيح" : "Assignments & Grading", path: "#", icon: FileText }

@@ -1,7 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, BookOpen, ClipboardCheck,
-  FileText, Menu, X, Calendar, Star, Trophy, Rocket, LogOut, ShoppingBag
+  FileText, Menu, X, Calendar, Star, Trophy, Rocket, LogOut, ShoppingBag, Video
 } from "lucide-react";
 import { useState } from "react";
 import { motion } from "framer-motion";
@@ -39,6 +39,7 @@ export default function StudentSidebar() {
       items: [
         { label: isRTL ? "الواجبات" : "Homework", path: "#", icon: FileText },
         { label: isRTL ? "المواد الدراسية" : "Materials", path: "#", icon: BookOpen },
+        { label: isRTL ? "الفصل الافتراضي" : "Virtual Classroom", path: "/virtual-classroom/demo", icon: Video },
         { label: isRTL ? "الدرجات" : "Grades", path: "#", icon: Star },
         { label: isRTL ? "سجل الحضور" : "Attendance", path: "#", icon: ClipboardCheck }
       ]
