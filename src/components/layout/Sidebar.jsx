@@ -104,7 +104,7 @@ export default function Sidebar() {
             label: isRTL ? "الإدارة الأكاديمية" : "Academic Admin",
             items: [
               { label: isRTL ? "الفصول والشعب" : "Classes", path: "/subjects", icon: BookOpen },
-              { label: isRTL ? "الجداول الدراسية" : "Schedules", path: "#", icon: Calendar },
+              { label: isRTL ? "الجداول الدراسية" : "Schedules", path: "/schedules", icon: Calendar },
               { label: isRTL ? "الامتحانات" : "Exams", path: "#", icon: FileText },
               { label: isRTL ? "الدرجات والنتائج" : "Grades & Results", path: "#", icon: Trophy }
             ]
@@ -298,6 +298,7 @@ export default function Sidebar() {
               { label: t("common.subjects", language), path: "/subjects", icon: BookOpen },
               { label: t("common.attendance", language), path: "/attendance", icon: ClipboardCheck },
               { label: isRTL ? "ملخص الحضور" : "Attendance Summary", path: "/attendance-summary", icon: BarChart3 },
+              { label: isRTL ? "الجداول الدراسية" : "Schedules", path: "/schedules", icon: Calendar },
               { label: t("common.materials", language), path: "/materials", icon: FileText },
               { label: t("common.activity", language), path: "/activity", icon: Newspaper },
               { label: t("common.awards", language), path: "/awards", icon: Trophy }

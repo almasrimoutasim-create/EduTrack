@@ -1,6 +1,12 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
+import { CheckCircle2, BookOpen } from "lucide-react";
 import { 
   Book, 
   Trophy, 
@@ -27,10 +33,159 @@ export default function StudentDashboard() {
   const { language } = useLanguage();
   const isRTL = language === "ar";
 
-  const { data: assignments = [] } = useQuery({ 
-    queryKey: ["student-assignments"], 
-    queryFn: () => base44.entities.Subject.list() 
-  });
+  const [assignments, setAssignments] = useState([]);
+  const [selectedAsm, setSelectedAsm] = useState(null);
+  const [showFormModal, setShowFormModal] = useState(false);
+  const [answers, setAnswers] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const loadAssignments = () => {
+    const saved = localStorage.getItem("edu_assignments");
+    if (saved) {
+      setAssignments(JSON.parse(saved));
+    } else {
+      // Default placeholder if none exists yet
+      const defaultAsms = [
+        {
+          id: "asm-101",
+          title: "واجب اللغة العربية - الفهم القرائي والقواعد النحوية",
+          subject: "اللغة العربية",
+          dueDate: "2026-06-10",
+          questionsCount: 4,
+          points: 10,
+          questions: [
+            { id: "q1", type: "mcq", text: "ما هو الفاعل في الجملة التالية: 'كَتَبَ التِّلْمِيذُ الدَّرْسَ'؟", options: ["كَتَبَ", "التِّلْمِيذُ", "الدَّرْسَ"], correctAnswer: "التِّلْمِيذُ", points: 2 },
+            { id: "q2", type: "checkbox", text: "اختر الأفعال المعتلة من الخيارات التالية:", options: ["قال", "كتب", "سعى", "فهم"], correctAnswer: ["قال", "سعى"], points: 3 },
+            { id: "q3", type: "short", text: "اكتب مضاد كلمة 'الشجاعة'.", correctAnswer: "الجبن", points: 2 },
+            { id: "q4", type: "paragraph", text: "اشرح باختصار أهمية المطالعة الحرة في بناء شخصية الطالب الكاتب.", correctAnswer: "", points: 3 }
+          ]
+        }
+      ];
+      localStorage.setItem("edu_assignments", JSON.stringify(defaultAsms));
+      setAssignments(defaultAsms);
+    }
+  };
+
+  useEffect(() => {
+    loadAssignments();
+    window.addEventListener("storage", loadAssignments);
+    return () => window.removeEventListener("storage", loadAssignments);
+  }, []);
+
+  const handleStartTask = (asm) => {
+    const savedSubmissions = localStorage.getItem("edu_submissions");
+    const submissions = savedSubmissions ? JSON.parse(savedSubmissions) : {};
+    const asmSubs = submissions[asm.id] || [];
+    const studentId = localStorage.getItem("portal_user_id") || "STU-882";
+    const alreadySubmitted = asmSubs.some(s => s.studentId === studentId);
+
+    if (alreadySubmitted) {
+      toast.info(isRTL ? "لقد قمت بتسليم هذا الواجب بالفعل!" : "You have already submitted this assignment!");
+      return;
+    }
+
+    setSelectedAsm(asm);
+    // Initialize answers structure
+    const initialAnswers = {};
+    asm.questions.forEach(q => {
+      initialAnswers[q.id] = q.type === "checkbox" ? [] : "";
+    });
+    setAnswers(initialAnswers);
+    setShowFormModal(true);
+  };
+
+  const handleCheckboxChange = (qId, option, checked) => {
+    setAnswers(prev => {
+      const current = prev[qId] || [];
+      const updated = checked 
+        ? [...current, option]
+        : current.filter(o => o !== option);
+      return { ...prev, [qId]: updated };
+    });
+  };
+
+  const handleSubmitAnswers = () => {
+    setIsSubmitting(true);
+    try {
+      const studentName = localStorage.getItem("portal_user_name") || "أحمد علي الخطيب";
+      const studentId = localStorage.getItem("portal_user_id") || "STU-882";
+      
+      // Auto score MCQs and Checkboxes
+      let autoScore = 0;
+      const grades = {};
+      
+      selectedAsm.questions.forEach(q => {
+        const studentAns = answers[q.id];
+        if (q.type === "mcq") {
+          const isCorrect = studentAns === q.correctAnswer;
+          grades[q.id] = isCorrect ? q.points : 0;
+          autoScore += grades[q.id];
+        } else if (q.type === "checkbox") {
+          const correct = q.correctAnswer || [];
+          const ans = studentAns || [];
+          const isCorrect = correct.length === ans.length && correct.every(val => ans.includes(val));
+          grades[q.id] = isCorrect ? q.points : 0;
+          autoScore += grades[q.id];
+        } else {
+          grades[q.id] = null;
+        }
+      });
+
+      const newSubmission = {
+        id: `sub-${Date.now()}`,
+        studentName,
+        studentId,
+        submittedAt: format(new Date(), "yyyy-MM-dd HH:mm"),
+        status: selectedAsm.questions.some(q => q.type === "short" || q.type === "paragraph") ? "pending" : "graded",
+        score: autoScore,
+        answers,
+        grades,
+        feedback: ""
+      };
+
+      const savedSubmissions = localStorage.getItem("edu_submissions");
+      const submissions = savedSubmissions ? JSON.parse(savedSubmissions) : {};
+      const asmSubs = submissions[selectedAsm.id] || [];
+      
+      const filteredSubs = asmSubs.filter(s => s.studentId !== studentId);
+      submissions[selectedAsm.id] = [...filteredSubs, newSubmission];
+      localStorage.setItem("edu_submissions", JSON.stringify(submissions));
+
+      // Update assignment submissions count for teacher's view
+      const savedAssignments = localStorage.getItem("edu_assignments");
+      if (savedAssignments) {
+        const asms = JSON.parse(savedAssignments);
+        const updatedAsms = asms.map(asm => {
+          if (asm.id === selectedAsm.id) {
+            const currentSubs = submissions[asm.id] || [];
+            const gradedSubs = currentSubs.filter(s => s.status === "graded");
+            const totalScore = gradedSubs.reduce((sum, s) => sum + s.score, 0);
+            return {
+              ...asm,
+              submissionsCount: currentSubs.length,
+              gradedCount: gradedSubs.length,
+              averageScore: gradedSubs.length > 0 ? parseFloat((totalScore / gradedSubs.length).toFixed(1)) : asm.averageScore
+            };
+          }
+          return asm;
+        });
+        localStorage.setItem("edu_assignments", JSON.stringify(updatedAsms));
+      }
+
+      toast.success(isRTL ? "تم تسليم الواجب بنجاح!" : "Assignment submitted successfully!");
+      setShowFormModal(false);
+      loadAssignments();
+    } catch (e) {
+      console.error(e);
+      toast.error(isRTL ? "حدث خطأ أثناء إرسال الواجب" : "Failed to submit assignment");
+    }
+    setIsSubmitting(false);
+  };
+
+  function format(date, fmt) {
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  }
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -126,38 +281,74 @@ export default function StudentDashboard() {
             animate="visible"
             className="space-y-4"
           >
-            {[
-              { title: "حل تمارين التكامل والاشتقاق", subject: "الرياضيات", due: "اليوم، ٠٨:٠٠ م", type: "Homework", color: "text-blue-500", bg: "bg-blue-50" },
-              { title: "كتابة مقال عن الأدب الأندلسي", subject: "اللغة العربية", due: "غداً، ١٢:٠٠ م", type: "Essay", color: "text-amber-500", bg: "bg-amber-50" },
-              { title: "اختبار تجريبي: كيمياء العناصر", subject: "الكيمياء", due: "١٥ مايو", type: "Quiz", color: "text-rose-500", bg: "bg-rose-50" },
-            ].map((task, i) => (
-              <motion.div
-                key={i}
-                variants={{ hidden: { x: isRTL ? 20 : -20, opacity: 0 }, visible: { x: 0, opacity: 1 } }}
-                className="group"
-              >
-                <Card className="p-6 border-none shadow-sm hover:shadow-xl transition-all duration-500 rounded-[32px] bg-white flex items-center justify-between group cursor-pointer overflow-hidden relative">
-                  <div className="flex items-center gap-6 relative z-10">
-                    <div className={`h-14 w-14 rounded-2xl ${task.bg} ${task.color} flex items-center justify-center group-hover:scale-110 transition-transform`}>
-                      <Book size={24} />
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-stone-800 group-hover:text-indigo-600 transition-colors leading-tight">{task.title}</h4>
-                      <div className="flex items-center gap-3 mt-1">
-                        <span className="text-[10px] font-black text-stone-400 uppercase tracking-widest">{task.subject}</span>
-                        <span className="h-1 w-1 rounded-full bg-stone-200" />
-                        <span className="text-[10px] font-bold text-rose-500 uppercase tracking-widest flex items-center gap-1">
-                          <Clock size={10} /> {task.due}
-                        </span>
+            {assignments.length === 0 ? (
+              <div className="bg-white p-8 rounded-[32px] text-center text-stone-400 font-semibold shadow-sm">
+                {isRTL ? "لا توجد مهام دراسية حالياً!" : "No learning tasks assigned currently!"}
+              </div>
+            ) : (
+              assignments.map((task, i) => {
+                const colors = {
+                  "اللغة العربية": { color: "text-amber-500", bg: "bg-amber-50" },
+                  "العلوم": { color: "text-emerald-500", bg: "bg-emerald-50" },
+                  "الرياضيات": { color: "text-blue-500", bg: "bg-blue-50" }
+                };
+                const theme = colors[task.subject] || { color: "text-indigo-500", bg: "bg-indigo-50" };
+                
+                // Check if student already submitted this task
+                const savedSubmissions = localStorage.getItem("edu_submissions");
+                const submissions = savedSubmissions ? JSON.parse(savedSubmissions) : {};
+                const asmSubs = submissions[task.id] || [];
+                const studentId = localStorage.getItem("portal_user_id") || "STU-882";
+                const isDone = asmSubs.some(s => s.studentId === studentId);
+                const submission = asmSubs.find(s => s.studentId === studentId);
+
+                return (
+                  <motion.div
+                    key={task.id}
+                    variants={{ hidden: { x: isRTL ? 20 : -20, opacity: 0 }, visible: { x: 0, opacity: 1 } }}
+                    className="group"
+                  >
+                    <Card className="p-6 border-none shadow-sm hover:shadow-xl transition-all duration-500 rounded-[32px] bg-white flex items-center justify-between group cursor-pointer overflow-hidden relative">
+                      <div className="flex items-center gap-6 relative z-10">
+                        <div className={`h-14 w-14 rounded-2xl ${theme.bg} ${theme.color} flex items-center justify-center group-hover:scale-110 transition-transform`}>
+                          <Book size={24} />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-stone-800 group-hover:text-indigo-600 transition-colors leading-tight">{task.title}</h4>
+                          <div className="flex items-center gap-3 mt-1">
+                            <span className="text-[10px] font-black text-stone-400 uppercase tracking-widest">{task.subject}</span>
+                            <span className="h-1 w-1 rounded-full bg-stone-200" />
+                            <span className="text-[10px] font-bold text-rose-500 uppercase tracking-widest flex items-center gap-1">
+                              <Clock size={10} /> {isRTL ? "تسليم قبل:" : "Due:"} <span className="num-en">{task.dueDate}</span>
+                            </span>
+                            {isDone && (
+                              <>
+                                <span className="h-1 w-1 rounded-full bg-stone-200" />
+                                <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">
+                                  {isRTL ? "تم التسليم" : "Submitted"}
+                                  {submission?.status === "graded" && ` (${submission.score}/${task.points})`}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                  <button className="rounded-xl h-10 px-6 font-bold bg-stone-50 text-stone-900 hover:bg-stone-900 hover:text-white transition-all border-none relative z-10 cursor-pointer">
-                    {isRTL ? "ابدأ الآن" : "Start Task"}
-                  </button>
-                </Card>
-              </motion.div>
-            ))}
+                      <button 
+                        onClick={() => handleStartTask(task)}
+                        disabled={isDone}
+                        className={`rounded-xl h-10 px-6 font-bold transition-all border-none relative z-10 cursor-pointer ${
+                          isDone 
+                            ? "bg-emerald-50 text-emerald-600 cursor-default"
+                            : "bg-stone-50 text-stone-900 hover:bg-stone-900 hover:text-white"
+                        }`}
+                      >
+                        {isDone ? (isRTL ? "مكتمل" : "Completed") : (isRTL ? "ابدأ الآن" : "Start Task")}
+                      </button>
+                    </Card>
+                  </motion.div>
+                );
+              })
+            )}
           </motion.div>
         </section>
 
@@ -200,6 +391,107 @@ export default function StudentDashboard() {
           </Card>
         </aside>
       </div>
+      <Dialog open={showFormModal} onOpenChange={setShowFormModal}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto rounded-[32px] p-6 text-right" dir={isRTL ? "rtl" : "ltr"}>
+          {selectedAsm && (
+            <div className="space-y-6">
+              <DialogHeader className="border-b border-stone-100 pb-4">
+                <div className="flex items-center gap-3 justify-start">
+                  <div className="h-10 w-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                    <BookOpen size={20} />
+                  </div>
+                  <div>
+                    <DialogTitle className="font-serif font-black text-xl text-stone-900">
+                      {selectedAsm.title}
+                    </DialogTitle>
+                    <p className="text-xs text-stone-400 mt-1">
+                      {isRTL ? `المادة: ${selectedAsm.subject} · الدرجات: ${selectedAsm.points}` : `Subject: ${selectedAsm.subject} · Points: ${selectedAsm.points}`}
+                    </p>
+                  </div>
+                </div>
+              </DialogHeader>
+
+              <div className="space-y-6 mt-4">
+                {selectedAsm.questions.map((q, idx) => (
+                  <Card key={q.id} className="p-6 bg-stone-50/50 border-none rounded-2xl space-y-3">
+                    <Label className="font-bold text-stone-850 text-sm flex gap-1.5 justify-start">
+                      <span>{idx + 1}.</span>
+                      <span>{q.text}</span>
+                      <span className="text-[10px] font-bold text-indigo-500">({q.points} {isRTL ? "نقاط" : "pts"})</span>
+                    </Label>
+
+                    {/* MCQ Option */}
+                    {q.type === "mcq" && (
+                      <div className="grid grid-cols-1 gap-2 pt-2">
+                        {q.options.map((opt, oIdx) => (
+                          <label key={oIdx} className="flex items-center gap-3 cursor-pointer p-2 hover:bg-white rounded-lg transition-colors border border-transparent hover:border-stone-100">
+                            <input 
+                              type="radio" 
+                              name={q.id}
+                              value={opt}
+                              checked={answers[q.id] === opt}
+                              onChange={e => setAnswers(prev => ({ ...prev, [q.id]: e.target.value }))}
+                              className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-stone-300"
+                            />
+                            <span className="text-xs font-semibold text-stone-700">{opt}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Checkbox Option */}
+                    {q.type === "checkbox" && (
+                      <div className="grid grid-cols-1 gap-2 pt-2">
+                        {q.options.map((opt, oIdx) => (
+                          <label key={oIdx} className="flex items-center gap-3 cursor-pointer p-2 hover:bg-white rounded-lg transition-colors border border-transparent hover:border-stone-100">
+                            <input 
+                              type="checkbox"
+                              checked={(answers[q.id] || []).includes(opt)}
+                              onChange={e => handleCheckboxChange(q.id, opt, e.target.checked)}
+                              className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-stone-300 rounded"
+                            />
+                            <span className="text-xs font-semibold text-stone-700">{opt}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Short Answer */}
+                    {q.type === "short" && (
+                      <Input 
+                        value={answers[q.id] || ""}
+                        onChange={e => setAnswers(prev => ({ ...prev, [q.id]: e.target.value }))}
+                        className="h-10 rounded-xl border-stone-250 font-semibold focus-visible:ring-indigo-200 bg-white"
+                        placeholder={isRTL ? "اكتب إجابتك القصيرة هنا..." : "Enter your short answer here..."}
+                      />
+                    )}
+
+                    {/* Paragraph */}
+                    {q.type === "paragraph" && (
+                      <Textarea 
+                        value={answers[q.id] || ""}
+                        onChange={e => setAnswers(prev => ({ ...prev, [q.id]: e.target.value }))}
+                        rows={3}
+                        className="rounded-xl border-stone-250 font-semibold focus-visible:ring-indigo-200 bg-white"
+                        placeholder={isRTL ? "اكتب إجابتك بالتفصيل هنا..." : "Write your essay answer in detail here..."}
+                      />
+                    )}
+                  </Card>
+                ))}
+              </div>
+
+              <button 
+                onClick={handleSubmitAnswers}
+                disabled={isSubmitting}
+                className="w-full inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-sm font-semibold transition-all bg-indigo-600 text-white hover:bg-indigo-700 h-12 cursor-pointer shadow-lg shadow-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <CheckCircle2 size={16} />
+                <span>{isRTL ? "إرسال وتسليم الواجب" : "Submit Assignment"}</span>
+              </button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

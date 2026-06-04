@@ -19,6 +19,7 @@ import Attendance from './pages/Attendance';
 import AttendanceSummary from './pages/AttendanceSummary';
 import WeeklyAttendanceSummary from './pages/WeeklyAttendanceSummary';
 import Materials from './pages/Materials';
+import Schedules from './pages/Schedules';
 
 import Store from './pages/Store';
 import StudentCard from './pages/StudentCard';
@@ -71,6 +72,7 @@ const AuthenticatedApp = () => {
         <Route path="/attendance-summary" element={<AttendanceSummary />} />
         <Route path="/weekly-attendance" element={<WeeklyAttendanceSummary />} />
         <Route path="/materials" element={<Materials />} />
+        <Route path="/schedules" element={<Schedules />} />
 
         <Route path="/store" element={<Store />} />
         <Route path="/card" element={<StudentCard />} />

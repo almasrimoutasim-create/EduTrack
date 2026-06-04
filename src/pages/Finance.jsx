@@ -27,6 +27,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import FinancialRecordFormDialog from "@/components/shared/FinancialRecordFormDialog";
+import FinanceReportDialog from "@/components/shared/FinanceReportDialog";
 import { toast } from "sonner";
 import {
   DropdownMenu,
@@ -45,6 +46,7 @@ export default function Finance() {
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState("all"); // "all" | "purchase" | "salary" | "tuition" | "expense"
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState(null);
 
   const handleDelete = async (recordId) => {
@@ -129,7 +131,7 @@ export default function Finance() {
         subtitle={isRTL ? "إدارة الإيرادات، المدفوعات، والتقارير المالية" : "Revenue management, payments, and financial reports"}
       >
         <div className="flex gap-3">
-          <button className={`${btnOutline} h-11 px-5`}>
+          <button onClick={() => setReportDialogOpen(true)} className={`${btnOutline} h-11 px-5`}>
             <Download size={18} />
             <span>{isRTL ? "تصدير تقرير" : "Export Report"}</span>
           </button>
@@ -439,6 +441,13 @@ export default function Finance() {
         onSuccess={async () => {
           qc.invalidateQueries({ queryKey: ["financial-records"] });
         }}
+      />
+      <FinanceReportDialog
+        open={reportDialogOpen}
+        onClose={() => setReportDialogOpen(false)}
+        purchases={purchases}
+        financialRecords={financialRecords}
+        isRTL={isRTL}
       />
     </div>
   );

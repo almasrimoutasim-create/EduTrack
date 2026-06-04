@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
@@ -15,8 +16,16 @@ import {
   Award,
   ArrowUpRight,
   LogOut,
-  ShoppingBag
+  ShoppingBag,
+  Calendar,
+  GraduationCap,
+  MapPin,
+  BookOpen,
+  CheckCircle2
 } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { motion } from "framer-motion";
 import { useLanguage } from "@/lib/LanguageContext";
 import { t } from "@/lib/translations";
@@ -26,6 +35,9 @@ import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/lib/AuthContext";
 import StudentSidebar from "@/components/layout/StudentSidebar";
 import StudentIDCard from "@/components/student-dashboard/StudentIDCard";
+import VisualSchedule from "@/components/schedule/VisualSchedule";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import PageHeader from "@/components/shared/PageHeader";
 
 const btnOutline = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-sm font-semibold transition-all border-2 border-stone-300 bg-white text-stone-800 hover:bg-stone-50 hover:border-stone-400 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
 const btnPrimary = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-sm font-semibold transition-all bg-stone-900 text-white hover:bg-black cursor-pointer shadow-lg shadow-stone-200 disabled:opacity-50 disabled:cursor-not-allowed";
@@ -35,6 +47,8 @@ export default function StudentPortal() {
   const isRTL = language === "ar";
   const { logout } = useAuth();
   const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
+  const view = searchParams.get("view");
   const [isSwiping, setIsSwiping] = React.useState(null); // null | "gate_in" | "gate_out"
 
   const handleGateSwipe = async (type) => {
@@ -94,17 +108,157 @@ export default function StudentPortal() {
 
   const { data: storePurchases = [] } = useQuery({
     queryKey: ["store-purchases", studentId],
-    queryFn: () => base44.entities.Purchase.list("-created_at", { student_id: studentId })
+    queryFn: () => base44.entities.Purchase.filter({ student_id: studentId })
   });
 
   const { data: attendanceLogs = [] } = useQuery({
     queryKey: ["student-attendance", studentId],
-    queryFn: () => base44.entities.Attendance.list("-date", { student_id: studentId })
+    queryFn: () => base44.entities.Attendance.filter({ student_id: studentId }, "-date")
   });
 
   const { data: materials = [] } = useQuery({
     queryKey: ["student-materials"],
     queryFn: () => base44.entities.StudyMaterial.list("-created_date", 4)
+  });
+
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [assignments, setAssignments] = useState([]);
+  const [selectedAsm, setSelectedAsm] = useState(null);
+  const [showFormModal, setShowFormModal] = useState(false);
+  const [answers, setAnswers] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const loadAssignments = () => {
+    const saved = localStorage.getItem("edu_assignments");
+    if (saved) {
+      setAssignments(JSON.parse(saved));
+    }
+  };
+
+  useEffect(() => {
+    loadAssignments();
+    window.addEventListener("storage", loadAssignments);
+    return () => window.removeEventListener("storage", loadAssignments);
+  }, []);
+
+  const handleStartTask = (asm) => {
+    const savedSubmissions = localStorage.getItem("edu_submissions");
+    const submissions = savedSubmissions ? JSON.parse(savedSubmissions) : {};
+    const asmSubs = submissions[asm.id] || [];
+    const studentId = localStorage.getItem("portal_user_id") || "STU-882";
+    const alreadySubmitted = asmSubs.some(s => s.studentId === studentId);
+
+    if (alreadySubmitted) {
+      toast.info(isRTL ? "لقد قمت بتسليم هذا الواجب بالفعل!" : "You have already submitted this assignment!");
+      return;
+    }
+
+    setSelectedAsm(asm);
+    const initialAnswers = {};
+    asm.questions.forEach(q => {
+      initialAnswers[q.id] = q.type === "checkbox" ? [] : "";
+    });
+    setAnswers(initialAnswers);
+    setShowFormModal(true);
+  };
+
+  const handleCheckboxChange = (qId, option, checked) => {
+    setAnswers(prev => {
+      const current = prev[qId] || [];
+      const updated = checked 
+        ? [...current, option]
+        : current.filter(o => o !== option);
+      return { ...prev, [qId]: updated };
+    });
+  };
+
+  const handleSubmitAnswers = () => {
+    setIsSubmitting(true);
+    try {
+      const studentName = localStorage.getItem("portal_user_name") || "أحمد علي الخطيب";
+      const studentId = localStorage.getItem("portal_user_id") || "STU-882";
+      
+      let autoScore = 0;
+      const grades = {};
+      
+      selectedAsm.questions.forEach(q => {
+        const studentAns = answers[q.id];
+        if (q.type === "mcq") {
+          const isCorrect = studentAns === q.correctAnswer;
+          grades[q.id] = isCorrect ? q.points : 0;
+          autoScore += grades[q.id];
+        } else if (q.type === "checkbox") {
+          const correct = q.correctAnswer || [];
+          const ans = studentAns || [];
+          const isCorrect = correct.length === ans.length && correct.every(val => ans.includes(val));
+          grades[q.id] = isCorrect ? q.points : 0;
+          autoScore += grades[q.id];
+        } else {
+          grades[q.id] = null;
+        }
+      });
+
+      const newSubmission = {
+        id: `sub-${Date.now()}`,
+        studentName,
+        studentId,
+        submittedAt: new Date().toISOString().replace("T", " ").substring(0, 16),
+        status: selectedAsm.questions.some(q => q.type === "short" || q.type === "paragraph") ? "pending" : "graded",
+        score: autoScore,
+        answers,
+        grades,
+        feedback: ""
+      };
+
+      const savedSubmissions = localStorage.getItem("edu_submissions");
+      const submissions = savedSubmissions ? JSON.parse(savedSubmissions) : {};
+      const asmSubs = submissions[selectedAsm.id] || [];
+      
+      const filteredSubs = asmSubs.filter(s => s.studentId !== studentId);
+      submissions[selectedAsm.id] = [...filteredSubs, newSubmission];
+      localStorage.setItem("edu_submissions", JSON.stringify(submissions));
+
+      const savedAssignments = localStorage.getItem("edu_assignments");
+      if (savedAssignments) {
+        const asms = JSON.parse(savedAssignments);
+        const updatedAsms = asms.map(asm => {
+          if (asm.id === selectedAsm.id) {
+            const currentSubs = submissions[asm.id] || [];
+            const gradedSubs = currentSubs.filter(s => s.status === "graded");
+            const totalScore = gradedSubs.reduce((sum, s) => sum + s.score, 0);
+            return {
+              ...asm,
+              submissionsCount: currentSubs.length,
+              gradedCount: gradedSubs.length,
+              averageScore: gradedSubs.length > 0 ? parseFloat((totalScore / gradedSubs.length).toFixed(1)) : asm.averageScore
+            };
+          }
+          return asm;
+        });
+        localStorage.setItem("edu_assignments", JSON.stringify(updatedAsms));
+        setAssignments(updatedAsms);
+      }
+
+      toast.success(isRTL ? "تم تسليم الواجب بنجاح!" : "Assignment submitted successfully!");
+      setShowFormModal(false);
+      loadAssignments();
+    } catch (e) {
+      console.error(e);
+      toast.error(isRTL ? "حدث خطأ أثناء إرسال الواجب" : "Failed to submit assignment");
+    }
+    setIsSubmitting(false);
+  };
+
+  const { data: studentSchedules = [] } = useQuery({
+    queryKey: ["student-schedules", student?.grade],
+    queryFn: () => base44.entities.ClassSchedule.filter({ grade: student?.grade }),
+    enabled: !!student?.grade
+  });
+
+  const { data: studentTasks = [] } = useQuery({
+    queryKey: ["student-tasks", student?.grade],
+    queryFn: () => base44.entities.TeacherTask.filter({ grade: student?.grade }),
+    enabled: !!student?.grade
   });
 
   const containerVariants = {
@@ -117,7 +271,107 @@ export default function StudentPortal() {
       <StudentSidebar />
       <main className={`transition-all duration-300 min-h-screen pt-16 lg:pt-0 ${isRTL ? "lg:mr-64" : "lg:ml-64"}`}>
         <div className="p-6 md:p-10 lg:p-12 max-w-7xl mx-auto space-y-10 pb-24">
-          <header className="relative py-12 px-10 bg-gradient-to-br from-teal-600 to-emerald-700 text-white rounded-[48px] shadow-2xl overflow-hidden">
+          {view === "schedule" ? (
+            <div className="space-y-6">
+              <PageHeader 
+                title={isRTL ? "الجدول الدراسي الأسبوعي" : "Weekly Class Schedule"} 
+                subtitle={isRTL ? `عرض الجدول الكامل والمواد المسجلة - الصف ${student.grade || ""}` : `View full schedule and registered subjects - Grade ${student.grade || ""}`}
+              >
+                <button onClick={() => window.location.href = "/student-portal"} className={`${btnOutline} h-11 px-5 rounded-xl`}>
+                  {isRTL ? "العودة للوحة التحكم" : "Back to Dashboard"}
+                </button>
+              </PageHeader>
+              <Card className="p-6 md:p-8 bg-white border-none shadow-sm rounded-[32px]">
+                <VisualSchedule classes={studentSchedules} tasks={studentTasks} />
+              </Card>
+            </div>
+          ) : view === "homework" ? (
+            <div className="space-y-6">
+              <PageHeader 
+                title={isRTL ? "الواجبات والمهام الدراسية" : "Homework & Learning Tasks"} 
+                subtitle={isRTL ? "عرض وحل جميع الواجبات والاختبارات المنزلية الخاصة بك" : "View and complete all your homework and quizzes"}
+              >
+                <button onClick={() => window.location.href = "/student-portal"} className={`${btnOutline} h-11 px-5 rounded-xl`}>
+                  {isRTL ? "العودة للوحة التحكم" : "Back to Dashboard"}
+                </button>
+              </PageHeader>
+              
+              <div className="grid grid-cols-1 gap-4">
+                {assignments.length === 0 ? (
+                  <Card className="p-8 text-center bg-stone-50 border border-dashed border-stone-200 rounded-3xl">
+                    <FileText className="h-8 w-8 text-stone-300 mx-auto mb-2" />
+                    <p className="text-stone-400 text-xs font-bold">{isRTL ? "لا توجد واجبات دراسية حالياً." : "No homework assigned currently."}</p>
+                  </Card>
+                ) : (
+                  assignments.map((task, i) => {
+                    const colors = {
+                      "اللغة العربية": { color: "text-amber-500", bg: "bg-amber-50" },
+                      "العلوم": { color: "text-emerald-500", bg: "bg-emerald-50" },
+                      "الرياضيات": { color: "text-blue-500", bg: "bg-blue-50" }
+                    };
+                    const theme = colors[task.subject] || { color: "text-indigo-500", bg: "bg-indigo-50" };
+                    
+                    const savedSubmissions = localStorage.getItem("edu_submissions");
+                    const submissions = savedSubmissions ? JSON.parse(savedSubmissions) : {};
+                    const asmSubs = submissions[task.id] || [];
+                    const studentId = localStorage.getItem("portal_user_id") || "STU-882";
+                    const isDone = asmSubs.some(s => s.studentId === studentId);
+                    const submission = asmSubs.find(s => s.studentId === studentId);
+
+                    return (
+                      <motion.div
+                        key={task.id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.1 * i }}
+                        className="group"
+                      >
+                        <Card className="p-6 border-none shadow-sm hover:shadow-xl transition-all duration-500 rounded-[32px] bg-white flex items-center justify-between group cursor-pointer overflow-hidden relative">
+                          <div className="flex items-center gap-6 relative z-10">
+                            <div className={`h-14 w-14 rounded-2xl ${theme.bg} ${theme.color} flex items-center justify-center group-hover:scale-110 transition-transform`}>
+                              <FileText size={24} />
+                            </div>
+                            <div>
+                              <h4 className="font-bold text-stone-800 group-hover:text-teal-600 transition-colors leading-tight">{task.title}</h4>
+                              <div className="flex items-center gap-3 mt-1">
+                                <span className="text-[10px] font-black text-stone-400 uppercase tracking-widest">{task.subject}</span>
+                                <span className="h-1 w-1 rounded-full bg-stone-200" />
+                                <span className="text-[10px] font-bold text-rose-500 uppercase tracking-widest flex items-center gap-1">
+                                  <Clock size={10} /> {isRTL ? "تاريخ التسليم:" : "Due Date:"} <span className="num-en">{task.dueDate}</span>
+                                </span>
+                                {isDone && (
+                                  <>
+                                    <span className="h-1 w-1 rounded-full bg-stone-200" />
+                                    <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">
+                                      {isRTL ? "تم التسليم" : "Submitted"}
+                                      {submission?.status === "graded" && ` (${submission.score}/${task.points})`}
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          <button 
+                            onClick={() => handleStartTask(task)}
+                            disabled={isDone}
+                            className={`rounded-xl h-10 px-6 font-bold transition-all border-none relative z-10 cursor-pointer ${
+                              isDone 
+                                ? "bg-emerald-50 text-emerald-600 cursor-default"
+                                : "bg-stone-50 text-stone-900 hover:bg-stone-900 hover:text-white"
+                            }`}
+                          >
+                            {isDone ? (isRTL ? "تم تسليمه" : "Completed") : (isRTL ? "حل الواجب" : "Start Task")}
+                          </button>
+                        </Card>
+                      </motion.div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          ) : (
+            <>
+              <header className="relative py-12 px-10 bg-gradient-to-br from-teal-600 to-emerald-700 text-white rounded-[48px] shadow-2xl overflow-hidden">
         {/* Abstract Background Shapes */}
         <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl" />
         <div className="absolute bottom-0 left-0 w-64 h-64 bg-teal-400/20 rounded-full translate-y-1/2 -translate-x-1/2 blur-2xl" />
@@ -330,62 +584,96 @@ export default function StudentPortal() {
         {/* Daily Schedule - Left Side */}
         <section className="lg:col-span-8 space-y-8">
           <div className="flex items-center justify-between">
-            <h3 className="text-2xl font-serif font-bold text-stone-900">{isRTL ? "الجدول الدراسي اليوم" : "Today's Schedule"}</h3>
-            <p className="text-stone-400 text-sm font-bold uppercase tracking-widest">May 12, 2024</p>
+            <h3 className="text-2xl font-serif font-bold text-stone-900">
+              {isRTL ? `الجدول الدراسي اليوم (${["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"][new Date().getDay()]})` : `Today's Schedule (${["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][new Date().getDay()]})`}
+            </h3>
+            <button
+              onClick={() => setShowScheduleModal(true)}
+              className={`${btnOutline} rounded-xl px-4 h-9 text-xs`}
+            >
+              <Calendar size={14} />
+              {isRTL ? "الجدول الأسبوعي الكامل" : "Full Weekly Schedule"}
+            </button>
           </div>
 
           <div className="space-y-4">
-            {[
-              { subject: "الرياضيات", time: "٠٨:٠٠ - ٠٩:٠٠", teacher: "أ. محمد", active: true, color: "bg-blue-500", light: "bg-blue-50" },
-              { subject: "اللغة العربية", time: "٠٩:١٥ - ١٠:١٥", teacher: "أ. فاطمة", active: false, color: "bg-rose-500", light: "bg-rose-50" },
-              { subject: "العلوم", time: "١٠:٣٠ - ١١:٣٠", teacher: "أ. خالد", active: false, color: "bg-emerald-500", light: "bg-emerald-50" }
-            ].map((session, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, x: isRTL ? 20 : -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.2 + (i * 0.1) }}
-                className="group"
-              >
-                <Card className={`p-6 border-none shadow-sm hover:shadow-xl transition-all duration-500 rounded-[32px] flex items-center justify-between ${session.active ? 'ring-4 ring-teal-500/10' : ''}`}>
-                  <div className="flex items-center gap-6">
-                    <div className={`h-14 w-14 rounded-2xl ${session.active ? 'bg-teal-600 shadow-lg shadow-teal-200' : 'bg-stone-50'} flex flex-col items-center justify-center ${session.active ? 'text-white' : 'text-stone-400'}`}>
-                      <Clock size={24} />
-                    </div>
-                    <div>
-                      <h4 className={`text-xl font-black ${session.active ? 'text-teal-600' : 'text-stone-800'}`}>{session.subject}</h4>
-                      <div className="flex items-center gap-4 mt-1">
-                        <span className="text-xs font-bold text-stone-400 flex items-center gap-1"><Clock size={12} /> {session.time}</span>
-                        <span className="text-xs font-bold text-stone-400 flex items-center gap-1"><Zap size={12} /> {session.teacher}</span>
+            {(() => {
+              const daysOfWeekEN = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+              const todayDayEN = daysOfWeekEN[new Date().getDay()];
+              const todaySchedules = studentSchedules.filter(s => s.day_of_week === todayDayEN)
+                .sort((a, b) => a.start_time.localeCompare(b.start_time));
+
+              if (todaySchedules.length === 0) {
+                return (
+                  <Card className="p-8 text-center bg-stone-50 border border-dashed border-stone-200 rounded-3xl">
+                    <Calendar className="h-8 w-8 text-stone-300 mx-auto mb-2" />
+                    <p className="text-stone-400 text-xs font-bold">{isRTL ? "لا توجد حصص دراسية مجدولة لليوم." : "No classes scheduled for today."}</p>
+                  </Card>
+                );
+              }
+
+              return todaySchedules.map((session, i) => {
+                const now = new Date();
+                const currentMins = now.getHours() * 60 + now.getMinutes();
+                const [sh, sm] = session.start_time.split(":").map(Number);
+                const [eh, em] = session.end_time.split(":").map(Number);
+                const startMins = sh * 60 + sm;
+                const endMins = eh * 60 + em;
+                const isActive = currentMins >= startMins && currentMins <= endMins;
+
+                return (
+                  <motion.div
+                    key={session.id || i}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 * i }}
+                    className="group"
+                  >
+                    <Card className={`p-6 border-none shadow-sm hover:shadow-xl transition-all duration-500 rounded-[32px] flex items-center justify-between ${isActive ? 'ring-4 ring-teal-500/10' : ''}`}>
+                      <div className="flex items-center gap-6">
+                        <div className={`h-14 w-14 rounded-2xl ${isActive ? 'bg-teal-50 text-teal-600 shadow-lg' : 'bg-stone-50 text-stone-450'} flex flex-col items-center justify-center`}>
+                          <Clock size={24} />
+                        </div>
+                        <div>
+                          <h4 className={`text-xl font-black ${isActive ? 'text-teal-600' : 'text-stone-800'}`}>{session.subject_name}</h4>
+                          <div className="flex items-center gap-4 mt-1">
+                            <span className="text-xs font-bold text-stone-400 flex items-center gap-1"><Clock size={12} /> <span className="num-en">{session.start_time} - {session.end_time}</span></span>
+                            <span className="text-xs font-bold text-stone-400 flex items-center gap-1"><GraduationCap size={12} /> {session.teacher_name}</span>
+                            {session.room && <span className="text-xs font-bold text-stone-400 flex items-center gap-1 font-serif"><MapPin size={12} /> {session.room}</span>}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                  
-                  {session.active ? (
-                    <button 
-                      onClick={() => window.location.href = `/virtual-classroom/grade10-math`}
-                      className={`${btnPrimary.split(' ').filter(c => !c.includes('shadow')).join(' ')} bg-teal-600 hover:bg-teal-700 text-white rounded-2xl px-6 h-12`}
-                    >
-                      <PlayCircle size={18} />
-                      {isRTL ? "انضم للحصة" : "Join Class"}
-                    </button>
-                  ) : (
-                    <div className="h-12 w-12 rounded-full border-2 border-stone-100 flex items-center justify-center text-stone-200 group-hover:border-stone-200 group-hover:text-stone-300 transition-colors">
-                      <ChevronLeft size={24} className={isRTL ? "" : "rotate-180"} />
-                    </div>
-                  )}
-                </Card>
-              </motion.div>
-            ))}
+                      
+                      {isActive ? (
+                        <button 
+                          onClick={() => window.location.href = `/virtual-classroom/${session.id || 'live'}`}
+                          className={`${btnPrimary.split(' ').filter(c => !c.includes('shadow')).join(' ')} bg-teal-600 hover:bg-teal-700 text-white rounded-2xl px-6 h-12`}
+                        >
+                          <PlayCircle size={18} />
+                          {isRTL ? "انضم للحصة" : "Join Class"}
+                        </button>
+                      ) : (
+                        <div className="h-12 w-12 rounded-full border-2 border-stone-100 flex items-center justify-center text-stone-200 group-hover:border-stone-200 group-hover:text-stone-300 transition-colors">
+                          <ChevronLeft size={24} className={isRTL ? "" : "rotate-180"} />
+                        </div>
+                      )}
+                    </Card>
+                  </motion.div>
+                );
+              });
+            })()}
           </div>
 
           {/* Quick Learning Path */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-12">
-            <Card className="p-8 border-none shadow-sm bg-gradient-to-br from-rose-500 to-rose-600 text-white rounded-[40px] relative overflow-hidden group cursor-pointer">
+            <Card 
+              onClick={() => window.location.href = "/student-portal?view=homework"}
+              className="p-8 border-none shadow-sm bg-gradient-to-br from-rose-500 to-rose-600 text-white rounded-[40px] relative overflow-hidden group cursor-pointer"
+            >
               <div className="relative z-10">
                 <FileText className="mb-4 text-rose-200" size={32} />
                 <h4 className="text-2xl font-serif font-bold mb-2">{isRTL ? "الواجبات المنزلية" : "Homework"}</h4>
-                <p className="text-rose-100/70 text-sm mb-6">{isRTL ? "لديك واجب واحد في مادة الرياضيات يستحق التسليم غداً." : "You have 1 math homework due tomorrow."}</p>
+                <p className="text-rose-100/70 text-sm mb-6">{isRTL ? "تصفح وحل الواجبات والاختبارات المنزلية المرسلة من المعلمين." : "Browse and solve learning assignments assigned by your teachers."}</p>
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-black uppercase tracking-widest text-rose-200">{isRTL ? "انقر للمتابعة" : "Click to continue"}</span>
                   <div className="h-10 w-10 rounded-full bg-white/20 flex items-center justify-center group-hover:scale-125 transition-transform">
@@ -495,8 +783,124 @@ export default function StudentPortal() {
           </Card>
         </aside>
       </div>
+            </>
+          )}
         </div>
       </main>
+
+      <Dialog open={showScheduleModal} onOpenChange={setShowScheduleModal}>
+        <DialogContent className="max-w-4xl rounded-[32px] p-6 max-h-[85vh] overflow-y-auto" dir={isRTL ? "rtl" : "ltr"}>
+          <DialogHeader className="">
+            <DialogTitle className="font-serif font-black text-xl text-stone-900 mb-4 flex items-center gap-2">
+              <Calendar className="text-primary h-5 w-5" />
+              {isRTL ? `الجدول الدراسي الأسبوعي - الصف ${student.grade || ""}` : `Weekly Academic Schedule - Grade ${student.grade || ""}`}
+            </DialogTitle>
+          </DialogHeader>
+          <VisualSchedule classes={studentSchedules} tasks={studentTasks} />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showFormModal} onOpenChange={setShowFormModal}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto rounded-[32px] p-6 text-right" dir={isRTL ? "rtl" : "ltr"}>
+          {selectedAsm && (
+            <div className="space-y-6">
+              <DialogHeader className="border-b border-stone-100 pb-4">
+                <div className="flex items-center gap-3 justify-start">
+                  <div className="h-10 w-10 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center">
+                    <BookOpen size={20} />
+                  </div>
+                  <div>
+                    <DialogTitle className="font-serif font-black text-xl text-stone-900">
+                      {selectedAsm.title}
+                    </DialogTitle>
+                    <p className="text-xs text-stone-400 mt-1">
+                      {isRTL ? `المادة: ${selectedAsm.subject} · الدرجات: ${selectedAsm.points}` : `Subject: ${selectedAsm.subject} · Points: ${selectedAsm.points}`}
+                    </p>
+                  </div>
+                </div>
+              </DialogHeader>
+
+              <div className="space-y-6 mt-4">
+                {selectedAsm.questions.map((q, idx) => (
+                  <Card key={q.id} className="p-6 bg-stone-50/50 border-none rounded-2xl space-y-3">
+                    <Label className="font-bold text-stone-850 text-sm flex gap-1.5 justify-start">
+                      <span>{idx + 1}.</span>
+                      <span>{q.text}</span>
+                      <span className="text-[10px] font-bold text-teal-600">({q.points} {isRTL ? "نقاط" : "pts"})</span>
+                    </Label>
+
+                    {/* MCQ Option */}
+                    {q.type === "mcq" && (
+                      <div className="grid grid-cols-1 gap-2 pt-2">
+                        {q.options.map((opt, oIdx) => (
+                          <label key={oIdx} className="flex items-center gap-3 cursor-pointer p-2 hover:bg-white rounded-lg transition-colors border border-transparent hover:border-stone-100">
+                            <input 
+                              type="radio" 
+                              name={q.id}
+                              value={opt}
+                              checked={answers[q.id] === opt}
+                              onChange={e => setAnswers(prev => ({ ...prev, [q.id]: e.target.value }))}
+                              className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-stone-300"
+                            />
+                            <span className="text-xs font-semibold text-stone-700">{opt}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Checkbox Option */}
+                    {q.type === "checkbox" && (
+                      <div className="grid grid-cols-1 gap-2 pt-2">
+                        {q.options.map((opt, oIdx) => (
+                          <label key={oIdx} className="flex items-center gap-3 cursor-pointer p-2 hover:bg-white rounded-lg transition-colors border border-transparent hover:border-stone-100">
+                            <input 
+                              type="checkbox"
+                              checked={(answers[q.id] || []).includes(opt)}
+                              onChange={e => handleCheckboxChange(q.id, opt, e.target.checked)}
+                              className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-stone-300 rounded"
+                            />
+                            <span className="text-xs font-semibold text-stone-700">{opt}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Short Answer */}
+                    {q.type === "short" && (
+                      <Input 
+                        value={answers[q.id] || ""}
+                        onChange={e => setAnswers(prev => ({ ...prev, [q.id]: e.target.value }))}
+                        className="h-10 rounded-xl border-stone-250 font-semibold focus-visible:ring-teal-200 bg-white"
+                        placeholder={isRTL ? "اكتب إجابتك القصيرة هنا..." : "Enter your short answer here..."}
+                      />
+                    )}
+
+                    {/* Paragraph */}
+                    {q.type === "paragraph" && (
+                      <Textarea 
+                        value={answers[q.id] || ""}
+                        onChange={e => setAnswers(prev => ({ ...prev, [q.id]: e.target.value }))}
+                        rows={3}
+                        className="rounded-xl border-stone-250 font-semibold focus-visible:ring-teal-200 bg-white"
+                        placeholder={isRTL ? "اكتب إجابتك بالتفصيل هنا..." : "Write your essay answer in detail here..."}
+                      />
+                    )}
+                  </Card>
+                ))}
+              </div>
+
+              <button 
+                onClick={handleSubmitAnswers}
+                disabled={isSubmitting}
+                className="w-full inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-sm font-semibold transition-all bg-teal-600 text-white hover:bg-teal-700 h-12 cursor-pointer shadow-lg shadow-teal-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <CheckCircle2 size={16} />
+                <span>{isRTL ? "إرسال وتسليم الواجب" : "Submit Assignment"}</span>
+              </button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

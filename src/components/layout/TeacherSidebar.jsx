@@ -30,17 +30,17 @@ export default function TeacherSidebar() {
       label: isRTL ? "الرئيسية" : "Overview",
       items: [
         { label: isRTL ? "لوحة التحكم" : "Dashboard", path: "/teacher-portal", icon: LayoutDashboard },
-        { label: isRTL ? "الجدول الأسبوعي" : "Schedule", path: "#", icon: Calendar }
+        { label: isRTL ? "الجدول الأسبوعي" : "Schedule", path: "/teacher-portal?view=schedule", icon: Calendar }
       ]
     },
     {
       label: isRTL ? "الأكاديميات" : "Academics",
       items: [
-        { label: isRTL ? "فصولي" : "My Classes", path: "#", icon: BookOpen },
+        { label: isRTL ? "فصولي" : "My Classes", path: "/teacher-portal?tab=classes", icon: BookOpen },
         { label: isRTL ? "الفصول الافتراضية" : "Virtual Classroom", path: "/virtual-classroom/demo", icon: Video },
-        { label: isRTL ? "طلابي" : "My Students", path: "#", icon: Users },
-        { label: isRTL ? "الحضور" : "Attendance", path: "#", icon: ClipboardCheck },
-        { label: isRTL ? "الواجبات والتصحيح" : "Assignments & Grading", path: "#", icon: FileText }
+        { label: isRTL ? "طلابي" : "My Students", path: "/teacher-portal?tab=students", icon: Users },
+        { label: isRTL ? "الحضور" : "Attendance", path: "/teacher-portal?tab=classes", icon: ClipboardCheck },
+        { label: isRTL ? "الواجبات والتصحيح" : "Assignments & Grading", path: "/teacher-portal?tab=grading", icon: FileText }
       ]
     },
     {

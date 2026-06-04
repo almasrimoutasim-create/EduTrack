@@ -30,14 +30,14 @@ export default function StudentSidebar() {
       label: isRTL ? "الرئيسية" : "Overview",
       items: [
         { label: isRTL ? "لوحة التحكم" : "Dashboard", path: "/student-portal", icon: LayoutDashboard },
-        { label: isRTL ? "الجدول الدراسي" : "Schedule", path: "#", icon: Calendar },
+        { label: isRTL ? "الجدول الدراسي" : "Schedule", path: "/student-portal?view=schedule", icon: Calendar },
         { label: isRTL ? "متجر المدرسة" : "School Store", path: "/store", icon: ShoppingBag }
       ]
     },
     {
       label: isRTL ? "الدراسة" : "Study",
       items: [
-        { label: isRTL ? "الواجبات" : "Homework", path: "#", icon: FileText },
+        { label: isRTL ? "الواجبات" : "Homework", path: "/student-portal?view=homework", icon: FileText },
         { label: isRTL ? "المواد الدراسية" : "Materials", path: "#", icon: BookOpen },
         { label: isRTL ? "الفصل الافتراضي" : "Virtual Classroom", path: "/virtual-classroom/demo", icon: Video },
         { label: isRTL ? "الدرجات" : "Grades", path: "#", icon: Star },

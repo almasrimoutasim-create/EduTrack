@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { 
@@ -27,6 +28,10 @@ import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useAuth } from "@/lib/AuthContext";
 import TeacherSidebar from "@/components/layout/TeacherSidebar";
+import VisualSchedule from "@/components/schedule/VisualSchedule";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import PageHeader from "@/components/shared/PageHeader";
+import AssignmentsGradingTab from "@/components/teacher/AssignmentsGradingTab";
 
 const btnOutline = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-sm font-semibold transition-all border-2 border-stone-300 bg-white text-stone-800 hover:bg-stone-50 hover:border-stone-400 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
 const btnPrimary = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-sm font-semibold transition-all bg-stone-900 text-white hover:bg-black cursor-pointer shadow-lg shadow-stone-200 disabled:opacity-50 disabled:cursor-not-allowed";
@@ -35,7 +40,18 @@ export default function TeacherPortal() {
   const { language } = useLanguage();
   const isRTL = language === "ar";
   const { logout } = useAuth();
-  const [activeTab, setActiveTab] = useState("classes");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") || "classes";
+  const view = searchParams.get("view");
+  const setActiveTab = (tab) => {
+    setSearchParams(prev => {
+      prev.set("tab", tab);
+      return prev;
+    });
+  };
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+
+  const teacherId = localStorage.getItem("portal_user_id") || "T-202";
 
   const handleLogout = () => {
     localStorage.removeItem("portal_role");
@@ -46,8 +62,18 @@ export default function TeacherPortal() {
   };
 
   const { data: classes = [] } = useQuery({ 
-    queryKey: ["teacher-classes"], 
-    queryFn: () => base44.entities.Subject.filter({ teacher_id: "T-202" }) 
+    queryKey: ["teacher-classes", teacherId], 
+    queryFn: () => base44.entities.Subject.filter({ teacher_id: teacherId }) 
+  });
+
+  const { data: teacherSchedules = [] } = useQuery({
+    queryKey: ["teacher-schedules", teacherId],
+    queryFn: () => base44.entities.ClassSchedule.filter({ teacher_id: teacherId })
+  });
+
+  const { data: teacherTasks = [] } = useQuery({
+    queryKey: ["teacher-tasks", teacherId],
+    queryFn: () => base44.entities.TeacherTask.filter({ teacher_id: teacherId })
   });
 
   const containerVariants = {
@@ -60,7 +86,23 @@ export default function TeacherPortal() {
       <TeacherSidebar />
       <main className={`transition-all duration-300 min-h-screen pt-16 lg:pt-0 ${isRTL ? "lg:mr-64" : "lg:ml-64"}`}>
         <div className="p-6 md:p-10 lg:p-12 max-w-7xl mx-auto space-y-10 pb-24">
-          <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+          {view === "schedule" ? (
+            <div className="space-y-6">
+              <PageHeader 
+                title={isRTL ? "الجدول الدراسي الأسبوعي للمعلم" : "Teacher's Weekly Schedule"} 
+                subtitle={isRTL ? "عرض وتتبع جدول الحصص الأسبوعي الخاص بك" : "View and track your weekly teaching schedule"}
+              >
+                <button onClick={() => window.location.href = "/teacher-portal"} className={`${btnOutline} h-11 px-5 rounded-xl`}>
+                  {isRTL ? "العودة للوحة التحكم" : "Back to Dashboard"}
+                </button>
+              </PageHeader>
+              <Card className="p-6 md:p-8 bg-white border-none shadow-sm rounded-[32px]">
+                <VisualSchedule classes={teacherSchedules} tasks={teacherTasks} />
+              </Card>
+            </div>
+          ) : (
+            <>
+              <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
           <div className="flex items-center gap-3 mb-2">
             <h1 className="text-4xl font-serif font-black text-stone-900">{isRTL ? "بوابة المعلم" : "Teacher Portal"}</h1>
@@ -72,7 +114,7 @@ export default function TeacherPortal() {
         </div>
         
         <div className="flex gap-3">
-          <button className={`${btnOutline} rounded-full h-12 px-6`}>
+          <button onClick={() => setShowScheduleModal(true)} className={`${btnOutline} rounded-full h-12 px-6`}>
             <Calendar size={18} />
             {isRTL ? "الجدول الأسبوعي" : "Weekly Schedule"}
           </button>
@@ -92,7 +134,7 @@ export default function TeacherPortal() {
         
         {/* Main Content Area */}
         <section className="lg:col-span-8 space-y-10">
-          <Tabs defaultValue="classes" className="w-full" onValueChange={setActiveTab}>
+          <Tabs value={activeTab} className="w-full" onValueChange={setActiveTab}>
             <TabsList className="bg-transparent h-14 p-1 gap-2 mb-8 flex justify-start">
               {[
                 { value: "classes", label: isRTL ? "فصولي" : "My Classes", icon: LayoutGrid },
@@ -179,6 +221,10 @@ export default function TeacherPortal() {
                 </Card>
               </div>
             </TabsContent>
+            
+            <TabsContent value="grading" className="m-0 space-y-6">
+              <AssignmentsGradingTab isRTL={isRTL} subjects={classes} />
+            </TabsContent>
           </Tabs>
 
           {/* Quick Stats Grid */}
@@ -263,8 +309,23 @@ export default function TeacherPortal() {
           </Card>
         </aside>
       </div>
+            </>
+          )}
         </div>
       </main>
+
+      <Dialog open={showScheduleModal} onOpenChange={setShowScheduleModal}>
+        <DialogContent className="max-w-4xl rounded-[32px] p-6 max-h-[85vh] overflow-y-auto" dir={isRTL ? "rtl" : "ltr"}>
+          <DialogHeader className="">
+            <DialogTitle className="font-serif font-black text-xl text-stone-900 mb-4 flex items-center gap-2">
+              <Calendar className="text-primary h-5 w-5" />
+              {isRTL ? "الجدول الدراسي الأسبوعي للمعلم" : "Teacher's Weekly Schedule"}
+            </DialogTitle>
+          </DialogHeader>
+          <VisualSchedule classes={teacherSchedules} tasks={teacherTasks} />
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }
