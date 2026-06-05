@@ -18,7 +18,10 @@ import {
   FileText,
   Star,
   LogOut,
-  Video
+  Video,
+  Megaphone,
+  Bell,
+  Search
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useLanguage } from "@/lib/LanguageContext";
@@ -32,6 +35,10 @@ import VisualSchedule from "@/components/schedule/VisualSchedule";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import PageHeader from "@/components/shared/PageHeader";
 import AssignmentsGradingTab from "@/components/teacher/AssignmentsGradingTab";
+import ParentTeacherChat from "@/components/portal/ParentTeacherChat";
+import { Input } from "@/components/ui/input";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import AdminStudentProfile from "@/components/students/AdminStudentProfile";
 
 const btnOutline = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-sm font-semibold transition-all border-2 border-stone-300 bg-white text-stone-800 hover:bg-stone-50 hover:border-stone-400 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
 const btnPrimary = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-sm font-semibold transition-all bg-stone-900 text-white hover:bg-black cursor-pointer shadow-lg shadow-stone-200 disabled:opacity-50 disabled:cursor-not-allowed";
@@ -50,8 +57,13 @@ export default function TeacherPortal() {
     });
   };
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [studentSearch, setStudentSearch] = useState("");
+  const [selectedStudentForProfile, setSelectedStudentForProfile] = useState(null);
+  const selectedClassId = searchParams.get("classId") || "all";
 
   const teacherId = localStorage.getItem("portal_user_id") || "T-202";
+  const portalUserStr = localStorage.getItem("portal_user");
+  const portalUser = portalUserStr ? JSON.parse(portalUserStr) : null;
 
   const handleLogout = () => {
     localStorage.removeItem("portal_role");
@@ -61,9 +73,14 @@ export default function TeacherPortal() {
     window.location.href = "/";
   };
 
-  const { data: classes = [] } = useQuery({ 
+  const { data: classesQuery = [] } = useQuery({ 
     queryKey: ["teacher-classes", teacherId], 
     queryFn: () => base44.entities.Subject.filter({ teacher_id: teacherId }) 
+  });
+
+  const { data: students = [], isLoading: isLoadingStudents } = useQuery({ 
+    queryKey: ["teacher-students"], 
+    queryFn: () => base44.entities.Student.list() 
   });
 
   const { data: teacherSchedules = [] } = useQuery({
@@ -75,6 +92,99 @@ export default function TeacherPortal() {
     queryKey: ["teacher-tasks", teacherId],
     queryFn: () => base44.entities.TeacherTask.filter({ teacher_id: teacherId })
   });
+
+  const classes = React.useMemo(() => {
+    const map = new Map();
+    
+    // 1. Group schedules by subject_name + grade + section to get unique classes taught by teacher
+    teacherSchedules.forEach(sched => {
+      if (!sched.subject_name || !sched.grade || !sched.section) return;
+      const key = `${sched.subject_name}-${sched.grade}-${sched.section}`;
+      if (!map.has(key)) {
+        map.set(key, {
+          id: sched.id, // unique identifier for the class tab filtering
+          name: sched.subject_name,
+          grade: sched.grade,
+          grade_level: sched.grade,
+          section: sched.section
+        });
+      }
+    });
+
+    // 2. Fallback to subjects if no schedules are configured yet
+    if (map.size === 0 && classesQuery && classesQuery.length > 0) {
+      classesQuery.forEach(subj => {
+        const key = `${subj.name}-${subj.grade}`;
+        if (!map.has(key)) {
+          map.set(key, {
+            id: subj.id,
+            name: subj.name,
+            grade: subj.grade,
+            grade_level: subj.grade,
+            section: "A" // default fallback section
+          });
+        }
+      });
+    }
+
+    return Array.from(map.values());
+  }, [teacherSchedules, classesQuery]);
+
+  const filteredTeacherStudents = React.useMemo(() => {
+    if (!students || !classes) return [];
+    
+    // First, filter by teacher's classes to get "All My Students"
+    const myStudents = students.filter(student => {
+      return classes.some(cls => {
+        const studentGrade = student.grade?.toString();
+        const clsGrade = cls.grade_level?.toString();
+        const studentSection = (student.section || '').toLowerCase();
+        const clsSection = (cls.section || '').toLowerCase();
+        return studentGrade === clsGrade && studentSection === clsSection;
+      });
+    });
+
+    // Second, if a specific class is selected, filter by that class's grade & section
+    let list = myStudents;
+    if (selectedClassId !== "all") {
+      const selectedClass = classes.find(c => c.id === selectedClassId);
+      if (selectedClass) {
+        list = myStudents.filter(student => {
+          const studentGrade = student.grade?.toString();
+          const clsGrade = selectedClass.grade_level?.toString();
+          const studentSection = (student.section || '').toLowerCase();
+          const clsSection = (selectedClass.section || '').toLowerCase();
+          return studentGrade === clsGrade && studentSection === clsSection;
+        });
+      }
+    }
+
+    // Third, apply search term
+    if (studentSearch.trim()) {
+      const query = studentSearch.toLowerCase().trim();
+      list = list.filter(student => {
+        return (
+          (student.full_name || student.name || "").toLowerCase().includes(query) ||
+          (student.student_id || "").toLowerCase().includes(query)
+        );
+      });
+    }
+
+    return list;
+  }, [students, classes, selectedClassId, studentSearch]);
+
+  const { data: officialAnnouncements = [] } = useQuery({
+    queryKey: ["official-announcements-teacher"],
+    queryFn: () => base44.entities.OfficialAnnouncement.list("-created_at")
+  });
+
+  const teacherAnnouncements = React.useMemo(() => {
+    return officialAnnouncements.filter(a => a.target_audience === "teachers" || a.target_audience === "all");
+  }, [officialAnnouncements]);
+
+  const activeHighPriorityAnnouncements = React.useMemo(() => {
+    return teacherAnnouncements.filter(a => a.priority === "high");
+  }, [teacherAnnouncements]);
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -99,6 +209,79 @@ export default function TeacherPortal() {
               <Card className="p-6 md:p-8 bg-white border-none shadow-sm rounded-[32px]">
                 <VisualSchedule classes={teacherSchedules} tasks={teacherTasks} />
               </Card>
+            </div>
+          ) : activeTab === "messages" ? (
+            <div className="space-y-6">
+              <PageHeader 
+                title={isRTL ? "علبة الرسائل والتواصل" : "Inbox & Communication"} 
+                subtitle={isRTL ? "تواصل مباشرة مع أولياء الأمور وشارك معهم الملاحظات والملفات." : "Communicate directly with parents, share updates and files."}
+              >
+                <button onClick={() => setActiveTab("classes")} className={`${btnOutline} h-11 px-5 rounded-xl`}>
+                  {isRTL ? "العودة للوحة التحكم" : "Back to Dashboard"}
+                </button>
+              </PageHeader>
+              <ParentTeacherChat me={{ ...portalUser, id: teacherId, role: "teacher", full_name: portalUser?.full_name || "المعلم" }} />
+            </div>
+          ) : activeTab === "notifications" ? (
+            <div className="space-y-6">
+              <PageHeader 
+                title={isRTL ? "التعاميم والقرارات الرسمية" : "Official Announcements"} 
+                subtitle={isRTL ? "جميع القرارات والتعاميم الموجهة لك من قبل الإدارة المدرسية." : "All decisions and announcements directed to you by school administration."}
+              >
+                <button onClick={() => setActiveTab("classes")} className={`${btnOutline} h-11 px-5 rounded-xl`}>
+                  {isRTL ? "العودة للوحة التحكم" : "Back to Dashboard"}
+                </button>
+              </PageHeader>
+              
+              <div className="space-y-4 max-w-4xl mx-auto pt-4">
+                {teacherAnnouncements.length === 0 ? (
+                  <Card className="p-16 text-center border-dashed border-2 border-stone-200 bg-stone-50/50 text-stone-400 rounded-[40px]">
+                    <Megaphone size={48} className="mb-4 opacity-20 mx-auto" />
+                    <p className="font-bold text-lg">{isRTL ? "لا توجد تعاميم منشورة حالياً" : "No official announcements published yet"}</p>
+                  </Card>
+                ) : (
+                  teacherAnnouncements.map(ann => {
+                    const isRead = JSON.parse(localStorage.getItem("read_announcements") || "[]").includes(ann.id);
+                    return (
+                      <Card key={ann.id} className="p-6 bg-white border-none shadow-sm rounded-[30px] relative overflow-hidden">
+                        {ann.priority === "high" && (
+                          <div className="absolute top-0 right-0 left-0 h-1.5 bg-rose-500" />
+                        )}
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="text-base font-bold text-stone-900">{ann.title}</h4>
+                            {ann.priority === "high" && (
+                              <Badge className="bg-rose-50 text-rose-600 border-none rounded-lg text-[9px] font-black px-2 py-0.5">
+                                {isRTL ? "هام جداً" : "Urgent"}
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-stone-600 text-sm whitespace-pre-line leading-relaxed">
+                            {ann.content}
+                          </p>
+                          <div className="flex justify-between items-center text-[10px] text-stone-400 font-bold uppercase tracking-wider pt-2">
+                            <span>{ann.created_at ? new Date(ann.created_at).toLocaleDateString(isRTL ? "ar-EG" : "en-US") : ""}</span>
+                            {!isRead && (
+                              <button
+                                onClick={() => {
+                                  const read = JSON.parse(localStorage.getItem("read_announcements") || "[]");
+                                  if (!read.includes(ann.id)) {
+                                    localStorage.setItem("read_announcements", JSON.stringify([...read, ann.id]));
+                                    window.location.reload();
+                                  }
+                                }}
+                                className="text-xs font-bold text-rose-500 hover:underline border-none bg-transparent cursor-pointer"
+                              >
+                                {isRTL ? "تحديد كمقروء" : "Mark as read"}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </Card>
+                    );
+                  })
+                )}
+              </div>
             </div>
           ) : (
             <>
@@ -128,6 +311,28 @@ export default function TeacherPortal() {
           </button>
         </div>
       </header>
+
+      {/* High Priority Announcements */}
+      {activeHighPriorityAnnouncements.length > 0 && (
+        <div className="space-y-3">
+          {activeHighPriorityAnnouncements.map(ann => (
+            <div 
+              key={ann.id} 
+              className="p-5 bg-gradient-to-r from-rose-500 to-rose-600 text-white rounded-[24px] shadow-xl relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-4"
+            >
+              <div className="flex items-start gap-4">
+                <div className="h-10 w-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/20 shrink-0">
+                  <AlertCircle size={20} className="text-yellow-300" />
+                </div>
+                <div>
+                  <h4 className="font-serif font-black tracking-tight text-base mb-0.5">{isRTL ? `قرار رسمي عاجل: ${ann.title}` : `Urgent Announcement: ${ann.title}`}</h4>
+                  <p className="text-rose-100 text-xs font-medium leading-relaxed max-w-4xl">{ann.content}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Main Teacher Dashboard Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
@@ -180,7 +385,9 @@ export default function TeacherPortal() {
                       <div className="grid grid-cols-2 gap-4 mb-8">
                         <div className="bg-stone-50 p-4 rounded-3xl text-center">
                           <p className="text-[10px] font-bold text-stone-400 uppercase mb-1">{isRTL ? "الطلاب" : "Students"}</p>
-                          <p className="text-xl font-black text-stone-900"> 24</p>
+                          <p className="text-xl font-black text-stone-900">
+                            {students.filter(s => s.grade?.toString() === cls.grade?.toString() && (s.section || '').toLowerCase() === (cls.section || '').toLowerCase()).length}
+                          </p>
                         </div>
                         <div className="bg-stone-50 p-4 rounded-3xl text-center">
                           <p className="text-[10px] font-bold text-stone-400 uppercase mb-1">{isRTL ? "الحضور" : "Attendance"}</p>
@@ -190,10 +397,28 @@ export default function TeacherPortal() {
 
                       <div className="flex flex-col gap-2 w-full">
                         <div className="flex gap-2">
-                          <button className={`flex-1 ${btnPrimary} rounded-2xl h-12`}>
+                          <button 
+                            onClick={() => {
+                              setSearchParams(prev => {
+                                prev.set("tab", "students");
+                                prev.set("classId", cls.id);
+                                return prev;
+                              });
+                            }}
+                            className={`flex-1 ${btnPrimary} rounded-2xl h-12`}
+                          >
                             {isRTL ? "إدارة الفصل" : "Manage Class"}
                           </button>
-                          <button className={`${btnOutline} h-12 w-12 rounded-2xl`}>
+                          <button 
+                            onClick={() => {
+                              setSearchParams(prev => {
+                                prev.set("tab", "students");
+                                prev.set("classId", cls.id);
+                                return prev;
+                              });
+                            }}
+                            className={`${btnOutline} h-12 w-12 rounded-2xl`}
+                          >
                             <ChevronRight size={20} className={isRTL ? "rotate-180" : ""} />
                           </button>
                         </div>
@@ -224,6 +449,134 @@ export default function TeacherPortal() {
             
             <TabsContent value="grading" className="m-0 space-y-6">
               <AssignmentsGradingTab isRTL={isRTL} subjects={classes} />
+            </TabsContent>
+
+            <TabsContent value="students" className="m-0 space-y-6">
+              <Card className="p-6 md:p-8 bg-white border-none shadow-sm rounded-[48px] space-y-6">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                  <div>
+                    <h3 className="text-2xl font-serif font-black text-stone-900">
+                      {isRTL ? "إدارة طلاب الفصل" : "Class Students Management"}
+                    </h3>
+                    <p className="text-stone-400 text-xs mt-1">
+                      {isRTL ? "عرض قائمة طلاب فصولك الدراسية ومتابعة حضورهم وبياناتهم." : "View your class student list and track their attendance and details."}
+                    </p>
+                  </div>
+                  
+                  <div className="flex flex-wrap gap-3 w-full md:w-auto">
+                    <div className="flex flex-col gap-1.5 min-w-[200px]">
+                      <select 
+                        value={selectedClassId}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setSearchParams(prev => {
+                            if (val === "all") prev.delete("classId");
+                            else prev.set("classId", val);
+                            return prev;
+                          });
+                        }}
+                        className="bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        dir={isRTL ? "rtl" : "ltr"}
+                      >
+                        <option value="all">{isRTL ? "جميع طلابي" : "All My Students"}</option>
+                        {classes.map(c => (
+                          <option key={c.id} value={c.id}>
+                            {c.name} - {isRTL ? "القسم" : "Section"} {c.section || 'A'} ({c.grade_level})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Search box */}
+                <div className="flex gap-4">
+                  <div className="relative flex-1">
+                    <Search className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 text-stone-400`} size={16} />
+                    <Input 
+                      placeholder={isRTL ? "البحث باسم الطالب أو الرقم التعريفي..." : "Search by student name or ID..."}
+                      value={studentSearch}
+                      onChange={(e) => setStudentSearch(e.target.value)}
+                      className={`${isRTL ? 'pr-10 pl-4' : 'pl-10 pr-4'} bg-stone-50/50 border-stone-200 rounded-xl h-11 text-xs`}
+                      dir={isRTL ? "rtl" : "ltr"}
+                    />
+                  </div>
+                </div>
+
+                {isLoadingStudents ? (
+                  <div className="w-full py-16 text-center text-stone-500">
+                    <div className="flex items-center justify-center gap-3">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-stone-900"></div>
+                      <span>{isRTL ? "جاري تحميل بيانات الطلاب..." : "Loading students..."}</span>
+                    </div>
+                  </div>
+                ) : filteredTeacherStudents.length === 0 ? (
+                  <div className="py-12 text-center text-stone-400 border border-dashed border-stone-100 rounded-3xl">
+                    <Users size={40} className="opacity-20 mx-auto mb-2" />
+                    <p className="font-bold text-base">{isRTL ? "لا يوجد طلاب مسجلين في هذا الفصل" : "No students found in this class"}</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto rounded-3xl border border-stone-100">
+                    <Table>
+                      <TableHeader className="bg-stone-50/50">
+                        <TableRow>
+                          <TableHead className="w-[60px] text-center">#</TableHead>
+                          <TableHead>{isRTL ? "الطالب" : "Student"}</TableHead>
+                          <TableHead>{isRTL ? "الرقم المدرسي" : "Student ID"}</TableHead>
+                          <TableHead>{isRTL ? "الصف والفصل" : "Grade & Section"}</TableHead>
+                          <TableHead>{isRTL ? "التواصل" : "Contact"}</TableHead>
+                          <TableHead>{isRTL ? "الحالة" : "Status"}</TableHead>
+                          <TableHead className="text-center">{isRTL ? "الإجراءات" : "Actions"}</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredTeacherStudents.map((student, idx) => (
+                          <TableRow key={student.id} className="hover:bg-stone-50/30 transition-colors">
+                            <TableCell className="text-center text-stone-400 font-mono text-xs">{idx + 1}</TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-3">
+                                {student.photo_url ? (
+                                  <div className="h-9 w-9 rounded-xl overflow-hidden border border-stone-200 shadow-sm shrink-0">
+                                    <img src={student.photo_url} alt="" className="h-full w-full object-cover" />
+                                  </div>
+                                ) : (
+                                  <div className="h-9 w-9 rounded-xl bg-stone-100 flex items-center justify-center text-stone-400 font-bold shrink-0">
+                                    {(student.full_name || student.name)?.[0]}
+                                  </div>
+                                )}
+                                <span className="font-bold text-stone-800 text-xs">{student.full_name || student.name}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="font-mono text-stone-550 text-xs">#{student.student_id}</TableCell>
+                            <TableCell className="text-xs font-semibold text-stone-600">
+                              {isRTL ? "الصف" : "Grade"} {student.grade} - {student.section || "A"}
+                            </TableCell>
+                            <TableCell>
+                              <div className="space-y-0.5 text-[10px] text-stone-400 font-medium">
+                                <p className="num-en">{student.user_email || "-"}</p>
+                                <p className="num-en">{student.parent_phone || "-"}</p>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge className={`${student.status === 'active' ? 'bg-emerald-50 text-emerald-600' : 'bg-stone-100 text-stone-400'} border-none text-[10px] rounded-lg font-bold`}>
+                                {isRTL ? (student.status === 'active' ? 'نشط' : 'غير نشط') : (student.status === 'active' ? 'Active' : 'Inactive')}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <button
+                                onClick={() => setSelectedStudentForProfile(student)}
+                                className={`${btnOutline} h-8 px-3 text-[10px] rounded-xl`}
+                              >
+                                {isRTL ? "عرض الملف" : "View Profile"}
+                              </button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </Card>
             </TabsContent>
           </Tabs>
 
@@ -325,6 +678,20 @@ export default function TeacherPortal() {
           <VisualSchedule classes={teacherSchedules} tasks={teacherTasks} />
         </DialogContent>
       </Dialog>
+
+      {selectedStudentForProfile && (
+        <Dialog open={!!selectedStudentForProfile} onOpenChange={(open) => !open && setSelectedStudentForProfile(null)}>
+          <DialogContent className="max-w-6xl rounded-[32px] p-6 max-h-[90vh] overflow-y-auto" dir={isRTL ? "rtl" : "ltr"}>
+            <div className="relative">
+              <AdminStudentProfile
+                student={selectedStudentForProfile}
+                onClose={() => setSelectedStudentForProfile(null)}
+                onEdit={null}
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
     </div>
   );

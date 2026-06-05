@@ -32,7 +32,7 @@ export default function Schedules() {
   const isRTL = language === "ar";
   const qc = useQueryClient();
 
-  const [selectedGrade, setSelectedGrade] = useState("10");
+  const [selectedGrade, setSelectedGrade] = useState("1");
   const [dialogOpen, setDialogOpen] = useState(false);
 
   // Form states
@@ -154,7 +154,7 @@ export default function Schedules() {
       {/* Grade Selector */}
       <div className="flex items-center gap-3 overflow-x-auto pb-2">
         <span className="text-sm font-bold text-stone-500 whitespace-nowrap">{isRTL ? "تصفية حسب الصف:" : "Filter Grade:"}</span>
-        {["9", "10", "11", "12"].map(grade => (
+        {["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"].map(grade => (
           <button
             key={grade}
             onClick={() => setSelectedGrade(grade)}

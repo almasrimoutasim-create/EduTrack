@@ -2,6 +2,9 @@ import { Outlet } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import StudentSidebar from "./StudentSidebar";
 import ParentSidebar from "./ParentSidebar";
+import TeacherSidebar from "./TeacherSidebar";
+import BusSupervisorSidebar from "./BusSupervisorSidebar";
+import StaffSidebar from "./StaffSidebar";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useAuth } from "@/lib/AuthContext";
 import { cn } from "@/lib/utils";
@@ -21,6 +24,12 @@ export default function AppLayout() {
         <StudentSidebar />
       ) : portalRole === "parent" ? (
         <ParentSidebar />
+      ) : portalRole === "teacher" ? (
+        <TeacherSidebar />
+      ) : portalRole === "bus" ? (
+        <BusSupervisorSidebar />
+      ) : portalRole === "staff" ? (
+        <StaffSidebar />
       ) : (
         <Sidebar />
       )}

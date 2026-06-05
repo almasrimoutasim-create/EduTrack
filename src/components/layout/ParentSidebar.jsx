@@ -1,10 +1,12 @@
 import { Link, useLocation } from "react-router-dom";
 import {
-  LayoutDashboard, Users, ClipboardCheck, Calendar, CreditCard, MessageCircle, LogOut, Menu, X, ShoppingBag, Wallet
+  LayoutDashboard, Users, ClipboardCheck, Calendar, CreditCard, MessageCircle, LogOut, Menu, X, ShoppingBag, Wallet, Bell
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
+import { base44 } from "@/api/base44Client";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useAuth } from "@/lib/AuthContext";
@@ -15,6 +17,51 @@ export default function ParentSidebar() {
   const { language } = useLanguage();
   const isRTL = language === "ar";
   const { logout } = useAuth();
+
+  const portalUserStr = localStorage.getItem("portal_user");
+  const portalUser = portalUserStr ? JSON.parse(portalUserStr) : null;
+  const parentId = portalUser?.id || localStorage.getItem("portal_user_id") || "";
+
+  const { data: allMessages = [] } = useQuery({
+    queryKey: ["private-messages-sidebar-parent", parentId],
+    queryFn: () => base44.entities.PrivateMessage.list(),
+    refetchInterval: 5000,
+    enabled: !!parentId
+  });
+
+  const unreadCount = allMessages.filter(m => m.receiver_id === parentId && !m.is_read).length;
+
+  const parentEmail = portalUser?.email || "";
+
+  const { data: officialAnnouncements = [] } = useQuery({
+    queryKey: ["official-announcements-sidebar"],
+    queryFn: () => base44.entities.OfficialAnnouncement.list("-created_at")
+  });
+  
+  const parentAnnouncements = officialAnnouncements.filter(
+    a => a.target_audience === "parents" || a.target_audience === "all"
+  );
+  
+  const readAnnouncements = useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem("read_announcements") || "[]");
+    } catch {
+      return [];
+    }
+  }, [officialAnnouncements]);
+  
+  const unreadAnnouncementsCount = parentAnnouncements.filter(
+    a => !readAnnouncements.includes(a.id)
+  ).length;
+
+  const { data: portalNotifications = [] } = useQuery({
+    queryKey: ["portal-notifications-sidebar", parentEmail],
+    queryFn: () => base44.entities.PortalNotification.list("-created_at", { user_id: parentEmail }),
+    enabled: !!parentEmail
+  });
+
+  const unreadPortalNotificationsCount = portalNotifications.filter(n => !n.is_read).length;
+  const unreadNotificationsCount = unreadAnnouncementsCount + unreadPortalNotificationsCount;
 
   const handleLogout = () => {
     localStorage.removeItem("portal_role");
@@ -50,8 +97,8 @@ export default function ParentSidebar() {
     {
       label: isRTL ? "التواصل" : "Communication",
       items: [
-        { label: isRTL ? "رسائل المعلمين" : "Teacher Messages", path: "#", icon: MessageCircle },
-        { label: isRTL ? "الإشعارات" : "Notifications", path: "#", icon: MessageCircle }
+        { label: isRTL ? "رسائل المعلمين" : "Teacher Messages", path: "/parent-portal?tab=messages", icon: MessageCircle },
+        { label: isRTL ? "الإشعارات" : "Notifications", path: "/parent-portal?tab=notifications", icon: Bell }
       ]
     }
   ];
@@ -116,7 +163,17 @@ export default function ParentSidebar() {
                       )}
                     >
                       <item.icon className={cn("h-5 w-5 shrink-0 transition-transform group-hover:scale-110", isActive ? "text-white" : "text-stone-400 group-hover:text-rose-600")} />
-                      {item.label}
+                      <span className="flex-1">{item.label}</span>
+                      {item.label === (isRTL ? "رسائل المعلمين" : "Teacher Messages") && unreadCount > 0 && (
+                        <span className="bg-rose-500 text-white text-[10px] font-black h-5 px-1.5 rounded-full flex items-center justify-center shrink-0">
+                          {unreadCount}
+                        </span>
+                      )}
+                      {item.label === (isRTL ? "الإشعارات" : "Notifications") && unreadNotificationsCount > 0 && (
+                        <span className="bg-rose-500 text-white text-[10px] font-black h-5 px-1.5 rounded-full flex items-center justify-center shrink-0">
+                          {unreadNotificationsCount}
+                        </span>
+                      )}
                       {isActive && (
                         <motion.div 
                           layoutId="activeTabParent"

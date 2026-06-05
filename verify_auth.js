@@ -26,7 +26,7 @@ async function runVerification() {
     console.log("🔍 [1/4] Checking database schema columns...");
     
     // Check students
-    const studentCols = await sql("SELECT column_name FROM information_schema.columns WHERE table_name = 'students'");
+    const studentCols = await sql`SELECT column_name FROM information_schema.columns WHERE table_name = 'students'`;
     const studentColNames = studentCols.map(c => c.column_name);
     console.log("   - students table columns:", studentColNames.filter(name => name.includes('password') || name.includes('email')));
     
@@ -35,7 +35,7 @@ async function runVerification() {
     }
 
     // Check teachers
-    const teacherCols = await sql("SELECT column_name FROM information_schema.columns WHERE table_name = 'teachers'");
+    const teacherCols = await sql`SELECT column_name FROM information_schema.columns WHERE table_name = 'teachers'`;
     const teacherColNames = teacherCols.map(c => c.column_name);
     console.log("   - teachers table columns:", teacherColNames.filter(name => name.includes('password') || name.includes('email')));
     
@@ -44,7 +44,7 @@ async function runVerification() {
     }
 
     // Check supervisors
-    const supervisorCols = await sql("SELECT column_name FROM information_schema.columns WHERE table_name = 'supervisors'");
+    const supervisorCols = await sql`SELECT column_name FROM information_schema.columns WHERE table_name = 'supervisors'`;
     const supervisorColNames = supervisorCols.map(c => c.column_name);
     console.log("   - supervisors table columns:", supervisorColNames.filter(name => name.includes('password') || name.includes('email')));
     
@@ -70,7 +70,7 @@ async function runVerification() {
 
     // Insert clean test users
     console.log("   - Creating temporary test Student with secure hashed passwords...");
-    const [testStudent] = await sql(`
+    const [testStudent] = await sql.query(`
       INSERT INTO students (
         full_name, student_id, user_email, portal_password, 
         parent_name, parent_email, parent_password, grade, status
@@ -81,7 +81,7 @@ async function runVerification() {
     `, [hashedStudentPass, hashedParentPass]);
 
     console.log("   - Creating temporary test Teacher with secure hashed password...");
-    const [testTeacher] = await sql(`
+    const [testTeacher] = await sql.query(`
       INSERT INTO teachers (
         full_name, employee_id, email, portal_password, status
       ) VALUES (
@@ -95,7 +95,7 @@ async function runVerification() {
     console.log("🔐 [3/4] Simulating auth validation...");
 
     // Case A: Student Login Success
-    const studentQuery = await sql(
+    const studentQuery = await sql.query(
       "SELECT * FROM students WHERE (user_email = $1 OR student_id = $1) AND status = 'active'",
       ['test-student@edutrack.com']
     );
@@ -109,7 +109,7 @@ async function runVerification() {
     }
 
     // Case B: Parent Login Success
-    const parentQuery = await sql(
+    const parentQuery = await sql.query(
       "SELECT * FROM students WHERE parent_email = $1 AND status = 'active'",
       ['test-parent@edutrack.com']
     );
@@ -123,7 +123,7 @@ async function runVerification() {
     }
 
     // Case C: Teacher Login Success
-    const teacherQuery = await sql(
+    const teacherQuery = await sql.query(
       "SELECT * FROM teachers WHERE (email = $1 OR employee_id = $1) AND status = 'active'",
       ['test-teacher@edutrack.com']
     );
@@ -145,8 +145,8 @@ async function runVerification() {
 
     // 4. Database Cleanup
     console.log("\n🧹 [4/4] Cleaning up E2E temporary test entries...");
-    await sql("DELETE FROM students WHERE student_id = 'STU-TEST-999'");
-    await sql("DELETE FROM teachers WHERE employee_id = 'TCH-TEST-999'");
+    await sql`DELETE FROM students WHERE student_id = 'STU-TEST-999'`;
+    await sql`DELETE FROM teachers WHERE employee_id = 'TCH-TEST-999'`;
     console.log("✅ Cleanup complete. Database is pristine.\n");
 
     console.log("====================================================");

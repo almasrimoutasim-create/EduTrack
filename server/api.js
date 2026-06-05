@@ -94,6 +94,24 @@ if (process.env.DATABASE_URL) {
   }).catch(err => {
     console.error('[neon] failed to verify/create room_messages table:', err.message);
   });
+
+  // Auto-create official_announcements table
+  sql`
+    CREATE TABLE IF NOT EXISTS official_announcements (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      title TEXT NOT NULL,
+      content TEXT NOT NULL,
+      priority TEXT DEFAULT 'normal',
+      target_audience TEXT NOT NULL,
+      created_by TEXT,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `.then(() => {
+    console.log('[neon] official_announcements table verified/created');
+  }).catch(err => {
+    console.error('[neon] failed to verify/create official_announcements table:', err.message);
+  });
 }
 
 // Map entity names to table names
@@ -141,6 +159,7 @@ const ENTITY_TABLE_MAP = {
   ParentLinkRequest: 'parent_link_requests',
   VirtualSession: 'virtual_sessions',
   SessionParticipant: 'session_participants',
+  OfficialAnnouncement: 'official_announcements',
 };
 
 async function createStripePaymentIntent(amount, currency) {
@@ -450,7 +469,11 @@ export function createApiHandler() {
             const filters = JSON.parse(filterStr);
             if (filters && typeof filters === 'object') {
               for (const [key, val] of Object.entries(filters)) {
-                const col = sanitizeColumn(key);
+                let actualKey = key;
+                if (table === 'portal_notifications' && key === 'recipient_id') {
+                  actualKey = 'user_id';
+                }
+                const col = sanitizeColumn(actualKey);
                 if (!col || val === null || val === undefined) continue;
 
                 if (typeof val === 'object' && val.$in) {
@@ -518,6 +541,11 @@ export function createApiHandler() {
           }
         }
 
+        if (table === 'portal_notifications' && body.recipient_id !== undefined) {
+          body.user_id = body.recipient_id;
+          delete body.recipient_id;
+        }
+
         const keys = Object.keys(body).filter(k => body[k] !== undefined && sanitizeColumn(k));
         if (keys.length === 0) {
           res.statusCode = 400;
@@ -549,6 +577,11 @@ export function createApiHandler() {
           } else {
             body.parent_password = hashPassword(body.parent_password);
           }
+        }
+
+        if (table === 'portal_notifications' && body.recipient_id !== undefined) {
+          body.user_id = body.recipient_id;
+          delete body.recipient_id;
         }
 
         const keys = Object.keys(body).filter(k =>

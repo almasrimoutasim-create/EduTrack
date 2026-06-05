@@ -56,12 +56,21 @@ export default function StudentForm({ student, onClose }) {
   });
 
   useEffect(() => {
-    setForm(student || {
-      full_name: "", student_id: "", user_email: student?.user_email || "", portal_password: "", parent_password: "", grade: "1", section: "A",
-      date_of_birth: "", parent_name: "", parent_phone: "", parent_email: "",
-      address: "", card_balance: 0, bus_registered: false, bus_route: "", status: "active", photo_url: "",
-      tuition_total: 0, tuition_paid: 0
-    });
+    if (student) {
+      setForm({
+        ...student,
+        date_of_birth: student.date_of_birth ? student.date_of_birth.substring(0, 10) : "",
+        portal_password: "",
+        parent_password: ""
+      });
+    } else {
+      setForm({
+        full_name: "", student_id: "", user_email: student?.user_email || "", portal_password: "", parent_password: "", grade: "1", section: "A",
+        date_of_birth: "", parent_name: "", parent_phone: "", parent_email: "",
+        address: "", card_balance: 0, bus_registered: false, bus_route: "", status: "active", photo_url: "",
+        tuition_total: 0, tuition_paid: 0
+      });
+    }
     setErrorMsg("");
   }, [student]);
 
@@ -110,10 +119,21 @@ export default function StudentForm({ student, onClose }) {
     setSaving(true);
     setErrorMsg("");
     try {
+      const payload = { ...form };
+      if (!payload.portal_password) {
+        delete payload.portal_password;
+      }
+      if (!payload.parent_password) {
+        delete payload.parent_password;
+      }
+      if (payload.date_of_birth === "") {
+        payload.date_of_birth = null;
+      }
+
       if (isEdit) {
-        await base44.entities.Student.update(student.id, form);
+        await base44.entities.Student.update(student.id, payload);
       } else {
-        await base44.entities.Student.create(form);
+        await base44.entities.Student.create(payload);
       }
       qc.invalidateQueries({ queryKey: ["students"] });
       qc.invalidateQueries({ queryKey: ["student-directory-list"] });

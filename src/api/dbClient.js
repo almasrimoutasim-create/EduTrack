@@ -132,7 +132,7 @@ const entityNames = [
   'PortalNotification', 'PrivateMessage', 'RoomMessage',
   'RoomVideo', 'BookReview', 'MessageReadReceipt',
   'TypingIndicator', 'Fine', 'ParentLinkRequest',
-  'VirtualSession', 'SessionParticipant',
+  'VirtualSession', 'SessionParticipant', 'OfficialAnnouncement',
 ];
 
 const entities = {};

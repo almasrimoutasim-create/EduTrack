@@ -1,11 +1,13 @@
 import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, BookOpen, ClipboardCheck,
-  FileText, Menu, X, Calendar, Star, Trophy, Rocket, LogOut, ShoppingBag, Video
+  FileText, Menu, X, Calendar, Star, Trophy, Rocket, LogOut, ShoppingBag, Video, Bell
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
+import { base44 } from "@/api/base44Client";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useAuth } from "@/lib/AuthContext";
@@ -16,6 +18,27 @@ export default function StudentSidebar() {
   const { language } = useLanguage();
   const isRTL = language === "ar";
   const { logout } = useAuth();
+
+  const { data: officialAnnouncements = [] } = useQuery({
+    queryKey: ["official-announcements-sidebar-student"],
+    queryFn: () => base44.entities.OfficialAnnouncement.list("-created_at")
+  });
+  
+  const studentAnnouncements = officialAnnouncements.filter(
+    a => a.target_audience === "students" || a.target_audience === "all"
+  );
+  
+  const readAnnouncements = useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem("read_announcements") || "[]");
+    } catch {
+      return [];
+    }
+  }, [officialAnnouncements]);
+  
+  const unreadAnnouncementsCount = studentAnnouncements.filter(
+    a => !readAnnouncements.includes(a.id)
+  ).length;
 
   const handleLogout = () => {
     localStorage.removeItem("portal_role");
@@ -31,6 +54,7 @@ export default function StudentSidebar() {
       items: [
         { label: isRTL ? "لوحة التحكم" : "Dashboard", path: "/student-portal", icon: LayoutDashboard },
         { label: isRTL ? "الجدول الدراسي" : "Schedule", path: "/student-portal?view=schedule", icon: Calendar },
+        { label: isRTL ? "الإشعارات" : "Notifications", path: "/student-portal?view=notifications", icon: Bell },
         { label: isRTL ? "متجر المدرسة" : "School Store", path: "/store", icon: ShoppingBag }
       ]
     },
@@ -111,7 +135,12 @@ export default function StudentSidebar() {
                       )}
                     >
                       <item.icon className={cn("h-5 w-5 shrink-0 transition-transform group-hover:scale-110", isActive ? "text-white" : "text-stone-400 group-hover:text-teal-600")} />
-                      {item.label}
+                      <span className="flex-1">{item.label}</span>
+                      {item.label === (isRTL ? "الإشعارات" : "Notifications") && unreadAnnouncementsCount > 0 && (
+                        <span className="bg-rose-500 text-white text-[10px] font-black h-5 px-1.5 rounded-full flex items-center justify-center shrink-0">
+                          {unreadAnnouncementsCount}
+                        </span>
+                      )}
                       {isActive && (
                         <motion.div 
                           layoutId="activeTabStudent"

@@ -20,10 +20,17 @@ export default function StaffMemberFormDialog({ open, onClose, member }) {
   });
 
   useEffect(() => {
-    setForm(member || {
-      full_name: "", employee_id: "", role: "bus_supervisor",
-      email: "", phone: "", portal_password: "", status: "active", notes: ""
-    });
+    if (member) {
+      setForm({
+        ...member,
+        portal_password: ""
+      });
+    } else {
+      setForm({
+        full_name: "", employee_id: "", role: "bus_supervisor",
+        email: "", phone: "", portal_password: "", status: "active", notes: ""
+      });
+    }
   }, [member]);
 
   const update = (key, val) => setForm(f => ({ ...f, [key]: val }));
@@ -32,10 +39,15 @@ export default function StaffMemberFormDialog({ open, onClose, member }) {
     if (!form.full_name || !form.employee_id || !form.role) return;
     setSaving(true);
     try {
+      const payload = { ...form };
+      if (!payload.portal_password) {
+        delete payload.portal_password;
+      }
+
       if (isEdit) {
-        await base44.entities.StaffMember.update(member.id, form);
+        await base44.entities.StaffMember.update(member.id, payload);
       } else {
-        await base44.entities.StaffMember.create(form);
+        await base44.entities.StaffMember.create(payload);
       }
       qc.invalidateQueries({ queryKey: ["staff-members"] });
       onClose();

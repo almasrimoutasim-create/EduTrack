@@ -40,6 +40,7 @@ import { Elements } from "@stripe/react-stripe-js";
 import StripePaymentForm from "@/components/portal/StripePaymentForm";
 import ParentFinesTab from "@/components/portal/ParentFinesTab";
 import FineTransactionHistory from "@/components/portal/FineTransactionHistory";
+import ParentTeacherChat from "@/components/portal/ParentTeacherChat";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -342,6 +343,67 @@ export default function ParentPortal() {
     queryFn: () => base44.entities.StudentAward.list("-created_at", { student_id: perfStudentId })
   });
 
+  const { data: officialAnnouncements = [] } = useQuery({
+    queryKey: ["official-announcements-parent"],
+    queryFn: () => base44.entities.OfficialAnnouncement.list("-created_at")
+  });
+
+  const parentAnnouncements = React.useMemo(() => {
+    return officialAnnouncements.filter(a => a.target_audience === "parents" || a.target_audience === "all");
+  }, [officialAnnouncements]);
+
+  const { data: portalNotifications = [] } = useQuery({
+    queryKey: ["portal-notifications-parent", parentEmail],
+    queryFn: () => base44.entities.PortalNotification.list("-created_at", { user_id: parentEmail }),
+    enabled: !!parentEmail
+  });
+
+  const [dismissedAnnouncements, setDismissedAnnouncements] = React.useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("dismissed_announcements") || "[]");
+    } catch {
+      return [];
+    }
+  });
+
+  const [readAnnouncements, setReadAnnouncements] = React.useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("read_announcements") || "[]");
+    } catch {
+      return [];
+    }
+  });
+
+  const handleDismissAnnouncement = (id) => {
+    const next = [...dismissedAnnouncements, id];
+    setDismissedAnnouncements(next);
+    localStorage.setItem("dismissed_announcements", JSON.stringify(next));
+
+    if (!readAnnouncements.includes(id)) {
+      const nextRead = [...readAnnouncements, id];
+      setReadAnnouncements(nextRead);
+      localStorage.setItem("read_announcements", JSON.stringify(nextRead));
+      qc.invalidateQueries({ queryKey: ["official-announcements-sidebar"] });
+    }
+  };
+
+  const handleMarkAnnouncementAsRead = (id) => {
+    if (!readAnnouncements.includes(id)) {
+      const nextRead = [...readAnnouncements, id];
+      setReadAnnouncements(nextRead);
+      localStorage.setItem("read_announcements", JSON.stringify(nextRead));
+      qc.invalidateQueries({ queryKey: ["official-announcements-sidebar"] });
+    }
+  };
+
+  const unreadAnnouncementsCount = parentAnnouncements.filter(a => !readAnnouncements.includes(a.id)).length;
+  const unreadPortalNotificationsCount = portalNotifications.filter(n => !n.is_read).length;
+  const totalUnreadCount = unreadAnnouncementsCount + unreadPortalNotificationsCount;
+
+  const activeHighPriorityAnnouncements = React.useMemo(() => {
+    return parentAnnouncements.filter(a => a.priority === "high" && !dismissedAnnouncements.includes(a.id));
+  }, [parentAnnouncements, dismissedAnnouncements]);
+
   const handlePrintPurchases = () => {
     const printWindow = window.open("", "_blank");
     const titleText = isRTL ? "تقرير مشتريات المقصف والمتجر" : "Canteen & Store Purchases Report";
@@ -531,17 +593,67 @@ export default function ParentPortal() {
             subtitle={isRTL ? "مرحباً بك مجدداً. تابع تقدم أبنائك وتواصل مع المدرسة." : "Welcome back. Track your children's progress and stay connected."}
           >
             <div className="flex gap-3">
-              <button className={`${btnOutline} rounded-full h-12 px-6`}>
+              <button 
+                onClick={() => setSearchParams({ tab: "messages" })}
+                className={`${btnOutline} rounded-full h-12 px-6`}
+              >
                 <MessageCircle size={18} />
                 {isRTL ? "تواصل مع المعلمين" : "Contact Teachers"}
               </button>
-              <button className={`${btnPrimary.split(' ').filter(c => !c.includes('shadow')).join(' ')} bg-rose-500 hover:bg-rose-600 text-white rounded-full h-12 px-6 shadow-lg shadow-rose-100`}>
+              <button 
+                onClick={() => setSearchParams({ tab: "notifications" })}
+                className={`${btnPrimary.split(' ').filter(c => !c.includes('shadow')).join(' ')} bg-rose-500 hover:bg-rose-600 text-white rounded-full h-12 px-6 shadow-lg shadow-rose-100`}
+              >
                 <Bell size={18} />
                 {isRTL ? "الإشعارات" : "Notifications"}
-                <span className="bg-white text-rose-500 text-[10px] font-black h-5 w-5 rounded-full flex items-center justify-center"> 3</span>
+                {totalUnreadCount > 0 && (
+                  <span className="bg-white text-rose-500 text-[10px] font-black h-5 w-5 rounded-full flex items-center justify-center">
+                    {totalUnreadCount}
+                  </span>
+                )}
               </button>
             </div>
           </PageHeader>
+
+          {/* High Priority Announcements Banner */}
+          {activeHighPriorityAnnouncements.length > 0 && (
+            <div className="space-y-3">
+              {activeHighPriorityAnnouncements.map(ann => (
+                <div 
+                  key={ann.id} 
+                  className="p-5 bg-gradient-to-r from-rose-550 to-rose-600 text-white rounded-[24px] shadow-xl relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-4 animate-bounce"
+                  style={{ animationDuration: '3s' }}
+                >
+                  <div className="flex items-start gap-4">
+                    <div className="h-10 w-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/20 shrink-0">
+                      <AlertTriangle size={20} className="text-yellow-300" />
+                    </div>
+                    <div>
+                      <h4 className="font-serif font-black tracking-tight text-base mb-0.5">{isRTL ? `قرار رسمي عاجل: ${ann.title}` : `Urgent Announcement: ${ann.title}`}</h4>
+                      <p className="text-rose-100 text-xs font-medium leading-relaxed max-w-2xl">{ann.content}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button 
+                      onClick={() => handleDismissAnnouncement(ann.id)}
+                      className="bg-white/10 hover:bg-white/15 text-white border border-white/20 rounded-xl px-4 py-2 text-xs font-bold transition-all cursor-pointer"
+                    >
+                      {isRTL ? "إغلاق مؤقت" : "Dismiss"}
+                    </button>
+                    <button 
+                      onClick={() => {
+                        handleMarkAnnouncementAsRead(ann.id);
+                        setSearchParams({ tab: "notifications" });
+                      }}
+                      className="bg-white text-rose-600 hover:bg-rose-50 rounded-xl px-4 py-2 text-xs font-bold transition-all shadow-md cursor-pointer"
+                    >
+                      {isRTL ? "عرض التفاصيل" : "View Details"}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           {activeTab === "wallet" && (
             <div className="space-y-8 animate-fadeIn">
@@ -1285,6 +1397,113 @@ export default function ParentPortal() {
                   <p className="font-bold text-lg">{isRTL ? "لا توجد تفاصيل لهذا الطالب" : "No student details found."}</p>
                 </Card>
               )}
+            </div>
+          )}
+
+          {activeTab === "messages" && (
+            <div className="space-y-8 animate-fadeIn">
+              <div>
+                <h3 className="font-serif text-3xl font-bold text-stone-900">{isRTL ? "الرسائل والتواصل" : "Messages & Communication"}</h3>
+                <p className="text-stone-400 text-sm font-medium">{isRTL ? "تواصل مباشرة مع معلمي أبنائك وأرفق الملفات التعليمية والصور." : "Communicate directly with your children's teachers and attach educational files/images."}</p>
+              </div>
+              <ParentTeacherChat me={{ ...portalUser, id: portalUser?.id || localStorage.getItem("portal_user_id") || "parent-default", role: "parent" }} />
+            </div>
+          )}
+
+          {activeTab === "notifications" && (
+            <div className="space-y-8 animate-fadeIn">
+              <div>
+                <h3 className="font-serif text-3xl font-bold text-stone-900">{isRTL ? "الإشعارات والتعاميم الرسمية" : "Notifications & Official Circulars"}</h3>
+                <p className="text-stone-400 text-sm font-medium">{isRTL ? "جميع القرارات والتعاميم الموجهة لك من قبل الإدارة المدرسية." : "All decisions and announcements directed to you by school administration."}</p>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                {/* Announcements Feed - 8 cols */}
+                <div className="lg:col-span-8 space-y-4">
+                  <h4 className="font-serif text-xl font-bold text-stone-900 px-2">{isRTL ? "التعاميم والقرارات الرسمية" : "Official Decisions & Circulars"}</h4>
+                  {parentAnnouncements.length === 0 ? (
+                    <Card className="p-16 text-center border-dashed border-2 border-stone-200 bg-stone-50/50 text-stone-400 rounded-[40px]">
+                      <Megaphone size={48} className="mb-4 opacity-20 mx-auto" />
+                      <p className="font-bold text-lg">{isRTL ? "لا توجد تعاميم منشورة حالياً" : "No official announcements published yet"}</p>
+                    </Card>
+                  ) : (
+                    <div className="space-y-4">
+                      {parentAnnouncements.map(ann => {
+                        const isRead = readAnnouncements.includes(ann.id);
+                        return (
+                          <Card key={ann.id} className="p-6 bg-white border-none shadow-sm rounded-[30px] relative overflow-hidden group">
+                            {ann.priority === "high" && (
+                              <div className="absolute top-0 right-0 left-0 h-1.5 bg-rose-500" />
+                            )}
+                            <div className="flex justify-between items-start gap-4">
+                              <div className="space-y-2 flex-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <h4 className={`text-base font-bold ${isRead ? "text-stone-500" : "text-stone-900 font-extrabold"}`}>{ann.title}</h4>
+                                  {!isRead && (
+                                    <Badge className="bg-rose-500 text-white border-none rounded-lg text-[9px] font-black px-2 py-0.5">
+                                      {isRTL ? "جديد" : "New"}
+                                    </Badge>
+                                  )}
+                                  {ann.priority === "high" && (
+                                    <Badge className="bg-rose-50 text-rose-600 border-none rounded-lg text-[9px] font-black px-2 py-0.5">
+                                      {isRTL ? "هام جداً" : "Urgent"}
+                                    </Badge>
+                                  )}
+                                </div>
+                                <p className="text-stone-600 text-sm whitespace-pre-line leading-relaxed">
+                                  {ann.content}
+                                </p>
+                                <div className="flex items-center justify-between pt-2">
+                                  <div className="flex items-center gap-4 text-[10px] text-stone-400 font-bold uppercase tracking-wider">
+                                    <span className="flex items-center gap-1">
+                                      <Clock size={12} />
+                                      {ann.created_at ? new Date(ann.created_at).toLocaleDateString(isRTL ? "ar-EG" : "en-US") : ""}
+                                    </span>
+                                  </div>
+                                  {!isRead && (
+                                    <button 
+                                      onClick={() => handleMarkAnnouncementAsRead(ann.id)}
+                                      className="text-xs font-bold text-rose-500 hover:text-rose-600 hover:underline cursor-pointer border-none bg-transparent"
+                                    >
+                                      {isRTL ? "تحديد كمقروء" : "Mark as read"}
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* System Notifications - 4 cols */}
+                <div className="lg:col-span-4 space-y-4">
+                  <h4 className="font-serif text-xl font-bold text-stone-900 px-2">{isRTL ? "التنبيهات التلقائية" : "System Notifications"}</h4>
+                  {portalNotifications.length === 0 ? (
+                    <Card className="p-12 text-center border-dashed border border-stone-200 bg-stone-50/50 text-stone-400 rounded-[30px]">
+                      <Bell size={32} className="mb-4 opacity-20 mx-auto" />
+                      <p className="font-bold text-sm">{isRTL ? "لا توجد تنبيهات جديدة" : "No new notifications"}</p>
+                    </Card>
+                  ) : (
+                    <div className="space-y-3">
+                      {portalNotifications.map(n => (
+                        <Card key={n.id} className="p-4 bg-white border-none shadow-sm rounded-2xl relative overflow-hidden">
+                          {!n.is_read && (
+                            <div className="absolute top-3 right-3 h-2 w-2 rounded-full bg-rose-500" />
+                          )}
+                          <h5 className="font-bold text-xs text-stone-800 pr-4">{n.title}</h5>
+                          <p className="text-[11px] text-stone-555 mt-1 leading-normal">{n.message}</p>
+                          <span className="text-[9px] font-bold text-stone-400 block mt-2">
+                            {n.created_at ? new Date(n.created_at).toLocaleDateString(isRTL ? "ar-EG" : "en-US") : ""}
+                          </span>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 

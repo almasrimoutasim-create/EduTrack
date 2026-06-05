@@ -23,10 +23,17 @@ export default function TeacherFormDialog({ open, onClose, teacher }) {
   });
 
   useEffect(() => {
-    setForm(teacher || {
-      full_name: "", employee_id: "", email: "", phone: "",
-      subject: "", subjects: "", photo_url: "", bio: "", salary: 0, status: "active", portal_password: ""
-    });
+    if (teacher) {
+      setForm({
+        ...teacher,
+        portal_password: ""
+      });
+    } else {
+      setForm({
+        full_name: "", employee_id: "", email: "", phone: "",
+        subject: "", subjects: "", photo_url: "", bio: "", salary: 0, status: "active", portal_password: ""
+      });
+    }
   }, [teacher, open]);
 
   const update = (key, val) => setForm(f => ({ ...f, [key]: val }));
@@ -54,10 +61,15 @@ export default function TeacherFormDialog({ open, onClose, teacher }) {
     if (!form.full_name || !form.employee_id) return;
     setSaving(true);
     try {
+      const payload = { ...form };
+      if (!payload.portal_password) {
+        delete payload.portal_password;
+      }
+
       if (isEdit) {
-        await base44.entities.Teacher.update(teacher.id, form);
+        await base44.entities.Teacher.update(teacher.id, payload);
       } else {
-        await base44.entities.Teacher.create(form);
+        await base44.entities.Teacher.create(payload);
       }
       qc.invalidateQueries({ queryKey: ["teachers"] });
       onClose();

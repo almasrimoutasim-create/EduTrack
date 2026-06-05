@@ -7,11 +7,8 @@ async function run() {
   if (!url) return;
   const sql = neon(url);
   try {
-    const subjects = await sql.query(`
-      SELECT id, name, grade, teacher_id, teacher_name FROM subjects;
-    `);
-    console.log('--- ALL SUBJECTS ---');
-    console.log(JSON.stringify(subjects, null, 2));
+    const res = await sql`SELECT * FROM portal_notifications;`;
+    console.log('portal_notifications rows:', res);
   } catch (err) {
     console.error('Error:', err.message);
   }

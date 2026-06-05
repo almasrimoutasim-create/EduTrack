@@ -21,7 +21,8 @@ import {
   GraduationCap,
   MapPin,
   BookOpen,
-  CheckCircle2
+  CheckCircle2,
+  Megaphone
 } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -261,6 +262,19 @@ export default function StudentPortal() {
     enabled: !!student?.grade
   });
 
+  const { data: officialAnnouncements = [] } = useQuery({
+    queryKey: ["official-announcements-student"],
+    queryFn: () => base44.entities.OfficialAnnouncement.list("-created_at")
+  });
+
+  const studentAnnouncements = React.useMemo(() => {
+    return officialAnnouncements.filter(a => a.target_audience === "students" || a.target_audience === "all");
+  }, [officialAnnouncements]);
+
+  const activeHighPriorityAnnouncements = React.useMemo(() => {
+    return studentAnnouncements.filter(a => a.priority === "high");
+  }, [studentAnnouncements]);
+
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: { opacity: 1, transition: { staggerChildren: 0.1 } }
@@ -284,6 +298,67 @@ export default function StudentPortal() {
               <Card className="p-6 md:p-8 bg-white border-none shadow-sm rounded-[32px]">
                 <VisualSchedule classes={studentSchedules} tasks={studentTasks} />
               </Card>
+            </div>
+          ) : view === "notifications" ? (
+            <div className="space-y-6">
+              <PageHeader 
+                title={isRTL ? "التعاميم والقرارات الرسمية" : "Official Announcements"} 
+                subtitle={isRTL ? "جميع القرارات والتعاميم الموجهة لك من قبل الإدارة المدرسية." : "All decisions and announcements directed to you by school administration."}
+              >
+                <button onClick={() => window.location.href = "/student-portal"} className={`${btnOutline} h-11 px-5 rounded-xl`}>
+                  {isRTL ? "العودة للوحة التحكم" : "Back to Dashboard"}
+                </button>
+              </PageHeader>
+              
+              <div className="space-y-4 max-w-4xl mx-auto pt-4">
+                {studentAnnouncements.length === 0 ? (
+                  <Card className="p-16 text-center border-dashed border-2 border-stone-200 bg-stone-50/50 text-stone-400 rounded-[40px]">
+                    <Megaphone size={48} className="mb-4 opacity-20 mx-auto" />
+                    <p className="font-bold text-lg">{isRTL ? "لا توجد تعاميم منشورة حالياً" : "No official announcements published yet"}</p>
+                  </Card>
+                ) : (
+                  studentAnnouncements.map(ann => {
+                    const isRead = JSON.parse(localStorage.getItem("read_announcements") || "[]").includes(ann.id);
+                    return (
+                      <Card key={ann.id} className="p-6 bg-white border-none shadow-sm rounded-[30px] relative overflow-hidden">
+                        {ann.priority === "high" && (
+                          <div className="absolute top-0 right-0 left-0 h-1.5 bg-rose-500" />
+                        )}
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="text-base font-bold text-stone-900">{ann.title}</h4>
+                            {ann.priority === "high" && (
+                              <Badge className="bg-rose-50 text-rose-600 border-none rounded-lg text-[9px] font-black px-2 py-0.5">
+                                {isRTL ? "هام جداً" : "Urgent"}
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-stone-600 text-sm whitespace-pre-line leading-relaxed">
+                            {ann.content}
+                          </p>
+                          <div className="flex justify-between items-center text-[10px] text-stone-400 font-bold uppercase tracking-wider pt-2">
+                            <span>{ann.created_at ? new Date(ann.created_at).toLocaleDateString(isRTL ? "ar-EG" : "en-US") : ""}</span>
+                            {!isRead && (
+                              <button
+                                onClick={() => {
+                                  const read = JSON.parse(localStorage.getItem("read_announcements") || "[]");
+                                  if (!read.includes(ann.id)) {
+                                    localStorage.setItem("read_announcements", JSON.stringify([...read, ann.id]));
+                                    window.location.reload();
+                                  }
+                                }}
+                                className="text-xs font-bold text-rose-500 hover:underline border-none bg-transparent cursor-pointer"
+                              >
+                                {isRTL ? "تحديد كمقروء" : "Mark as read"}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </Card>
+                    );
+                  })
+                )}
+              </div>
             </div>
           ) : view === "homework" ? (
             <div className="space-y-6">
@@ -371,6 +446,28 @@ export default function StudentPortal() {
             </div>
           ) : (
             <>
+              {/* High Priority Announcements */}
+              {activeHighPriorityAnnouncements.length > 0 && (
+                <div className="space-y-3 mb-6">
+                  {activeHighPriorityAnnouncements.map(ann => (
+                    <div 
+                      key={ann.id} 
+                      className="p-5 bg-gradient-to-r from-rose-500 to-rose-600 text-white rounded-[24px] shadow-xl relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-4"
+                    >
+                      <div className="flex items-start gap-4">
+                        <div className="h-10 w-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/20 shrink-0">
+                          <Sparkles size={20} className="text-yellow-300 animate-pulse" />
+                        </div>
+                        <div>
+                          <h4 className="font-serif font-black tracking-tight text-base mb-0.5">{isRTL ? `قرار رسمي عاجل: ${ann.title}` : `Urgent Announcement: ${ann.title}`}</h4>
+                          <p className="text-rose-100 text-xs font-medium leading-relaxed max-w-4xl">{ann.content}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <header className="relative py-12 px-10 bg-gradient-to-br from-teal-600 to-emerald-700 text-white rounded-[48px] shadow-2xl overflow-hidden">
         {/* Abstract Background Shapes */}
         <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl" />

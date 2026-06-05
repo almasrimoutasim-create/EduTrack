@@ -1,11 +1,13 @@
 import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, Users, BookOpen, ClipboardCheck,
-  FileText, Menu, X, Calendar, MessageCircle, Star, LogOut, Video
+  FileText, Menu, X, Calendar, MessageCircle, Star, LogOut, Video, Bell
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
+import { base44 } from "@/api/base44Client";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useAuth } from "@/lib/AuthContext";
@@ -16,6 +18,37 @@ export default function TeacherSidebar() {
   const { language } = useLanguage();
   const isRTL = language === "ar";
   const { logout } = useAuth();
+
+  const teacherId = localStorage.getItem("portal_user_id") || "T-202";
+
+  const { data: allMessages = [] } = useQuery({
+    queryKey: ["private-messages-sidebar-teacher", teacherId],
+    queryFn: () => base44.entities.PrivateMessage.list(),
+    refetchInterval: 5000
+  });
+
+  const unreadCount = allMessages.filter(m => m.receiver_id === teacherId && !m.is_read).length;
+
+  const { data: officialAnnouncements = [] } = useQuery({
+    queryKey: ["official-announcements-sidebar-teacher"],
+    queryFn: () => base44.entities.OfficialAnnouncement.list("-created_at")
+  });
+  
+  const teacherAnnouncements = officialAnnouncements.filter(
+    a => a.target_audience === "teachers" || a.target_audience === "all"
+  );
+  
+  const readAnnouncements = useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem("read_announcements") || "[]");
+    } catch {
+      return [];
+    }
+  }, [officialAnnouncements]);
+  
+  const unreadAnnouncementsCount = teacherAnnouncements.filter(
+    a => !readAnnouncements.includes(a.id)
+  ).length;
 
   const handleLogout = () => {
     localStorage.removeItem("portal_role");
@@ -46,7 +79,8 @@ export default function TeacherSidebar() {
     {
       label: isRTL ? "التواصل والأنشطة" : "Communication",
       items: [
-        { label: isRTL ? "الرسائل" : "Messages", path: "#", icon: MessageCircle },
+        { label: isRTL ? "الرسائل" : "Messages", path: "/teacher-portal?tab=messages", icon: MessageCircle },
+        { label: isRTL ? "الإشعارات" : "Notifications", path: "/teacher-portal?tab=notifications", icon: Bell },
         { label: isRTL ? "الأوسمة" : "Badges", path: "#", icon: Star }
       ]
     }
@@ -96,7 +130,9 @@ export default function TeacherSidebar() {
               </p>
               <div className="space-y-1">
                 {group.items.map((item) => {
-                  const isActive = location.pathname === item.path || (item.path !== "#" && location.pathname.startsWith(item.path) && item.path !== "/");
+                  const currentPath = location.pathname + location.search;
+                  const isActive = currentPath === item.path || 
+                                   (item.path === "/teacher-portal" && (currentPath === "/teacher-portal?tab=classes" || !location.search));
                   return (
                     <Link
                       key={item.label}
@@ -110,7 +146,17 @@ export default function TeacherSidebar() {
                       )}
                     >
                       <item.icon className={cn("h-5 w-5 shrink-0 transition-transform group-hover:scale-110", isActive ? "text-white" : "text-stone-400 group-hover:text-stone-900")} />
-                      {item.label}
+                      <span className="flex-1">{item.label}</span>
+                      {item.label === (isRTL ? "الرسائل" : "Messages") && unreadCount > 0 && (
+                        <span className="bg-rose-500 text-white text-[10px] font-black h-5 px-1.5 rounded-full flex items-center justify-center shrink-0">
+                          {unreadCount}
+                        </span>
+                      )}
+                      {item.label === (isRTL ? "الإشعارات" : "Notifications") && unreadAnnouncementsCount > 0 && (
+                        <span className="bg-rose-500 text-white text-[10px] font-black h-5 px-1.5 rounded-full flex items-center justify-center shrink-0">
+                          {unreadAnnouncementsCount}
+                        </span>
+                      )}
                       {isActive && (
                         <motion.div 
                           layoutId="activeTabTeacher"

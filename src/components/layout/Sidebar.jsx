@@ -3,7 +3,8 @@ import {
   LayoutDashboard, Users, GraduationCap, BookOpen, ClipboardCheck,
   FileText, ShoppingCart, Menu, X, Newspaper, Trophy, DollarSign, Shield, BarChart3, LogOut,
   Calendar, FileSpreadsheet, Award, History, Layers, Clock, FolderArchive, HelpCircle, Settings,
-  Briefcase, CreditCard, Search, Percent, AlertTriangle, PlusCircle, UserCheck, ArrowLeft
+  Briefcase, CreditCard, Search, Percent, AlertTriangle, PlusCircle, UserCheck, ArrowLeft, MessageSquare,
+  Megaphone
 } from "lucide-react";
 import { useState } from "react";
 import { motion } from "framer-motion";
@@ -311,6 +312,13 @@ export default function Sidebar() {
               { label: t("common.store", language), path: "/store", icon: ShoppingCart },
               { label: t("common.finance", language), path: "/finance", icon: DollarSign },
               { label: t("common.staffControl", language), path: "/staff-control", icon: Shield }
+            ]
+          },
+          {
+            label: isRTL ? "التواصل" : "Communication",
+            items: [
+              { label: isRTL ? "مراقبة المحادثات" : "Monitor Chats", path: "/admin-chats", icon: MessageSquare },
+              { label: isRTL ? "التعاميم والقرارات" : "Official Announcements", path: "/official-announcements", icon: Megaphone }
             ]
           }
         ];
