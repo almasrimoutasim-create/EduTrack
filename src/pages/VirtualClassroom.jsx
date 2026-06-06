@@ -43,6 +43,8 @@ export default function VirtualClassroom() {
   const localVideoRef = useRef(null);
   const pcsRef = useRef({}); // userId -> RTCPeerConnection
   const processedSignals = useRef(new Set());
+  const lastPointRef = useRef(null);
+  const iceQueuesRef = useRef({});
   
   // Presentation & Interactive Workspace States
   const [presentationMode, setPresentationMode] = useState("whiteboard"); // whiteboard | file | video
@@ -424,37 +426,62 @@ export default function VirtualClassroom() {
 
     if (type === "OFFER") {
       await pc.setRemoteDescription(new RTCSessionDescription(data));
+      
+      // Process queued ICE candidates for this peer
+      if (iceQueuesRef.current[peerId]) {
+        for (const candidate of iceQueuesRef.current[peerId]) {
+          try {
+            await pc.addIceCandidate(new RTCIceCandidate(candidate));
+          } catch (e) {
+            console.error("Error adding queued ice candidate", e);
+          }
+        }
+        delete iceQueuesRef.current[peerId];
+      }
+
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
       sendSignal("ANSWER", peerId, answer);
     } else if (type === "ANSWER") {
       await pc.setRemoteDescription(new RTCSessionDescription(data));
-    } else if (type === "ICE") {
-      try {
-        await pc.addIceCandidate(new RTCIceCandidate(data));
-      } catch (e) {
-        console.error("Error adding ice candidate", e);
+
+      // Process queued ICE candidates for this peer
+      if (iceQueuesRef.current[peerId]) {
+        for (const candidate of iceQueuesRef.current[peerId]) {
+          try {
+            await pc.addIceCandidate(new RTCIceCandidate(candidate));
+          } catch (e) {
+            console.error("Error adding queued ice candidate", e);
+          }
+        }
+        delete iceQueuesRef.current[peerId];
       }
-    } else if (type === "DRAW_START") {
-      const canvas = canvasRef.current;
-      if (canvas) {
-        const ctx = canvas.getContext("2d");
-        ctx.beginPath();
-        ctx.moveTo(data.x, data.y);
-        ctx.globalCompositeOperation = data.isEraser ? "destination-out" : "source-over";
-        ctx.strokeStyle = data.color;
-        ctx.lineWidth = data.width;
-        ctx.lineCap = "round";
-        ctx.lineJoin = "round";
+    } else if (type === "ICE") {
+      if (pc.remoteDescription && pc.remoteDescription.type) {
+        try {
+          await pc.addIceCandidate(new RTCIceCandidate(data));
+        } catch (e) {
+          console.error("Error adding ice candidate", e);
+        }
+      } else {
+        // Queue candidate until remote description is set
+        if (!iceQueuesRef.current[peerId]) {
+          iceQueuesRef.current[peerId] = [];
+        }
+        iceQueuesRef.current[peerId].push(data);
       }
     } else if (type === "DRAW_PATH") {
       const canvas = canvasRef.current;
       if (canvas) {
         const ctx = canvas.getContext("2d");
+        ctx.beginPath();
         ctx.globalCompositeOperation = data.isEraser ? "destination-out" : "source-over";
-        ctx.strokeStyle = data.color;
-        ctx.lineWidth = data.width;
-        ctx.lineTo(data.x, data.y);
+        ctx.strokeStyle = data.color || "#2dd4bf";
+        ctx.lineWidth = data.width || 3;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.moveTo(data.prevX * canvas.width, data.prevY * canvas.height);
+        ctx.lineTo(data.currX * canvas.width, data.currY * canvas.height);
         ctx.stroke();
       }
     } else if (type === "CLEAR_CANVAS") {
@@ -470,59 +497,57 @@ export default function VirtualClassroom() {
     }
   };
 
-  // Whiteboard drawing interactions
+  // Whiteboard drawing interactions using normalized self-contained segments
   const startDrawing = (e) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext("2d");
     const rect = canvas.getBoundingClientRect();
     const x = ((e.clientX - rect.left) / rect.width) * canvas.width;
     const y = ((e.clientY - rect.top) / rect.height) * canvas.height;
 
+    lastPointRef.current = { x, y };
+    setIsDrawing(true);
+  };
+
+  const draw = (e) => {
+    if (!isDrawing || !lastPointRef.current) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    const rect = canvas.getBoundingClientRect();
+    const currX = ((e.clientX - rect.left) / rect.width) * canvas.width;
+    const currY = ((e.clientY - rect.top) / rect.height) * canvas.height;
+    const prevX = lastPointRef.current.x;
+    const prevY = lastPointRef.current.y;
+
+    // Draw locally immediately
     ctx.beginPath();
-    ctx.moveTo(x, y);
     ctx.globalCompositeOperation = isEraser ? "destination-out" : "source-over";
     ctx.strokeStyle = isEraser ? "rgba(0,0,0,1)" : drawColor;
     ctx.lineWidth = lineWidth;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
-    setIsDrawing(true);
-    
-    sendSignal("DRAW_START", "all", { 
-      x, 
-      y, 
-      color: isEraser ? "rgba(0,0,0,1)" : drawColor, 
-      width: lineWidth, 
-      isEraser 
-    });
-  };
-
-  const draw = (e) => {
-    if (!isDrawing) return;
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    const rect = canvas.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * canvas.width;
-    const y = ((e.clientY - rect.top) / rect.height) * canvas.height;
-
-    ctx.globalCompositeOperation = isEraser ? "destination-out" : "source-over";
-    ctx.strokeStyle = isEraser ? "rgba(0,0,0,1)" : drawColor;
-    ctx.lineWidth = lineWidth;
-    ctx.lineTo(x, y);
+    ctx.moveTo(prevX, prevY);
+    ctx.lineTo(currX, currY);
     ctx.stroke();
     
+    // Broadcast normalized coordinate segments to maintain aspect ratio on remote screens
     sendSignal("DRAW_PATH", "all", { 
-      x, 
-      y, 
+      prevX: prevX / canvas.width, 
+      prevY: prevY / canvas.height, 
+      currX: currX / canvas.width, 
+      currY: currY / canvas.height, 
       isEraser, 
       color: isEraser ? "rgba(0,0,0,1)" : drawColor, 
       width: lineWidth 
     });
+
+    lastPointRef.current = { x: currX, y: currY };
   };
 
   const endDrawing = () => {
     setIsDrawing(false);
+    lastPointRef.current = null;
   };
 
   const clearCanvas = () => {
