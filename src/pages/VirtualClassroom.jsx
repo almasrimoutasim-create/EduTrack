@@ -1190,6 +1190,110 @@ export default function VirtualClassroom() {
           </div>
         </div>
 
+        {/* Participant Cameras (Google Meet style side stack) */}
+        <div className="w-full lg:w-72 bg-stone-950/60 border-t lg:border-t-0 lg:border-r border-stone-850 p-4 flex flex-row lg:flex-col gap-4 overflow-y-auto shrink-0 justify-center lg:justify-start items-center lg:items-stretch min-w-0">
+          
+          {/* Local Stream Card */}
+          <div className="relative aspect-video w-48 lg:w-full rounded-2xl bg-stone-850 border border-white/5 shadow-md overflow-hidden group shrink-0">
+            {videoActive ? (
+              <div className="w-full h-full bg-stone-800 flex items-center justify-center relative">
+                {localStream ? (
+                  <video
+                    ref={el => {
+                      if (el && localStream) {
+                        if (el.srcObject !== localStream) {
+                          el.srcObject = localStream;
+                        }
+                        el.play().catch(e => console.error("Error auto-playing local video stream:", e));
+                      }
+                    }}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <>
+                    <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-teal-500/10 animate-pulse" />
+                    <span className="text-3xl">{isTeacher ? "👨‍🏫" : "🧑‍🎓"}</span>
+                  </>
+                )}
+                {screenSharing && (
+                  <div className="absolute inset-0 bg-stone-900/90 flex flex-col items-center justify-center p-2 text-center">
+                    <ScreenShare size={20} className="text-teal-400 mb-1 animate-bounce" />
+                    <p className="text-[8px] font-bold">{isRTL ? "تشارك شاشتك" : "Sharing screen"}</p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="w-full h-full bg-stone-900 flex flex-col items-center justify-center p-2">
+                <div className="h-8 w-8 rounded-full bg-stone-800 flex items-center justify-center text-xs font-bold mb-1">
+                  {userName[0]}
+                </div>
+                <span className="text-[9px] text-stone-500 font-bold">{isRTL ? "الكاميرا مغلقة" : "Camera Off"}</span>
+              </div>
+            )}
+            <div className="absolute bottom-1.5 left-1.5 right-1.5 flex items-center justify-between z-10">
+              <span className="bg-black/60 backdrop-blur-md px-1.5 py-0.5 rounded-md text-[8px] font-bold border border-white/5 flex items-center gap-1">
+                {userName} {isTeacher && "⭐️"}
+              </span>
+              <div className="flex gap-1">
+                {!micActive && <Badge className="bg-rose-500 text-white p-0.5 rounded-md"><MicOff size={8} /></Badge>}
+                {handRaised && <Badge className="bg-yellow-500 text-stone-950 px-1 py-0.5 rounded-md text-[8px] font-black">🙋‍♂️</Badge>}
+              </div>
+            </div>
+          </div>
+
+          {/* Remote Participants Cards */}
+          {participants.filter(p => p.id !== userId).map((p) => (
+            <div key={p.id} className="relative aspect-video w-48 lg:w-full rounded-2xl bg-stone-850 border border-white/5 shadow-md overflow-hidden group shrink-0">
+              {p.video ? (
+                <div className="w-full h-full bg-stone-800 flex items-center justify-center relative">
+                  {remoteStreams[p.id] ? (
+                    <video
+                      ref={el => {
+                        if (el) {
+                          if (el.srcObject !== remoteStreams[p.id]) {
+                            el.srcObject = remoteStreams[p.id];
+                          }
+                          el.play().catch(() => {
+                            const playOnClick = () => {
+                              el.play().catch(e => console.error(e));
+                              window.removeEventListener("click", playOnClick);
+                            };
+                            window.addEventListener("click", playOnClick);
+                          });
+                        }
+                      }}
+                      autoPlay
+                      playsInline
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-3xl">{p.avatar}</span>
+                  )}
+                </div>
+              ) : (
+                <div className="w-full h-full bg-stone-900 flex flex-col items-center justify-center p-2">
+                  <div className="h-8 w-8 rounded-full bg-stone-800 flex items-center justify-center text-xs font-bold mb-1">
+                    {p.name[0]}
+                  </div>
+                  <span className="text-[9px] text-stone-500 font-bold">{isRTL ? "الكاميرا مغلقة" : "Camera Off"}</span>
+                </div>
+              )}
+              <div className="absolute bottom-1.5 left-1.5 right-1.5 flex items-center justify-between z-10">
+                <span className="bg-black/60 backdrop-blur-md px-1.5 py-0.5 rounded-md text-[8px] font-bold border border-white/5 flex items-center gap-1">
+                  {p.name} {p.role === "teacher" && "⭐️"}
+                </span>
+                <div className="flex gap-1">
+                  {!p.mic && <Badge className="bg-rose-500 text-white p-0.5 rounded-md"><MicOff size={8} /></Badge>}
+                  {p.hand && <Badge className="bg-yellow-500 text-stone-950 px-1 py-0.5 rounded-md text-[8px] font-black animate-bounce">🙋‍♂️</Badge>}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
         {/* SIDEBAR TABS (CHAT / PARTICIPANTS / NOTES) */}
         <aside className="w-full md:w-96 bg-stone-900 border-t md:border-t-0 md:border-r border-stone-800 flex flex-col z-10">
           <div className="h-14 border-b border-stone-850 p-1 flex">
@@ -1224,7 +1328,11 @@ export default function VirtualClassroom() {
                   className="h-full flex flex-col justify-between"
                 >
                   <div className="space-y-4 flex-1 overflow-y-auto mb-4 scrollbar-hide">
-                    {dbMessages.map((msg, i) => {
+                    {dbMessages.filter(msg => {
+                      const text = msg.content || msg.message_text || "";
+                      const isSignal = text.startsWith("SIGNAL:") || msg.type === "signal";
+                      return !isSignal;
+                    }).map((msg, i) => {
                       const isMe = msg.sender_name === userName;
                       const isTeacherMsg = msg.sender_id === 'teacher-id' || msg.sender_name === session?.teacher_name;
                       const timeStr = msg.created_at ? new Date(msg.created_at).toLocaleTimeString(isRTL ? "ar-EG" : "en-US", { hour: "2-digit", minute: "2-digit" }) : "";
@@ -1241,7 +1349,7 @@ export default function VirtualClassroom() {
                                 ? "bg-amber-500/10 text-amber-300 border border-amber-500/25 rounded-bl-none"
                                 : "bg-stone-800 text-stone-200 rounded-bl-none"
                           }`}>
-                            {msg.content}
+                            {msg.content || msg.message_text}
                           </div>
                         </div>
                       );
