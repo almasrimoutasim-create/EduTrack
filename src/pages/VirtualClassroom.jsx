@@ -352,12 +352,24 @@ export default function VirtualClassroom() {
       ]
     });
 
-    // Add local tracks to peer connection
+    // Add local tracks to peer connection if available
     if (localStream) {
       localStream.getTracks().forEach(track => {
         pc.addTrack(track, localStream);
       });
     }
+
+    pc.onnegotiationneeded = async () => {
+      try {
+        if (userId > peerId) {
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+          sendSignal("OFFER", peerId, offer);
+        }
+      } catch (err) {
+        console.error("Error during negotiation", err);
+      }
+    };
 
     pc.onicecandidate = (event) => {
       if (event.candidate) {
@@ -376,6 +388,20 @@ export default function VirtualClassroom() {
     pcsRef.current[peerId] = pc;
     return pc;
   };
+
+  // Add local tracks to existing peer connections if localStream is set later
+  useEffect(() => {
+    if (!localStream) return;
+    Object.entries(pcsRef.current).forEach(([peerId, pc]) => {
+      const senders = pc.getSenders();
+      localStream.getTracks().forEach(track => {
+        const alreadyAdded = senders.some(s => s.track && s.track.kind === track.kind);
+        if (!alreadyAdded) {
+          pc.addTrack(track, localStream);
+        }
+      });
+    });
+  }, [localStream]);
 
   const handleIncomingSignal = async (type, peerId, data) => {
     const pc = getOrCreatePC(peerId);
@@ -880,12 +906,12 @@ export default function VirtualClassroom() {
       <div className="flex-1 flex flex-col md:flex-row relative min-h-0 overflow-hidden">
         {/* Main Video Stream Grid */}
         <div className="flex-1 p-6 flex flex-col justify-between relative bg-stone-900/40">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 flex-1 items-center justify-center min-h-[400px]">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 flex-1 items-center justify-center p-4 min-h-[400px]">
             
             {/* Local Stream (Active Participant) */}
             <motion.div 
               layout
-              className="relative aspect-video rounded-[24px] bg-stone-850 border border-white/5 shadow-2xl overflow-hidden group h-full max-h-[300px]"
+              className="relative aspect-video w-full max-w-[480px] rounded-[24px] bg-stone-850 border border-white/5 shadow-2xl overflow-hidden group mx-auto"
             >
               {videoActive ? (
                 <div className="w-full h-full bg-stone-800 flex items-center justify-center relative">
@@ -937,7 +963,7 @@ export default function VirtualClassroom() {
               <motion.div 
                 key={p.id}
                 layout
-                className="relative aspect-video rounded-[24px] bg-stone-850 border border-white/5 shadow-md overflow-hidden group h-full max-h-[300px]"
+                className="relative aspect-video w-full max-w-[480px] rounded-[24px] bg-stone-850 border border-white/5 shadow-md overflow-hidden group mx-auto"
               >
                 {p.video ? (
                   <div className="w-full h-full bg-stone-800 flex items-center justify-center relative">
