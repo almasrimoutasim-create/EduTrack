@@ -140,9 +140,9 @@ export default function TeacherPortal() {
       return classes.some(cls => {
         const studentGrade = student.grade?.toString();
         const clsGrade = cls.grade_level?.toString();
-        const studentSection = (student.section || '').toLowerCase();
-        const clsSection = (cls.section || '').toLowerCase();
-        return studentGrade === clsGrade && studentSection === clsSection;
+        const studentSection = (student.section || '').toLowerCase().trim();
+        const clsSection = (cls.section || '').toLowerCase().trim();
+        return studentGrade === clsGrade && (studentSection === clsSection || clsSection === 'a' || clsSection === 'all' || clsSection === '' || clsSection === 'أ');
       });
     });
 
@@ -154,9 +154,9 @@ export default function TeacherPortal() {
         list = myStudents.filter(student => {
           const studentGrade = student.grade?.toString();
           const clsGrade = selectedClass.grade_level?.toString();
-          const studentSection = (student.section || '').toLowerCase();
-          const clsSection = (selectedClass.section || '').toLowerCase();
-          return studentGrade === clsGrade && studentSection === clsSection;
+          const studentSection = (student.section || '').toLowerCase().trim();
+          const clsSection = (selectedClass.section || '').toLowerCase().trim();
+          return studentGrade === clsGrade && (studentSection === clsSection || clsSection === 'a' || clsSection === 'all' || clsSection === '' || clsSection === 'أ');
         });
       }
     }
@@ -402,7 +402,13 @@ export default function TeacherPortal() {
                         <div className="bg-stone-50 p-4 rounded-3xl text-center">
                           <p className="text-[10px] font-bold text-stone-400 uppercase mb-1">{isRTL ? "الطلاب" : "Students"}</p>
                           <p className="text-xl font-black text-stone-900">
-                            {students.filter(s => s.grade?.toString() === cls.grade?.toString() && (s.section || '').toLowerCase() === (cls.section || '').toLowerCase()).length}
+                            {students.filter(s => {
+                              const sGrade = s.grade?.toString();
+                              const cGrade = cls.grade?.toString();
+                              const sSec = (s.section || '').toLowerCase().trim();
+                              const cSec = (cls.section || '').toLowerCase().trim();
+                              return sGrade === cGrade && (sSec === cSec || cSec === 'a' || cSec === 'all' || cSec === '' || cSec === 'أ');
+                            }).length}
                           </p>
                         </div>
                         <div className="bg-stone-50 p-4 rounded-3xl text-center">
@@ -726,9 +732,9 @@ function AttendanceTabContent({ isRTL, classes, students, portalUser }) {
     return students.filter(student => {
       const studentGrade = student.grade?.toString();
       const clsGrade = selectedClass.grade?.toString();
-      const studentSection = (student.section || '').toLowerCase();
-      const clsSection = (selectedClass.section || '').toLowerCase();
-      return studentGrade === clsGrade && studentSection === clsSection;
+      const studentSection = (student.section || '').toLowerCase().trim();
+      const clsSection = (selectedClass.section || '').toLowerCase().trim();
+      return studentGrade === clsGrade && (studentSection === clsSection || clsSection === 'a' || clsSection === 'all' || clsSection === '' || clsSection === 'أ');
     });
   }, [students, selectedClass]);
 
@@ -917,9 +923,9 @@ function BadgesTabContent({ isRTL, classes, students, portalUser }) {
       return classes.some(cls => {
         const studentGrade = student.grade?.toString();
         const clsGrade = cls.grade?.toString();
-        const studentSection = (student.section || '').toLowerCase();
-        const clsSection = (cls.section || '').toLowerCase();
-        return studentGrade === clsGrade && studentSection === clsSection;
+        const studentSection = (student.section || '').toLowerCase().trim();
+        const clsSection = (cls.section || '').toLowerCase().trim();
+        return studentGrade === clsGrade && (studentSection === clsSection || clsSection === 'a' || clsSection === 'all' || clsSection === '' || clsSection === 'أ');
       });
     });
   }, [students, classes]);
