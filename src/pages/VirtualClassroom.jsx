@@ -2,9 +2,9 @@ import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { 
-  Video, VideoOff, Mic, MicOff, Hand, MessageSquare, 
-  Send, Users, PhoneOff, Settings, Info, Copy, 
+import {
+  Video, VideoOff, Mic, MicOff, Hand, MessageSquare,
+  Send, Users, PhoneOff, Settings, Info, Copy,
   ShieldAlert, ScreenShare, Sparkles, AlertCircle, FileText,
   Clock, Calendar, Maximize2, Minimize2, ChevronLeft, ChevronRight
 } from "lucide-react";
@@ -38,7 +38,7 @@ export default function VirtualClassroom() {
   const [chatMessage, setChatMessage] = useState("");
   const [pinnedParticipantId, setPinnedParticipantId] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  
+
   // WebRTC & HTML5 Video/Audio Media
   const [localStream, setLocalStream] = useState(null);
   const [remoteStreams, setRemoteStreams] = useState({});
@@ -47,7 +47,7 @@ export default function VirtualClassroom() {
   const processedSignals = useRef(new Set());
   const lastPointRef = useRef(null);
   const iceQueuesRef = useRef({});
-  
+
   // Presentation & Interactive Workspace States
   const [presentationMode, setPresentationMode] = useState("whiteboard"); // whiteboard | file | video
   const [presentationData, setPresentationData] = useState({
@@ -63,7 +63,7 @@ export default function VirtualClassroom() {
   const [lineWidth, setLineWidth] = useState(3);
   const [isEraser, setIsEraser] = useState(false);
   const [remoteVolume, setRemoteVolume] = useState(1.0);
-  
+
   // Real-time Database Participants & ID
   const [participants, setParticipants] = useState([]);
   const [myParticipantId, setMyParticipantId] = useState(null);
@@ -98,7 +98,7 @@ export default function VirtualClassroom() {
   // Fetch teacher's subjects for scheduling
   const { data: teacherSubjects = [] } = useQuery({
     queryKey: ["teacher-subjects", userId],
-    queryFn: () => isTeacher 
+    queryFn: () => isTeacher
       ? base44.entities.Subject.filter({ teacher_id: userId })
       : base44.entities.Subject.list(),
     enabled: isDemo
@@ -428,7 +428,7 @@ export default function VirtualClassroom() {
 
     if (type === "OFFER") {
       await pc.setRemoteDescription(new RTCSessionDescription(data));
-      
+
       // Process queued ICE candidates for this peer
       if (iceQueuesRef.current[peerId]) {
         for (const candidate of iceQueuesRef.current[peerId]) {
@@ -532,16 +532,16 @@ export default function VirtualClassroom() {
     ctx.moveTo(prevX, prevY);
     ctx.lineTo(currX, currY);
     ctx.stroke();
-    
+
     // Broadcast normalized coordinate segments to maintain aspect ratio on remote screens
-    sendSignal("DRAW_PATH", "all", { 
-      prevX: prevX / canvas.width, 
-      prevY: prevY / canvas.height, 
-      currX: currX / canvas.width, 
-      currY: currY / canvas.height, 
-      isEraser, 
-      color: isEraser ? "rgba(0,0,0,1)" : drawColor, 
-      width: lineWidth 
+    sendSignal("DRAW_PATH", "all", {
+      prevX: prevX / canvas.width,
+      prevY: prevY / canvas.height,
+      currX: currX / canvas.width,
+      currY: currY / canvas.height,
+      isEraser,
+      color: isEraser ? "rgba(0,0,0,1)" : drawColor,
+      width: lineWidth
     });
 
     lastPointRef.current = { x: currX, y: currY };
@@ -785,28 +785,28 @@ export default function VirtualClassroom() {
                   {isRTL ? "بدء حصة افتراضية فورية" : "Start Instant Live Class"}
                 </h3>
                 <p className="text-xs text-stone-400 mb-6 leading-relaxed">
-                  {isRTL 
-                    ? "ابدأ فصلاً دراسياً مباشراً فورياً الآن لدعوة طلابك للانضمام والتفاعل فوراً." 
+                  {isRTL
+                    ? "ابدأ فصلاً دراسياً مباشراً فورياً الآن لدعوة طلابك للانضمام والتفاعل فوراً."
                     : "Create and launch an immediate virtual session to invite your students right away."}
                 </p>
-                
+
                 <div className="space-y-4">
                   <div>
                     <label className="text-[10px] font-bold text-stone-200 uppercase block mb-1.5">{isRTL ? "عنوان الحصة" : "Session Title"}</label>
-                    <Input 
-                      placeholder={isRTL ? "مثال: مراجعة الجبر والكسور" : "e.g. Algebra Review Session"} 
+                    <Input
+                      placeholder={isRTL ? "مثال: مراجعة الجبر والكسور" : "e.g. Algebra Review Session"}
                       value={newSession.title}
-                      onChange={e => setNewSession({...newSession, title: e.target.value})}
+                      onChange={e => setNewSession({ ...newSession, title: e.target.value })}
                       className="!bg-stone-850 !text-white border-white/5 text-xs rounded-xl focus:border-teal-500 placeholder:text-stone-400"
                       style={{ backgroundColor: '#1c1917', color: '#ffffff' }}
                     />
                   </div>
-                  
+
                   <div>
                     <label className="text-[10px] font-bold text-stone-200 uppercase block mb-1.5">{isRTL ? "المادة الدراسية" : "Subject"}</label>
-                    <select 
+                    <select
                       value={newSession.subject_id}
-                      onChange={e => setNewSession({...newSession, subject_id: e.target.value})}
+                      onChange={e => setNewSession({ ...newSession, subject_id: e.target.value })}
                       className="w-full bg-stone-850 border border-white/5 text-xs text-white rounded-xl p-2.5 focus:border-teal-500 focus:outline-none"
                       style={{ backgroundColor: '#1c1917', color: '#ffffff' }}
                     >
@@ -817,7 +817,7 @@ export default function VirtualClassroom() {
                     </select>
                   </div>
 
-                  <button 
+                  <button
                     onClick={async () => {
                       if (!newSession.title || !newSession.subject_id) {
                         toast.error(isRTL ? "يرجى إدخال العنوان واختيار المادة" : "Please enter a title and select a subject");
@@ -859,14 +859,14 @@ export default function VirtualClassroom() {
                   <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
                   {isRTL ? "جدولة حصة افتراضية" : "Schedule Virtual Class"}
                 </h3>
-                
+
                 <div className="space-y-4">
                   <div>
                     <label className="text-[10px] font-bold text-stone-200 uppercase block mb-1.5">{isRTL ? "عنوان الحصة" : "Session Title"}</label>
-                    <Input 
-                      placeholder={isRTL ? "مثال: مقدمة في الخوارزميات" : "e.g. Intro to Algorithms"} 
+                    <Input
+                      placeholder={isRTL ? "مثال: مقدمة في الخوارزميات" : "e.g. Intro to Algorithms"}
                       value={newSession.title}
-                      onChange={e => setNewSession({...newSession, title: e.target.value})}
+                      onChange={e => setNewSession({ ...newSession, title: e.target.value })}
                       className="!bg-stone-850 !text-white border-white/5 text-xs rounded-xl focus:border-amber-500 placeholder:text-stone-400"
                       style={{ backgroundColor: '#1c1917', color: '#ffffff' }}
                     />
@@ -874,9 +874,9 @@ export default function VirtualClassroom() {
 
                   <div>
                     <label className="text-[10px] font-bold text-stone-200 uppercase block mb-1.5">{isRTL ? "المادة الدراسية" : "Subject"}</label>
-                    <select 
+                    <select
                       value={newSession.subject_id}
-                      onChange={e => setNewSession({...newSession, subject_id: e.target.value})}
+                      onChange={e => setNewSession({ ...newSession, subject_id: e.target.value })}
                       className="w-full bg-stone-850 border border-white/5 text-xs text-white rounded-xl p-2.5 focus:border-amber-500 focus:outline-none"
                       style={{ backgroundColor: '#1c1917', color: '#ffffff' }}
                     >
@@ -890,27 +890,27 @@ export default function VirtualClassroom() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="text-[10px] font-bold text-stone-200 uppercase block mb-1.5">{isRTL ? "التاريخ" : "Date"}</label>
-                      <input 
+                      <input
                         type="date"
                         value={newSession.scheduled_at}
-                        onChange={e => setNewSession({...newSession, scheduled_at: e.target.value})}
+                        onChange={e => setNewSession({ ...newSession, scheduled_at: e.target.value })}
                         className="w-full bg-stone-850 border border-white/5 text-xs text-white rounded-xl p-2.5 focus:border-amber-500 focus:outline-none"
                         style={{ backgroundColor: '#1c1917', color: '#ffffff', colorScheme: 'dark' }}
                       />
                     </div>
                     <div>
                       <label className="text-[10px] font-bold text-stone-200 uppercase block mb-1.5">{isRTL ? "الوقت" : "Time"}</label>
-                      <input 
+                      <input
                         type="time"
                         value={newSession.scheduled_time}
-                        onChange={e => setNewSession({...newSession, scheduled_time: e.target.value})}
+                        onChange={e => setNewSession({ ...newSession, scheduled_time: e.target.value })}
                         className="w-full bg-stone-850 border border-white/5 text-xs text-white rounded-xl p-2.5 focus:border-amber-500 focus:outline-none"
                         style={{ backgroundColor: '#1c1917', color: '#ffffff', colorScheme: 'dark' }}
                       />
                     </div>
                   </div>
 
-                  <button 
+                  <button
                     onClick={handleScheduleSession}
                     className="w-full h-11 bg-stone-850 hover:bg-stone-800 text-white font-bold border border-white/10 rounded-xl text-xs flex items-center justify-center gap-2 transition-all mt-2 cursor-pointer"
                   >
@@ -945,7 +945,7 @@ export default function VirtualClassroom() {
                   const isActive = sessionItem.status === "active";
                   const isScheduled = sessionItem.status === "scheduled";
                   const isEnded = sessionItem.status === "ended";
-                  
+
                   return (
                     <Card key={sessionItem.id} className="p-6 bg-stone-900/40 border border-white/5 rounded-[28px] hover:bg-stone-900/70 transition-all duration-300 relative group overflow-hidden">
                       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -969,11 +969,11 @@ export default function VirtualClassroom() {
                               </Badge>
                             )}
                           </div>
-                          
+
                           <p className="text-xs text-stone-400 font-medium">
                             {sessionItem.subject_name} • {sessionItem.teacher_name}
                           </p>
-                          
+
                           {(isScheduled || isActive) && sessionItem.scheduled_at && (
                             <p className="text-[10px] text-stone-500 font-bold flex items-center gap-1">
                               <Clock size={10} />
@@ -992,7 +992,7 @@ export default function VirtualClassroom() {
                               {isRTL ? "دخول البث المباشر" : "Enter Live Stream"}
                             </button>
                           )}
-                          
+
                           {isScheduled && isTeacher && (
                             <button
                               onClick={() => handleStartSession(sessionItem)}
@@ -1061,7 +1061,7 @@ export default function VirtualClassroom() {
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 inline-block" />
             {isRTL ? "مباشر" : "LIVE"}
           </Badge>
-          <button 
+          <button
             onClick={() => {
               navigator.clipboard.writeText(window.location.href);
               toast.success(isRTL ? "تم نسخ رابط الغرفة بنجاح!" : "Room link copied!");
@@ -1076,17 +1076,16 @@ export default function VirtualClassroom() {
 
       {/* CORE WORKSPACE */}
       <div className="flex-1 flex flex-col md:flex-row relative min-h-0 overflow-hidden">
-        
+
         {/* Main Presentation Area (Left / Center) */}
         <div className="flex-1 p-6 flex flex-col justify-between relative bg-stone-900/40 min-w-0">
           {/* Sidebar Toggle Button */}
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className={`absolute top-1/2 -translate-y-1/2 z-20 h-16 w-5 bg-stone-900 border border-stone-850 hover:bg-stone-800 text-stone-400 hover:text-white flex items-center justify-center shadow-lg transition-all rounded-l-md cursor-pointer ${
-              isRTL 
-                ? "left-0 rounded-r-md rounded-l-none border-l-0" 
+            className={`absolute top-1/2 -translate-y-1/2 z-20 h-16 w-5 bg-stone-900 border border-stone-850 hover:bg-stone-800 text-stone-400 hover:text-white flex items-center justify-center shadow-lg transition-all rounded-l-md cursor-pointer ${isRTL
+                ? "left-0 rounded-r-md rounded-l-none border-l-0"
                 : "right-0 rounded-l-md rounded-r-none border-r-0"
-            }`}
+              }`}
             title={sidebarOpen ? (isRTL ? "إخفاء الجانب" : "Hide Sidebar") : (isRTL ? "إظهار الجانب" : "Show Sidebar")}
           >
             {sidebarOpen ? (
@@ -1115,11 +1114,10 @@ export default function VirtualClassroom() {
                         sendSignal("PRESENTATION_MODE", "all", { mode: mode.id });
                       }
                     }}
-                    className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                      presentationMode === mode.id && !pinnedParticipantId
+                    className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all ${presentationMode === mode.id && !pinnedParticipantId
                         ? "bg-teal-500 text-stone-950"
                         : "text-stone-400 hover:text-white hover:bg-white/5"
-                    }`}
+                      }`}
                   >
                     {mode.label}
                   </button>
@@ -1171,8 +1169,8 @@ export default function VirtualClassroom() {
                     pinnedParticipantId && participants.find(p => p.id === pinnedParticipantId)?.role === "teacher" && participants.find(p => p.id === pinnedParticipantId)?.video ? (
                       <div className="relative w-full h-full flex flex-col items-center justify-center bg-stone-950">
                         <div className="absolute inset-0 bg-gradient-to-br from-teal-500/10 to-stone-950" />
-                        <img 
-                          src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=600" 
+                        <img
+                          src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=600"
                           alt="Teacher"
                           className="max-h-[60%] max-w-[60%] rounded-2xl border-4 border-teal-500/30 object-cover shadow-2xl z-10"
                         />
@@ -1186,8 +1184,8 @@ export default function VirtualClassroom() {
                       </div>
                     ) : (
                       <div className="text-stone-500 font-bold text-xs">
-                        {participants.find(p => p.id === pinnedParticipantId)?.video === false 
-                          ? (isRTL ? "الكاميرا مغلقة لدى المشترك" : "Participant's Camera Off") 
+                        {participants.find(p => p.id === pinnedParticipantId)?.video === false
+                          ? (isRTL ? "الكاميرا مغلقة لدى المشترك" : "Participant's Camera Off")
                           : (isRTL ? "جاري الاتصال بالبث..." : "Connecting to Stream...")}
                       </div>
                     )
@@ -1213,64 +1211,62 @@ export default function VirtualClassroom() {
                       onMouseLeave={endDrawing}
                       className="w-full h-full cursor-crosshair"
                     />
-                      <div className="absolute bottom-4 right-4 flex items-center gap-3 bg-stone-900/95 p-3 rounded-2xl border border-white/10 z-10 shadow-2xl backdrop-blur-md">
-                        {/* Brush Colors */}
-                        <div className="flex items-center gap-1.5">
-                          {["#2dd4bf", "#f43f5e", "#3b82f6", "#eab308", "#ffffff"].map(color => (
-                            <button
-                              key={color}
-                              disabled={isEraser}
-                              onClick={() => {
-                                setDrawColor(color);
-                              }}
-                              style={{ backgroundColor: color }}
-                              className={`h-6 w-6 rounded-full border-2 transition-all ${
-                                !isEraser && drawColor === color ? "border-white scale-110" : "border-transparent opacity-60 hover:opacity-100"
+                    <div className="absolute bottom-4 right-4 flex items-center gap-3 bg-stone-900/95 p-3 rounded-2xl border border-white/10 z-10 shadow-2xl backdrop-blur-md">
+                      {/* Brush Colors */}
+                      <div className="flex items-center gap-1.5">
+                        {["#2dd4bf", "#f43f5e", "#3b82f6", "#eab308", "#ffffff"].map(color => (
+                          <button
+                            key={color}
+                            disabled={isEraser}
+                            onClick={() => {
+                              setDrawColor(color);
+                            }}
+                            style={{ backgroundColor: color }}
+                            className={`h-6 w-6 rounded-full border-2 transition-all ${!isEraser && drawColor === color ? "border-white scale-110" : "border-transparent opacity-60 hover:opacity-100"
                               }`}
-                            />
-                          ))}
-                        </div>
-
-                        <div className="w-px h-6 bg-white/10" />
-
-                        {/* Eraser Tool */}
-                        <button
-                          onClick={() => setIsEraser(!isEraser)}
-                          className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all ${
-                            isEraser 
-                              ? "bg-amber-500 text-stone-950 shadow-lg shadow-amber-500/25" 
-                              : "bg-stone-850 hover:bg-stone-800 text-stone-300"
-                          }`}
-                        >
-                          {isEraser ? (isRTL ? "الممحاة نشطة" : "Eraser Active") : (isRTL ? "ممحاة" : "Eraser")}
-                        </button>
-
-                        <div className="w-px h-6 bg-white/10" />
-
-                        {/* Stroke Width Slider */}
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] text-stone-400 font-bold">{isRTL ? "السمك:" : "Size:"}</span>
-                          <input
-                            type="range"
-                            min="1"
-                            max="20"
-                            value={lineWidth}
-                            onChange={e => setLineWidth(parseInt(e.target.value))}
-                            className="w-16 h-1 bg-stone-700 rounded-lg appearance-none cursor-pointer accent-teal-400"
                           />
-                          <span className="text-[9px] font-mono text-teal-400 w-4">{lineWidth}px</span>
-                        </div>
-
-                        <div className="w-px h-6 bg-white/10" />
-
-                        {/* Clear Canvas */}
-                        <button
-                          onClick={clearCanvas}
-                          className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-bold transition-all shadow-md shadow-rose-600/10"
-                        >
-                          {isRTL ? "مسح اللوح" : "Clear"}
-                        </button>
+                        ))}
                       </div>
+
+                      <div className="w-px h-6 bg-white/10" />
+
+                      {/* Eraser Tool */}
+                      <button
+                        onClick={() => setIsEraser(!isEraser)}
+                        className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all ${isEraser
+                            ? "bg-amber-500 text-stone-950 shadow-lg shadow-amber-500/25"
+                            : "bg-stone-850 hover:bg-stone-800 text-stone-300"
+                          }`}
+                      >
+                        {isEraser ? (isRTL ? "الممحاة نشطة" : "Eraser Active") : (isRTL ? "ممحاة" : "Eraser")}
+                      </button>
+
+                      <div className="w-px h-6 bg-white/10" />
+
+                      {/* Stroke Width Slider */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-stone-400 font-bold">{isRTL ? "السمك:" : "Size:"}</span>
+                        <input
+                          type="range"
+                          min="1"
+                          max="20"
+                          value={lineWidth}
+                          onChange={e => setLineWidth(parseInt(e.target.value))}
+                          className="w-16 h-1 bg-stone-700 rounded-lg appearance-none cursor-pointer accent-teal-400"
+                        />
+                        <span className="text-[9px] font-mono text-teal-400 w-4">{lineWidth}px</span>
+                      </div>
+
+                      <div className="w-px h-6 bg-white/10" />
+
+                      {/* Clear Canvas */}
+                      <button
+                        onClick={clearCanvas}
+                        className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-bold transition-all shadow-md shadow-rose-600/10"
+                      >
+                        {isRTL ? "مسح اللوح" : "Clear"}
+                      </button>
+                    </div>
                   </div>
                 )}
 
@@ -1334,35 +1330,32 @@ export default function VirtualClassroom() {
           {/* CONTROL TOOLBAR */}
           <div className="h-20 bg-stone-900/80 backdrop-blur-lg border border-white/5 rounded-3xl mt-6 px-6 flex items-center justify-between shadow-2xl relative z-10">
             <div className="flex items-center gap-2">
-              <button 
-                onClick={toggleMic} 
-                className={`h-11 w-11 rounded-2xl flex items-center justify-center border transition-all ${
-                  micActive 
-                    ? "bg-stone-850 text-stone-200 border-white/5 hover:bg-stone-800" 
+              <button
+                onClick={toggleMic}
+                className={`h-11 w-11 rounded-2xl flex items-center justify-center border transition-all ${micActive
+                    ? "bg-stone-850 text-stone-200 border-white/5 hover:bg-stone-800"
                     : "bg-rose-500 text-white border-rose-400 shadow-lg shadow-rose-500/20"
-                }`}
+                  }`}
               >
                 {micActive ? <Mic size={18} /> : <MicOff size={18} />}
               </button>
-              
-              <button 
-                onClick={toggleVideo} 
-                className={`h-11 w-11 rounded-2xl flex items-center justify-center border transition-all ${
-                  videoActive 
-                    ? "bg-stone-850 text-stone-200 border-white/5 hover:bg-stone-800" 
+
+              <button
+                onClick={toggleVideo}
+                className={`h-11 w-11 rounded-2xl flex items-center justify-center border transition-all ${videoActive
+                    ? "bg-stone-850 text-stone-200 border-white/5 hover:bg-stone-800"
                     : "bg-rose-500 text-white border-rose-400 shadow-lg shadow-rose-500/20"
-                }`}
+                  }`}
               >
                 {videoActive ? <Video size={18} /> : <VideoOff size={18} />}
               </button>
-              
-              <button 
-                onClick={() => setScreenSharing(!screenSharing)} 
-                className={`h-11 w-11 rounded-2xl flex items-center justify-center border transition-all ${
-                  screenSharing 
-                    ? "bg-teal-500 text-stone-950 border-teal-400 shadow-lg shadow-teal-500/20" 
+
+              <button
+                onClick={() => setScreenSharing(!screenSharing)}
+                className={`h-11 w-11 rounded-2xl flex items-center justify-center border transition-all ${screenSharing
+                    ? "bg-teal-500 text-stone-950 border-teal-400 shadow-lg shadow-teal-500/20"
                     : "bg-stone-850 text-stone-200 border-white/5 hover:bg-stone-800"
-                }`}
+                  }`}
               >
                 <ScreenShare size={18} />
               </button>
@@ -1370,13 +1363,12 @@ export default function VirtualClassroom() {
 
             <div className="flex items-center gap-4">
               {!isTeacher && (
-                <button 
-                  onClick={toggleHand} 
-                  className={`h-11 px-4 rounded-2xl flex items-center justify-center gap-2 border transition-all ${
-                    handRaised 
-                      ? "bg-yellow-500 text-stone-950 border-yellow-400 shadow-lg shadow-yellow-500/20" 
+                <button
+                  onClick={toggleHand}
+                  className={`h-11 px-4 rounded-2xl flex items-center justify-center gap-2 border transition-all ${handRaised
+                      ? "bg-yellow-500 text-stone-950 border-yellow-400 shadow-lg shadow-yellow-500/20"
                       : "bg-stone-850 text-stone-200 border-white/5 hover:bg-stone-800"
-                  }`}
+                    }`}
                 >
                   <Hand size={18} />
                   <span className="hidden sm:inline text-xs font-bold">{isRTL ? "رفع اليد" : "Raise Hand"}</span>
@@ -1386,12 +1378,12 @@ export default function VirtualClassroom() {
               {/* Volume Control Slider (Bug 7) */}
               <div className="flex items-center gap-2 bg-stone-850 px-3 py-2 rounded-2xl border border-white/5 h-11">
                 <span className="text-xs text-stone-400">🔊</span>
-                <input 
-                  type="range" 
-                  min="0" 
-                  max="1" 
-                  step="0.05" 
-                  value={remoteVolume} 
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.05"
+                  value={remoteVolume}
                   onChange={e => setRemoteVolume(parseFloat(e.target.value))}
                   className="w-20 accent-teal-400 cursor-pointer h-1 bg-stone-700 rounded-lg appearance-none"
                 />
@@ -1400,8 +1392,8 @@ export default function VirtualClassroom() {
             </div>
 
             <div className="flex items-center gap-2">
-              <button 
-                onClick={handleEndClass} 
+              <button
+                onClick={handleEndClass}
                 className="h-11 px-6 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white flex items-center justify-center gap-2 transition-all font-bold text-xs"
               >
                 <PhoneOff size={16} />
@@ -1413,7 +1405,7 @@ export default function VirtualClassroom() {
 
         {/* Participant Cameras (Google Meet style side stack) */}
         <div className="w-full lg:w-72 bg-stone-950/60 border-t lg:border-t-0 lg:border-r border-stone-850 p-4 flex flex-row lg:flex-col gap-4 overflow-y-auto shrink-0 justify-center lg:justify-start items-center lg:items-stretch min-w-0">
-          
+
           {/* Local Stream Card */}
           <div className={getCameraCardClass()}>
             <button
@@ -1510,8 +1502,8 @@ export default function VirtualClassroom() {
                   {p.role === "teacher" && p.video ? (
                     <div className="relative w-full h-full flex flex-col items-center justify-center bg-stone-900">
                       <div className="absolute inset-0 bg-gradient-to-br from-teal-500/10 to-stone-900/90" />
-                      <img 
-                        src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=300" 
+                      <img
+                        src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=300"
                         alt={p.name}
                         className="w-12 h-12 rounded-full border border-teal-500/50 object-cover shadow-lg z-10"
                       />
@@ -1558,11 +1550,10 @@ export default function VirtualClassroom() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
-                  activeTab === tab.id 
-                    ? "bg-stone-800 text-white" 
+                className={`flex-1 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${activeTab === tab.id
+                    ? "bg-stone-800 text-white"
                     : "text-stone-400 hover:text-white"
-                }`}
+                  }`}
               >
                 <tab.icon size={14} />
                 <span>{tab.label}</span>
@@ -1573,7 +1564,7 @@ export default function VirtualClassroom() {
           <div className="flex-1 flex flex-col p-4 min-h-0 relative">
             <AnimatePresence mode="wait">
               {activeTab === "chat" && (
-                <motion.div 
+                <motion.div
                   key="chat"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -1595,13 +1586,12 @@ export default function VirtualClassroom() {
                             <span className="text-[10px] font-bold text-stone-400">{msg.sender_name}</span>
                             <span className="text-[8px] text-stone-500">{timeStr}</span>
                           </div>
-                          <div className={`px-4 py-2.5 rounded-2xl text-xs max-w-[85%] ${
-                            isMe 
-                              ? "bg-teal-600 text-white rounded-br-none" 
+                          <div className={`px-4 py-2.5 rounded-2xl text-xs max-w-[85%] ${isMe
+                              ? "bg-teal-600 text-white rounded-br-none"
                               : isTeacherMsg
                                 ? "bg-amber-500/10 text-amber-300 border border-amber-500/25 rounded-bl-none"
                                 : "bg-stone-800 text-stone-200 rounded-bl-none"
-                          }`}>
+                            }`}>
                             {msg.content || msg.message_text}
                           </div>
                         </div>
@@ -1610,14 +1600,14 @@ export default function VirtualClassroom() {
                   </div>
 
                   <div className="flex gap-2 bg-stone-850 p-1.5 rounded-2xl border border-white/5 mt-auto">
-                    <Input 
+                    <Input
                       value={chatMessage}
                       onChange={e => setChatMessage(e.target.value)}
                       onKeyDown={e => e.key === "Enter" && handleSendMessage()}
                       placeholder={isRTL ? "اكتب رسالة..." : "Type a message..."}
                       className="border-none bg-transparent text-xs focus-visible:ring-0 text-white"
                     />
-                    <button 
+                    <button
                       onClick={handleSendMessage}
                       className="h-9 w-9 rounded-xl bg-teal-500 text-stone-950 flex items-center justify-center shrink-0 hover:bg-teal-400 transition-colors"
                     >
@@ -1628,7 +1618,7 @@ export default function VirtualClassroom() {
               )}
 
               {activeTab === "participants" && (
-                <motion.div 
+                <motion.div
                   key="participants"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -1658,7 +1648,7 @@ export default function VirtualClassroom() {
               )}
 
               {activeTab === "notes" && (
-                <motion.div 
+                <motion.div
                   key="notes"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
