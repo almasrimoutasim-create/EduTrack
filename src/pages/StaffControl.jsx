@@ -49,7 +49,7 @@ export default function StaffControl() {
 
   const { data: staffMembers = [], isLoading } = useQuery({ 
     queryKey: ["staff-members"], 
-    queryFn: () => base44.entities.StaffMember.list("-created_at", {}, 50) 
+    queryFn: () => base44.entities.StaffMember.list("-created_at", 50) 
   });
 
   const filteredStaff = staffMembers.filter(member => 
