@@ -25,7 +25,9 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
-  FileText
+  FileText,
+  AlertTriangle,
+  Megaphone
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useLanguage } from "@/lib/LanguageContext";
@@ -354,6 +356,7 @@ export default function ParentPortal() {
 
   const { data: portalNotifications = [] } = useQuery({
     queryKey: ["portal-notifications-parent", parentEmail],
+    // @ts-ignore
     queryFn: () => base44.entities.PortalNotification.list("-created_at", { user_id: parentEmail }),
     enabled: !!parentEmail
   });

@@ -959,7 +959,7 @@ function BadgesTabContent({ isRTL, classes, students, portalUser }) {
         award_type: "medal",
         title: finalTitle,
         description: description,
-        points: parseInt(points),
+        points: String(points),
         awarded_by: portalUser?.full_name || "معلم المادة",
         date: new Date().toISOString().split('T')[0]
       });

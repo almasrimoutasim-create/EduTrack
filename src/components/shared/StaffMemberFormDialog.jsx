@@ -96,7 +96,7 @@ export default function StaffMemberFormDialog({ open, onClose, member }) {
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" dir={isRTL ? "rtl" : "ltr"}>
-        <DialogHeader>
+        <DialogHeader className="">
           <DialogTitle className="font-display text-xl text-stone-900 font-bold">
             {isEdit ? t.titleEdit : t.titleAdd}
           </DialogTitle>

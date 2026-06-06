@@ -56,6 +56,7 @@ export default function ParentSidebar() {
 
   const { data: portalNotifications = [] } = useQuery({
     queryKey: ["portal-notifications-sidebar", parentEmail],
+    // @ts-ignore
     queryFn: () => base44.entities.PortalNotification.list("-created_at", { user_id: parentEmail }),
     enabled: !!parentEmail
   });
