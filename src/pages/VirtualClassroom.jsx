@@ -57,6 +57,8 @@ export default function VirtualClassroom() {
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawColor, setDrawColor] = useState("#2dd4bf"); // teal-400
   const [lineWidth, setLineWidth] = useState(3);
+  const [isEraser, setIsEraser] = useState(false);
+  const [remoteVolume, setRemoteVolume] = useState(1.0);
   
   // Real-time Database Participants & ID
   const [participants, setParticipants] = useState([]);
@@ -375,7 +377,7 @@ export default function VirtualClassroom() {
 
     pc.onnegotiationneeded = async () => {
       try {
-        if (userId > peerId) {
+        if (pc.signalingState === "stable") {
           const offer = await pc.createOffer();
           await pc.setLocalDescription(offer);
           sendSignal("OFFER", peerId, offer);
@@ -439,6 +441,7 @@ export default function VirtualClassroom() {
         const ctx = canvas.getContext("2d");
         ctx.beginPath();
         ctx.moveTo(data.x, data.y);
+        ctx.globalCompositeOperation = data.isEraser ? "destination-out" : "source-over";
         ctx.strokeStyle = data.color;
         ctx.lineWidth = data.width;
         ctx.lineCap = "round";
@@ -448,6 +451,9 @@ export default function VirtualClassroom() {
       const canvas = canvasRef.current;
       if (canvas) {
         const ctx = canvas.getContext("2d");
+        ctx.globalCompositeOperation = data.isEraser ? "destination-out" : "source-over";
+        ctx.strokeStyle = data.color;
+        ctx.lineWidth = data.width;
         ctx.lineTo(data.x, data.y);
         ctx.stroke();
       }
@@ -475,13 +481,20 @@ export default function VirtualClassroom() {
 
     ctx.beginPath();
     ctx.moveTo(x, y);
-    ctx.strokeStyle = drawColor;
+    ctx.globalCompositeOperation = isEraser ? "destination-out" : "source-over";
+    ctx.strokeStyle = isEraser ? "rgba(0,0,0,1)" : drawColor;
     ctx.lineWidth = lineWidth;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     setIsDrawing(true);
     
-    sendSignal("DRAW_START", "all", { x, y, color: drawColor, width: lineWidth });
+    sendSignal("DRAW_START", "all", { 
+      x, 
+      y, 
+      color: isEraser ? "rgba(0,0,0,1)" : drawColor, 
+      width: lineWidth, 
+      isEraser 
+    });
   };
 
   const draw = (e) => {
@@ -493,10 +506,19 @@ export default function VirtualClassroom() {
     const x = ((e.clientX - rect.left) / rect.width) * canvas.width;
     const y = ((e.clientY - rect.top) / rect.height) * canvas.height;
 
+    ctx.globalCompositeOperation = isEraser ? "destination-out" : "source-over";
+    ctx.strokeStyle = isEraser ? "rgba(0,0,0,1)" : drawColor;
+    ctx.lineWidth = lineWidth;
     ctx.lineTo(x, y);
     ctx.stroke();
     
-    sendSignal("DRAW_PATH", "all", { x, y });
+    sendSignal("DRAW_PATH", "all", { 
+      x, 
+      y, 
+      isEraser, 
+      color: isEraser ? "rgba(0,0,0,1)" : drawColor, 
+      width: lineWidth 
+    });
   };
 
   const endDrawing = () => {
@@ -533,9 +555,9 @@ export default function VirtualClassroom() {
     };
   }, [presentationMode]);
 
-  // Listen for incoming WebRTC signaling messages
+  // Listen for incoming WebRTC signaling messages - role agnostic and localStream state independent
   useEffect(() => {
-    if (isDemo || !localStream) return;
+    if (isDemo) return;
 
     dbMessages.forEach(msg => {
       const text = msg.content || msg.message_text || "";
@@ -556,7 +578,7 @@ export default function VirtualClassroom() {
         console.error("Failed to parse incoming WebRTC signal data", err);
       }
     });
-  }, [dbMessages, localStream, isDemo]);
+  }, [dbMessages, isDemo, userId]);
 
   // Trigger RTC Offer if we have the lexicographically higher user ID
   useEffect(() => {
@@ -1060,27 +1082,64 @@ export default function VirtualClassroom() {
                   onMouseLeave={endDrawing}
                   className="w-full h-full cursor-crosshair"
                 />
-                {isTeacher && (
-                  <div className="absolute bottom-4 right-4 flex items-center gap-2 bg-stone-900/90 p-2 rounded-xl border border-white/10 z-10">
-                    {["#2dd4bf", "#f43f5e", "#3b82f6", "#eab308", "#ffffff"].map(color => (
-                      <button
-                        key={color}
-                        onClick={() => setDrawColor(color)}
-                        style={{ backgroundColor: color }}
-                        className={`h-6 w-6 rounded-full border-2 transition-all ${
-                          drawColor === color ? "border-white scale-110" : "border-transparent"
-                        }`}
+                  <div className="absolute bottom-4 right-4 flex items-center gap-3 bg-stone-900/95 p-3 rounded-2xl border border-white/10 z-10 shadow-2xl backdrop-blur-md">
+                    {/* Brush Colors */}
+                    <div className="flex items-center gap-1.5">
+                      {["#2dd4bf", "#f43f5e", "#3b82f6", "#eab308", "#ffffff"].map(color => (
+                        <button
+                          key={color}
+                          disabled={isEraser}
+                          onClick={() => {
+                            setDrawColor(color);
+                          }}
+                          style={{ backgroundColor: color }}
+                          className={`h-6 w-6 rounded-full border-2 transition-all ${
+                            !isEraser && drawColor === color ? "border-white scale-110" : "border-transparent opacity-60 hover:opacity-100"
+                          }`}
+                        />
+                      ))}
+                    </div>
+
+                    <div className="w-px h-6 bg-white/10" />
+
+                    {/* Eraser Tool */}
+                    <button
+                      onClick={() => setIsEraser(!isEraser)}
+                      className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all ${
+                        isEraser 
+                          ? "bg-amber-500 text-stone-950 shadow-lg shadow-amber-500/25" 
+                          : "bg-stone-850 hover:bg-stone-800 text-stone-300"
+                      }`}
+                    >
+                      {isEraser ? (isRTL ? "الممحاة نشطة" : "Eraser Active") : (isRTL ? "ممحاة" : "Eraser")}
+                    </button>
+
+                    <div className="w-px h-6 bg-white/10" />
+
+                    {/* Stroke Width Slider */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-stone-400 font-bold">{isRTL ? "السمك:" : "Size:"}</span>
+                      <input
+                        type="range"
+                        min="1"
+                        max="20"
+                        value={lineWidth}
+                        onChange={e => setLineWidth(parseInt(e.target.value))}
+                        className="w-16 h-1 bg-stone-700 rounded-lg appearance-none cursor-pointer accent-teal-400"
                       />
-                    ))}
-                    <div className="w-px h-6 bg-white/10 mx-1" />
+                      <span className="text-[9px] font-mono text-teal-400 w-4">{lineWidth}px</span>
+                    </div>
+
+                    <div className="w-px h-6 bg-white/10" />
+
+                    {/* Clear Canvas */}
                     <button
                       onClick={clearCanvas}
-                      className="px-2 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded text-[10px] font-bold transition-all"
+                      className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-bold transition-all shadow-md shadow-rose-600/10"
                     >
                       {isRTL ? "مسح اللوح" : "Clear"}
                     </button>
                   </div>
-                )}
               </div>
             )}
 
@@ -1176,7 +1235,7 @@ export default function VirtualClassroom() {
               </button>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-4">
               {!isTeacher && (
                 <button 
                   onClick={toggleHand} 
@@ -1190,6 +1249,21 @@ export default function VirtualClassroom() {
                   <span className="hidden sm:inline text-xs font-bold">{isRTL ? "رفع اليد" : "Raise Hand"}</span>
                 </button>
               )}
+
+              {/* Volume Control Slider (Bug 7) */}
+              <div className="flex items-center gap-2 bg-stone-850 px-3 py-2 rounded-2xl border border-white/5 h-11">
+                <span className="text-xs text-stone-400">🔊</span>
+                <input 
+                  type="range" 
+                  min="0" 
+                  max="1" 
+                  step="0.05" 
+                  value={remoteVolume} 
+                  onChange={e => setRemoteVolume(parseFloat(e.target.value))}
+                  className="w-20 accent-teal-400 cursor-pointer h-1 bg-stone-700 rounded-lg appearance-none"
+                />
+                <span className="text-[10px] font-mono text-stone-400 w-8 text-right">{Math.round(remoteVolume * 100)}%</span>
+              </div>
             </div>
 
             <div className="flex items-center gap-2">
@@ -1268,6 +1342,7 @@ export default function VirtualClassroom() {
                       if (el.srcObject !== remoteStreams[p.id]) {
                         el.srcObject = remoteStreams[p.id];
                       }
+                      el.volume = remoteVolume;
                       el.play().catch(() => {
                         const playOnClick = () => {
                           el.play().catch(e => console.error(e));
