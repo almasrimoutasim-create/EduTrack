@@ -1498,7 +1498,7 @@ export default function VirtualClassroom() {
                   }}
                   autoPlay
                   playsInline
-                  className={`w-full h-full object-cover ${p.video ? "" : "hidden"}`}
+                  className={`w-full h-full object-cover ${p.video ? "block" : "opacity-0 absolute pointer-events-none"}`}
                 />
               )}
 
