@@ -166,7 +166,23 @@ export default function RoleLogin() {
                 visible: { y: 0, opacity: 1 }
               }}
               whileHover={{ y: -5 }}
-              onClick={() => openLoginPopup(role)}
+              onClick={() => {
+                if (role.id === "staff") {
+                  localStorage.setItem("portal_role", "staff");
+                  localStorage.setItem("portal_user", JSON.stringify({
+                    id: "staff-guest",
+                    full_name: "موظف زائر",
+                    email: "guest@edutrack.com",
+                    role: "staff"
+                  }));
+                  localStorage.setItem("portal_user_id", "staff-guest");
+                  localStorage.setItem("portal_user_name", "موظف زائر");
+                  localStorage.setItem("portal_is_auth", "true");
+                  window.location.href = "/staff-portal";
+                } else {
+                  openLoginPopup(role);
+                }
+              }}
               className="group cursor-pointer"
             >
               <Card className="p-6 border-none shadow-sm hover:shadow-2xl transition-all duration-500 rounded-[24px] bg-white relative overflow-hidden h-full flex flex-col items-center text-center">

@@ -33,6 +33,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import StaffMemberFormDialog from "@/components/shared/StaffMemberFormDialog";
+import RoleSettingsDialog from "@/components/shared/RoleSettingsDialog";
 import { toast } from "sonner";
 
 const btnOutline = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border-2 border-stone-200 bg-white text-stone-800 hover:bg-stone-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
@@ -43,6 +44,7 @@ export default function StaffControl() {
   const isRTL = language === "ar";
   const [searchTerm, setSearchTerm] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [roleSettingsOpen, setRoleSettingsOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
 
   const { data: staffMembers = [], isLoading } = useQuery({ 
@@ -91,7 +93,7 @@ export default function StaffControl() {
         subtitle={isRTL ? "إدارة الموظفين، الصلاحيات، والوصول إلى النظام" : "Manage employees, permissions, and system access"}
       >
         <div className="flex gap-3">
-          <button className={`${btnOutline} rounded-xl h-11 px-5`}>
+          <button onClick={() => setRoleSettingsOpen(true)} className={`${btnOutline} rounded-xl h-11 px-5`}>
             <Settings size={18} />
             <span>{isRTL ? "إعدادات الأدوار" : "Role Settings"}</span>
           </button>
@@ -255,6 +257,7 @@ export default function StaffControl() {
         </div>
       )}
       <StaffMemberFormDialog open={dialogOpen} onClose={() => setDialogOpen(false)} member={selectedMember} />
+      <RoleSettingsDialog open={roleSettingsOpen} onClose={() => setRoleSettingsOpen(false)} />
     </div>
   );
 }

@@ -8,12 +8,15 @@ const PORTAL_REDIRECTS = {
   student: "/student-portal", 
   parent: "/parent-portal",
   bus: "/bus-supervisor",
+  bus_supervisor: "/bus-supervisor",
   staff: "/staff-portal",
   registrar: "/student-directory",
   hr: "/staff-control",
   accountant: "/finance",
   store: "/store",
-  library: "/library"
+  store_keeper: "/store",
+  library: "/library",
+  security: "/staff-portal"
 };
 
 const isPathAllowed = (role, path) => {
@@ -22,7 +25,9 @@ const isPathAllowed = (role, path) => {
   if (role === 'teacher') return path.startsWith('/teacher-portal');
   if (role === 'student') return path.startsWith('/student-portal') || path.startsWith('/store');
   if (role === 'parent') return path.startsWith('/parent-portal') || path.startsWith('/store');
-  if (role === 'bus') return path.startsWith('/bus-supervisor');
+  if (role === 'bus' || role === 'bus_supervisor') {
+    return path.startsWith('/staff-portal') || path.startsWith('/bus-supervisor');
+  }
   
   if (role === 'staff') return path.startsWith('/staff-portal');
 
@@ -49,12 +54,16 @@ const isPathAllowed = (role, path) => {
     return path.startsWith('/staff-portal') || path.startsWith('/library');
   }
 
-  if (role === 'store') {
+  if (role === 'store' || role === 'store_keeper') {
     return path.startsWith('/staff-portal') || path.startsWith('/store');
   }
 
   if (role === 'accountant') {
     return path.startsWith('/staff-portal') || path.startsWith('/finance');
+  }
+
+  if (role === 'security') {
+    return path.startsWith('/staff-portal');
   }
 
   return false;
