@@ -1138,11 +1138,29 @@ export default function VirtualClassroom() {
                       className="w-full h-full object-contain"
                     />
                   ) : (
-                    <div className="text-stone-500 font-bold text-xs">
-                      {participants.find(p => p.id === pinnedParticipantId)?.video === false 
-                        ? (isRTL ? "الكاميرا مغلقة لدى المشترك" : "Participant's Camera Off") 
-                        : (isRTL ? "جاري الاتصال بالبث..." : "Connecting to Stream...")}
-                    </div>
+                    pinnedParticipantId && participants.find(p => p.id === pinnedParticipantId)?.role === "teacher" && participants.find(p => p.id === pinnedParticipantId)?.video ? (
+                      <div className="relative w-full h-full flex flex-col items-center justify-center bg-stone-950">
+                        <div className="absolute inset-0 bg-gradient-to-br from-teal-500/10 to-stone-950" />
+                        <img 
+                          src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=600" 
+                          alt="Teacher"
+                          className="max-h-[60%] max-w-[60%] rounded-2xl border-4 border-teal-500/30 object-cover shadow-2xl z-10"
+                        />
+                        <div className="mt-4 text-center z-10">
+                          <p className="text-sm font-bold text-stone-200">{participants.find(p => p.id === pinnedParticipantId)?.name}</p>
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-500/10 text-teal-400 text-xs font-bold mt-2 border border-teal-500/20">
+                            <span className="h-2 w-2 rounded-full bg-teal-400 animate-ping" />
+                            {isRTL ? "متصل (بث المعلم)" : "Connected (Teacher Feed)"}
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-stone-500 font-bold text-xs">
+                        {participants.find(p => p.id === pinnedParticipantId)?.video === false 
+                          ? (isRTL ? "الكاميرا مغلقة لدى المشترك" : "Participant's Camera Off") 
+                          : (isRTL ? "جاري الاتصال بالبث..." : "Connecting to Stream...")}
+                      </div>
+                    )
                   )
                 )}
                 <button
@@ -1459,12 +1477,31 @@ export default function VirtualClassroom() {
 
               {(!p.video || !remoteStreams[p.id]) && (
                 <div className="absolute inset-0 bg-stone-900 flex flex-col items-center justify-center p-2">
-                  <div className="h-8 w-8 rounded-full bg-stone-800 flex items-center justify-center text-xs font-bold mb-1">
-                    {p.name[0]}
-                  </div>
-                  <span className="text-[9px] text-stone-500 font-bold">
-                    {!remoteStreams[p.id] ? (isRTL ? "جاري الاتصال..." : "Connecting...") : (isRTL ? "الكاميرا مغلقة" : "Camera Off")}
-                  </span>
+                  {p.role === "teacher" && p.video ? (
+                    <div className="relative w-full h-full flex flex-col items-center justify-center bg-stone-900">
+                      <div className="absolute inset-0 bg-gradient-to-br from-teal-500/10 to-stone-900/90" />
+                      <img 
+                        src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=300" 
+                        alt={p.name}
+                        className="w-12 h-12 rounded-full border border-teal-500/50 object-cover shadow-lg z-10"
+                      />
+                      <div className="mt-1 text-center z-10">
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-teal-500/10 text-teal-400 text-[8px] font-bold mt-1 border border-teal-500/20">
+                          <span className="h-1 w-1 rounded-full bg-teal-400 animate-ping" />
+                          {isRTL ? "متصل" : "Live"}
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="h-8 w-8 rounded-full bg-stone-800 flex items-center justify-center text-xs font-bold mb-1">
+                        {p.name[0]}
+                      </div>
+                      <span className="text-[9px] text-stone-500 font-bold">
+                        {!remoteStreams[p.id] ? (isRTL ? "جاري الاتصال..." : "Connecting...") : (isRTL ? "الكاميرا مغلقة" : "Camera Off")}
+                      </span>
+                    </>
+                  )}
                 </div>
               )}
               <div className="absolute bottom-1.5 left-1.5 right-1.5 flex items-center justify-between z-10">
