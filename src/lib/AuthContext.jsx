@@ -23,7 +23,28 @@ export const AuthProvider = ({ children }) => {
       setIsLoadingPublicSettings(true);
       setAuthError(null);
       
-      // First, check app public settings
+      // Check our local secure login session first
+      const storedUser = localStorage.getItem('portal_user');
+      const storedAuth = localStorage.getItem('portal_is_auth');
+      if (storedUser && storedAuth === 'true') {
+        try {
+          setUser(JSON.parse(storedUser));
+          setIsAuthenticated(true);
+        } catch {
+          // corrupted storage
+          localStorage.removeItem('portal_user');
+          localStorage.removeItem('portal_is_auth');
+          setIsAuthenticated(false);
+          setUser(null);
+        }
+      } else {
+        setIsAuthenticated(false);
+        setUser(null);
+      }
+      setIsLoadingAuth(false);
+      setAuthChecked(true);
+
+      // Check app public settings
       // Use direct Base44 URL in production (Vite proxy /api only works in dev)
       const base44Base = import.meta.env.DEV
         ? '/api/apps/public'
@@ -40,65 +61,49 @@ export const AuthProvider = ({ children }) => {
       try {
         const publicSettings = await appClient.get(`/prod/public-settings/by-id/${appParams.appId}`);
         setAppPublicSettings(publicSettings);
-        
-        // Check our local secure login session
-        const storedUser = localStorage.getItem('portal_user');
-        const storedAuth = localStorage.getItem('portal_is_auth');
-        if (storedUser && storedAuth === 'true') {
-          try {
-            setUser(JSON.parse(storedUser));
-            setIsAuthenticated(true);
-          } catch {
-            // corrupted storage
-            localStorage.removeItem('portal_user');
-            localStorage.removeItem('portal_is_auth');
-            setIsAuthenticated(false);
-            setUser(null);
-          }
-        } else {
-          setIsAuthenticated(false);
-          setUser(null);
-        }
-        setIsLoadingAuth(false);
-        setAuthChecked(true);
         setIsLoadingPublicSettings(false);
       } catch (appError) {
         console.error('App state check failed:', appError);
         
-        // Handle app-level errors
-        if (appError.status === 403 && appError.data?.extra_data?.reason) {
-          const reason = appError.data.extra_data.reason;
-          if (reason === 'auth_required') {
-            setAuthError({
-              type: 'auth_required',
-              message: 'Authentication required'
-            });
-          } else if (reason === 'user_not_registered') {
-            setAuthError({
-              type: 'user_not_registered',
-              message: 'User not registered for this app'
-            });
+        // Handle app-level errors only if the user is not locally authenticated
+        const locallyAuthenticated = localStorage.getItem('portal_is_auth') === 'true';
+        if (!locallyAuthenticated) {
+          if (appError.status === 403 && appError.data?.extra_data?.reason) {
+            const reason = appError.data.extra_data.reason;
+            if (reason === 'auth_required') {
+              setAuthError({
+                type: 'auth_required',
+                message: 'Authentication required'
+              });
+            } else if (reason === 'user_not_registered') {
+              setAuthError({
+                type: 'user_not_registered',
+                message: 'User not registered for this app'
+              });
+            } else {
+              setAuthError({
+                type: reason,
+                message: appError.message
+              });
+            }
           } else {
             setAuthError({
-              type: reason,
-              message: appError.message
+              type: 'unknown',
+              message: appError.message || 'Failed to load app'
             });
           }
-        } else {
-          setAuthError({
-            type: 'unknown',
-            message: appError.message || 'Failed to load app'
-          });
         }
         setIsLoadingPublicSettings(false);
-        setIsLoadingAuth(false);
       }
     } catch (error) {
       console.error('Unexpected error:', error);
-      setAuthError({
-        type: 'unknown',
-        message: error.message || 'An unexpected error occurred'
-      });
+      const locallyAuthenticated = localStorage.getItem('portal_is_auth') === 'true';
+      if (!locallyAuthenticated) {
+        setAuthError({
+          type: 'unknown',
+          message: error.message || 'An unexpected error occurred'
+        });
+      }
       setIsLoadingPublicSettings(false);
       setIsLoadingAuth(false);
     }

@@ -41,8 +41,11 @@ export default function VirtualClassroom() {
 
   // WebRTC & HTML5 Video/Audio Media
   const [localStream, setLocalStream] = useState(null);
+  const [screenStream, setScreenStream] = useState(null);
   const [remoteStreams, setRemoteStreams] = useState({});
   const localVideoRef = useRef(null);
+
+  const activeStream = (screenSharing && screenStream) ? screenStream : localStream;
   const pcsRef = useRef({}); // userId -> RTCPeerConnection
   const processedSignals = useRef(new Set());
   const lastPointRef = useRef(null);
@@ -300,16 +303,14 @@ export default function VirtualClassroom() {
   // Screen sharing track replacement
   useEffect(() => {
     if (isDemo) return;
-    let screenStream = null;
+    let currentScreenStream = null;
     const toggleScreen = async () => {
       if (screenSharing) {
         try {
-          screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-          if (localVideoRef.current) {
-            localVideoRef.current.srcObject = screenStream;
-          }
+          currentScreenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+          setScreenStream(currentScreenStream);
           // Replace video track in all active peer connections
-          const screenTrack = screenStream.getVideoTracks()[0];
+          const screenTrack = currentScreenStream.getVideoTracks()[0];
           Object.values(pcsRef.current).forEach(pc => {
             const sender = pc.getSenders().find(s => s.track && s.track.kind === "video");
             if (sender) {
@@ -325,8 +326,7 @@ export default function VirtualClassroom() {
           setScreenSharing(false);
         }
       } else {
-        if (localVideoRef.current && localStream) {
-          localVideoRef.current.srcObject = localStream;
+        if (localStream) {
           // Restore camera track in all active peer connections
           const cameraTrack = localStream.getVideoTracks()[0];
           Object.values(pcsRef.current).forEach(pc => {
@@ -336,13 +336,17 @@ export default function VirtualClassroom() {
             }
           });
         }
+        if (screenStream) {
+          screenStream.getTracks().forEach(track => track.stop());
+          setScreenStream(null);
+        }
       }
     };
     toggleScreen();
 
     return () => {
-      if (screenStream) {
-        screenStream.getTracks().forEach(track => track.stop());
+      if (currentScreenStream) {
+        currentScreenStream.getTracks().forEach(track => track.stop());
       }
     };
   }, [screenSharing, localStream, isDemo]);
@@ -380,6 +384,7 @@ export default function VirtualClassroom() {
     }
 
     pc.onnegotiationneeded = async () => {
+      if (userId < peerId) return; // Only the lexicographically higher user initiates offers
       try {
         if (pc.signalingState === "stable") {
           const offer = await pc.createOffer();
@@ -609,7 +614,7 @@ export default function VirtualClassroom() {
 
   // Trigger RTC Offer if we have the lexicographically higher user ID
   useEffect(() => {
-    if (isDemo || !localStream) return;
+    if (isDemo) return;
 
     participants.forEach(p => {
       if (p.id === userId) return;
@@ -1131,12 +1136,12 @@ export default function VirtualClassroom() {
             {pinnedParticipantId ? (
               <div className="w-full h-full relative bg-stone-950 flex items-center justify-center">
                 {pinnedParticipantId === userId ? (
-                  videoActive && localStream ? (
+                  videoActive && activeStream ? (
                     <video
                       ref={el => {
-                        if (el && localStream) {
-                          if (el.srcObject !== localStream) {
-                            el.srcObject = localStream;
+                        if (el && activeStream) {
+                          if (el.srcObject !== activeStream) {
+                            el.srcObject = activeStream;
                           }
                           el.play().catch(e => console.error("Error auto-playing pinned stream:", e));
                         }
@@ -1417,12 +1422,12 @@ export default function VirtualClassroom() {
             </button>
             {videoActive ? (
               <div className="w-full h-full bg-stone-800 flex items-center justify-center relative">
-                {localStream ? (
+                {activeStream ? (
                   <video
                     ref={el => {
-                      if (el && localStream) {
-                        if (el.srcObject !== localStream) {
-                          el.srcObject = localStream;
+                      if (el && activeStream) {
+                        if (el.srcObject !== activeStream) {
+                          el.srcObject = activeStream;
                         }
                         el.play().catch(e => console.error("Error auto-playing local video stream:", e));
                       }
