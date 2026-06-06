@@ -533,7 +533,8 @@ export default function VirtualClassroom() {
       const type = parts[1];
       const sender = parts[2];
       const receiver = parts[3];
-      if (sender === userId || receiver !== userId) return;
+      if (sender === userId) return;
+      if (receiver !== "all" && receiver !== userId) return;
 
       try {
         const data = JSON.parse(parts.slice(4).join(":"));
