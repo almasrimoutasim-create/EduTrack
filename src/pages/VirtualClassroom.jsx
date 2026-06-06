@@ -6,7 +6,7 @@ import {
   Video, VideoOff, Mic, MicOff, Hand, MessageSquare, 
   Send, Users, PhoneOff, Settings, Info, Copy, 
   ShieldAlert, ScreenShare, Sparkles, AlertCircle, FileText,
-  Clock, Calendar
+  Clock, Calendar, Maximize2, Minimize2
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/lib/LanguageContext";
@@ -36,6 +36,7 @@ export default function VirtualClassroom() {
   const [activeTab, setActiveTab] = useState("chat"); // chat | participants | notes
   const [notes, setNotes] = useState("");
   const [chatMessage, setChatMessage] = useState("");
+  const [pinnedParticipantId, setPinnedParticipantId] = useState(null);
   
   // WebRTC & HTML5 Video/Audio Media
   const [localStream, setLocalStream] = useState(null);
@@ -1078,16 +1079,18 @@ export default function VirtualClassroom() {
               ].map(mode => (
                 <button
                   key={mode.id}
-                  disabled={!isTeacher}
                   onClick={() => {
                     setPresentationMode(mode.id);
-                    sendSignal("PRESENTATION_MODE", "all", { mode: mode.id });
+                    setPinnedParticipantId(null); // return to presentation workspace
+                    if (isTeacher) {
+                      sendSignal("PRESENTATION_MODE", "all", { mode: mode.id });
+                    }
                   }}
                   className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                    presentationMode === mode.id
+                    presentationMode === mode.id && !pinnedParticipantId
                       ? "bg-teal-500 text-stone-950"
                       : "text-stone-400 hover:text-white hover:bg-white/5"
-                  } disabled:opacity-85 disabled:cursor-not-allowed`}
+                  }`}
                 >
                   {mode.label}
                 </button>
@@ -1097,129 +1100,186 @@ export default function VirtualClassroom() {
 
           {/* Presentation Content Box */}
           <div className="flex-1 bg-stone-950/80 rounded-[32px] border border-white/5 relative overflow-hidden flex items-center justify-center min-h-[350px]">
-            {presentationMode === "whiteboard" && (
-              <div className="w-full h-full relative bg-stone-900/20">
-                <canvas
-                  ref={canvasRef}
-                  onMouseDown={startDrawing}
-                  onMouseMove={draw}
-                  onMouseUp={endDrawing}
-                  onMouseLeave={endDrawing}
-                  className="w-full h-full cursor-crosshair"
-                />
-                  <div className="absolute bottom-4 right-4 flex items-center gap-3 bg-stone-900/95 p-3 rounded-2xl border border-white/10 z-10 shadow-2xl backdrop-blur-md">
-                    {/* Brush Colors */}
-                    <div className="flex items-center gap-1.5">
-                      {["#2dd4bf", "#f43f5e", "#3b82f6", "#eab308", "#ffffff"].map(color => (
+            {pinnedParticipantId ? (
+              <div className="w-full h-full relative bg-stone-950 flex items-center justify-center">
+                {pinnedParticipantId === userId ? (
+                  videoActive && localStream ? (
+                    <video
+                      ref={el => {
+                        if (el && localStream) {
+                          if (el.srcObject !== localStream) {
+                            el.srcObject = localStream;
+                          }
+                          el.play().catch(e => console.error("Error auto-playing pinned stream:", e));
+                        }
+                      }}
+                      autoPlay
+                      playsInline
+                      muted
+                      className="w-full h-full object-contain"
+                    />
+                  ) : (
+                    <div className="text-stone-500 font-bold text-xs">{isRTL ? "الكاميرا مغلقة" : "Camera Off"}</div>
+                  )
+                ) : (
+                  remoteStreams[pinnedParticipantId] && participants.find(p => p.id === pinnedParticipantId)?.video ? (
+                    <video
+                      ref={el => {
+                        if (el && remoteStreams[pinnedParticipantId]) {
+                          if (el.srcObject !== remoteStreams[pinnedParticipantId]) {
+                            el.srcObject = remoteStreams[pinnedParticipantId];
+                          }
+                          el.volume = remoteVolume;
+                          el.play().catch(e => console.error("Error playing remote pinned stream:", e));
+                        }
+                      }}
+                      autoPlay
+                      playsInline
+                      className="w-full h-full object-contain"
+                    />
+                  ) : (
+                    <div className="text-stone-500 font-bold text-xs">
+                      {participants.find(p => p.id === pinnedParticipantId)?.video === false 
+                        ? (isRTL ? "الكاميرا مغلقة لدى المشترك" : "Participant's Camera Off") 
+                        : (isRTL ? "جاري الاتصال بالبث..." : "Connecting to Stream...")}
+                    </div>
+                  )
+                )}
+                <button
+                  onClick={() => setPinnedParticipantId(null)}
+                  className="absolute top-4 right-4 bg-black/70 hover:bg-black/90 text-white p-2 rounded-xl border border-white/10 z-20 flex items-center gap-1.5 text-xs font-bold transition-all"
+                >
+                  <Minimize2 size={14} />
+                  <span>{isRTL ? "إنهاء التكبير" : "Minimize"}</span>
+                </button>
+              </div>
+            ) : (
+              <>
+                {presentationMode === "whiteboard" && (
+                  <div className="w-full h-full relative bg-stone-900/20">
+                    <canvas
+                      ref={canvasRef}
+                      onMouseDown={startDrawing}
+                      onMouseMove={draw}
+                      onMouseUp={endDrawing}
+                      onMouseLeave={endDrawing}
+                      className="w-full h-full cursor-crosshair"
+                    />
+                      <div className="absolute bottom-4 right-4 flex items-center gap-3 bg-stone-900/95 p-3 rounded-2xl border border-white/10 z-10 shadow-2xl backdrop-blur-md">
+                        {/* Brush Colors */}
+                        <div className="flex items-center gap-1.5">
+                          {["#2dd4bf", "#f43f5e", "#3b82f6", "#eab308", "#ffffff"].map(color => (
+                            <button
+                              key={color}
+                              disabled={isEraser}
+                              onClick={() => {
+                                setDrawColor(color);
+                              }}
+                              style={{ backgroundColor: color }}
+                              className={`h-6 w-6 rounded-full border-2 transition-all ${
+                                !isEraser && drawColor === color ? "border-white scale-110" : "border-transparent opacity-60 hover:opacity-100"
+                              }`}
+                            />
+                          ))}
+                        </div>
+
+                        <div className="w-px h-6 bg-white/10" />
+
+                        {/* Eraser Tool */}
                         <button
-                          key={color}
-                          disabled={isEraser}
-                          onClick={() => {
-                            setDrawColor(color);
-                          }}
-                          style={{ backgroundColor: color }}
-                          className={`h-6 w-6 rounded-full border-2 transition-all ${
-                            !isEraser && drawColor === color ? "border-white scale-110" : "border-transparent opacity-60 hover:opacity-100"
+                          onClick={() => setIsEraser(!isEraser)}
+                          className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all ${
+                            isEraser 
+                              ? "bg-amber-500 text-stone-950 shadow-lg shadow-amber-500/25" 
+                              : "bg-stone-850 hover:bg-stone-800 text-stone-300"
                           }`}
-                        />
-                      ))}
-                    </div>
+                        >
+                          {isEraser ? (isRTL ? "الممحاة نشطة" : "Eraser Active") : (isRTL ? "ممحاة" : "Eraser")}
+                        </button>
 
-                    <div className="w-px h-6 bg-white/10" />
+                        <div className="w-px h-6 bg-white/10" />
 
-                    {/* Eraser Tool */}
-                    <button
-                      onClick={() => setIsEraser(!isEraser)}
-                      className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all ${
-                        isEraser 
-                          ? "bg-amber-500 text-stone-950 shadow-lg shadow-amber-500/25" 
-                          : "bg-stone-850 hover:bg-stone-800 text-stone-300"
-                      }`}
-                    >
-                      {isEraser ? (isRTL ? "الممحاة نشطة" : "Eraser Active") : (isRTL ? "ممحاة" : "Eraser")}
-                    </button>
+                        {/* Stroke Width Slider */}
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] text-stone-400 font-bold">{isRTL ? "السمك:" : "Size:"}</span>
+                          <input
+                            type="range"
+                            min="1"
+                            max="20"
+                            value={lineWidth}
+                            onChange={e => setLineWidth(parseInt(e.target.value))}
+                            className="w-16 h-1 bg-stone-700 rounded-lg appearance-none cursor-pointer accent-teal-400"
+                          />
+                          <span className="text-[9px] font-mono text-teal-400 w-4">{lineWidth}px</span>
+                        </div>
 
-                    <div className="w-px h-6 bg-white/10" />
+                        <div className="w-px h-6 bg-white/10" />
 
-                    {/* Stroke Width Slider */}
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-stone-400 font-bold">{isRTL ? "السمك:" : "Size:"}</span>
-                      <input
-                        type="range"
-                        min="1"
-                        max="20"
-                        value={lineWidth}
-                        onChange={e => setLineWidth(parseInt(e.target.value))}
-                        className="w-16 h-1 bg-stone-700 rounded-lg appearance-none cursor-pointer accent-teal-400"
-                      />
-                      <span className="text-[9px] font-mono text-teal-400 w-4">{lineWidth}px</span>
-                    </div>
-
-                    <div className="w-px h-6 bg-white/10" />
-
-                    {/* Clear Canvas */}
-                    <button
-                      onClick={clearCanvas}
-                      className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-bold transition-all shadow-md shadow-rose-600/10"
-                    >
-                      {isRTL ? "مسح اللوح" : "Clear"}
-                    </button>
-                  </div>
-              </div>
-            )}
-
-            {presentationMode === "file" && (
-              <div className="w-full h-full flex flex-col items-center justify-center p-6 relative">
-                <img
-                  src={presentationData.imageUrl}
-                  alt="Textbook Page"
-                  className="max-h-[85%] max-w-[95%] object-contain rounded-xl shadow-2xl"
-                />
-                {isTeacher && (
-                  <div className="absolute bottom-4 right-4 bg-stone-900/90 p-2 rounded-xl border border-white/10 flex items-center gap-3 z-10">
-                    <button
-                      onClick={() => {
-                        const newUrl = prompt(isRTL ? "أدخل رابط الصورة أو الملف:" : "Enter Image URL:", presentationData.imageUrl);
-                        if (newUrl) {
-                          const updated = { ...presentationData, imageUrl: newUrl };
-                          setPresentationData(updated);
-                          sendSignal("PRESENTATION_DATA", "all", updated);
-                        }
-                      }}
-                      className="px-3 py-1.5 bg-teal-500 text-stone-950 rounded-lg text-[10px] font-black transition-all"
-                    >
-                      {isRTL ? "تغيير الملف" : "Change File"}
-                    </button>
+                        {/* Clear Canvas */}
+                        <button
+                          onClick={clearCanvas}
+                          className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-bold transition-all shadow-md shadow-rose-600/10"
+                        >
+                          {isRTL ? "مسح اللوح" : "Clear"}
+                        </button>
+                      </div>
                   </div>
                 )}
-              </div>
-            )}
 
-            {presentationMode === "video" && (
-              <div className="w-full h-full flex items-center justify-center p-6 relative">
-                <video
-                  src={presentationData.videoUrl}
-                  controls
-                  className="w-full max-h-[85%] rounded-xl shadow-2xl"
-                />
-                {isTeacher && (
-                  <div className="absolute bottom-4 right-4 bg-stone-900/90 p-2 rounded-xl border border-white/10 flex items-center gap-3 z-10">
-                    <button
-                      onClick={() => {
-                        const newUrl = prompt(isRTL ? "أدخل رابط الفيديو (MP4):" : "Enter Video URL (MP4):", presentationData.videoUrl);
-                        if (newUrl) {
-                          const updated = { ...presentationData, videoUrl: newUrl };
-                          setPresentationData(updated);
-                          sendSignal("PRESENTATION_DATA", "all", updated);
-                        }
-                      }}
-                      className="px-3 py-1.5 bg-teal-500 text-stone-950 rounded-lg text-[10px] font-black transition-all"
-                    >
-                      {isRTL ? "تغيير الفيديو" : "Change Video"}
-                    </button>
+                {presentationMode === "file" && (
+                  <div className="w-full h-full flex flex-col items-center justify-center p-6 relative">
+                    <img
+                      src={presentationData.imageUrl}
+                      alt="Textbook Page"
+                      className="max-h-[85%] max-w-[95%] object-contain rounded-xl shadow-2xl"
+                    />
+                    {isTeacher && (
+                      <div className="absolute bottom-4 right-4 bg-stone-900/90 p-2 rounded-xl border border-white/10 flex items-center gap-3 z-10">
+                        <button
+                          onClick={() => {
+                            const newUrl = prompt(isRTL ? "أدخل رابط الصورة أو الملف:" : "Enter Image URL:", presentationData.imageUrl);
+                            if (newUrl) {
+                              const updated = { ...presentationData, imageUrl: newUrl };
+                              setPresentationData(updated);
+                              sendSignal("PRESENTATION_DATA", "all", updated);
+                            }
+                          }}
+                          className="px-3 py-1.5 bg-teal-500 text-stone-950 rounded-lg text-[10px] font-black transition-all"
+                        >
+                          {isRTL ? "تغيير الملف" : "Change File"}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
-              </div>
+
+                {presentationMode === "video" && (
+                  <div className="w-full h-full flex items-center justify-center p-6 relative">
+                    <video
+                      src={presentationData.videoUrl}
+                      controls
+                      className="w-full max-h-[85%] rounded-xl shadow-2xl"
+                    />
+                    {isTeacher && (
+                      <div className="absolute bottom-4 right-4 bg-stone-900/90 p-2 rounded-xl border border-white/10 flex items-center gap-3 z-10">
+                        <button
+                          onClick={() => {
+                            const newUrl = prompt(isRTL ? "أدخل رابط الفيديو (MP4):" : "Enter Video URL (MP4):", presentationData.videoUrl);
+                            if (newUrl) {
+                              const updated = { ...presentationData, videoUrl: newUrl };
+                              setPresentationData(updated);
+                              sendSignal("PRESENTATION_DATA", "all", updated);
+                            }
+                          }}
+                          className="px-3 py-1.5 bg-teal-500 text-stone-950 rounded-lg text-[10px] font-black transition-all"
+                        >
+                          {isRTL ? "تغيير الفيديو" : "Change Video"}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
             )}
           </div>
 
@@ -1308,6 +1368,13 @@ export default function VirtualClassroom() {
           
           {/* Local Stream Card */}
           <div className="relative aspect-video w-48 lg:w-full rounded-2xl bg-stone-850 border border-white/5 shadow-md overflow-hidden group shrink-0">
+            <button
+              onClick={() => setPinnedParticipantId(pinnedParticipantId === userId ? null : userId)}
+              className="absolute top-2 left-2 z-20 bg-black/60 hover:bg-black/80 text-white p-1.5 rounded-lg border border-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+              title={isRTL ? "تكبير الشاشة" : "Maximize Screen"}
+            >
+              {pinnedParticipantId === userId ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
+            </button>
             {videoActive ? (
               <div className="w-full h-full bg-stone-800 flex items-center justify-center relative">
                 {localStream ? (
@@ -1360,6 +1427,13 @@ export default function VirtualClassroom() {
           {/* Remote Participants Cards */}
           {participants.filter(p => p.id !== userId).map((p) => (
             <div key={p.id} className="relative aspect-video w-48 lg:w-full rounded-2xl bg-stone-850 border border-white/5 shadow-md overflow-hidden group shrink-0">
+              <button
+                onClick={() => setPinnedParticipantId(pinnedParticipantId === p.id ? null : p.id)}
+                className="absolute top-2 left-2 z-20 bg-black/60 hover:bg-black/80 text-white p-1.5 rounded-lg border border-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                title={isRTL ? "تكبير الشاشة" : "Maximize Screen"}
+              >
+                {pinnedParticipantId === p.id ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
+              </button>
               {remoteStreams[p.id] && (
                 <video
                   ref={el => {
