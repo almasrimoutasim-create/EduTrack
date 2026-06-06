@@ -44,6 +44,20 @@ export default function VirtualClassroom() {
   const pcsRef = useRef({}); // userId -> RTCPeerConnection
   const processedSignals = useRef(new Set());
   
+  // Presentation & Interactive Workspace States
+  const [presentationMode, setPresentationMode] = useState("whiteboard"); // whiteboard | file | video
+  const [presentationData, setPresentationData] = useState({
+    slideIndex: 1,
+    imageUrl: "https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=800&auto=format&fit=crop&q=60",
+    videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
+  });
+
+  // Whiteboard drawing states
+  const canvasRef = useRef(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [drawColor, setDrawColor] = useState("#2dd4bf"); // teal-400
+  const [lineWidth, setLineWidth] = useState(3);
+  
   // Real-time Database Participants & ID
   const [participants, setParticipants] = useState([]);
   const [myParticipantId, setMyParticipantId] = useState(null);
@@ -419,8 +433,92 @@ export default function VirtualClassroom() {
       } catch (e) {
         console.error("Error adding ice candidate", e);
       }
+    } else if (type === "DRAW_START") {
+      const canvas = canvasRef.current;
+      if (canvas) {
+        const ctx = canvas.getContext("2d");
+        ctx.beginPath();
+        ctx.moveTo(data.x, data.y);
+        ctx.strokeStyle = data.color;
+        ctx.lineWidth = data.width;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+      }
+    } else if (type === "DRAW_PATH") {
+      const canvas = canvasRef.current;
+      if (canvas) {
+        const ctx = canvas.getContext("2d");
+        ctx.lineTo(data.x, data.y);
+        ctx.stroke();
+      }
+    } else if (type === "CLEAR_CANVAS") {
+      const canvas = canvasRef.current;
+      if (canvas) {
+        const ctx = canvas.getContext("2d");
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+    } else if (type === "PRESENTATION_MODE") {
+      setPresentationMode(data.mode);
+    } else if (type === "PRESENTATION_DATA") {
+      setPresentationData(data);
     }
   };
+
+  // Whiteboard drawing interactions
+  const startDrawing = (e) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.strokeStyle = drawColor;
+    ctx.lineWidth = lineWidth;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    setIsDrawing(true);
+    
+    sendSignal("DRAW_START", "all", { x, y, color: drawColor, width: lineWidth });
+  };
+
+  const draw = (e) => {
+    if (!isDrawing) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    ctx.lineTo(x, y);
+    ctx.stroke();
+    
+    sendSignal("DRAW_PATH", "all", { x, y });
+  };
+
+  const endDrawing = () => {
+    setIsDrawing(false);
+  };
+
+  const clearCanvas = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    sendSignal("CLEAR_CANVAS", "all", {});
+  };
+
+  // Adjust canvas size on presentation tab select
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (canvas) {
+      canvas.width = canvas.parentElement.clientWidth || 800;
+      canvas.height = canvas.parentElement.clientHeight || 500;
+    }
+  }, [presentationMode]);
 
   // Listen for incoming WebRTC signaling messages
   useEffect(() => {
@@ -904,105 +1002,127 @@ export default function VirtualClassroom() {
 
       {/* CORE WORKSPACE */}
       <div className="flex-1 flex flex-col md:flex-row relative min-h-0 overflow-hidden">
-        {/* Main Video Stream Grid */}
-        <div className="flex-1 p-6 flex flex-col justify-between relative bg-stone-900/40">
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 flex-1 items-center justify-center p-4 min-h-[400px]">
-            
-            {/* Local Stream (Active Participant) */}
-            <motion.div 
-              layout
-              className="relative aspect-video w-full max-w-[480px] rounded-[24px] bg-stone-850 border border-white/5 shadow-2xl overflow-hidden group mx-auto"
-            >
-              {videoActive ? (
-                <div className="w-full h-full bg-stone-800 flex items-center justify-center relative">
-                  {localStream ? (
-                    <video
-                      ref={localVideoRef}
-                      autoPlay
-                      playsInline
-                      muted
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <>
-                      <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-teal-500/10 animate-pulse" />
-                      <span className="text-6xl">{isTeacher ? "👨‍🏫" : "🧑‍🎓"}</span>
-                    </>
-                  )}
-                  
-                  {screenSharing && (
-                    <div className="absolute inset-0 bg-stone-900/90 flex flex-col items-center justify-center p-4 text-center">
-                      <ScreenShare size={40} className="text-teal-400 mb-2 animate-bounce" />
-                      <p className="text-xs font-bold">{isRTL ? "تقوم بمشاركة شاشتك الآن" : "You are sharing your screen"}</p>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="w-full h-full bg-stone-900 flex flex-col items-center justify-center">
-                  <div className="h-16 w-16 rounded-full bg-stone-800 flex items-center justify-center text-2xl font-bold mb-2">
-                    {userName[0]}
-                  </div>
-                  <span className="text-xs text-stone-500 font-bold">{isRTL ? "الكاميرا مغلقة" : "Camera Off"}</span>
-                </div>
-              )}
+        
+        {/* Main Presentation Area (Left / Center) */}
+        <div className="flex-1 p-6 flex flex-col justify-between relative bg-stone-900/40 min-w-0">
+          
+          {/* Header tabs for Presentation Mode */}
+          <div className="flex items-center justify-between mb-4 bg-stone-900/80 p-2 rounded-2xl border border-white/5">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-stone-400 px-2">{isRTL ? "مساحة العرض النشطة:" : "Active Workspace:"}</span>
+              {[
+                { id: "whiteboard", label: isRTL ? "اللوح الذكي" : "Whiteboard" },
+                { id: "file", label: isRTL ? "عرض ملف/صورة" : "File/Image" },
+                { id: "video", label: isRTL ? "عرض فيديو" : "Video player" }
+              ].map(mode => (
+                <button
+                  key={mode.id}
+                  disabled={!isTeacher}
+                  onClick={() => {
+                    setPresentationMode(mode.id);
+                    sendSignal("PRESENTATION_MODE", "all", { mode: mode.id });
+                  }}
+                  className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                    presentationMode === mode.id
+                      ? "bg-teal-500 text-stone-950"
+                      : "text-stone-400 hover:text-white hover:bg-white/5"
+                  } disabled:opacity-85 disabled:cursor-not-allowed`}
+                >
+                  {mode.label}
+                </button>
+              ))}
+            </div>
+          </div>
 
-              {/* Overlays */}
-              <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between z-10">
-                <span className="bg-black/60 backdrop-blur-md px-3 py-1 rounded-xl text-[10px] font-bold border border-white/5 flex items-center gap-1.5">
-                  {userName} {isTeacher && "⭐️"}
-                </span>
-                <div className="flex gap-1.5">
-                  {!micActive && <Badge className="bg-rose-500 text-white p-1 rounded-lg"><MicOff size={10} /></Badge>}
-                  {handRaised && <Badge className="bg-yellow-500 text-stone-950 px-2 py-0.5 rounded-lg text-[9px] font-black flex items-center gap-0.5">🙋‍♂️ {isRTL ? "رفع اليد" : "Hand"}</Badge>}
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Other Participants */}
-            {participants.filter(p => p.id !== userId).map((p) => (
-              <motion.div 
-                key={p.id}
-                layout
-                className="relative aspect-video w-full max-w-[480px] rounded-[24px] bg-stone-850 border border-white/5 shadow-md overflow-hidden group mx-auto"
-              >
-                {p.video ? (
-                  <div className="w-full h-full bg-stone-800 flex items-center justify-center relative">
-                    {remoteStreams[p.id] ? (
-                      <video
-                        ref={el => {
-                          if (el && el.srcObject !== remoteStreams[p.id]) {
-                            el.srcObject = remoteStreams[p.id];
-                          }
-                        }}
-                        autoPlay
-                        playsInline
-                        className="w-full h-full object-cover"
+          {/* Presentation Content Box */}
+          <div className="flex-1 bg-stone-950/80 rounded-[32px] border border-white/5 relative overflow-hidden flex items-center justify-center min-h-[350px]">
+            {presentationMode === "whiteboard" && (
+              <div className="w-full h-full relative bg-stone-900/20">
+                <canvas
+                  ref={canvasRef}
+                  onMouseDown={startDrawing}
+                  onMouseMove={draw}
+                  onMouseUp={endDrawing}
+                  onMouseLeave={endDrawing}
+                  className="w-full h-full cursor-crosshair"
+                />
+                {isTeacher && (
+                  <div className="absolute bottom-4 right-4 flex items-center gap-2 bg-stone-900/90 p-2 rounded-xl border border-white/10 z-10">
+                    {["#2dd4bf", "#f43f5e", "#3b82f6", "#eab308", "#ffffff"].map(color => (
+                      <button
+                        key={color}
+                        onClick={() => setDrawColor(color)}
+                        style={{ backgroundColor: color }}
+                        className={`h-6 w-6 rounded-full border-2 transition-all ${
+                          drawColor === color ? "border-white scale-110" : "border-transparent"
+                        }`}
                       />
-                    ) : (
-                      <span className="text-6xl">{p.avatar}</span>
-                    )}
-                  </div>
-                ) : (
-                  <div className="w-full h-full bg-stone-900 flex flex-col items-center justify-center">
-                    <div className="h-14 w-14 rounded-full bg-stone-800 flex items-center justify-center text-xl font-bold mb-2">
-                      {p.name[0]}
-                    </div>
-                    <span className="text-xs text-stone-500 font-bold">{isRTL ? "الكاميرا مغلقة" : "Camera Off"}</span>
+                    ))}
+                    <div className="w-px h-6 bg-white/10 mx-1" />
+                    <button
+                      onClick={clearCanvas}
+                      className="px-2 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded text-[10px] font-bold transition-all"
+                    >
+                      {isRTL ? "مسح اللوح" : "Clear"}
+                    </button>
                   </div>
                 )}
+              </div>
+            )}
 
-                {/* Overlays */}
-                <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between z-10">
-                  <span className="bg-black/60 backdrop-blur-md px-3 py-1 rounded-xl text-[10px] font-bold border border-white/5 flex items-center gap-1.5">
-                    {p.name} {p.role === "teacher" && "⭐️"}
-                  </span>
-                  <div className="flex gap-1.5">
-                    {!p.mic && <Badge className="bg-rose-500 text-white p-1 rounded-lg"><MicOff size={10} /></Badge>}
-                    {p.hand && <Badge className="bg-yellow-500 text-stone-950 px-2 py-0.5 rounded-lg text-[9px] font-black flex items-center gap-0.5 animate-bounce">🙋‍♂️</Badge>}
+            {presentationMode === "file" && (
+              <div className="w-full h-full flex flex-col items-center justify-center p-6 relative">
+                <img
+                  src={presentationData.imageUrl}
+                  alt="Textbook Page"
+                  className="max-h-[85%] max-w-[95%] object-contain rounded-xl shadow-2xl"
+                />
+                {isTeacher && (
+                  <div className="absolute bottom-4 right-4 bg-stone-900/90 p-2 rounded-xl border border-white/10 flex items-center gap-3 z-10">
+                    <button
+                      onClick={() => {
+                        const newUrl = prompt(isRTL ? "أدخل رابط الصورة أو الملف:" : "Enter Image URL:", presentationData.imageUrl);
+                        if (newUrl) {
+                          const updated = { ...presentationData, imageUrl: newUrl };
+                          setPresentationData(updated);
+                          sendSignal("PRESENTATION_DATA", "all", updated);
+                        }
+                      }}
+                      className="px-3 py-1.5 bg-teal-500 text-stone-950 rounded-lg text-[10px] font-black transition-all"
+                    >
+                      {isRTL ? "تغيير الملف" : "Change File"}
+                    </button>
                   </div>
-                </div>
-              </motion.div>
-            ))}
+                )}
+              </div>
+            )}
+
+            {presentationMode === "video" && (
+              <div className="w-full h-full flex items-center justify-center p-6 relative">
+                <video
+                  src={presentationData.videoUrl}
+                  controls
+                  className="w-full max-h-[85%] rounded-xl shadow-2xl"
+                />
+                {isTeacher && (
+                  <div className="absolute bottom-4 right-4 bg-stone-900/90 p-2 rounded-xl border border-white/10 flex items-center gap-3 z-10">
+                    <button
+                      onClick={() => {
+                        const newUrl = prompt(isRTL ? "أدخل رابط الفيديو (MP4):" : "Enter Video URL (MP4):", presentationData.videoUrl);
+                        if (newUrl) {
+                          const updated = { ...presentationData, videoUrl: newUrl };
+                          setPresentationData(updated);
+                          sendSignal("PRESENTATION_DATA", "all", updated);
+                        }
+                      }}
+                      className="px-3 py-1.5 bg-teal-500 text-stone-950 rounded-lg text-[10px] font-black transition-all"
+                    >
+                      {isRTL ? "تغيير الفيديو" : "Change Video"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* CONTROL TOOLBAR */}
@@ -1012,7 +1132,7 @@ export default function VirtualClassroom() {
                 onClick={toggleMic} 
                 className={`h-11 w-11 rounded-2xl flex items-center justify-center border transition-all ${
                   micActive 
-                    ? "bg-stone-800 text-stone-200 border-white/5 hover:bg-stone-700" 
+                    ? "bg-stone-850 text-stone-200 border-white/5 hover:bg-stone-800" 
                     : "bg-rose-500 text-white border-rose-400 shadow-lg shadow-rose-500/20"
                 }`}
               >
@@ -1023,7 +1143,7 @@ export default function VirtualClassroom() {
                 onClick={toggleVideo} 
                 className={`h-11 w-11 rounded-2xl flex items-center justify-center border transition-all ${
                   videoActive 
-                    ? "bg-stone-800 text-stone-200 border-white/5 hover:bg-stone-700" 
+                    ? "bg-stone-850 text-stone-200 border-white/5 hover:bg-stone-800" 
                     : "bg-rose-500 text-white border-rose-400 shadow-lg shadow-rose-500/20"
                 }`}
               >
@@ -1035,7 +1155,7 @@ export default function VirtualClassroom() {
                 className={`h-11 w-11 rounded-2xl flex items-center justify-center border transition-all ${
                   screenSharing 
                     ? "bg-teal-500 text-stone-950 border-teal-400 shadow-lg shadow-teal-500/20" 
-                    : "bg-stone-800 text-stone-200 border-white/5 hover:bg-stone-700"
+                    : "bg-stone-850 text-stone-200 border-white/5 hover:bg-stone-800"
                 }`}
               >
                 <ScreenShare size={18} />
@@ -1049,7 +1169,7 @@ export default function VirtualClassroom() {
                   className={`h-11 px-4 rounded-2xl flex items-center justify-center gap-2 border transition-all ${
                     handRaised 
                       ? "bg-yellow-500 text-stone-950 border-yellow-400 shadow-lg shadow-yellow-500/20" 
-                      : "bg-stone-800 text-stone-200 border-white/5 hover:bg-stone-700"
+                      : "bg-stone-850 text-stone-200 border-white/5 hover:bg-stone-800"
                   }`}
                 >
                   <Hand size={18} />
