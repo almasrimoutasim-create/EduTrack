@@ -37,6 +37,13 @@ export default function VirtualClassroom() {
   const [notes, setNotes] = useState("");
   const [chatMessage, setChatMessage] = useState("");
   
+  // WebRTC & HTML5 Video/Audio Media
+  const [localStream, setLocalStream] = useState(null);
+  const [remoteStreams, setRemoteStreams] = useState({});
+  const localVideoRef = useRef(null);
+  const pcsRef = useRef({}); // userId -> RTCPeerConnection
+  const processedSignals = useRef(new Set());
+  
   // Real-time Database Participants & ID
   const [participants, setParticipants] = useState([]);
   const [myParticipantId, setMyParticipantId] = useState(null);
@@ -226,6 +233,211 @@ export default function VirtualClassroom() {
       }
     };
   }, [sessionId, userId, userName, role, isDemo]);
+
+  // Initialize local media stream once on mount
+  useEffect(() => {
+    if (isDemo) return;
+    let stream = null;
+    const initMedia = async () => {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: true
+        });
+        setLocalStream(stream);
+        if (localVideoRef.current) {
+          localVideoRef.current.srcObject = stream;
+        }
+        // Enable/disable tracks according to initial states
+        stream.getVideoTracks().forEach(track => track.enabled = videoActive);
+        stream.getAudioTracks().forEach(track => track.enabled = micActive);
+      } catch (err) {
+        console.error("Error accessing media devices:", err);
+      }
+    };
+    initMedia();
+
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [isDemo]);
+
+  // Update track enabled state when micActive or videoActive toggles
+  useEffect(() => {
+    if (localStream) {
+      localStream.getAudioTracks().forEach(track => track.enabled = micActive);
+    }
+  }, [micActive, localStream]);
+
+  useEffect(() => {
+    if (localStream) {
+      localStream.getVideoTracks().forEach(track => track.enabled = videoActive);
+    }
+  }, [videoActive, localStream]);
+
+  // Screen sharing track replacement
+  useEffect(() => {
+    if (isDemo) return;
+    let screenStream = null;
+    const toggleScreen = async () => {
+      if (screenSharing) {
+        try {
+          screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+          if (localVideoRef.current) {
+            localVideoRef.current.srcObject = screenStream;
+          }
+          // Replace video track in all active peer connections
+          const screenTrack = screenStream.getVideoTracks()[0];
+          Object.values(pcsRef.current).forEach(pc => {
+            const sender = pc.getSenders().find(s => s.track && s.track.kind === "video");
+            if (sender) {
+              sender.replaceTrack(screenTrack);
+            }
+          });
+
+          screenTrack.onended = () => {
+            setScreenSharing(false);
+          };
+        } catch (err) {
+          console.error("Error sharing screen:", err);
+          setScreenSharing(false);
+        }
+      } else {
+        if (localVideoRef.current && localStream) {
+          localVideoRef.current.srcObject = localStream;
+          // Restore camera track in all active peer connections
+          const cameraTrack = localStream.getVideoTracks()[0];
+          Object.values(pcsRef.current).forEach(pc => {
+            const sender = pc.getSenders().find(s => s.track && s.track.kind === "video");
+            if (sender && cameraTrack) {
+              sender.replaceTrack(cameraTrack);
+            }
+          });
+        }
+      }
+    };
+    toggleScreen();
+
+    return () => {
+      if (screenStream) {
+        screenStream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [screenSharing, localStream, isDemo]);
+
+  // Helper to send a signaling message via RoomMessage entity
+  const sendSignal = async (type, targetId, data) => {
+    try {
+      await base44.entities.RoomMessage.create({
+        room_id: sessionId,
+        sender_name: userName,
+        sender_id: userId,
+        content: `SIGNAL:${type}:${userId}:${targetId}:${JSON.stringify(data)}`,
+        type: "signal"
+      });
+    } catch (err) {
+      console.error("Failed to send signaling message", err);
+    }
+  };
+
+  const getOrCreatePC = (peerId) => {
+    if (pcsRef.current[peerId]) return pcsRef.current[peerId];
+
+    const pc = new RTCPeerConnection({
+      iceServers: [
+        { urls: "stun:stun.l.google.com:19302" },
+        { urls: "stun:stun1.l.google.com:19302" }
+      ]
+    });
+
+    // Add local tracks to peer connection
+    if (localStream) {
+      localStream.getTracks().forEach(track => {
+        pc.addTrack(track, localStream);
+      });
+    }
+
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        sendSignal("ICE", peerId, event.candidate);
+      }
+    };
+
+    pc.ontrack = (event) => {
+      const stream = event.streams[0] || new MediaStream([event.track]);
+      setRemoteStreams(prev => ({
+        ...prev,
+        [peerId]: stream
+      }));
+    };
+
+    pcsRef.current[peerId] = pc;
+    return pc;
+  };
+
+  const handleIncomingSignal = async (type, peerId, data) => {
+    const pc = getOrCreatePC(peerId);
+
+    if (type === "OFFER") {
+      await pc.setRemoteDescription(new RTCSessionDescription(data));
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      sendSignal("ANSWER", peerId, answer);
+    } else if (type === "ANSWER") {
+      await pc.setRemoteDescription(new RTCSessionDescription(data));
+    } else if (type === "ICE") {
+      try {
+        await pc.addIceCandidate(new RTCIceCandidate(data));
+      } catch (e) {
+        console.error("Error adding ice candidate", e);
+      }
+    }
+  };
+
+  // Listen for incoming WebRTC signaling messages
+  useEffect(() => {
+    if (isDemo || !localStream) return;
+
+    dbMessages.forEach(msg => {
+      const text = msg.content || msg.message_text || "";
+      if (!text.startsWith("SIGNAL:") || processedSignals.current.has(msg.id)) return;
+      processedSignals.current.add(msg.id);
+
+      const parts = text.split(":");
+      const type = parts[1];
+      const sender = parts[2];
+      const receiver = parts[3];
+      if (sender === userId || receiver !== userId) return;
+
+      try {
+        const data = JSON.parse(parts.slice(4).join(":"));
+        handleIncomingSignal(type, sender, data);
+      } catch (err) {
+        console.error("Failed to parse incoming WebRTC signal data", err);
+      }
+    });
+  }, [dbMessages, localStream, isDemo]);
+
+  // Trigger RTC Offer if we have the lexicographically higher user ID
+  useEffect(() => {
+    if (isDemo || !localStream) return;
+
+    participants.forEach(p => {
+      if (p.id === userId) return;
+      if (userId > p.id) {
+        const pc = getOrCreatePC(p.id);
+        if (pc.signalingState === "stable") {
+          pc.createOffer().then(offer => {
+            pc.setLocalDescription(offer).then(() => {
+              sendSignal("OFFER", p.id, offer);
+            });
+          });
+        }
+      }
+    });
+  }, [participants, localStream, isDemo]);
 
   const toggleMic = async () => {
     const newState = !micActive;
@@ -677,9 +889,20 @@ export default function VirtualClassroom() {
             >
               {videoActive ? (
                 <div className="w-full h-full bg-stone-800 flex items-center justify-center relative">
-                  {/* Mock live camera stream indicator */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-teal-500/10 animate-pulse" />
-                  <span className="text-6xl">{isTeacher ? "👨‍🏫" : "🧑‍🎓"}</span>
+                  {localStream ? (
+                    <video
+                      ref={localVideoRef}
+                      autoPlay
+                      playsInline
+                      muted
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <>
+                      <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-teal-500/10 animate-pulse" />
+                      <span className="text-6xl">{isTeacher ? "👨‍🏫" : "🧑‍🎓"}</span>
+                    </>
+                  )}
                   
                   {screenSharing && (
                     <div className="absolute inset-0 bg-stone-900/90 flex flex-col items-center justify-center p-4 text-center">
@@ -718,7 +941,20 @@ export default function VirtualClassroom() {
               >
                 {p.video ? (
                   <div className="w-full h-full bg-stone-800 flex items-center justify-center relative">
-                    <span className="text-6xl">{p.avatar}</span>
+                    {remoteStreams[p.id] ? (
+                      <video
+                        ref={el => {
+                          if (el && el.srcObject !== remoteStreams[p.id]) {
+                            el.srcObject = remoteStreams[p.id];
+                          }
+                        }}
+                        autoPlay
+                        playsInline
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-6xl">{p.avatar}</span>
+                    )}
                   </div>
                 ) : (
                   <div className="w-full h-full bg-stone-900 flex flex-col items-center justify-center">
