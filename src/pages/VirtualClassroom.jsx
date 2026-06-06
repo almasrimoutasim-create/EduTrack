@@ -1163,7 +1163,13 @@ export default function VirtualClassroom() {
                             el.srcObject = remoteStreams[pinnedParticipantId];
                           }
                           el.volume = remoteVolume;
-                          el.play().catch(e => console.error("Error playing remote pinned stream:", e));
+                          el.play().catch(() => {
+                            const playOnClick = () => {
+                              el.play().catch(e => console.error("Error playing remote pinned stream on click:", e));
+                              window.removeEventListener("click", playOnClick);
+                            };
+                            window.addEventListener("click", playOnClick);
+                          });
                         }
                       }}
                       autoPlay
