@@ -130,7 +130,8 @@ export default function StaffPortal() {
     setLoading(true);
 
     try {
-      const apiBase = import.meta['env'].VITE_BACKEND_URL || '';
+      // @ts-ignore
+      const apiBase = import.meta.env.VITE_BACKEND_URL || '';
       const loginUrl = apiBase ? `${apiBase.replace(/\/$/, '')}/neon-db/auth/login` : '/neon-db/auth/login';
       const response = await fetch(loginUrl, {
         method: 'POST',

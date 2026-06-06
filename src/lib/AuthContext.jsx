@@ -46,7 +46,8 @@ export const AuthProvider = ({ children }) => {
 
       // Check app public settings
       // Use direct Base44 URL in production (Vite proxy /api only works in dev)
-      const base44Base = import.meta['env'].DEV
+      // @ts-ignore
+      const base44Base = import.meta.env.DEV
         ? '/api/apps/public'
         : 'https://api.base44.io/apps/public';
       const appClient = createAxiosClient({
@@ -133,7 +134,8 @@ export const AuthProvider = ({ children }) => {
   const login = async (role, identifier, password) => {
     setAuthError(null);
     try {
-      const apiBase = import.meta['env'].VITE_BACKEND_URL || '';
+      // @ts-ignore
+      const apiBase = import.meta.env.VITE_BACKEND_URL || '';
       const loginUrl = apiBase ? `${apiBase.replace(/\/$/, '')}/neon-db/auth/login` : '/neon-db/auth/login';
       const response = await fetch(loginUrl, {
         method: 'POST',
