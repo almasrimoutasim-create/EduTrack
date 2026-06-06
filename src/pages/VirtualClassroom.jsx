@@ -470,8 +470,8 @@ export default function VirtualClassroom() {
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const x = ((e.clientX - rect.left) / rect.width) * canvas.width;
+    const y = ((e.clientY - rect.top) / rect.height) * canvas.height;
 
     ctx.beginPath();
     ctx.moveTo(x, y);
@@ -490,8 +490,8 @@ export default function VirtualClassroom() {
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const x = ((e.clientX - rect.left) / rect.width) * canvas.width;
+    const y = ((e.clientY - rect.top) / rect.height) * canvas.height;
 
     ctx.lineTo(x, y);
     ctx.stroke();
@@ -511,13 +511,26 @@ export default function VirtualClassroom() {
     sendSignal("CLEAR_CANVAS", "all", {});
   };
 
-  // Adjust canvas size on presentation tab select
+  // Adjust canvas size on presentation tab select and handle parent resizing
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (canvas) {
-      canvas.width = canvas.parentElement.clientWidth || 800;
-      canvas.height = canvas.parentElement.clientHeight || 500;
+    if (!canvas) return;
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (let entry of entries) {
+        const { width, height } = entry.contentRect;
+        canvas.width = width || 800;
+        canvas.height = height || 500;
+      }
+    });
+
+    if (canvas.parentElement) {
+      resizeObserver.observe(canvas.parentElement);
     }
+
+    return () => {
+      resizeObserver.disconnect();
+    };
   }, [presentationMode]);
 
   // Listen for incoming WebRTC signaling messages
@@ -1248,38 +1261,36 @@ export default function VirtualClassroom() {
           {/* Remote Participants Cards */}
           {participants.filter(p => p.id !== userId).map((p) => (
             <div key={p.id} className="relative aspect-video w-48 lg:w-full rounded-2xl bg-stone-850 border border-white/5 shadow-md overflow-hidden group shrink-0">
-              {p.video ? (
-                <div className="w-full h-full bg-stone-800 flex items-center justify-center relative">
-                  {remoteStreams[p.id] ? (
-                    <video
-                      ref={el => {
-                        if (el) {
-                          if (el.srcObject !== remoteStreams[p.id]) {
-                            el.srcObject = remoteStreams[p.id];
-                          }
-                          el.play().catch(() => {
-                            const playOnClick = () => {
-                              el.play().catch(e => console.error(e));
-                              window.removeEventListener("click", playOnClick);
-                            };
-                            window.addEventListener("click", playOnClick);
-                          });
-                        }
-                      }}
-                      autoPlay
-                      playsInline
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <span className="text-3xl">{p.avatar}</span>
-                  )}
-                </div>
-              ) : (
-                <div className="w-full h-full bg-stone-900 flex flex-col items-center justify-center p-2">
+              {remoteStreams[p.id] && (
+                <video
+                  ref={el => {
+                    if (el) {
+                      if (el.srcObject !== remoteStreams[p.id]) {
+                        el.srcObject = remoteStreams[p.id];
+                      }
+                      el.play().catch(() => {
+                        const playOnClick = () => {
+                          el.play().catch(e => console.error(e));
+                          window.removeEventListener("click", playOnClick);
+                        };
+                        window.addEventListener("click", playOnClick);
+                      });
+                    }
+                  }}
+                  autoPlay
+                  playsInline
+                  className={`w-full h-full object-cover ${p.video ? "" : "hidden"}`}
+                />
+              )}
+
+              {(!p.video || !remoteStreams[p.id]) && (
+                <div className="absolute inset-0 bg-stone-900 flex flex-col items-center justify-center p-2">
                   <div className="h-8 w-8 rounded-full bg-stone-800 flex items-center justify-center text-xs font-bold mb-1">
                     {p.name[0]}
                   </div>
-                  <span className="text-[9px] text-stone-500 font-bold">{isRTL ? "الكاميرا مغلقة" : "Camera Off"}</span>
+                  <span className="text-[9px] text-stone-500 font-bold">
+                    {!remoteStreams[p.id] ? (isRTL ? "جاري الاتصال..." : "Connecting...") : (isRTL ? "الكاميرا مغلقة" : "Camera Off")}
+                  </span>
                 </div>
               )}
               <div className="absolute bottom-1.5 left-1.5 right-1.5 flex items-center justify-between z-10">
