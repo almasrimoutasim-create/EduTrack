@@ -47,11 +47,20 @@ export default function LeaderboardWidget() {
   });
 
   const leaderboard = students
-    .map(s => ({
-      ...s,
-      score: scoreMap[s.id] || 0,
-      awardCount: awardCountMap[s.id] || 0,
-    }))
+    .map(s => {
+      const studentId = s.student_id || s.id;
+      const score = (scoreMap[studentId] || 0) + (scoreMap[s.id] || 0);
+      const awardCount = (awardCountMap[studentId] || 0) + (awardCountMap[s.id] || 0);
+      return {
+        id: s.id,
+        student_id: s.student_id,
+        full_name: s.full_name || s.name || "",
+        photo_url: s.photo_url,
+        grade: s.grade,
+        score,
+        awardCount,
+      };
+    })
     .filter(s => s.score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, 8);
