@@ -6,7 +6,7 @@ import {
   Video, VideoOff, Mic, MicOff, Hand, MessageSquare, 
   Send, Users, PhoneOff, Settings, Info, Copy, 
   ShieldAlert, ScreenShare, Sparkles, AlertCircle, FileText,
-  Clock, Calendar, Maximize2, Minimize2
+  Clock, Calendar, Maximize2, Minimize2, ChevronLeft, ChevronRight
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/lib/LanguageContext";
@@ -37,6 +37,7 @@ export default function VirtualClassroom() {
   const [notes, setNotes] = useState("");
   const [chatMessage, setChatMessage] = useState("");
   const [pinnedParticipantId, setPinnedParticipantId] = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   
   // WebRTC & HTML5 Video/Audio Media
   const [localStream, setLocalStream] = useState(null);
@@ -1026,6 +1027,17 @@ export default function VirtualClassroom() {
     );
   }
 
+  const getCameraCardClass = () => {
+    const count = participants.length;
+    if (count > 4) {
+      return "relative aspect-video w-32 lg:w-[80%] mx-auto rounded-xl bg-stone-850 border border-white/5 shadow-md overflow-hidden group shrink-0 transition-all duration-300";
+    } else if (count > 2) {
+      return "relative aspect-video w-40 lg:w-[90%] mx-auto rounded-2xl bg-stone-850 border border-white/5 shadow-md overflow-hidden group shrink-0 transition-all duration-300";
+    } else {
+      return "relative aspect-video w-48 lg:w-full rounded-2xl bg-stone-850 border border-white/5 shadow-md overflow-hidden group shrink-0 transition-all duration-300";
+    }
+  };
+
   return (
     <div className="min-h-screen bg-stone-950 text-white flex flex-col font-sans select-none overflow-hidden" dir={isRTL ? "rtl" : "ltr"}>
       {/* HEADER SECTION */}
@@ -1067,36 +1079,54 @@ export default function VirtualClassroom() {
         
         {/* Main Presentation Area (Left / Center) */}
         <div className="flex-1 p-6 flex flex-col justify-between relative bg-stone-900/40 min-w-0">
-          
+          {/* Sidebar Toggle Button */}
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className={`absolute top-1/2 -translate-y-1/2 z-20 h-16 w-5 bg-stone-900 border border-stone-850 hover:bg-stone-800 text-stone-400 hover:text-white flex items-center justify-center shadow-lg transition-all rounded-l-md cursor-pointer ${
+              isRTL 
+                ? "left-0 rounded-r-md rounded-l-none border-l-0" 
+                : "right-0 rounded-l-md rounded-r-none border-r-0"
+            }`}
+            title={sidebarOpen ? (isRTL ? "إخفاء الجانب" : "Hide Sidebar") : (isRTL ? "إظهار الجانب" : "Show Sidebar")}
+          >
+            {sidebarOpen ? (
+              isRTL ? <ChevronLeft size={12} /> : <ChevronRight size={12} />
+            ) : (
+              isRTL ? <ChevronRight size={12} /> : <ChevronLeft size={12} />
+            )}
+          </button>
+
           {/* Header tabs for Presentation Mode */}
-          <div className="flex items-center justify-between mb-4 bg-stone-900/80 p-2 rounded-2xl border border-white/5">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-stone-400 px-2">{isRTL ? "مساحة العرض النشطة:" : "Active Workspace:"}</span>
-              {[
-                { id: "whiteboard", label: isRTL ? "اللوح الذكي" : "Whiteboard" },
-                { id: "file", label: isRTL ? "عرض ملف/صورة" : "File/Image" },
-                { id: "video", label: isRTL ? "عرض فيديو" : "Video player" }
-              ].map(mode => (
-                <button
-                  key={mode.id}
-                  onClick={() => {
-                    setPresentationMode(mode.id);
-                    setPinnedParticipantId(null); // return to presentation workspace
-                    if (isTeacher) {
-                      sendSignal("PRESENTATION_MODE", "all", { mode: mode.id });
-                    }
-                  }}
-                  className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                    presentationMode === mode.id && !pinnedParticipantId
-                      ? "bg-teal-500 text-stone-950"
-                      : "text-stone-400 hover:text-white hover:bg-white/5"
-                  }`}
-                >
-                  {mode.label}
-                </button>
-              ))}
+          {!pinnedParticipantId && (
+            <div className="flex items-center justify-between mb-4 bg-stone-900/80 p-2 rounded-2xl border border-white/5">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-stone-400 px-2">{isRTL ? "مساحة العرض النشطة:" : "Active Workspace:"}</span>
+                {[
+                  { id: "whiteboard", label: isRTL ? "اللوح الذكي" : "Whiteboard" },
+                  { id: "file", label: isRTL ? "عرض ملف/صورة" : "File/Image" },
+                  { id: "video", label: isRTL ? "عرض فيديو" : "Video player" }
+                ].map(mode => (
+                  <button
+                    key={mode.id}
+                    onClick={() => {
+                      setPresentationMode(mode.id);
+                      setPinnedParticipantId(null); // return to presentation workspace
+                      if (isTeacher) {
+                        sendSignal("PRESENTATION_MODE", "all", { mode: mode.id });
+                      }
+                    }}
+                    className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                      presentationMode === mode.id && !pinnedParticipantId
+                        ? "bg-teal-500 text-stone-950"
+                        : "text-stone-400 hover:text-white hover:bg-white/5"
+                    }`}
+                  >
+                    {mode.label}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Presentation Content Box */}
           <div className="flex-1 bg-stone-950/80 rounded-[32px] border border-white/5 relative overflow-hidden flex items-center justify-center min-h-[350px]">
@@ -1385,7 +1415,7 @@ export default function VirtualClassroom() {
         <div className="w-full lg:w-72 bg-stone-950/60 border-t lg:border-t-0 lg:border-r border-stone-850 p-4 flex flex-row lg:flex-col gap-4 overflow-y-auto shrink-0 justify-center lg:justify-start items-center lg:items-stretch min-w-0">
           
           {/* Local Stream Card */}
-          <div className="relative aspect-video w-48 lg:w-full rounded-2xl bg-stone-850 border border-white/5 shadow-md overflow-hidden group shrink-0">
+          <div className={getCameraCardClass()}>
             <button
               onClick={() => setPinnedParticipantId(pinnedParticipantId === userId ? null : userId)}
               className="absolute top-2 left-2 z-20 bg-black/60 hover:bg-black/80 text-white p-1.5 rounded-lg border border-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
@@ -1444,7 +1474,7 @@ export default function VirtualClassroom() {
 
           {/* Remote Participants Cards */}
           {participants.filter(p => p.id !== userId).map((p) => (
-            <div key={p.id} className="relative aspect-video w-48 lg:w-full rounded-2xl bg-stone-850 border border-white/5 shadow-md overflow-hidden group shrink-0">
+            <div key={p.id} className={getCameraCardClass()}>
               <button
                 onClick={() => setPinnedParticipantId(pinnedParticipantId === p.id ? null : p.id)}
                 className="absolute top-2 left-2 z-20 bg-black/60 hover:bg-black/80 text-white p-1.5 rounded-lg border border-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
@@ -1518,7 +1548,7 @@ export default function VirtualClassroom() {
         </div>
 
         {/* SIDEBAR TABS (CHAT / PARTICIPANTS / NOTES) */}
-        <aside className="w-full md:w-96 bg-stone-900 border-t md:border-t-0 md:border-r border-stone-800 flex flex-col z-10">
+        <aside className={`transition-all duration-300 relative ${sidebarOpen ? "w-full md:w-96" : "w-0 overflow-hidden border-none"} bg-stone-900 border-t md:border-t-0 md:border-r border-stone-850 flex flex-col z-10`}>
           <div className="h-14 border-b border-stone-850 p-1 flex">
             {[
               { id: "chat", label: isRTL ? "الدردشة" : "Chat", icon: MessageSquare },
