@@ -72,7 +72,7 @@ export default function TeacherSidebar() {
         { label: isRTL ? "فصولي" : "My Classes", path: "/teacher-portal?tab=classes", icon: BookOpen },
         { label: isRTL ? "الفصول الافتراضية" : "Virtual Classroom", path: "/virtual-classroom/demo", icon: Video },
         { label: isRTL ? "طلابي" : "My Students", path: "/teacher-portal?tab=students", icon: Users },
-        { label: isRTL ? "الحضور" : "Attendance", path: "/teacher-portal?tab=classes", icon: ClipboardCheck },
+        { label: isRTL ? "الحضور" : "Attendance", path: "/teacher-portal?tab=attendance", icon: ClipboardCheck },
         { label: isRTL ? "الواجبات والتصحيح" : "Assignments & Grading", path: "/teacher-portal?tab=grading", icon: FileText }
       ]
     },
@@ -81,7 +81,7 @@ export default function TeacherSidebar() {
       items: [
         { label: isRTL ? "الرسائل" : "Messages", path: "/teacher-portal?tab=messages", icon: MessageCircle },
         { label: isRTL ? "الإشعارات" : "Notifications", path: "/teacher-portal?tab=notifications", icon: Bell },
-        { label: isRTL ? "الأوسمة" : "Badges", path: "#", icon: Star }
+        { label: isRTL ? "الأوسمة" : "Badges", path: "/teacher-portal?tab=badges", icon: Star }
       ]
     }
   ];

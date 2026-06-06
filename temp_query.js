@@ -7,11 +7,14 @@ async function run() {
   if (!url) return;
   const sql = neon(url);
   try {
-    const subjects = await sql.query(`
-      SELECT id, name, grade, teacher_id, teacher_name FROM subjects;
+    const columns = await sql.query(`
+      SELECT column_name, data_type 
+      FROM information_schema.columns 
+      WHERE table_schema = 'public' AND table_name = 'student_awards'
+      ORDER BY ordinal_position;
     `);
-    console.log('--- ALL SUBJECTS ---');
-    console.log(JSON.stringify(subjects, null, 2));
+    console.log('--- STUDENT AWARDS COLUMNS ---');
+    console.log(columns.map(c => `${c.column_name} (${c.data_type})`));
   } catch (err) {
     console.error('Error:', err.message);
   }

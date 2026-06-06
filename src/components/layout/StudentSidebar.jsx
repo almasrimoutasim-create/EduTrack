@@ -62,7 +62,7 @@ export default function StudentSidebar() {
       label: isRTL ? "الدراسة" : "Study",
       items: [
         { label: isRTL ? "الواجبات" : "Homework", path: "/student-portal?view=homework", icon: FileText },
-        { label: isRTL ? "المواد الدراسية" : "Materials", path: "#", icon: BookOpen },
+        { label: isRTL ? "المواد الدراسية" : "Materials", path: "/student-portal?view=materials", icon: BookOpen },
         { label: isRTL ? "الفصل الافتراضي" : "Virtual Classroom", path: "/virtual-classroom/demo", icon: Video },
         { label: isRTL ? "الدرجات" : "Grades", path: "#", icon: Star },
         { label: isRTL ? "سجل الحضور" : "Attendance", path: "#", icon: ClipboardCheck }
@@ -71,7 +71,7 @@ export default function StudentSidebar() {
     {
       label: isRTL ? "الإنجازات" : "Achievements",
       items: [
-        { label: isRTL ? "الأوسمة" : "Badges", path: "#", icon: Trophy },
+        { label: isRTL ? "الأوسمة" : "Badges", path: "/student-portal?view=badges", icon: Trophy },
         { label: isRTL ? "النقاط والمستويات" : "Levels & XP", path: "#", icon: Rocket }
       ]
     }
@@ -121,7 +121,9 @@ export default function StudentSidebar() {
               </p>
               <div className="space-y-1">
                 {group.items.map((item) => {
-                  const isActive = location.pathname === item.path || (item.path !== "#" && location.pathname.startsWith(item.path) && item.path !== "/");
+                  const currentPath = location.pathname + location.search;
+                  const isActive = currentPath === item.path ||
+                                   (item.path === "/student-portal" && !location.search);
                   return (
                     <Link
                       key={item.label}

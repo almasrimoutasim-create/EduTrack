@@ -122,6 +122,18 @@ export default function StudentPortal() {
     queryFn: () => base44.entities.StudyMaterial.list("-created_date", 4)
   });
 
+  const { data: studentSubjects = [] } = useQuery({
+    queryKey: ["student-subjects", student?.grade],
+    queryFn: () => base44.entities.Subject.filter({ grade: student?.grade }),
+    enabled: !!student?.grade
+  });
+
+  const { data: studentAwards = [] } = useQuery({
+    queryKey: ["student-awards", student?.student_id],
+    queryFn: () => base44.entities.StudentAward.filter({ student_id: student?.student_id }, "-date"),
+    enabled: !!student?.student_id
+  });
+
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [assignments, setAssignments] = useState([]);
   const [selectedAsm, setSelectedAsm] = useState(null);
@@ -360,6 +372,122 @@ export default function StudentPortal() {
                 )}
               </div>
             </div>
+          ) : view === "materials" ? (
+            <div className="space-y-6">
+              <PageHeader 
+                title={isRTL ? "المواد الدراسية" : "Academic Subjects"} 
+                subtitle={isRTL ? `المواد الدراسية المقررة للصف الدراسي - الصف ${student.grade || ""}` : `Academic subjects allocated for Grade ${student.grade || ""}`}
+              >
+                <button onClick={() => window.location.href = "/student-portal"} className={`${btnOutline} h-11 px-5 rounded-xl`}>
+                  {isRTL ? "العودة للوحة التحكم" : "Back to Dashboard"}
+                </button>
+              </PageHeader>
+
+              {studentSubjects.length === 0 ? (
+                <Card className="p-12 text-center bg-stone-50 border border-dashed border-stone-200 rounded-3xl">
+                  <BookOpen className="h-8 w-8 text-stone-300 mx-auto mb-2" />
+                  <p className="text-stone-400 text-xs font-bold">{isRTL ? "لا توجد مواد مخصصة لصفك الدراسي حالياً." : "No subjects assigned for your grade currently."}</p>
+                </Card>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {studentSubjects.map((subject, idx) => (
+                    <motion.div
+                      key={subject.id || idx}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.05 * idx }}
+                    >
+                      <Card className="p-6 bg-white border-none shadow-sm rounded-3xl hover:shadow-md transition-shadow relative overflow-hidden group">
+                        <div className="flex items-center gap-4">
+                          <div className="h-12 w-12 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center shrink-0">
+                            <BookOpen size={24} />
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-stone-900 text-lg leading-tight">{subject.name}</h4>
+                            <p className="text-stone-400 text-xs font-semibold mt-1">
+                              {isRTL ? `كود المادة: ${subject.code || "—"}` : `Code: ${subject.code || "—"}`}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="mt-6 pt-4 border-t border-stone-50 flex justify-between items-center text-xs">
+                          <div>
+                            <p className="text-stone-400 font-bold uppercase tracking-wider text-[9px]">
+                              {isRTL ? "معلم المادة" : "Teacher"}
+                            </p>
+                            <p className="text-stone-750 font-bold mt-0.5">
+                              {subject.teacher_name || (isRTL ? "غير محدد" : "Not Assigned")}
+                            </p>
+                          </div>
+                          <Badge className="bg-stone-50 border-none text-stone-500 font-black px-2 py-0.5 rounded-lg text-[9px] uppercase tracking-wider num-en">
+                            {isRTL ? "الصف" : "Grade"} {subject.grade}
+                          </Badge>
+                        </div>
+                      </Card>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : view === "badges" ? (
+            <div className="space-y-6">
+              <PageHeader 
+                title={isRTL ? "لوحة التكريمات والأوسمة" : "Honors & Badges Board"} 
+                subtitle={isRTL ? "الأوسمة والتقديرات التي حصلت عليها من المعلمين تقديراً لتميزك." : "The awards and honors awarded to you by teachers in recognition of excellence."}
+              >
+                <button onClick={() => window.location.href = "/student-portal"} className={`${btnOutline} h-11 px-5 rounded-xl`}>
+                  {isRTL ? "العودة للوحة التحكم" : "Back to Dashboard"}
+                </button>
+              </PageHeader>
+
+              {studentAwards.length === 0 ? (
+                <Card className="p-16 text-center bg-stone-50 border border-dashed border-stone-200 rounded-[40px]">
+                  <Trophy className="h-12 w-12 text-stone-300 mx-auto mb-3 opacity-30" />
+                  <p className="font-bold text-stone-400 text-base">{isRTL ? "لا توجد أوسمة مستحقة بعد." : "No honors earned yet."}</p>
+                  <p className="text-stone-400 text-xs mt-1">{isRTL ? "أظهر تميزك في الحصص والواجبات للحصول على أول وسام!" : "Show excellence in classes and homework to earn your first badge!"}</p>
+                </Card>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+                  {studentAwards.map((award, idx) => (
+                    <motion.div
+                      key={award.id || idx}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.05 * idx }}
+                    >
+                      <Card className="p-6 bg-white border-none shadow-sm rounded-[32px] relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 left-0 h-1.5 bg-amber-500" />
+                        <div className="flex gap-4 items-start relative z-10">
+                          <div className="h-12 w-12 rounded-2xl bg-amber-50 text-amber-500 flex items-center justify-center shrink-0">
+                            <Trophy size={24} />
+                          </div>
+                          <div className="space-y-2 flex-1">
+                            <div className="flex items-center justify-between">
+                              <h4 className="font-serif font-black text-stone-900 text-base">{award.title}</h4>
+                              <Badge className="bg-amber-100 text-amber-700 border-none font-bold text-[9px] px-2 py-0.5 rounded-lg">
+                                +{award.points} {isRTL ? "نقطة" : "XP"}
+                              </Badge>
+                            </div>
+                            <p className="text-stone-600 text-xs leading-relaxed font-medium">
+                              {award.description}
+                            </p>
+                            
+                            <div className="pt-2 flex justify-between items-center border-t border-stone-50 text-[10px] text-stone-400 font-bold uppercase tracking-wider">
+                              <span>
+                                {isRTL ? "بواسطة:" : "Awarded by:"} {award.awarded_by}
+                              </span>
+                              <span className="num-en">
+                                {award.date ? new Date(award.date).toLocaleDateString(isRTL ? "ar-EG" : "en-US") : ""}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </Card>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </div>
           ) : view === "homework" ? (
             <div className="space-y-6">
               <PageHeader 
@@ -503,7 +631,7 @@ export default function StudentPortal() {
                 <Trophy size={24} className="text-amber-300" />
                 <div className="text-right">
                   <p className="text-[10px] font-bold text-teal-100 uppercase tracking-widest">{isRTL ? "الأوسمة" : "Badges"}</p>
-                  <p className="text-lg font-black leading-none"> 12</p>
+                  <p className="text-lg font-black leading-none num-en"> {studentAwards.length}</p>
                 </div>
               </div>
                 <button onClick={handleLogout} className={`${btnOutline} h-[52px] px-6 border-rose-500/20 text-rose-100 bg-rose-500/10 hover:bg-rose-500/20`}>

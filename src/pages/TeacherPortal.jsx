@@ -21,7 +21,8 @@ import {
   Video,
   Megaphone,
   Bell,
-  Search
+  Search,
+  Trophy
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useLanguage } from "@/lib/LanguageContext";
@@ -36,6 +37,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import PageHeader from "@/components/shared/PageHeader";
 import AssignmentsGradingTab from "@/components/teacher/AssignmentsGradingTab";
 import ParentTeacherChat from "@/components/portal/ParentTeacherChat";
+import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import AdminStudentProfile from "@/components/students/AdminStudentProfile";
@@ -210,6 +212,20 @@ export default function TeacherPortal() {
                 <VisualSchedule classes={teacherSchedules} tasks={teacherTasks} />
               </Card>
             </div>
+          ) : activeTab === "attendance" ? (
+            <AttendanceTabContent 
+              isRTL={isRTL} 
+              classes={classes} 
+              students={students} 
+              portalUser={portalUser} 
+            />
+          ) : activeTab === "badges" ? (
+            <BadgesTabContent 
+              isRTL={isRTL} 
+              classes={classes} 
+              students={students} 
+              portalUser={portalUser} 
+            />
           ) : activeTab === "messages" ? (
             <div className="space-y-6">
               <PageHeader 
@@ -693,6 +709,407 @@ export default function TeacherPortal() {
         </Dialog>
       )}
 
+    </div>
+  );
+}
+
+function AttendanceTabContent({ isRTL, classes, students, portalUser }) {
+  const [selectedClassId, setSelectedClassId] = useState(classes[0]?.id || "all");
+  const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
+  const [attendanceRecords, setAttendanceRecords] = useState({}); // student_id -> status
+  const [isSaving, setIsSaving] = useState(false);
+
+  const selectedClass = classes.find(c => c.id === selectedClassId);
+
+  const classStudents = React.useMemo(() => {
+    if (!selectedClass) return [];
+    return students.filter(student => {
+      const studentGrade = student.grade?.toString();
+      const clsGrade = selectedClass.grade?.toString();
+      const studentSection = (student.section || '').toLowerCase();
+      const clsSection = (selectedClass.section || '').toLowerCase();
+      return studentGrade === clsGrade && studentSection === clsSection;
+    });
+  }, [students, selectedClass]);
+
+  const handleStatusChange = (studentId, status) => {
+    setAttendanceRecords(prev => ({
+      ...prev,
+      [studentId]: status
+    }));
+  };
+
+  const handleSaveAttendance = async () => {
+    if (classStudents.length === 0) {
+      toast.error(isRTL ? "لا يوجد طلاب في هذا الفصل لتسجيل حضورهم." : "No students in this class to record attendance.");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const timeStr = new Date().toLocaleTimeString(isRTL ? "ar-EG" : "en-US", { 
+        hour: "2-digit", 
+        minute: "2-digit" 
+      });
+
+      for (const student of classStudents) {
+        const status = attendanceRecords[student.id] || "present";
+        await base44.entities.Attendance.create({
+          student_id: student.id,
+          student_name: student.full_name || student.name,
+          student_card_id: student.student_id || student.id,
+          date: attendanceDate,
+          type: "manual",
+          status: status,
+          time: timeStr,
+          recorded_by: portalUser?.full_name || "معلم الصف",
+          notes: isRTL ? `تم رصد الحضور يدوياً للمادة: ${selectedClass.name}` : `Manual attendance recorded for subject: ${selectedClass.name}`
+        });
+      }
+
+      toast.success(isRTL ? "تم حفظ سجل حضور الطلاب بنجاح!" : "Student attendance saved successfully!");
+    } catch (err) {
+      console.error(err);
+      toast.error(isRTL ? "فشل حفظ كشف الحضور." : "Failed to save attendance.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <PageHeader 
+        title={isRTL ? "رصد حضور وغياب الطلاب" : "Student Attendance Tracking"} 
+        subtitle={isRTL ? "قم باختيار المادة والصف لتسجيل حضور وغياب الطلاب لليوم." : "Select subject and class to log student attendance status for today."}
+      >
+        <button onClick={() => window.location.href = "/teacher-portal"} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-sm font-semibold transition-all border-2 border-stone-300 bg-white text-stone-800 hover:bg-stone-50 hover:border-stone-400 cursor-pointer h-11 px-5">
+          {isRTL ? "العودة للوحة التحكم" : "Back to Dashboard"}
+        </button>
+      </PageHeader>
+
+      <Card className="p-6 md:p-8 bg-white border-none shadow-sm rounded-[40px] space-y-6">
+        <div className="flex flex-col sm:flex-row gap-4 items-end justify-between border-b border-stone-50 pb-6">
+          <div className="flex flex-col sm:flex-row gap-4 flex-1">
+            <div className="flex flex-col gap-1.5 flex-1 max-w-xs">
+              <label className="text-xs font-bold text-stone-400 uppercase tracking-widest">{isRTL ? "الفصل الدراسي" : "Class Section"}</label>
+              <select 
+                value={selectedClassId}
+                onChange={(e) => {
+                  setSelectedClassId(e.target.value);
+                  setAttendanceRecords({});
+                }}
+                className="bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20"
+                dir={isRTL ? "rtl" : "ltr"}
+              >
+                {classes.map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} - {isRTL ? "القسم" : "Section"} {c.section || 'A'} ({c.grade_level})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex flex-col gap-1.5 max-w-xs">
+              <label className="text-xs font-bold text-stone-400 uppercase tracking-widest">{isRTL ? "التاريخ" : "Date"}</label>
+              <input 
+                type="date"
+                value={attendanceDate}
+                onChange={(e) => setAttendanceDate(e.target.value)}
+                className="bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
+          </div>
+
+          <button 
+            onClick={handleSaveAttendance}
+            disabled={isSaving || classStudents.length === 0}
+            className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-sm font-semibold transition-all bg-stone-900 text-white hover:bg-black cursor-pointer shadow-lg shadow-stone-200 h-11 px-6 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isSaving ? (isRTL ? "جاري الحفظ..." : "Saving...") : (isRTL ? "حفظ كشف الحضور" : "Save Attendance")}
+          </button>
+        </div>
+
+        {classStudents.length === 0 ? (
+          <div className="py-12 text-center text-stone-400 border border-dashed border-stone-100 rounded-3xl">
+            <Users size={40} className="opacity-20 mx-auto mb-2" />
+            <p className="font-bold text-base">{isRTL ? "لا يوجد طلاب مسجلين في هذا الفصل" : "No students found in this class"}</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto rounded-3xl border border-stone-100">
+            <Table>
+              <TableHeader className="bg-stone-50/50">
+                <TableRow>
+                  <TableHead className="w-[60px] text-center">#</TableHead>
+                  <TableHead>{isRTL ? "الطالب" : "Student"}</TableHead>
+                  <TableHead>{isRTL ? "الرقم المدرسي" : "Student ID"}</TableHead>
+                  <TableHead>{isRTL ? "الصف والفصل" : "Grade & Section"}</TableHead>
+                  <TableHead className="text-center w-[350px]">{isRTL ? "حالة الحضور" : "Attendance Status"}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {classStudents.map((student, idx) => {
+                  const currentStatus = attendanceRecords[student.id] || "present";
+                  return (
+                    <TableRow key={student.id} className="hover:bg-stone-50/30 transition-colors">
+                      <TableCell className="text-center text-stone-400 font-mono text-xs">{idx + 1}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          {student.photo_url ? (
+                            <div className="h-9 w-9 rounded-xl overflow-hidden border border-stone-200 shadow-sm shrink-0">
+                              <img src={student.photo_url} alt="" className="h-full w-full object-cover" />
+                            </div>
+                          ) : (
+                            <div className="h-9 w-9 rounded-xl bg-stone-100 flex items-center justify-center text-stone-400 font-bold shrink-0">
+                              {(student.full_name || student.name)?.[0]}
+                            </div>
+                          )}
+                          <span className="font-bold text-stone-850 text-xs">{student.full_name || student.name}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-mono text-stone-550 text-xs">#{student.student_id}</TableCell>
+                      <TableCell className="text-xs font-semibold text-stone-600">
+                        {isRTL ? "الصف" : "Grade"} {student.grade} - {student.section || "A"}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="inline-flex p-1 bg-stone-100 rounded-xl gap-1">
+                          {[
+                            { value: "present", label: isRTL ? "حاضر" : "Present", activeClass: "bg-emerald-500 text-white shadow-sm" },
+                            { value: "absent", label: isRTL ? "غائب" : "Absent", activeClass: "bg-rose-500 text-white shadow-sm" },
+                            { value: "late", label: isRTL ? "متأخر" : "Late", activeClass: "bg-amber-500 text-stone-900 shadow-sm" }
+                          ].map(opt => (
+                            <button
+                              key={opt.value}
+                              onClick={() => handleStatusChange(student.id, opt.value)}
+                              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                currentStatus === opt.value
+                                  ? opt.activeClass
+                                  : "text-stone-500 hover:text-stone-800 hover:bg-white/50"
+                              }`}
+                            >
+                              {opt.label}
+                            </button>
+                          ))}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+function BadgesTabContent({ isRTL, classes, students, portalUser }) {
+  const [selectedStudentId, setSelectedStudentId] = useState("");
+  const [badgeTitle, setBadgeTitle] = useState("");
+  const [customTitle, setCustomTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [points, setPoints] = useState(50);
+  const [isAwarding, setIsAwarding] = useState(false);
+
+  // List of all students matching this teacher's classes
+  const allMyStudents = React.useMemo(() => {
+    return students.filter(student => {
+      return classes.some(cls => {
+        const studentGrade = student.grade?.toString();
+        const clsGrade = cls.grade?.toString();
+        const studentSection = (student.section || '').toLowerCase();
+        const clsSection = (cls.section || '').toLowerCase();
+        return studentGrade === clsGrade && studentSection === clsSection;
+      });
+    });
+  }, [students, classes]);
+
+  const badgeTemplates = [
+    { title: isRTL ? "جائزة التميز العلمي" : "Academic Excellence", points: 150, desc: isRTL ? "للحصول على الدرجة الكاملة والتميز الأكاديمي المستمر" : "For achieving full scores and continuous academic excellence" },
+    { title: isRTL ? "لقب الطالب المثالي" : "Ideal Student", points: 200, desc: isRTL ? "للالتزام التام بالسلوك الحسن والمبادئ القيادية في المدرسة" : "For outstanding moral character and leadership skills at school" },
+    { title: isRTL ? "المبدع المتميز" : "Creative Innovator", points: 100, desc: isRTL ? "لتقديم أفكار ومشاريع إبداعية متميزة في المادة" : "For contributing outstanding creative ideas and projects" },
+    { title: isRTL ? "طالب الأسبوع" : "Student of the Week", points: 50, desc: isRTL ? "للمشاركة الفعالة والاجتهاد المميز طوال الأسبوع" : "For active participation and great diligence throughout the week" }
+  ];
+
+  const handleTemplateSelect = (tmpl) => {
+    setBadgeTitle(tmpl.title);
+    setPoints(tmpl.points);
+    setDescription(tmpl.desc);
+  };
+
+  const handleAwardBadge = async () => {
+    if (!selectedStudentId) {
+      toast.error(isRTL ? "يرجى اختيار الطالب أولاً." : "Please select a student first.");
+      return;
+    }
+    const finalTitle = badgeTitle === "custom" ? customTitle : badgeTitle;
+    if (!finalTitle.trim()) {
+      toast.error(isRTL ? "يرجى تحديد أو كتابة عنوان الوسام." : "Please select or enter a badge title.");
+      return;
+    }
+
+    const studentObj = students.find(s => s.id === selectedStudentId);
+    if (!studentObj) return;
+
+    setIsAwarding(true);
+    try {
+      await base44.entities.StudentAward.create({
+        student_id: studentObj.student_id, // uses student_id string (like '0006')
+        student_name: studentObj.full_name || studentObj.name,
+        award_type: "medal",
+        title: finalTitle,
+        description: description,
+        points: parseInt(points),
+        awarded_by: portalUser?.full_name || "معلم المادة",
+        date: new Date().toISOString().split('T')[0]
+      });
+
+      toast.success(isRTL ? `تم منح وسام (${finalTitle}) للطالب (${studentObj.full_name}) بنجاح!` : `Badge (${finalTitle}) awarded to student (${studentObj.full_name}) successfully!`);
+      
+      // Clear form
+      setSelectedStudentId("");
+      setBadgeTitle("");
+      setCustomTitle("");
+      setDescription("");
+      setPoints(50);
+    } catch (err) {
+      console.error(err);
+      toast.error(isRTL ? "فشل منح الوسام للطالب." : "Failed to award badge.");
+    } finally {
+      setIsAwarding(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <PageHeader 
+        title={isRTL ? "لوحة الأوسمة وتكريم الطلاب" : "Student Honors & Badges Dashboard"} 
+        subtitle={isRTL ? "تفضل بمنح الأوسمة والنقاط للطلاب المتميزين لتحفيزهم على الإبداع." : "Award badges and points to exceptional students to motivate innovation."}
+      >
+        <button onClick={() => window.location.href = "/teacher-portal"} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-sm font-semibold transition-all border-2 border-stone-300 bg-white text-stone-800 hover:bg-stone-50 hover:border-stone-400 cursor-pointer h-11 px-5">
+          {isRTL ? "العودة للوحة التحكم" : "Back to Dashboard"}
+        </button>
+      </PageHeader>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* Award Form */}
+        <div className="lg:col-span-7">
+          <Card className="p-6 md:p-8 bg-white border-none shadow-sm rounded-[40px] space-y-6">
+            <h4 className="font-serif font-black text-xl text-stone-900 border-b border-stone-50 pb-4">
+              {isRTL ? "استمارة منح وسام جديد" : "New Badge Award Form"}
+            </h4>
+
+            <div className="space-y-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-stone-400 uppercase tracking-widest">{isRTL ? "اختر الطالب" : "Select Student"}</label>
+                <select 
+                  value={selectedStudentId}
+                  onChange={(e) => setSelectedStudentId(e.target.value)}
+                  className="bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  dir={isRTL ? "rtl" : "ltr"}
+                >
+                  <option value="">{isRTL ? "-- اختر الطالب المكرم --" : "-- Choose student to honor --"}</option>
+                  {allMyStudents.map(s => (
+                    <option key={s.id} value={s.id}>
+                      {s.full_name || s.name} (#{s.student_id}) - {isRTL ? "الصف" : "Grade"} {s.grade} - {s.section || "A"}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-stone-400 uppercase tracking-widest">{isRTL ? "اختر الوسام" : "Choose Badge"}</label>
+                <select 
+                  value={badgeTitle}
+                  onChange={(e) => setBadgeTitle(e.target.value)}
+                  className="bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  dir={isRTL ? "rtl" : "ltr"}
+                >
+                  <option value="">{isRTL ? "-- اختر وساماً أو حدد وساماً مخصصاً --" : "-- Select badge template or create custom --"}</option>
+                  {badgeTemplates.map((t, idx) => (
+                    <option key={idx} value={t.title}>{t.title} (+{t.points} XP)</option>
+                  ))}
+                  <option value="custom">{isRTL ? "✍️ وسام مخصص جديد..." : "✍️ Custom Badge..."}</option>
+                </select>
+              </div>
+
+              {badgeTitle === "custom" && (
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-stone-400 uppercase tracking-widest">{isRTL ? "عنوان الوسام المخصص" : "Custom Badge Title"}</label>
+                  <Input 
+                    value={customTitle}
+                    onChange={(e) => setCustomTitle(e.target.value)}
+                    className="h-11 rounded-xl border-stone-200 font-semibold focus-visible:ring-primary/20 bg-stone-50"
+                    placeholder={isRTL ? "مثال: بطل الفيزياء المتفوق..." : "e.g., Physics Superstar..."}
+                  />
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-stone-400 uppercase tracking-widest">{isRTL ? "النقاط الممنوحة (XP)" : "XP Points Offered"}</label>
+                  <Input 
+                    type="number"
+                    value={points}
+                    onChange={(e) => setPoints(e.target.value)}
+                    className="h-11 rounded-xl border-stone-200 font-semibold focus-visible:ring-primary/20 bg-stone-50 num-en"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-stone-400 uppercase tracking-widest">{isRTL ? "الوصف وأسباب منح الوسام" : "Honors Description & Motivation"}</label>
+                <textarea 
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  rows={3}
+                  className="p-3 rounded-xl border border-stone-200 font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20 bg-stone-50 text-xs leading-relaxed"
+                  placeholder={isRTL ? "اكتب أسباب منح الوسام لهذا الطالب بوضوح..." : "Describe student accomplishments that earned this honor..."}
+                />
+              </div>
+
+              <button 
+                onClick={handleAwardBadge}
+                disabled={isAwarding}
+                className="w-full inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-sm font-semibold transition-all bg-stone-900 text-white hover:bg-black cursor-pointer shadow-lg shadow-stone-200 h-12 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Trophy size={16} className="text-yellow-400" />
+                <span>{isAwarding ? (isRTL ? "جاري منح التكريم..." : "Awarding...") : (isRTL ? "منح وسام التقدير" : "Award Honor Badge")}</span>
+              </button>
+            </div>
+          </Card>
+        </div>
+
+        {/* Templates Quick Select */}
+        <div className="lg:col-span-5 space-y-6">
+          <Card className="p-6 md:p-8 bg-white border-none shadow-sm rounded-[40px] space-y-6">
+            <h4 className="font-serif font-black text-lg text-stone-900 border-b border-stone-50 pb-4">
+              {isRTL ? "قوانب أوسمة سريعة" : "Quick Badge Templates"}
+            </h4>
+
+            <div className="space-y-4">
+              {badgeTemplates.map((tmpl, idx) => (
+                <div 
+                  key={idx} 
+                  onClick={() => handleTemplateSelect(tmpl)}
+                  className="p-4 rounded-2xl border border-stone-100 hover:border-amber-200 hover:bg-amber-50/20 cursor-pointer transition-all flex items-start gap-4 group"
+                >
+                  <div className="h-10 w-10 rounded-xl bg-amber-50 text-amber-500 flex items-center justify-center group-hover:scale-110 transition-all shrink-0">
+                    <Trophy size={20} />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <h5 className="text-xs font-bold text-stone-850">{tmpl.title}</h5>
+                      <span className="text-[10px] font-black text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded num-en">+{tmpl.points} XP</span>
+                    </div>
+                    <p className="text-[10px] text-stone-400 font-semibold leading-normal">{tmpl.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }
