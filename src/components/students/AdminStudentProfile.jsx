@@ -440,6 +440,27 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
     }
   });
 
+  // Fetch real tuition fees from student_fees table
+  const { data: studentFees = [] } = useQuery({
+    queryKey: ["admin-student-fees", student?.id],
+    enabled: !!student?.id,
+    queryFn: () => base44.entities.StudentFee.filter({ student_id: student.id })
+  });
+
+  // Fetch real fee payments from fee_payments table
+  const { data: feePayments = [] } = useQuery({
+    queryKey: ["admin-student-fee-payments", student?.id],
+    enabled: !!student?.id,
+    queryFn: () => base44.entities.FeePayment.filter({ student_id: student.id })
+  });
+
+  // Fetch real wallet transactions from wallet_transactions table
+  const { data: walletTx = [] } = useQuery({
+    queryKey: ["admin-student-wallet-tx", student?.id],
+    enabled: !!student?.id,
+    queryFn: () => base44.entities.WalletTransaction.filter({ student_id: student.id })
+  });
+
   // Fetch other outstanding dues / fines
   const { data: studentFines = [], refetch: refetchFines } = useQuery({
     queryKey: ["admin-student-fines", student?.id],
@@ -516,15 +537,37 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
     }
   };
 
-  const studentTransactions = dbFinancialRecords.length > 0
-    ? dbFinancialRecords.map(r => ({
-        id: r.id,
-        date: (r.payment_date || r.created_at || "").split("T")[0] || "",
-        type: getRecordTypeLabel(r),
-        amount: parseFloat(r.amount) || 0,
-        method: getPaymentMethodLabel(r.payment_method),
-        status: r.status || "completed"
-      }))
+  const studentTransactions = dbFinancialRecords.length > 0 || feePayments.length > 0 || walletTx.length > 0
+    ? [
+        ...feePayments.map(p => ({
+          id: p.id,
+          date: (p.payment_date || p.created_at || "").split("T")[0] || "",
+          type: isRTL 
+            ? `قسط الرسوم المدرسية - ${studentFees.find(f => f.id === p.student_fee_id)?.fee_name || "دفعة رسوم"}` 
+            : `Tuition Fee Payment - ${studentFees.find(f => f.id === p.student_fee_id)?.fee_name || "Payment"}`,
+          amount: parseFloat(p.amount) || 0,
+          method: getPaymentMethodLabel(p.payment_method),
+          status: "completed"
+        })),
+        ...walletTx.map(t => ({
+          id: t.id,
+          date: (t.created_at || "").split("T")[0] || "",
+          type: t.type === "topup" 
+            ? (isRTL ? "شحن بطاقة ذكية" : "Smart Card Top-up")
+            : (isRTL ? "مشتريات المتجر" : "Store Purchase"),
+          amount: parseFloat(t.amount) || 0,
+          method: getPaymentMethodLabel(t.payment_method || "stripe"),
+          status: "completed"
+        })),
+        ...dbFinancialRecords.map(r => ({
+          id: r.id,
+          date: (r.payment_date || r.created_at || "").split("T")[0] || "",
+          type: getRecordTypeLabel(r),
+          amount: parseFloat(r.amount) || 0,
+          method: getPaymentMethodLabel(r.payment_method),
+          status: r.status || "completed"
+        }))
+      ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     : mockTransactions;
 
   const handleSaveSuccess = async (newRecord) => {
@@ -540,16 +583,42 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
           const currentBalance = parseFloat(student.card_balance) || 0;
           const newBalance = currentBalance + studentAmount;
           await base44.entities.Student.update(student.id, { card_balance: newBalance });
+          // Create WalletTransaction to ensure synced UI
+          await base44.entities.WalletTransaction.create({
+            student_id: student.id,
+            type: "topup",
+            amount: studentAmount,
+            balance_after: newBalance,
+            description: desc || "شحن رصيد المحفظة من الإدارة"
+          });
           toast.success(isRTL ? "تم شحن رصيد البطاقة الذكية بنجاح!" : "Smart card balance topped up successfully!");
         } else {
           const currentPaid = parseFloat(student.tuition_paid) || 0;
           const newPaid = currentPaid + studentAmount;
           await base44.entities.Student.update(student.id, { tuition_paid: newPaid });
+
+          // If there are fees assigned in student_fees table, record the payment there too!
+          const pendingFees = studentFees.filter(f => f.status !== "paid");
+          if (pendingFees.length > 0) {
+            const targetFee = pendingFees[0];
+            await base44.entities.FeePayment.create({
+              student_fee_id: targetFee.id,
+              student_id: student.id,
+              amount: Math.min(studentAmount, parseFloat(targetFee.remaining || targetFee.amount)),
+              payment_method: newRecord.payment_method || "bank_transfer",
+              notes: desc || "تسجيل دفعة من لوحة الإدارة"
+            });
+          }
           toast.success(isRTL ? "تم تسجيل دفعة الرسوم الدراسية بنجاح!" : "Tuition payment recorded successfully!");
         }
         
         _qc.invalidateQueries({ queryKey: ["student-profile", student.id] });
         _qc.invalidateQueries({ queryKey: ["financial-records", student?.id] });
+        _qc.invalidateQueries({ queryKey: ["admin-student-fees", student?.id] });
+        _qc.invalidateQueries({ queryKey: ["admin-student-fee-payments", student?.id] });
+        _qc.invalidateQueries({ queryKey: ["admin-student-wallet-tx", student?.id] });
+        _qc.invalidateQueries({ queryKey: ["student-fees-all"] });
+        _qc.invalidateQueries({ queryKey: ["fee-payments-all"] });
       } catch (err) {
         console.error("Failed to update student financial balances:", err);
       }
@@ -571,8 +640,11 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
     window.print();
   };
 
-  // Safe arithmetic for remaining tuition
-  const totalTuition = parseFloat(student?.tuition_total) || 0;
+  // Safe arithmetic for remaining tuition (preferring real tables, falling back to Student fields)
+  const totalTuition = studentFees.length > 0
+    ? studentFees.reduce((sum, f) => sum + parseFloat(f.amount || 0), 0)
+    : (parseFloat(student?.tuition_total) || 0);
+
   const dynamicPaid = dbFinancialRecords
     .filter(r => {
       const isTuitionType = r.record_type === "tuition" || r.record_type === "income";
@@ -588,8 +660,11 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
       return isTuitionType && isPaid && !isTopUp;
     })
     .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
-  
-  const paidTuition = dbFinancialRecords.length > 0 ? dynamicPaid : (parseFloat(student?.tuition_paid) || 0);
+
+  const paidTuition = studentFees.length > 0
+    ? studentFees.reduce((sum, f) => sum + parseFloat(f.amount_paid || 0), 0)
+    : (dbFinancialRecords.length > 0 ? dynamicPaid : (parseFloat(student?.tuition_paid) || 0));
+
   const remainingTuition = Math.max(0, totalTuition - paidTuition);
 
   const getStatusColor = (status) => {
