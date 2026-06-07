@@ -42,6 +42,9 @@ import VirtualClassroom from './pages/VirtualClassroom';
 import AdminChats from './pages/AdminChats';
 import OfficialAnnouncements from './pages/OfficialAnnouncements';
 import Grades from './pages/Grades';
+import CounselingDashboard from './pages/CounselingDashboard';
+import CounselingCases from './pages/CounselingCases';
+import CounselingCaseDetail from './pages/CounselingCaseDetail';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -93,6 +96,9 @@ const AuthenticatedApp = () => {
         <Route path="/virtual-classroom/:id" element={<VirtualClassroom />} />
         <Route path="/admin-chats" element={<AdminChats />} />
         <Route path="/official-announcements" element={<OfficialAnnouncements />} />
+        <Route path="/counseling" element={<CounselingDashboard />} />
+        <Route path="/counseling/cases" element={<CounselingCases />} />
+        <Route path="/counseling/:id" element={<CounselingCaseDetail />} />
       </Route>
       <Route path="/student-portal" element={<StudentPortal />} />
       <Route path="/teacher-portal" element={<TeacherPortal />} />

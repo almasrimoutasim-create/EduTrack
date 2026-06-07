@@ -84,7 +84,8 @@ export default function ParentSidebar() {
       items: [
         { label: isRTL ? "قائمة الأبناء" : "My Children", path: "#", icon: Users },
         { label: isRTL ? "حضور الأبناء" : "Attendance", path: "#", icon: ClipboardCheck },
-        { label: isRTL ? "تقارير الأداء" : "Progress Reports", path: "#", icon: Calendar }
+        { label: isRTL ? "تقارير الأداء" : "Progress Reports", path: "#", icon: Calendar },
+        { label: isRTL ? "الإرشاد الطلابي" : "Counseling", path: "/parent-portal?tab=counseling", icon: ShieldCheck }
       ]
     },
     {

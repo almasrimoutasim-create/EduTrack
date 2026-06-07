@@ -43,6 +43,7 @@ import StripePaymentForm from "@/components/portal/StripePaymentForm";
 import ParentFinesTab from "@/components/portal/ParentFinesTab";
 import FineTransactionHistory from "@/components/portal/FineTransactionHistory";
 import ParentTeacherChat from "@/components/portal/ParentTeacherChat";
+import CounselingParentView from "@/components/portal/CounselingParentView";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -1398,6 +1399,40 @@ export default function ParentPortal() {
                 <Card className="p-12 text-center border-dashed border-2 border-stone-200 bg-stone-50/50 text-stone-400 rounded-[40px]">
                   <Users size={48} className="mb-4 opacity-20 mx-auto" />
                   <p className="font-bold text-lg">{isRTL ? "لا توجد تفاصيل لهذا الطالب" : "No student details found."}</p>
+                </Card>
+              )}
+            </div>
+          )}
+
+          {activeTab === "counseling" && (
+            <div className="space-y-8 animate-fadeIn">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <h3 className="font-serif text-3xl font-bold text-stone-900">{isRTL ? "الإرشاد والتمكين الطلابي" : "Counseling & Student Care"}</h3>
+                  <p className="text-stone-400 text-sm font-medium">{isRTL ? "تابع التوصيات التربوية وحالة التقدم والتوجيهات لأبنائك." : "Track educational recommendations, progress, and care guides for your children."}</p>
+                </div>
+                {children.length > 1 && (
+                  <div className="flex items-center gap-3 bg-white px-5 py-3 rounded-2xl border border-stone-100 shadow-sm">
+                    <span className="text-xs font-bold text-stone-500 uppercase tracking-widest">{isRTL ? "الابن النشط:" : "Active Child:"}</span>
+                    <select 
+                      value={selectedStudentId || ""} 
+                      onChange={e => setSelectedStudentId(e.target.value)}
+                      className="bg-transparent border-none text-sm font-bold focus:outline-none cursor-pointer text-stone-850"
+                    >
+                      {children.map(c => (
+                        <option key={c.id} value={c.id}>{c.full_name || c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              {currentStudent ? (
+                <CounselingParentView studentId={currentStudent.id} />
+              ) : (
+                <Card className="p-12 text-center border-dashed border-2 border-stone-200 bg-stone-50/50 text-stone-400 rounded-[40px]">
+                  <Users size={48} className="mb-4 opacity-20 mx-auto" />
+                  <p className="font-bold text-lg">{isRTL ? "يرجى اختيار طالب لعرض تفاصيل الإرشاد" : "Select a child to view counseling details"}</p>
                 </Card>
               )}
             </div>

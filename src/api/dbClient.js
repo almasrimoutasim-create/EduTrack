@@ -133,6 +133,8 @@ const entityNames = [
   'RoomVideo', 'BookReview', 'MessageReadReceipt',
   'TypingIndicator', 'Fine', 'ParentLinkRequest',
   'VirtualSession', 'SessionParticipant', 'OfficialAnnouncement',
+  'CounselingCase', 'CaseAssessment', 'InterventionPlan',
+  'FollowUp', 'CaseVisibilityLog',
 ];
 
 const entities = {};
