@@ -35,6 +35,7 @@ import { Badge } from "@/components/ui/badge";
 import StaffMemberFormDialog from "@/components/shared/StaffMemberFormDialog";
 import RoleSettingsDialog from "@/components/shared/RoleSettingsDialog";
 import { toast } from "sonner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const btnOutline = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border-2 border-stone-200 bg-white text-stone-800 hover:bg-stone-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
 const btnPrimary = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed";
@@ -45,11 +46,17 @@ export default function StaffControl() {
   const [searchTerm, setSearchTerm] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [roleSettingsOpen, setRoleSettingsOpen] = useState(false);
+  const [auditLogsOpen, setAuditLogsOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
 
   const { data: staffMembers = [], isLoading } = useQuery({ 
     queryKey: ["staff-members"], 
     queryFn: () => base44.entities.StaffMember.list("-created_at", 50) 
+  });
+
+  const { data: logs = [] } = useQuery({ 
+    queryKey: ["audit-logs"], 
+    queryFn: () => base44.entities.AuditLog.list("-timestamp", 50) 
   });
 
   const filteredStaff = staffMembers.filter(member => 
@@ -93,6 +100,10 @@ export default function StaffControl() {
         subtitle={isRTL ? "إدارة الموظفين، الصلاحيات، والوصول إلى النظام" : "Manage employees, permissions, and system access"}
       >
         <div className="flex gap-3">
+          <button onClick={() => setAuditLogsOpen(true)} className={`${btnOutline} rounded-xl h-11 px-5`}>
+            <Clock size={18} />
+            <span>{isRTL ? "سجل الأنشطة" : "Audit Logs"}</span>
+          </button>
           <button onClick={() => setRoleSettingsOpen(true)} className={`${btnOutline} rounded-xl h-11 px-5`}>
             <Settings size={18} />
             <span>{isRTL ? "إعدادات الأدوار" : "Role Settings"}</span>
@@ -258,6 +269,66 @@ export default function StaffControl() {
       )}
       <StaffMemberFormDialog open={dialogOpen} onClose={() => setDialogOpen(false)} member={selectedMember} />
       <RoleSettingsDialog open={roleSettingsOpen} onClose={() => setRoleSettingsOpen(false)} />
+      <Dialog open={auditLogsOpen} onOpenChange={setAuditLogsOpen}>
+        <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto rounded-3xl" dir={isRTL ? "rtl" : "ltr"}>
+          <DialogHeader className="">
+            <DialogTitle className="text-xl font-serif font-black flex items-center gap-2">
+              <Clock className="text-primary" size={20} />
+              <span>{isRTL ? "سجل الأنشطة والعمليات بالنظام" : "System Audit & Action Logs"}</span>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            <div className="overflow-x-auto border border-stone-100 rounded-2xl">
+              <table className="w-full text-start">
+                <thead>
+                  <tr className="bg-stone-50 border-b border-stone-200">
+                    <th className="px-5 py-3 text-xs font-bold text-stone-500">{isRTL ? "التاريخ والوقت" : "Time"}</th>
+                    <th className="px-5 py-3 text-xs font-bold text-stone-500">{isRTL ? "الموظف" : "Staff"}</th>
+                    <th className="px-5 py-3 text-xs font-bold text-stone-500">{isRTL ? "العملية" : "Action"}</th>
+                    <th className="px-5 py-3 text-xs font-bold text-stone-500">{isRTL ? "الجدول/النوع" : "Entity"}</th>
+                    <th className="px-5 py-3 text-xs font-bold text-stone-500">{isRTL ? "التفاصيل" : "Details"}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-stone-100 text-sm">
+                  {logs.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-5 py-8 text-center text-stone-400">
+                        {isRTL ? "لا توجد سجلات أنشطة مسجلة حالياً" : "No audit logs recorded yet"}
+                      </td>
+                    </tr>
+                  ) : logs.map((log) => {
+                    const isDelete = log.action?.includes("DELETE");
+                    const isCreate = log.action?.includes("CREATE");
+                    const isUpdate = log.action?.includes("UPDATE");
+                    const badgeClass = isDelete ? "bg-rose-50 text-rose-600" : isCreate ? "bg-emerald-50 text-emerald-600" : isUpdate ? "bg-blue-50 text-blue-600" : "bg-stone-50 text-stone-500";
+                    return (
+                      <tr key={log.id} className="hover:bg-stone-50/50 transition-colors">
+                        <td className="px-5 py-3.5 text-xs text-stone-400 num-en text-start">
+                          {log.timestamp ? new Date(log.timestamp).toLocaleString(isRTL ? "ar-EG" : "en-US") : "—"}
+                        </td>
+                        <td className="px-5 py-3.5 font-semibold text-stone-900 text-start">
+                          {log.user_name || "System"}
+                        </td>
+                        <td className="px-5 py-3.5 text-start">
+                          <Badge className={`${badgeClass} border-none rounded-lg text-[10px] font-bold px-2 py-0.5`}>
+                            {log.action}
+                          </Badge>
+                        </td>
+                        <td className="px-5 py-3.5 text-stone-600 font-mono text-xs text-start">
+                          {log.entity_type}
+                        </td>
+                        <td className="px-5 py-3.5 text-xs text-stone-500 font-mono max-w-xs truncate text-start">
+                          {log.details || "—"}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

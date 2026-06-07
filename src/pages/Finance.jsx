@@ -48,11 +48,13 @@ export default function Finance() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState(null);
+  const [activeTab, setActiveTab] = useState("transactions"); // "transactions" | "fines"
 
   const handleDelete = async (recordId) => {
     try {
       await base44.entities.FinancialRecord.delete(recordId);
       toast.success(isRTL ? "تم حذف المعاملة" : "Transaction deleted");
+      qc.invalidateQueries({ queryKey: ["financial-records"] });
     } catch (err) {
       toast.error(isRTL ? "فشل حذف المعاملة" : "Failed to delete");
     }
@@ -67,6 +69,35 @@ export default function Finance() {
     queryKey: ["financial-records"], 
     queryFn: () => base44.entities.FinancialRecord.list("-payment_date", 50) 
   });
+
+  const { data: fines = [], refetch: refetchFines } = useQuery({
+    queryKey: ["finance-fines"],
+    // @ts-ignore
+    queryFn: () => base44.entities.Fine.list("-created_date", 100)
+  });
+
+  const handlePayFine = async (fine) => {
+    try {
+      await base44.entities.Fine.update(fine.id, { status: "paid" });
+      await base44.entities.FinancialRecord.create({
+        amount: fine.amount,
+        type: "income",
+        record_type: "fine_payment",
+        description: isRTL ? `سداد غرامة: ${fine.reason}` : `Fine Payment: ${fine.reason}`,
+        student_id: fine.student_id,
+        student_name: fine.student_name,
+        payment_date: new Date().toISOString().split("T")[0],
+        status: "completed"
+      });
+      qc.invalidateQueries({ queryKey: ["financial-records"] });
+      qc.invalidateQueries({ queryKey: ["finance-fines"] });
+      refetchFines();
+      toast.success(isRTL ? "تم سداد الغرامة بنجاح وتوثيقها مالياً" : "Fine paid and documented successfully");
+    } catch (err) {
+      console.error(err);
+      toast.error(isRTL ? "فشل سداد الغرامة" : "Failed to process fine payment");
+    }
+  };
 
   const totalRevenue = 
     purchases.reduce((sum, p) => sum + (parseFloat(p.total_price || p.total_amount || 0)), 0) +
@@ -181,181 +212,270 @@ export default function Finance() {
         {/* Main Transactions List */}
         <section className="lg:col-span-8 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <h3 className="text-xl font-bold text-stone-900">{isRTL ? "سجل المعاملات" : "Transaction History"}</h3>
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="relative">
-                <Search className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 text-stone-400`} size={16} />
-                <Input 
-                  placeholder={t("common.search", language)} 
-                  className={`h-10 ${isRTL ? 'pr-10' : 'pl-10'} rounded-xl border-stone-200 bg-white w-48 lg:w-64`}
-                  dir={isRTL ? "rtl" : "ltr"}
-                  value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
-                />
-              </div>
-              <div className="w-40 md:w-48">
-                <Select value={typeFilter} onValueChange={setTypeFilter}>
-                  <SelectTrigger className="h-10 rounded-xl border-stone-200 bg-white shadow-sm font-semibold text-stone-700">
-                    <SelectValue placeholder={isRTL ? "نوع المعاملة" : "Transaction Type"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">{isRTL ? "الكل" : "All"}</SelectItem>
-                    <SelectItem value="purchase">{isRTL ? "مشتريات المتجر" : "Store Purchases"}</SelectItem>
-                    <SelectItem value="salary">{isRTL ? "الرواتب والأجور" : "Salaries & Payments"}</SelectItem>
-                    <SelectItem value="tuition">{isRTL ? "الرسوم الدراسية" : "Tuition & Fees"}</SelectItem>
-                    <SelectItem value="expense">{isRTL ? "المصاريف العامة" : "General Expenses"}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
-
-          <Card className="border shadow-sm rounded-xl bg-white overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full" dir={isRTL ? "rtl" : "ltr"}>
-                <thead>
-                  <tr className="bg-stone-50/50 border-b border-stone-100">
-                    <th className="px-5 py-4 text-xs font-bold text-stone-400 uppercase tracking-wide">{isRTL ? "التاريخ" : "Date"}</th>
-                    <th className="px-5 py-4 text-xs font-bold text-stone-400 uppercase tracking-wide">{isRTL ? "الطرف / المستفيد" : "Party / Recipient"}</th>
-                    <th className="px-5 py-4 text-xs font-bold text-stone-400 uppercase tracking-wide">{isRTL ? "المادة/البند" : "Item"}</th>
-                    <th className="px-5 py-4 text-xs font-bold text-stone-400 uppercase tracking-wide">{isRTL ? "المبلغ" : "Amount"}</th>
-                    <th className="px-5 py-4 text-xs font-bold text-stone-400 uppercase tracking-wide text-center">{isRTL ? "الحالة" : "Status"}</th>
-                    <th className="px-5 py-4 text-xs font-bold text-stone-400 uppercase tracking-wide"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-stone-50">
-                  {isLoading ? (
-                    [1,2,3,4,5].map(i => (
-                      <tr key={i} className="animate-pulse">
-                        <td colSpan={6} className="px-5 py-5 h-14 bg-stone-50/50" />
-                      </tr>
-                    ))
-                  ) : displayedTransactions.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="px-5 py-10 text-center text-stone-400">
-                        {isRTL ? "لا توجد معاملات بعد" : "No transactions yet"}
-                      </td>
-                    </tr>
-                  ) : displayedTransactions.map((t) => {
-                    const date = t.created_at || t.created_date || t.payment_date || t.date;
-                    const name = t.student_name || t.recipient_name;
-                    
-                    const getLocalizedItem = (record) => {
-                      if (record._type === "purchase") {
-                        return record.item_name || (isRTL ? "وجبة مدرسية / متجر" : "School Meal / Store");
-                      }
-                      
-                      if (record.description) return record.description;
-                      
-                      switch (record.record_type) {
-                        case "salary":
-                          return isRTL ? "راتب" : "Salary";
-                        case "fine_payment":
-                          return isRTL ? "سداد غرامة" : "Fine Payment";
-                        case "bus_driver_payment":
-                          return isRTL ? "أجر سائق حافلة" : "Bus Driver Payment";
-                        case "supervisor_payment":
-                          return isRTL ? "أجر مشرف حافلة" : "Supervisor Payment";
-                        case "expense":
-                          return isRTL ? "مصاريف عامة" : "General Expense";
-                        case "income":
-                        case "tuition":
-                          return isRTL ? "رسوم دراسية" : "Tuition Fee";
-                        case "refund":
-                          return isRTL ? "مسترجع" : "Refund";
-                        default:
-                          return record.record_type || (isRTL ? "معاملة مالية" : "Financial Transaction");
-                      }
-                    };
-
-                    const item = getLocalizedItem(t);
-                    const amount = parseFloat(t.total_price || t.total_amount || t.amount || 0);
-                    const status = t.status || "paid";
-                    const statusLabel = status === "paid" || status === "completed"
-                      ? (isRTL ? "مكتمل" : "Completed")
-                      : status === "pending"
-                        ? (isRTL ? "معلق" : "Pending")
-                        : (isRTL ? "ملغي" : "Cancelled");
-                    const statusColor = status === "paid" || status === "completed"
-                      ? "bg-emerald-500/10 text-emerald-600"
-                      : status === "pending"
-                        ? "bg-amber-500/10 text-amber-600"
-                        : "bg-rose-500/10 text-rose-600";
-                    return (
-                      <tr key={t.id} className="hover:bg-stone-50/50 transition-colors group">
-                        <td className="px-5 py-4">
-                          <span className="text-xs font-semibold text-stone-500 num-en">{date ? format(new Date(date), "MMM d, yyyy") : "—"}</span>
-                        </td>
-                        <td className="px-5 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="h-8 w-8 rounded-full bg-stone-100 flex items-center justify-center font-bold text-[10px] text-stone-400 group-hover:bg-primary group-hover:text-white transition-colors">
-                              {name?.[0]}
-                            </div>
-                            <span className="text-sm font-semibold text-stone-900">{name}</span>
-                          </div>
-                        </td>
-                        <td className="px-5 py-4">
-                          <span className="text-sm font-medium text-stone-600">{item}</span>
-                        </td>
-                        <td className="px-5 py-4">
-                          <span className="text-sm font-bold text-stone-900 num-en">${amount?.toLocaleString()}</span>
-                        </td>
-                        <td className="px-5 py-4 text-center">
-                          <Badge className={`${statusColor} border-none rounded-lg text-[10px] font-bold px-2 py-0.5`}>
-                            {statusLabel}
-                          </Badge>
-                        </td>
-                        <td className="px-5 py-4 text-left">
-                          {t._type === "record" ? (
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <button className={`${btnOutline} h-9 px-3 text-xs cursor-pointer`}>
-                                  <MoreVertical size={14} />
-                                  {isRTL ? "خيارات" : "Actions"}
-                                </button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align={isRTL ? "start" : "end"} className="w-36">
-                                <DropdownMenuItem 
-                                  onClick={() => {
-                                    setSelectedRecord(t);
-                                    setDialogOpen(true);
-                                  }} 
-                                  className="flex items-center gap-2 cursor-pointer text-stone-700"
-                                >
-                                  <Edit2 size={12} />
-                                  <span className="text-xs">{isRTL ? "تعديل" : "Edit"}</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem 
-                                  onClick={() => {
-                                    if (confirm(isRTL ? "هل أنت متأكد من حذف هذه المعاملة؟" : "Are you sure you want to delete this transaction?")) {
-                                      handleDelete(t.id);
-                                    }
-                                  }} 
-                                  className="flex items-center gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 cursor-pointer"
-                                >
-                                  <Trash2 size={12} />
-                                  <span className="text-xs">{isRTL ? "حذف" : "Delete"}</span>
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          ) : (
-                            <Badge className="bg-stone-100 text-stone-400 border-none rounded-lg text-[10px] font-bold px-2 py-0.5">
-                              {isRTL ? "شراء تلقائي" : "Auto Purchase"}
-                            </Badge>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-            <div className="p-4 bg-stone-50/30 border-t border-stone-100 text-center">
-              <button className="text-stone-400 font-semibold text-xs hover:text-primary">
-                {isRTL ? "عرض جميع المعاملات" : "View Full History"}
+            <div className="flex gap-2 p-1 bg-stone-100 rounded-xl w-fit border border-stone-200/50">
+              <button
+                onClick={() => setActiveTab("transactions")}
+                className={`px-5 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  activeTab === "transactions"
+                    ? "bg-white text-stone-900 shadow-sm font-extrabold"
+                    : "text-stone-500 hover:text-stone-850"
+                }`}
+              >
+                {isRTL ? "سجل المعاملات" : "Transactions"}
+              </button>
+              <button
+                onClick={() => setActiveTab("fines")}
+                className={`px-5 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  activeTab === "fines"
+                    ? "bg-white text-stone-900 shadow-sm font-extrabold"
+                    : "text-stone-500 hover:text-stone-850"
+                }`}
+              >
+                {isRTL ? "الغرامات الطلابية" : "Student Fines"}
               </button>
             </div>
-          </Card>
+
+            {activeTab === "transactions" && (
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="relative">
+                  <Search className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 text-stone-400`} size={16} />
+                  <Input 
+                    placeholder={t("common.search", language)} 
+                    className={`h-10 ${isRTL ? 'pr-10' : 'pl-10'} rounded-xl border-stone-200 bg-white w-48 lg:w-64`}
+                    dir={isRTL ? "rtl" : "ltr"}
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                  />
+                </div>
+                <div className="w-40 md:w-48">
+                  <Select value={typeFilter} onValueChange={setTypeFilter}>
+                    <SelectTrigger className="h-10 rounded-xl border-stone-200 bg-white shadow-sm font-semibold text-stone-700">
+                      <SelectValue placeholder={isRTL ? "نوع المعاملة" : "Transaction Type"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">{isRTL ? "الكل" : "All"}</SelectItem>
+                      <SelectItem value="purchase">{isRTL ? "مشتريات المتجر" : "Store Purchases"}</SelectItem>
+                      <SelectItem value="salary">{isRTL ? "الرواتب والأجور" : "Salaries & Payments"}</SelectItem>
+                      <SelectItem value="tuition">{isRTL ? "الرسوم الدراسية" : "Tuition & Fees"}</SelectItem>
+                      <SelectItem value="expense">{isRTL ? "المصاريف العامة" : "General Expenses"}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {activeTab === "transactions" ? (
+            <Card className="border shadow-sm rounded-xl bg-white overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-start" dir={isRTL ? "rtl" : "ltr"}>
+                  <thead>
+                    <tr className="bg-stone-50/50 border-b border-stone-100">
+                      <th className="px-5 py-4 text-xs font-bold text-stone-400 uppercase tracking-wide">{isRTL ? "التاريخ" : "Date"}</th>
+                      <th className="px-5 py-4 text-xs font-bold text-stone-400 uppercase tracking-wide">{isRTL ? "الطرف / المستفيد" : "Party / Recipient"}</th>
+                      <th className="px-5 py-4 text-xs font-bold text-stone-400 uppercase tracking-wide">{isRTL ? "المادة/البند" : "Item"}</th>
+                      <th className="px-5 py-4 text-xs font-bold text-stone-400 uppercase tracking-wide">{isRTL ? "المبلغ" : "Amount"}</th>
+                      <th className="px-5 py-4 text-xs font-bold text-stone-400 uppercase tracking-wide text-center">{isRTL ? "الحالة" : "Status"}</th>
+                      <th className="px-5 py-4 text-xs font-bold text-stone-400 uppercase tracking-wide"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-stone-50">
+                    {isLoading ? (
+                      [1,2,3,4,5].map(i => (
+                        <tr key={i} className="animate-pulse">
+                          <td colSpan={6} className="px-5 py-5 h-14 bg-stone-50/50" />
+                        </tr>
+                      ))
+                    ) : displayedTransactions.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-5 py-10 text-center text-stone-400">
+                          {isRTL ? "لا توجد معاملات بعد" : "No transactions yet"}
+                        </td>
+                      </tr>
+                    ) : displayedTransactions.map((t) => {
+                      const date = t.created_at || t.created_date || t.payment_date || t.date;
+                      const name = t.student_name || t.recipient_name;
+                      
+                      const getLocalizedItem = (record) => {
+                        if (record._type === "purchase") {
+                          return record.item_name || (isRTL ? "وجبة مدرسية / متجر" : "School Meal / Store");
+                        }
+                        
+                        if (record.description) return record.description;
+                        
+                        switch (record.record_type) {
+                          case "salary":
+                            return isRTL ? "راتب" : "Salary";
+                          case "fine_payment":
+                            return isRTL ? "سداد غرامة" : "Fine Payment";
+                          case "bus_driver_payment":
+                            return isRTL ? "أجر سائق حافلة" : "Bus Driver Payment";
+                          case "supervisor_payment":
+                            return isRTL ? "أجر مشرف حافلة" : "Supervisor Payment";
+                          case "expense":
+                            return isRTL ? "مصاريف عامة" : "General Expense";
+                          case "income":
+                          case "tuition":
+                            return isRTL ? "رسوم دراسية" : "Tuition Fee";
+                          case "refund":
+                            return isRTL ? "مسترجع" : "Refund";
+                          default:
+                            return record.record_type || (isRTL ? "معاملة مالية" : "Financial Transaction");
+                        }
+                      };
+
+                      const item = getLocalizedItem(t);
+                      const amount = parseFloat(t.total_price || t.total_amount || t.amount || 0);
+                      const status = t.status || "paid";
+                      const statusLabel = status === "paid" || status === "completed"
+                        ? (isRTL ? "مكتمل" : "Completed")
+                        : status === "pending"
+                          ? (isRTL ? "معلق" : "Pending")
+                          : (isRTL ? "ملغي" : "Cancelled");
+                      const statusColor = status === "paid" || status === "completed"
+                        ? "bg-emerald-500/10 text-emerald-600"
+                        : status === "pending"
+                          ? "bg-amber-500/10 text-amber-600"
+                          : "bg-rose-500/10 text-rose-600";
+                      return (
+                        <tr key={t.id} className="hover:bg-stone-50/50 transition-colors group">
+                          <td className="px-5 py-4">
+                            <span className="text-xs font-semibold text-stone-500 num-en">{date ? format(new Date(date), "MMM d, yyyy") : "—"}</span>
+                          </td>
+                          <td className="px-5 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="h-8 w-8 rounded-full bg-stone-100 flex items-center justify-center font-bold text-[10px] text-stone-400 group-hover:bg-primary group-hover:text-white transition-colors">
+                                {name?.[0]}
+                              </div>
+                              <span className="text-sm font-semibold text-stone-900">{name}</span>
+                            </div>
+                          </td>
+                          <td className="px-5 py-4">
+                            <span className="text-sm font-medium text-stone-600">{item}</span>
+                          </td>
+                          <td className="px-5 py-4">
+                            <span className="text-sm font-bold text-stone-900 num-en">${amount?.toLocaleString()}</span>
+                          </td>
+                          <td className="px-5 py-4 text-center">
+                            <Badge className={`${statusColor} border-none rounded-lg text-[10px] font-bold px-2 py-0.5`}>
+                              {statusLabel}
+                            </Badge>
+                          </td>
+                          <td className="px-5 py-4 text-left">
+                            {t._type === "record" ? (
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <button className={`${btnOutline} h-9 px-3 text-xs cursor-pointer`}>
+                                    <MoreVertical size={14} />
+                                    {isRTL ? "خيارات" : "Actions"}
+                                  </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align={isRTL ? "start" : "end"} className="w-36">
+                                  <DropdownMenuItem 
+                                    onClick={() => {
+                                      setSelectedRecord(t);
+                                      setDialogOpen(true);
+                                    }} 
+                                    className="flex items-center gap-2 cursor-pointer text-stone-700"
+                                  >
+                                    <Edit2 size={12} />
+                                    <span className="text-xs">{isRTL ? "تعديل" : "Edit"}</span>
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem 
+                                    onClick={() => {
+                                      if (confirm(isRTL ? "هل أنت متأكد من حذف هذه المعاملة؟" : "Are you sure you want to delete this transaction?")) {
+                                        handleDelete(t.id);
+                                      }
+                                    }} 
+                                    className="flex items-center gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 cursor-pointer"
+                                  >
+                                    <Trash2 size={12} />
+                                    <span className="text-xs">{isRTL ? "حذف" : "Delete"}</span>
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            ) : (
+                              <Badge className="bg-stone-100 text-stone-400 border-none rounded-lg text-[10px] font-bold px-2 py-0.5">
+                                {isRTL ? "شراء تلقائي" : "Auto Purchase"}
+                              </Badge>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <div className="p-4 bg-stone-50/30 border-t border-stone-100 text-center">
+                <button className="text-stone-400 font-semibold text-xs hover:text-primary">
+                  {isRTL ? "عرض جميع المعاملات" : "View Full History"}
+                </button>
+              </div>
+            </Card>
+          ) : (
+            /* Student Fines Tab Content */
+            <Card className="border shadow-sm rounded-xl bg-white overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-start" dir={isRTL ? "rtl" : "ltr"}>
+                  <thead>
+                    <tr className="bg-stone-50/50 border-b border-stone-100">
+                      <th className="px-5 py-4 text-xs font-bold text-stone-400 uppercase tracking-wide">{isRTL ? "التاريخ" : "Date"}</th>
+                      <th className="px-5 py-4 text-xs font-bold text-stone-400 uppercase tracking-wide">{isRTL ? "اسم الطالب" : "Student Name"}</th>
+                      <th className="px-5 py-4 text-xs font-bold text-stone-400 uppercase tracking-wide">{isRTL ? "السبب" : "Reason"}</th>
+                      <th className="px-5 py-4 text-xs font-bold text-stone-400 uppercase tracking-wide">{isRTL ? "المبلغ" : "Amount"}</th>
+                      <th className="px-5 py-4 text-xs font-bold text-stone-400 uppercase tracking-wide text-center">{isRTL ? "الحالة" : "Status"}</th>
+                      <th className="px-5 py-4 text-xs font-bold text-stone-400 uppercase tracking-wide"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-stone-50">
+                    {fines.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-5 py-10 text-center text-stone-400">
+                          {isRTL ? "لا توجد غرامات مسجلة بعد" : "No fines registered yet"}
+                        </td>
+                      </tr>
+                    ) : fines.map((fine) => {
+                      const fineDate = fine.created_at || fine.created_date || fine.date;
+                      const statusColor = fine.status === "paid"
+                        ? "bg-emerald-500/10 text-emerald-600"
+                        : "bg-amber-500/10 text-amber-600";
+                      return (
+                        <tr key={fine.id} className="hover:bg-stone-50/30 transition-colors">
+                          <td className="px-5 py-4 text-xs text-stone-500 num-en">
+                            {fineDate ? format(new Date(fineDate), "MMM d, yyyy") : "—"}
+                          </td>
+                          <td className="px-5 py-4 text-sm font-semibold text-stone-900">
+                            {fine.student_name || `ID: #${fine.student_id}`}
+                          </td>
+                          <td className="px-5 py-4 text-sm text-stone-650">
+                            {fine.reason}
+                          </td>
+                          <td className="px-5 py-4 text-sm font-bold text-stone-900 num-en">
+                            ${parseFloat(fine.amount || 0).toLocaleString()}
+                          </td>
+                          <td className="px-5 py-4 text-center">
+                            <Badge className={`${statusColor} border-none rounded-lg text-[10px] font-bold px-2 py-0.5`}>
+                              {fine.status === "paid" ? (isRTL ? "مدفوعة" : "Paid") : (isRTL ? "معلقة" : "Pending")}
+                            </Badge>
+                          </td>
+                          <td className="px-5 py-4 text-left">
+                            {fine.status !== "paid" && (
+                              <button
+                                onClick={() => handlePayFine(fine)}
+                                className={`${btnPrimary} h-9 px-4 rounded-xl text-xs`}
+                              >
+                                {isRTL ? "تحصيل الغرامة" : "Collect"}
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          )}
         </section>
 
         {/* Financial Insights - Sidebar */}

@@ -22,6 +22,8 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import BusSupervisorSidebar from "@/components/layout/BusSupervisorSidebar";
+import { t } from "@/lib/translations";
+import { toast } from "sonner";
 
 const btnOutline = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-sm font-semibold transition-all border-2 border-stone-300 bg-white text-stone-800 hover:bg-stone-50 hover:border-stone-400 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
 const _btnPrimary = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-sm font-semibold transition-all bg-stone-900 text-white hover:bg-black cursor-pointer shadow-lg shadow-stone-200 disabled:opacity-50 disabled:cursor-not-allowed";
@@ -31,6 +33,62 @@ export default function BusSupervisorPortal() {
   const isRTL = language === "ar";
   const [activeTab, setActiveTab] = useState("students");
   const [searchTerm, setSearchTerm] = useState("");
+
+  const handleBoarded = async (student) => {
+    try {
+      await base44.entities.Attendance.create({
+        student_id: student.id,
+        student_name: student.full_name || student.name,
+        date: new Date().toISOString().split("T")[0],
+        status: "present",
+        notes: isRTL ? "صعد الحافلة المدرسية" : "Boarded school bus"
+      });
+
+      if (student.parent_email) {
+        await base44.entities.PortalNotification.create({
+          user_id: student.parent_email,
+          title: isRTL ? "تحديث صعود الحافلة" : "Bus Boarding Update",
+          message: isRTL 
+            ? `صعد ابنكم/ابنتكم ${student.full_name || student.name} الحافلة في تمام الساعة ${new Date().toLocaleTimeString('ar-EG', {hour: '2-digit', minute:'2-digit'})}`
+            : `${student.full_name || student.name} has boarded the school bus at ${new Date().toLocaleTimeString('en-US', {hour: '2-digit', minute:'2-digit'})}`,
+          type: "info",
+          read: false
+        });
+      }
+      toast.success(isRTL ? `تم تسجيل صعود ${student.full_name || student.name}` : `Recorded check-in for ${student.full_name || student.name}`);
+    } catch (err) {
+      console.error(err);
+      toast.error(isRTL ? "فشل تسجيل الصعود" : "Failed to record check-in");
+    }
+  };
+
+  const handleLeft = async (student) => {
+    try {
+      await base44.entities.Attendance.create({
+        student_id: student.id,
+        student_name: student.full_name || student.name,
+        date: new Date().toISOString().split("T")[0],
+        status: "absent",
+        notes: isRTL ? "نزل أو لم يصعد الحافلة المدرسية" : "Left or did not board school bus"
+      });
+
+      if (student.parent_email) {
+        await base44.entities.PortalNotification.create({
+          user_id: student.parent_email,
+          title: isRTL ? "تحديث صعود الحافلة" : "Bus Boarding Update",
+          message: isRTL 
+            ? `نزل/لم يصعد ابنكم/ابنتكم ${student.full_name || student.name} الحافلة في تمام الساعة ${new Date().toLocaleTimeString('ar-EG', {hour: '2-digit', minute:'2-digit'})}`
+            : `${student.full_name || student.name} left or did not board the school bus at ${new Date().toLocaleTimeString('en-US', {hour: '2-digit', minute:'2-digit'})}`,
+          type: "warning",
+          read: false
+        });
+      }
+      toast.success(isRTL ? `تم تسجيل عدم الصعود لـ ${student.full_name || student.name}` : `Recorded departure for ${student.full_name || student.name}`);
+    } catch (err) {
+      console.error(err);
+      toast.error(isRTL ? "فشل تسجيل العملية" : "Failed to record departure");
+    }
+  };
 
   const { data: busDrivers = [] } = useQuery({ 
     queryKey: ["bus-drivers"], 
@@ -177,11 +235,17 @@ export default function BusSupervisorPortal() {
                         {t("common.call", language)}
                       </button>
                       <div className="h-10 w-[1px] bg-stone-100 mx-1" />
-                      <button className="h-14 px-8 rounded-[24px] bg-emerald-500 hover:bg-emerald-600 text-white font-bold shadow-lg shadow-emerald-500/20 gap-2 cursor-pointer">
+                      <button 
+                        onClick={() => handleBoarded(student)}
+                        className="h-14 px-8 rounded-[24px] bg-emerald-500 hover:bg-emerald-600 text-white font-bold shadow-lg shadow-emerald-500/20 gap-2 cursor-pointer"
+                      >
                         <CheckCircle2 size={20} />
                         {isRTL ? "صعد" : "Boarded"}
                       </button>
-                      <button className={`${btnOutline} h-14 w-14 rounded-[24px] border-stone-100 text-stone-300 hover:text-rose-500 hover:bg-rose-50`}>
+                      <button 
+                        onClick={() => handleLeft(student)}
+                        className={`${btnOutline} h-14 w-14 rounded-[24px] border-stone-100 text-stone-300 hover:text-rose-500 hover:bg-rose-50`}
+                      >
                         <XCircle size={24} />
                       </button>
                     </div>
