@@ -1,4 +1,4 @@
-import { neon } from '@neondatabase/serverless';
+import { neon } from './db_compat.js';
 import dotenv from 'dotenv';
 dotenv.config();
 

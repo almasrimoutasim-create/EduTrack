@@ -1,4 +1,4 @@
-import { neon } from '@neondatabase/serverless';
+import { neon } from './db_compat.js';
 import dotenv from 'dotenv';
 import crypto from 'crypto';
 dotenv.config();
@@ -160,6 +160,13 @@ const ENTITY_TABLE_MAP = {
   VirtualSession: 'virtual_sessions',
   SessionParticipant: 'session_participants',
   OfficialAnnouncement: 'official_announcements',
+  FeeStructure: 'fee_structures',
+  StudentFee: 'student_fees',
+  FeePayment: 'fee_payments',
+  ActivityFee: 'activity_fees',
+  StudentActivityFee: 'student_activity_fees',
+  StudentWallet: 'student_wallet',
+  WalletTransaction: 'wallet_transactions',
 };
 
 async function createStripePaymentIntent(amount, currency) {
