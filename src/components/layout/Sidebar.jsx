@@ -293,6 +293,7 @@ export default function Sidebar() {
               { label: t("common.subjects", language), path: "/subjects", icon: BookOpen },
               { label: t("common.attendance", language), path: "/attendance", icon: ClipboardCheck },
               { label: isRTL ? "ملخص الحضور" : "Attendance Summary", path: "/attendance-summary", icon: BarChart3 },
+              { label: isRTL ? "الدرجات والنتائج" : "Grades & Results", path: "/grades", icon: Award },
               { label: isRTL ? "الجداول الدراسية" : "Schedules", path: "/schedules", icon: Calendar },
               { label: t("common.materials", language), path: "/materials", icon: FileText },
               { label: t("common.activity", language), path: "/activity", icon: Newspaper },
