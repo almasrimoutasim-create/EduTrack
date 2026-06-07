@@ -198,12 +198,6 @@ export default function Sidebar() {
       case "store":
         return [
           {
-            label: isRTL ? "الرئيسية" : "Overview",
-            items: [
-              { label: isRTL ? "لوحة التحكم" : "Dashboard", path: "/store", icon: LayoutDashboard }
-            ]
-          },
-          {
             label: isRTL ? "إدارة المنتجات" : "Product Management",
             items: [
               { label: isRTL ? "المنتجات" : "Products List", path: "/store", icon: ShoppingCart },
@@ -430,7 +424,7 @@ export default function Sidebar() {
             <p className="text-sm font-black text-stone-800">2025 – 2026</p>
           </div>
 
-          {portalRole !== "admin" && (
+          {portalRole !== "admin" && portalRole !== "store" && (
             <button
               onClick={() => {
                 localStorage.setItem("portal_role", "staff");

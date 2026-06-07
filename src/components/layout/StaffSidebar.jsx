@@ -27,14 +27,16 @@ export default function StaffSidebar() {
     window.location.href = "/";
   };
 
-  const navGroups = [
-    {
+  const navGroups = [];
+
+  if (portalRole === "staff" || portalRole === "security") {
+    navGroups.push({
       label: isRTL ? "الرئيسية" : "Overview",
       items: [
         { label: isRTL ? "بوابة الأقسام" : "Departments Portal", path: "/staff-portal", icon: LayoutDashboard }
       ]
-    }
-  ];
+    });
+  }
 
   if (portalRole === "registrar") {
     navGroups.push({

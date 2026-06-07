@@ -26,12 +26,6 @@ export default function BusSupervisorSidebar() {
 
   const navGroups = [
     {
-      label: isRTL ? "الرئيسية" : "Overview",
-      items: [
-        { label: isRTL ? "لوحة التحكم" : "Dashboard", path: "/bus-portal", icon: LayoutDashboard }
-      ]
-    },
-    {
       label: isRTL ? "الحافلة" : "Bus",
       items: [
         { label: isRTL ? "الطلاب على الحافلة" : "Bus Students", path: "#", icon: Users },
