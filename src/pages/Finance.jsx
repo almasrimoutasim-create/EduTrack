@@ -30,12 +30,14 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
 } from "recharts";
 
+import { useAuth } from "@/lib/AuthContext";
 import PageHeader from "@/components/shared/PageHeader";
 
 const btnOutline = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border-2 border-stone-300 bg-white text-stone-800 hover:bg-stone-50 hover:border-stone-400 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
 const btnPrimary = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-stone-900 text-white hover:bg-black cursor-pointer shadow-lg shadow-stone-200 disabled:opacity-50 disabled:cursor-not-allowed";
 
 export default function Finance() {
+  const { user } = useAuth();
   const qc = useQueryClient();
   const isRTL = true; // Forcing RTL Arabic styling as requested
 
@@ -85,38 +87,38 @@ export default function Finance() {
 
   // Queries
   const { data: students = [], isLoading: loadingStudents } = useQuery({
-    queryKey: ["finance-students"],
-    queryFn: () => base44.entities.Student.list("-created_at", 200),
+    queryKey: ["students-finance"],
+    queryFn: () => base44.entities.Student.list(),
     staleTime: 1000 * 60 * 5
   });
 
   const { data: studentFees = [], isLoading: loadingStudentFees } = useQuery({
-    queryKey: ["finance-student-fees"],
-    queryFn: () => base44.entities.StudentFee.list("-created_at", 500),
-    staleTime: 1000 * 60 * 2
+    queryKey: ["student-fees-all"],
+    queryFn: () => base44.entities.StudentFee.list(),
+    staleTime: 1000 * 60 * 3
   });
 
   const { data: feePayments = [] } = useQuery({
-    queryKey: ["finance-fee-payments"],
-    queryFn: () => base44.entities.FeePayment.list("-created_at", 500),
-    staleTime: 1000 * 60 * 2
+    queryKey: ["fee-payments-all"],
+    queryFn: () => base44.entities.FeePayment.list(),
+    staleTime: 1000 * 60 * 3
   });
 
   const { data: walletTransactions = [] } = useQuery({
-    queryKey: ["finance-wallet-transactions"],
-    queryFn: () => base44.entities.WalletTransaction.list("-created_at", 500),
-    staleTime: 1000 * 60 * 2
+    queryKey: ["wallet-transactions-all"],
+    queryFn: () => base44.entities.WalletTransaction.list(),
+    staleTime: 1000 * 60 * 3
   });
 
   const { data: feeStructures = [] } = useQuery({
-    queryKey: ["finance-fee-structures"],
-    queryFn: () => base44.entities.FeeStructure.list("-created_at", 200),
-    staleTime: 1000 * 60 * 5
+    queryKey: ["fee-structures"],
+    queryFn: () => base44.entities.FeeStructure.list(),
+    staleTime: 1000 * 60 * 10
   });
 
   const { data: activityFees = [] } = useQuery({
-    queryKey: ["finance-activity-fees"],
-    queryFn: () => base44.entities.ActivityFee.list("-created_at", 200),
+    queryKey: ["activity-fees"],
+    queryFn: () => base44.entities.ActivityFee.list(),
     staleTime: 1000 * 60 * 5
   });
 
@@ -128,7 +130,7 @@ export default function Finance() {
     },
     onSuccess: () => {
       toast.success("تم إضافة الالتزام المالي للطالب بنجاح");
-      qc.invalidateQueries({ queryKey: ["finance-student-fees"] });
+      qc.invalidateQueries({ queryKey: ["student-fees-all"] });
       setAddFeeOpen(false);
       resetFeeForm();
     },
@@ -145,8 +147,8 @@ export default function Finance() {
     },
     onSuccess: () => {
       toast.success("تم تسجيل الدفعة بنجاح وتحديث الالتزام تلقائياً");
-      qc.invalidateQueries({ queryKey: ["finance-student-fees"] });
-      qc.invalidateQueries({ queryKey: ["finance-fee-payments"] });
+      qc.invalidateQueries({ queryKey: ["student-fees-all"] });
+      qc.invalidateQueries({ queryKey: ["fee-payments-all"] });
       setRecordPaymentOpen(false);
       resetPaymentForm();
     },
@@ -163,7 +165,7 @@ export default function Finance() {
     },
     onSuccess: () => {
       toast.success("تم إضافة تسعيرة جديدة للصف بنجاح");
-      qc.invalidateQueries({ queryKey: ["finance-fee-structures"] });
+      qc.invalidateQueries({ queryKey: ["fee-structures"] });
       setAddStructureOpen(false);
       resetStructureForm();
     },
@@ -180,7 +182,7 @@ export default function Finance() {
     },
     onSuccess: () => {
       toast.success("تم تعديل حالة التسعيرة بنجاح");
-      qc.invalidateQueries({ queryKey: ["finance-fee-structures"] });
+      qc.invalidateQueries({ queryKey: ["fee-structures"] });
     },
     onError: (err) => {
       console.error(err);
@@ -198,7 +200,7 @@ export default function Finance() {
         due_date: data.due_date,
         grade_level: data.grade_level,
         is_mandatory: data.is_mandatory,
-        created_by: 1 // Assuming admin ID
+        created_by: user?.id || 1 // Assuming admin ID
       });
 
       if (data.autoAssign && data.grade_level) {
@@ -220,7 +222,7 @@ export default function Finance() {
           ? `تم إنشاء النشاط وتعيينه لـ ${students.filter(s => s.grade === actGradeLevel).length} طالب تلقائياً`
           : "تم إنشاء النشاط بنجاح"
       );
-      qc.invalidateQueries({ queryKey: ["finance-activity-fees"] });
+      qc.invalidateQueries({ queryKey: ["activity-fees"] });
       setAddActivityOpen(false);
       resetActivityForm();
     },
@@ -340,7 +342,7 @@ export default function Finance() {
       due_date: feeDueDate,
       payment_plan: feePaymentPlan,
       notes: feeNotes,
-      created_by: 1 // Admin ID
+      created_by: user?.id || 1 // Admin ID
     });
   };
 
@@ -366,7 +368,7 @@ export default function Finance() {
       student_id: selectedStudentForPayment.id,
       amount: amt,
       payment_method: paymentMethod,
-      paid_by: 1, // Admin ID
+      paid_by: user?.id || 1, // Admin ID
       notes: paymentNotes
     });
   };
@@ -385,7 +387,7 @@ export default function Finance() {
       fee_name: structFeeName,
       amount: amt,
       payment_type: structPaymentType,
-      created_by: 1,
+      created_by: user?.id || 1,
       is_active: true
     });
   };

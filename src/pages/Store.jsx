@@ -73,7 +73,7 @@ export default function Store() {
   const { data: children = [] } = useQuery({ 
     queryKey: ["parent-children", parentEmail], 
     enabled: role === "parent",
-    queryFn: () => base44.entities.Student.list("-created_at", { parent_email: parentEmail }) 
+    queryFn: () => base44.entities.Student["filter"]({ parent_email: parentEmail }) 
   });
 
   const [selectedStudentId, setSelectedStudentId] = useState(null);
@@ -88,7 +88,13 @@ export default function Store() {
     ? studentProfile 
     : (role === "parent" ? children.find(c => c.id === selectedStudentId) : null);
 
-  const cardBalance = activeStudent ? (parseFloat(activeStudent.card_balance) || 0) : 0;
+  const { data: walletData } = useQuery({
+    queryKey: ['student-wallet', activeStudent?.id],
+    queryFn: () => base44.entities.StudentWallet.filter({ student_id: activeStudent?.id }),
+    enabled: !!activeStudent?.id,
+    staleTime: 1000 * 60 * 2,
+  });
+  const cardBalance = walletData?.[0] ? parseFloat(walletData[0].balance) : 0;
   const canManage = role === "admin" || role === "staff" || role === "store";
 
   const { data: storeItems = [], isLoading } = useQuery({ 
@@ -169,8 +175,19 @@ export default function Store() {
     try {
       // 1. If student/parent using wallet, deduct balance
       if (activeStudent && chosenMethod === "wallet") {
-        const finalBalance = cardBalance - cartTotal;
-        await base44.entities.Student.update(activeStudent.id, { card_balance: finalBalance });
+        await base44.entities.WalletTransaction.create({
+          student_id: activeStudent.id,
+          type: 'purchase',
+          amount: cartTotal,
+          balance_after: cardBalance - cartTotal,
+          description: `مشتريات المتجر: ${cart.map(i => i.name).join(', ')}`,
+          created_by: user?.id || activeStudent.id,
+        });
+
+        queryClient.invalidateQueries({ queryKey: ['student-fees-parent', activeStudent.id] });
+        queryClient.invalidateQueries({ queryKey: ['student-wallet', activeStudent.id] });
+        queryClient.invalidateQueries({ queryKey: ['wallet-transactions', activeStudent.id] });
+        queryClient.invalidateQueries({ queryKey: ['fee-payments-parent', activeStudent.id] });
       }
 
       // 2. Process items (decrement stock, create purchases)
@@ -208,14 +225,15 @@ export default function Store() {
       });
 
       // 4. Invalidate queries
-      queryClient.invalidateQueries(["store-items"]);
-      queryClient.invalidateQueries(["store-purchases"]);
-      if (role === "student") {
-        queryClient.invalidateQueries(["student-profile", studentId]);
-      } else if (role === "parent") {
-        queryClient.invalidateQueries(["parent-children", parentId]);
+      queryClient.invalidateQueries({ queryKey: ["store-items"] });
+      queryClient.invalidateQueries({ queryKey: ["store-purchases"] });
+      if (activeStudent) {
+        queryClient.invalidateQueries({ queryKey: ['student-fees-parent', activeStudent.id] });
+        queryClient.invalidateQueries({ queryKey: ['student-wallet', activeStudent.id] });
+        queryClient.invalidateQueries({ queryKey: ['wallet-transactions', activeStudent.id] });
+        queryClient.invalidateQueries({ queryKey: ['fee-payments-parent', activeStudent.id] });
       }
-      queryClient.invalidateQueries(["financial-records"]);
+      queryClient.invalidateQueries({ queryKey: ["financial-records"] });
 
       toast.success(isRTL ? "تم الشراء بنجاح!" : "Checkout successful!");
       setCart([]);

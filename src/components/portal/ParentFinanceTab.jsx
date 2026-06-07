@@ -15,6 +15,7 @@ import {
   CreditCard, Wallet, BookOpen, Clock, Activity, Printer, Download, Plus, ArrowRight, ShieldCheck, ShoppingBag
 } from "lucide-react";
 
+// @ts-ignore
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
 const btnOutline = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border-2 border-stone-300 bg-white text-stone-800 hover:bg-stone-50 hover:border-stone-400 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
@@ -36,16 +37,19 @@ export default function ParentFinanceTab({ student, user, language }) {
 
   // Queries
   const { data: studentFees = [], isLoading: loadingFees } = useQuery({
-    queryKey: ["parent-fees", student.id],
+    queryKey: ['student-fees-parent', student.id],
     queryFn: () => base44.entities.StudentFee.filter({ student_id: student.id }),
-    staleTime: 1000 * 60 * 5,
+    staleTime: 1000 * 60 * 3,
     enabled: !!student.id
   });
 
-  const { data: studentActivities = [], isLoading: loadingActivities } = useQuery({
-    queryKey: ["parent-activities", student.id],
-    queryFn: () => base44.entities.StudentActivityFee.filter({ student_id: student.id }),
-    staleTime: 1000 * 60 * 5,
+  const { data: activityFees = [], isLoading: loadingActivities } = useQuery({
+    queryKey: ['student-activity-fees', student.id],
+    queryFn: () => base44.entities.StudentActivityFee.filter({ 
+      student_id: student.id, 
+      status: 'pending' 
+    }),
+    staleTime: 1000 * 60 * 3,
     enabled: !!student.id
   });
 
@@ -56,32 +60,29 @@ export default function ParentFinanceTab({ student, user, language }) {
     enabled: !!student.id
   });
 
-  const { data: wallet = null, isLoading: loadingWallet } = useQuery({
-    queryKey: ["parent-wallet", student.id],
-    queryFn: async () => {
-      const list = await base44.entities.StudentWallet.filter({ student_id: student.id });
-      return list && list.length > 0 ? list[0] : null;
-    },
+  const { data: walletArr = [], isLoading: loadingWallet } = useQuery({
+    queryKey: ['student-wallet', student.id],
+    queryFn: () => base44.entities.StudentWallet.filter({ student_id: student.id }),
     staleTime: 1000 * 60 * 2,
     enabled: !!student.id
   });
 
-  const { data: paymentsList = [] } = useQuery({
-    queryKey: ["parent-payments", student.id],
+  const { data: feePayments = [] } = useQuery({
+    queryKey: ['fee-payments-parent', student.id],
     queryFn: () => base44.entities.FeePayment.filter({ student_id: student.id }),
-    staleTime: 1000 * 60 * 2,
+    staleTime: 1000 * 60 * 3,
     enabled: !!student.id
   });
 
-  const { data: walletTransactions = [] } = useQuery({
-    queryKey: ["parent-wallet-transactions", student.id],
+  const { data: walletTx = [] } = useQuery({
+    queryKey: ['wallet-transactions', student.id],
     queryFn: () => base44.entities.WalletTransaction.filter({ student_id: student.id }),
     staleTime: 1000 * 60 * 2,
     enabled: !!student.id
   });
 
   // Calculations
-  const walletBalance = wallet ? parseFloat(wallet.balance) : 0;
+  const walletBalance = walletArr[0] ? parseFloat(walletArr[0].balance) : 0;
   
   const totalRemainingTuition = studentFees
     .filter(f => f.status !== "paid" && f.status !== "waived")
@@ -89,28 +90,28 @@ export default function ParentFinanceTab({ student, user, language }) {
 
   // Map activities to their structures
   const mappedActivities = React.useMemo(() => {
-    return studentActivities.map(sa => {
+    return activityFees.map(sa => {
       const details = activityList.find(a => a.id === sa.activity_fee_id);
       return {
         ...sa,
         details
       };
     });
-  }, [studentActivities, activityList]);
+  }, [activityFees, activityList]);
 
   const activityTotal = mappedActivities
-    .filter(a => a.status === "pending")
+    .filter(a => a["status"] === "pending")
     .reduce((sum, a) => sum + parseFloat(a.details?.amount || 0), 0);
 
   // Merged Transactions
   const mergedTransactions = React.useMemo(() => {
     const list = [
-      ...paymentsList.map(p => ({
+      ...feePayments.map(p => ({
         ...p,
         _type: "fee_payment",
         label: isRTL ? `سداد: ${studentFees.find(f => f.id === p.student_fee_id)?.fee_name || "رسوم دراسية"}` : `Payment: ${studentFees.find(f => f.id === p.student_fee_id)?.fee_name || "Tuition Fee"}`
       })),
-      ...walletTransactions.map(t => ({
+      ...walletTx.map(t => ({
         ...t,
         _type: "wallet",
         label: t.type === "topup" 
@@ -118,8 +119,8 @@ export default function ParentFinanceTab({ student, user, language }) {
           : (isRTL ? "مشتريات المتجر" : "Store Purchase")
       }))
     ];
-    return list.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-  }, [paymentsList, walletTransactions, studentFees, isRTL]);
+    return list.sort((a, b) => new Date(b["created_at"]).getTime() - new Date(a["created_at"]).getTime());
+  }, [feePayments, walletTx, studentFees, isRTL]);
 
   // Mutations
   const handlePaymentSuccess = async (paymentIntent) => {
@@ -136,8 +137,6 @@ export default function ParentFinanceTab({ student, user, language }) {
           notes: "دفع آمن عبر بوابة Stripe"
         });
 
-        qc.invalidateQueries({ queryKey: ["parent-fees", student.id] });
-        qc.invalidateQueries({ queryKey: ["parent-payments", student.id] });
         toast.success(isRTL ? "تم سداد الرسوم الدراسية بنجاح" : "Tuition paid successfully");
       } 
       
@@ -149,7 +148,6 @@ export default function ParentFinanceTab({ student, user, language }) {
           stripe_payment_intent_id: paymentIntent.id
         });
 
-        qc.invalidateQueries({ queryKey: ["parent-activities", student.id] });
         toast.success(isRTL ? "تم سداد رسوم النشاط بنجاح" : "Activity fee paid successfully");
       } 
       
@@ -165,10 +163,15 @@ export default function ParentFinanceTab({ student, user, language }) {
           created_by: user.id
         });
 
-        qc.invalidateQueries({ queryKey: ["parent-wallet", student.id] });
-        qc.invalidateQueries({ queryKey: ["parent-wallet-transactions", student.id] });
         toast.success(isRTL ? "تم شحن المحفظة بنجاح" : "Wallet topped up successfully");
       }
+
+      // Unified query key invalidation
+      qc.invalidateQueries({ queryKey: ['student-fees-parent', student.id] });
+      qc.invalidateQueries({ queryKey: ['student-activity-fees', student.id] });
+      qc.invalidateQueries({ queryKey: ['student-wallet', student.id] });
+      qc.invalidateQueries({ queryKey: ['wallet-transactions', student.id] });
+      qc.invalidateQueries({ queryKey: ['fee-payments-parent', student.id] });
 
       setPaymentDialogOpen(false);
       setTopupDialogOpen(false);
@@ -344,7 +347,7 @@ export default function ParentFinanceTab({ student, user, language }) {
         ) : (
           <div className="space-y-4">
             {mappedActivities.map(act => (
-              <div key={act.id} className="p-4 rounded-2xl border border-stone-100 bg-stone-50/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div key={act["id"]} className="p-4 rounded-2xl border border-stone-100 bg-stone-50/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                   <h5 className="font-bold text-stone-850 text-sm">{act.details?.activity_name || "نشاط مدرسي"}</h5>
                   <p className="text-xs text-stone-500 mt-1">{act.details?.description || "—"}</p>
@@ -355,7 +358,7 @@ export default function ParentFinanceTab({ student, user, language }) {
                 </div>
 
                 <div>
-                  {act.status === "paid" ? (
+                  {act["status"] === "paid" ? (
                     <Badge className="bg-emerald-500/10 text-emerald-600 border-none rounded-lg text-xs font-bold px-3 py-1">
                       تم السداد والاشتراك
                     </Badge>
@@ -399,13 +402,13 @@ export default function ParentFinanceTab({ student, user, language }) {
                     <span className="font-bold text-stone-850 text-xs">{tx.label}</span>
                   </td>
                   <td className="py-3.5 text-xs text-stone-500 num-en">
-                    {new Date(tx.created_at).toLocaleString("ar-EG")}
+                    {new Date(tx["created_at"]).toLocaleString("ar-EG")}
                   </td>
                   <td className="py-3.5">
                     <span className={`font-black text-xs num-en ${
-                      tx.type === "purchase" ? "text-rose-500" : "text-emerald-600"
+                      tx["type"] === "purchase" ? "text-rose-500" : "text-emerald-600"
                     }`}>
-                      {tx.type === "purchase" ? "-" : "+"}${parseFloat(tx.amount).toFixed(2)}
+                      {tx["type"] === "purchase" ? "-" : "+"}${parseFloat(tx["amount"]).toFixed(2)}
                     </span>
                   </td>
                   <td className="py-3.5 text-center">
@@ -414,11 +417,11 @@ export default function ParentFinanceTab({ student, user, language }) {
                         stripe: "Stripe",
                         cash: "كاش",
                         bank_transfer: "تحويل بنكي"
-                      }[tx.payment_method] || "متجر / محفظة"}
+                      }[tx["payment_method"]]}
                     </Badge>
                   </td>
                   <td className="py-3.5 text-left">
-                    {tx.type !== "purchase" && (
+                    {tx["type"] !== "purchase" && (
                       <button
                         onClick={() => handlePrintReceipt(tx)}
                         className="p-1 rounded-lg border border-stone-200 hover:bg-stone-50 text-stone-500 hover:text-stone-900 transition-colors cursor-pointer"
