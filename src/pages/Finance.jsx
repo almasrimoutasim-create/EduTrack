@@ -175,7 +175,7 @@ export default function Finance() {
 
     const pending    = studentFees
       .filter(f => f.status !== 'paid' && f.status !== 'waived')
-      .reduce((s, f) => s + parseFloat(f.remaining || 0), 0);
+      .reduce((s, f) => s + parseFloat(f.remaining !== null && f.remaining !== undefined ? f.remaining : (f.amount - (f.amount_paid || 0))), 0);
 
     // BarChart: آخر 6 أشهر
     const MONTHS_AR = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
@@ -341,7 +341,7 @@ export default function Finance() {
     let name = manualFeeName;
     let amt = parseFloat(manualFeeAmount);
     if (selectedStructureId) {
-      const st = feeStructures.find(f => f.id === parseInt(selectedStructureId));
+      const st = feeStructures.find(f => String(f.id) === String(selectedStructureId));
       if (st) {
         name = st.fee_name;
         amt = parseFloat(st.amount);
@@ -356,7 +356,7 @@ export default function Finance() {
       amount: amt,
       due_date: feeDueDate,
       payment_plan: feePaymentPlan,
-      fee_structure_id: selectedStructureId ? parseInt(selectedStructureId) : null,
+      fee_structure_id: selectedStructureId ? String(selectedStructureId) : null,
       notes: feeNotes,
       created_by: user.id,
     });
@@ -366,9 +366,10 @@ export default function Finance() {
     e.preventDefault();
     if (!selectedStudent || !selectedFeeId) return;
     const amt = parseFloat(paymentAmount);
-    const fee = studentFees.find(f => f.id === parseInt(selectedFeeId));
+    const fee = studentFees.find(f => String(f.id) === String(selectedFeeId));
     if (!fee || isNaN(amt) || amt <= 0) return toast.error("يرجى إدخال مبلغ صحيح");
-    if (amt > parseFloat(fee.remaining)) return toast.error("المبلغ المدخل يتجاوز المبلغ المتبقي المستحق");
+    const remainingVal = parseFloat(fee.remaining !== null && fee.remaining !== undefined ? fee.remaining : (fee.amount - (fee.amount_paid || 0)));
+    if (amt > remainingVal) return toast.error("المبلغ المدخل يتجاوز المبلغ المتبقي المستحق");
     
     recordPaymentMutation.mutate({
       student_fee_id: fee.id,
@@ -690,8 +691,8 @@ export default function Finance() {
     e.preventDefault();
     if (!selectedEmpId) return toast.error("يرجى اختيار الموظف");
     const emp = empType === 'teacher' 
-      ? teachers.find(t => t.id === parseInt(selectedEmpId)) 
-      : staffMembers.find(s => s.id === parseInt(selectedEmpId));
+      ? teachers.find(t => String(t.id) === String(selectedEmpId)) 
+      : staffMembers.find(s => String(s.id) === String(selectedEmpId));
     if (!emp) return toast.error("لم يتم العثور على الموظف");
 
     createSalaryMutation.mutate({
@@ -839,7 +840,7 @@ export default function Finance() {
 
   const printStudentStatementSubmit = () => {
     if (!reportStudentId) return toast.error("يرجى اختيار الطالب");
-    const s = students.find(st => st.id === parseInt(reportStudentId));
+    const s = students.find(st => String(st.id) === String(reportStudentId));
     if (!s) return;
     const sFees = studentFees.filter(f => f.student_id === s.id);
     const rows = sFees.map(f => [f.fee_name, `$${parseFloat(f.amount).toFixed(2)}`, `$${parseFloat(f.amount_paid || 0).toFixed(2)}`, `$${parseFloat(f.remaining || 0).toFixed(2)}`, { paid: 'مسدد', partial: 'جزئي', pending: 'معلق', overdue: 'متأخر' }[f.status] || f.status, f.due_date]);

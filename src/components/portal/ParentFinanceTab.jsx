@@ -86,7 +86,7 @@ export default function ParentFinanceTab({ student, user, language }) {
   
   const totalRemainingTuition = studentFees
     .filter(f => f.status !== "paid" && f.status !== "waived")
-    .reduce((sum, f) => sum + parseFloat(f.remaining || 0), 0);
+    .reduce((sum, f) => sum + parseFloat(f.remaining !== null && f.remaining !== undefined ? f.remaining : (f.amount - (f.amount_paid || 0))), 0);
 
   // Map activities to their structures
   const mappedActivities = React.useMemo(() => {
@@ -296,6 +296,7 @@ export default function ParentFinanceTab({ student, user, language }) {
               const paidVal = parseFloat(fee.amount_paid);
               const totalVal = parseFloat(fee.amount);
               const pct = Math.min(100, Math.round((paidVal / totalVal) * 100)) || 0;
+              const remainingVal = fee.remaining !== null && fee.remaining !== undefined ? parseFloat(fee.remaining) : (totalVal - paidVal);
 
               return (
                 <div key={fee.id} className="p-4 rounded-2xl border border-stone-100 bg-stone-50/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -322,12 +323,12 @@ export default function ParentFinanceTab({ student, user, language }) {
                     </div>
                   </div>
 
-                  {parseFloat(fee.remaining) > 0 && (
+                  {remainingVal > 0 && (
                     <button
-                      onClick={() => { setSelectedFee(fee); setPaymentType("fee"); setPaymentDialogOpen(true); }}
+                      onClick={() => { setSelectedFee({ ...fee, remaining: remainingVal }); setPaymentType("fee"); setPaymentDialogOpen(true); }}
                       className="h-10 px-5 rounded-xl bg-stone-900 hover:bg-black text-white text-xs font-bold shadow-md cursor-pointer transition-all self-end md:self-center shrink-0"
                     >
-                      دفع المتبقي (${parseFloat(fee.remaining).toFixed(2)})
+                      دفع المتبقي (${remainingVal.toFixed(2)})
                     </button>
                   )}
                 </div>
