@@ -40,7 +40,6 @@ export default function RoleLogin() {
     { id: "teacher", icon: GraduationCap, label: { ar: "بوابة المعلم", en: "Teacher Portal" }, color: "bg-indigo-600 text-white", desc: { ar: "إدارة الفصول والحضور والدرجات.", en: "Manage classes, attendance, and grades." }, path: "/teacher-portal" },
     { id: "student", icon: User, label: { ar: "بوابة الطالب", en: "Student Portal" }, color: "bg-teal-600 text-white", desc: { ar: "الجدول الدراسي والنتائج والأنشطة.", en: "Schedule, results, and activities." }, path: "/student-portal" },
     { id: "parent", icon: Users, label: { ar: "بوابة ولي الأمر", en: "Parent Portal" }, color: "bg-rose-600 text-white", desc: { ar: "متابعة تقدم أبنائك الأكاديمي.", en: "Track your children's academic progress." }, path: "/parent-portal" },
-    { id: "bus", icon: Bus, label: { ar: "مشرف الحافلة", en: "Bus Supervisor" }, color: "bg-amber-500 text-stone-900", desc: { ar: "إدارة رحلات الحافلات والطلاب.", en: "Manage bus trips and students." }, path: "/bus-supervisor" },
     { id: "staff", icon: ShieldCheck, label: { ar: "بوابة الموظف", en: "Staff Portal" }, color: "bg-blue-600 text-white", desc: { ar: "الأنظمة المساندة والأقسام الإدارية.", en: "Support systems and departments." }, path: "/staff-portal" }
   ];
 
