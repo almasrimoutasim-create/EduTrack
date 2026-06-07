@@ -28,7 +28,7 @@ export default function AppLayout() {
         <TeacherSidebar />
       ) : portalRole === "bus" ? (
         <BusSupervisorSidebar />
-      ) : portalRole === "staff" ? (
+      ) : ["staff", "registrar", "hr", "accountant", "security"].includes(portalRole) ? (
         <StaffSidebar />
       ) : (
         <Sidebar />

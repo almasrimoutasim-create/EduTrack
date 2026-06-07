@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import {
-  LayoutDashboard, Users, Calendar, CreditCard, ShieldCheck, MessageSquare, LogOut, Settings, DollarSign, Menu, X
+  LayoutDashboard, Users, Calendar, CreditCard, ShieldCheck, MessageSquare, LogOut, Settings, DollarSign, Menu, X, FileText
 } from "lucide-react";
 import { useState } from "react";
 import { motion } from "framer-motion";
@@ -16,10 +16,13 @@ export default function StaffSidebar() {
   const isRTL = language === "ar";
   const { logout } = useAuth();
 
+  const portalRole = localStorage.getItem("portal_role") || "staff";
+
   const handleLogout = () => {
     localStorage.removeItem("portal_role");
     localStorage.removeItem("portal_user_id");
     localStorage.removeItem("portal_user_name");
+    localStorage.removeItem("portal_user");
     logout(false);
     window.location.href = "/";
   };
@@ -28,37 +31,35 @@ export default function StaffSidebar() {
     {
       label: isRTL ? "الرئيسية" : "Overview",
       items: [
-        { label: isRTL ? "لوحة التحكم" : "Dashboard", path: "/staff-portal", icon: LayoutDashboard }
-      ]
-    },
-    {
-      label: isRTL ? "الموظفون" : "Staff",
-      items: [
-        { label: isRTL ? "قائمة الموظفين" : "Staff List", path: "#", icon: Users },
-        { label: isRTL ? "الجدولة" : "Scheduling", path: "#", icon: Calendar }
-      ]
-    },
-    {
-      label: isRTL ? "المالية" : "Finance",
-      items: [
-        { label: isRTL ? "الرواتب" : "Payroll", path: "#", icon: DollarSign },
-        { label: isRTL ? "المصروفات" : "Expenses", path: "#", icon: CreditCard }
-      ]
-    },
-    {
-      label: isRTL ? "الأمان" : "Security",
-      items: [
-        { label: isRTL ? "التحكم في الموظفين" : "Staff Control", path: "#", icon: ShieldCheck },
-        { label: isRTL ? "الإعدادات" : "Settings", path: "#", icon: Settings }
-      ]
-    },
-    {
-      label: isRTL ? "التواصل" : "Communication",
-      items: [
-        { label: isRTL ? "الرسائل" : "Messages", path: "#", icon: MessageSquare }
+        { label: isRTL ? "بوابة الأقسام" : "Departments Portal", path: "/staff-portal", icon: LayoutDashboard }
       ]
     }
   ];
+
+  if (portalRole === "registrar") {
+    navGroups.push({
+      label: isRTL ? "قسم المسجل" : "Registrar Department",
+      items: [
+        { label: isRTL ? "دليل الطلاب" : "Student Directory", path: "/student-directory", icon: Users },
+        { label: isRTL ? "حضور الطلاب" : "Student Attendance", path: "/attendance", icon: Calendar }
+      ]
+    });
+  } else if (portalRole === "hr") {
+    navGroups.push({
+      label: isRTL ? "الموارد البشرية" : "HR Department",
+      items: [
+        { label: isRTL ? "التحكم بالموظفين" : "Staff Control", path: "/staff-control", icon: ShieldCheck },
+        { label: isRTL ? "سجل النظام" : "Audit Log", path: "/audit-log", icon: FileText }
+      ]
+    });
+  } else if (portalRole === "accountant") {
+    navGroups.push({
+      label: isRTL ? "الحسابات والمالية" : "Finance & Accounts",
+      items: [
+        { label: isRTL ? "المالية والرسوم" : "Finance & Fees", path: "/finance", icon: DollarSign }
+      ]
+    });
+  }
 
   return (
     <>
