@@ -396,6 +396,7 @@ export default function Finance() {
   // ── Tab 3: تسعيرة الصفوف ──────────────────────────────────────────────────
 
   const [addStructureOpen, setAddStructureOpen] = useState(false);
+  const [editStructureOpen, setEditStructureOpen] = useState(false);
   const [applyDialogOpen, setApplyDialogOpen] = useState(false);
   const [selectedStructure, setSelectedStructure] = useState(null);
   const [applyDueDate, setApplyDueDate] = useState("");
@@ -403,6 +404,10 @@ export default function Finance() {
   const [newStructGrade, setNewStructGrade] = useState("1");
   const [newStructName, setNewStructName] = useState("");
   const [newStructAmt, setNewStructAmt] = useState("");
+
+  const [editStructGrade, setEditStructGrade] = useState("");
+  const [editStructName, setEditStructName] = useState("");
+  const [editStructAmt, setEditStructAmt] = useState("");
 
   const createStructureMutation = useMutation({
     /** @param {any} data */
@@ -415,6 +420,17 @@ export default function Finance() {
       setNewStructAmt("");
     },
     onError: () => toast.error('فشل في إضافة التسعيرة'),
+  });
+
+  const editStructureMutation = useMutation({
+    /** @param {any} data */
+    mutationFn: async ({ id, ...data }) => base44.entities.FeeStructure.update(id, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['fee-structures'] });
+      toast.success('تم تعديل التسعيرة بنجاح');
+      setEditStructureOpen(false);
+    },
+    onError: () => toast.error('فشل في تعديل التسعيرة'),
   });
 
   const toggleStructureMutation = useMutation({
@@ -1309,6 +1325,18 @@ export default function Finance() {
                     </td>
                     <td className="py-4 text-left space-x-2 space-x-reverse">
                       <button
+                        onClick={() => {
+                          setSelectedStructure(st);
+                          setEditStructGrade(st.grade_level);
+                          setEditStructName(st.fee_name);
+                          setEditStructAmt(st.amount.toString());
+                          setEditStructureOpen(true);
+                        }}
+                        className="text-xs bg-amber-600 hover:bg-amber-700 text-white px-3 py-1.5 rounded-lg cursor-pointer font-bold"
+                      >
+                        تعديل
+                      </button>
+                      <button
                         onClick={() => toggleStructureMutation.mutate({ id: st.id, is_active: !st.is_active })}
                         className="text-xs border border-stone-300 px-3 py-1.5 rounded-lg hover:bg-stone-50 cursor-pointer font-semibold"
                       >
@@ -1365,6 +1393,51 @@ export default function Finance() {
                     حفظ
                   </button>
                   <button type="button" onClick={() => setAddStructureOpen(false)} className="border border-stone-200 font-bold px-5 h-11 rounded-xl hover:bg-stone-50 cursor-pointer">
+                    إلغاء
+                  </button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
+
+          {/* Dialog: تعديل تسعيرة */}
+          <Dialog open={editStructureOpen} onOpenChange={setEditStructureOpen}>
+            <DialogContent className="max-w-md text-right">
+              <DialogHeader>
+                <DialogTitle className="font-serif text-lg">تعديل قالب التسعيرة</DialogTitle>
+                <DialogDescription>تحديث بيانات الهيكل المالي الحالي</DialogDescription>
+              </DialogHeader>
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                if (!selectedStructure) return;
+                editStructureMutation.mutate({
+                  id: selectedStructure.id,
+                  grade_level: editStructGrade,
+                  fee_name: editStructName,
+                  amount: parseFloat(editStructAmt),
+                });
+              }} className="space-y-4 pt-3">
+                <div className="space-y-1.5">
+                  <Label>الصف المستهدف</Label>
+                  <select value={editStructGrade} onChange={e => setEditStructGrade(e.target.value)} className="w-full bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 focus:outline-none">
+                    {Array.from({ length: 12 }, (_, i) => i + 1).map(n => (
+                      <option key={n} value={n.toString()}>الصف {n}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>اسم الرسوم</Label>
+                  <Input value={editStructName} onChange={e => setEditStructName(e.target.value)} placeholder="مثال: القسط الدراسي الأول" required />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>المبلغ</Label>
+                  <Input value={editStructAmt} onChange={e => setEditStructAmt(e.target.value)} type="number" placeholder="مثال: 1200" required />
+                </div>
+                <div className="flex gap-3 justify-end pt-3">
+                  <button type="submit" className="bg-amber-600 hover:bg-amber-700 text-white font-bold px-5 h-11 rounded-xl cursor-pointer">
+                    تعديل وحفظ
+                  </button>
+                  <button type="button" onClick={() => setEditStructureOpen(false)} className="border border-stone-200 font-bold px-5 h-11 rounded-xl hover:bg-stone-50 cursor-pointer">
                     إلغاء
                   </button>
                 </div>
