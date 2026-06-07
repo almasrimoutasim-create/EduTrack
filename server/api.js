@@ -675,6 +675,11 @@ export function createApiHandler() {
           delete body.recipient_id;
         }
 
+        // Hook: Automatically default remaining to amount for student_fees
+        if (table === 'student_fees' && body.remaining === undefined) {
+          body.remaining = body.amount;
+        }
+
         const keys = Object.keys(body).filter(k => body[k] !== undefined && sanitizeColumn(k));
         if (keys.length === 0) {
           res.statusCode = 400;
@@ -685,6 +690,33 @@ export function createApiHandler() {
         const values = keys.map(k => body[k]);
         const q = `INSERT INTO ${table} (${columns}) VALUES (${placeholders}) RETURNING *`;
         const rows = await dbQuery(q, values);
+
+        // Hook: Update corresponding student_fees row when a fee_payment is recorded
+        if (rows.length > 0 && table === 'fee_payments') {
+          const feeId = body.student_fee_id;
+          const payAmt = parseFloat(body.amount) || 0;
+          if (feeId) {
+            const feeRows = await dbQuery('SELECT * FROM student_fees WHERE id = $1', [feeId]);
+            if (feeRows.length > 0) {
+              const currentPaid = parseFloat(feeRows[0].amount_paid) || 0;
+              const totalAmt = parseFloat(feeRows[0].amount) || 0;
+              const newPaid = currentPaid + payAmt;
+              const remaining = Math.max(0, totalAmt - newPaid);
+              let status = 'pending';
+              if (newPaid >= totalAmt) {
+                status = 'paid';
+              } else if (newPaid > 0) {
+                status = 'partial';
+              }
+              await dbQuery(
+                'UPDATE student_fees SET amount_paid = $1, remaining = $2, status = $3, updated_at = NOW() WHERE id = $4',
+                [newPaid, remaining, status, feeId]
+              );
+              console.log(`[neon] Automatically updated student_fees ID ${feeId}: paid=${newPaid}, remaining=${remaining}, status=${status}`);
+            }
+          }
+        }
+
         res.statusCode = 201;
         return res.end(JSON.stringify(rows[0]));
       }
