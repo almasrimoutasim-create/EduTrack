@@ -135,6 +135,9 @@ const entityNames = [
   'VirtualSession', 'SessionParticipant', 'OfficialAnnouncement',
   'CounselingCase', 'CaseAssessment', 'InterventionPlan',
   'FollowUp', 'CaseVisibilityLog',
+  'FeeStructure', 'StudentFee', 'FeePayment',
+  'ActivityFee', 'StudentActivityFee', 'StudentWallet',
+  'WalletTransaction',
 ];
 
 const entities = {};
