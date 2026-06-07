@@ -1,7 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, Users, BookOpen, ClipboardCheck,
-  FileText, Menu, X, Calendar, MessageCircle, Star, LogOut, Video, Bell
+  FileText, Menu, X, Calendar, MessageCircle, Star, LogOut, Video, Bell, Award
 } from "lucide-react";
 import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
@@ -73,7 +73,8 @@ export default function TeacherSidebar() {
         { label: isRTL ? "الفصول الافتراضية" : "Virtual Classroom", path: "/virtual-classroom/demo", icon: Video },
         { label: isRTL ? "طلابي" : "My Students", path: "/teacher-portal?tab=students", icon: Users },
         { label: isRTL ? "الحضور" : "Attendance", path: "/teacher-portal?tab=attendance", icon: ClipboardCheck },
-        { label: isRTL ? "الواجبات والتصحيح" : "Assignments & Grading", path: "/teacher-portal?tab=grading", icon: FileText }
+        { label: isRTL ? "الواجبات والتصحيح" : "Assignments & Grading", path: "/teacher-portal?tab=grading", icon: FileText },
+        { label: isRTL ? "الدرجات والنتائج" : "Grades & Results", path: "/teacher-portal?tab=grades", icon: Award }
       ]
     },
     {

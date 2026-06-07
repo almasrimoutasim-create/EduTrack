@@ -22,7 +22,8 @@ import {
   Megaphone,
   Bell,
   Search,
-  Trophy
+  Trophy,
+  Award
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useLanguage } from "@/lib/LanguageContext";
@@ -219,6 +220,13 @@ export default function TeacherPortal() {
               students={students} 
               portalUser={portalUser} 
             />
+          ) : activeTab === "grades" ? (
+            <GradesTabContent 
+              isRTL={isRTL} 
+              classes={classes} 
+              students={students} 
+              portalUser={portalUser} 
+            />
           ) : activeTab === "badges" ? (
             <BadgesTabContent 
               isRTL={isRTL} 
@@ -361,6 +369,7 @@ export default function TeacherPortal() {
                 { value: "classes", label: isRTL ? "فصولي" : "My Classes", icon: LayoutGrid },
                 { value: "students", label: isRTL ? "طلابي" : "My Students", icon: Users },
                 { value: "grading", label: isRTL ? "التصحيح" : "Grading", icon: ClipboardCheck },
+                { value: "grades", label: isRTL ? "الدرجات" : "Grades", icon: Award },
                 { value: "materials", label: isRTL ? "المواد" : "Materials", icon: BookOpen }
               ].map(tab => (
                 <TabsTrigger 
@@ -1116,6 +1125,286 @@ function BadgesTabContent({ isRTL, classes, students, portalUser }) {
           </Card>
         </div>
       </div>
+    </div>
+  );
+}
+
+function GradesTabContent({ isRTL, classes, students, portalUser }) {
+  const [selectedClassId, setSelectedClassId] = useState(classes[0]?.id || "all");
+  const [term, setTerm] = useState("Term 1");
+  const [assessmentName, setAssessmentName] = useState("");
+  const [maxScore, setMaxScore] = useState(100);
+  const [grades, setGrades] = useState({}); // studentId -> score
+  const [notes, setNotes] = useState({}); // studentId -> note
+  const [isSaving, setIsSaving] = useState(false);
+
+  const selectedClass = classes.find(c => c.id === selectedClassId);
+
+  const classStudents = React.useMemo(() => {
+    if (!selectedClass) return [];
+    return students.filter(student => {
+      const studentGrade = student.grade?.toString();
+      const clsGrade = selectedClass.grade?.toString();
+      const studentSection = (student.section || '').toLowerCase().trim();
+      const clsSection = (selectedClass.section || '').toLowerCase().trim();
+      return studentGrade === clsGrade && (studentSection === clsSection || clsSection === 'a' || clsSection === 'all' || clsSection === '' || clsSection === 'أ');
+    });
+  }, [students, selectedClass]);
+
+  const handleScoreChange = (studentId, val) => {
+    setGrades(prev => ({ ...prev, [studentId]: val }));
+  };
+
+  const handleNoteChange = (studentId, val) => {
+    setNotes(prev => ({ ...prev, [studentId]: val }));
+  };
+
+  const calculateStats = () => {
+    const scores = Object.values(grades).map(Number).filter(s => !isNaN(s));
+    if (scores.length === 0) return { avg: 0, passRate: 0, max: 0 };
+    const avg = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
+    const passCount = scores.filter(s => (s / maxScore) * 100 >= 50).length;
+    const passRate = Math.round((passCount / scores.length) * 100);
+    const max = Math.max(...scores);
+    return { avg, passRate, max };
+  };
+
+  const { avg, passRate, max } = calculateStats();
+
+  const handleSaveGrades = async () => {
+    if (!assessmentName.trim()) {
+      toast.error(isRTL ? "يرجى إدخال اسم الاختبار أو الامتحان." : "Please enter assessment name.");
+      return;
+    }
+    if (classStudents.length === 0) {
+      toast.error(isRTL ? "لا يوجد طلاب في هذا الفصل لرصد درجاتهم." : "No students in this class to grade.");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      for (const student of classStudents) {
+        const scoreVal = grades[student.id];
+        if (scoreVal === undefined || scoreVal === "") continue;
+        
+        const numericScore = parseFloat(scoreVal);
+        const percentage = Math.round((numericScore / maxScore) * 100);
+        let label = `${percentage}%`;
+        if (percentage >= 90) label = "A+";
+        else if (percentage >= 80) label = "A";
+        else if (percentage >= 70) label = "B";
+        else if (percentage >= 60) label = "C";
+        else if (percentage >= 50) label = "D";
+        else label = "F";
+
+        await base44.entities.StudentGrade.create({
+          student_id: student.student_id || student.id,
+          student_name: student.full_name || student.name,
+          subject_name: `${selectedClass.name} - ${assessmentName}`,
+          score: numericScore,
+          max_score: parseFloat(maxScore),
+          grade_label: label,
+          term: term,
+          academic_year: "2025-2026",
+          teacher_name: portalUser?.full_name || "معلم المادة",
+          notes: notes[student.id] || ""
+        });
+      }
+      toast.success(isRTL ? "تم حفظ ورصد درجات الطلاب بنجاح!" : "Grades saved successfully!");
+      setGrades({});
+      setNotes({});
+      setAssessmentName("");
+    } catch (err) {
+      console.error(err);
+      toast.error(isRTL ? "فشل حفظ درجات الطلاب." : "Failed to save grades.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const btnOutline = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-sm font-semibold transition-all border-2 border-stone-300 bg-white text-stone-800 hover:bg-stone-50 hover:border-stone-400 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
+  const btnPrimary = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-sm font-semibold transition-all bg-stone-900 text-white hover:bg-black cursor-pointer shadow-lg shadow-stone-200 disabled:opacity-50 disabled:cursor-not-allowed";
+
+  return (
+    <div className="space-y-6">
+      <PageHeader 
+        title={isRTL ? "رصد الدرجات والنتائج" : "Student Grades & Results"} 
+        subtitle={isRTL ? "قم بإدخال درجات الاختبارات والامتحانات الدورية لطلابك." : "Enter grades for quizzes, midterms, and finals."}
+      >
+        <button onClick={() => window.location.href = "/teacher-portal"} className={`${btnOutline} h-11 px-5 rounded-xl`}>
+          {isRTL ? "العودة للوحة التحكم" : "Back to Dashboard"}
+        </button>
+      </PageHeader>
+
+      {/* Metrics Banner */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card className="p-6 bg-white border-none shadow-sm rounded-3xl flex items-center justify-between">
+          <div>
+            <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">{isRTL ? "متوسط درجات الفصل" : "Class Average"}</p>
+            <h4 className="text-3xl font-black text-teal-600 mt-2 num-en">{avg}/{maxScore}</h4>
+          </div>
+          <div className="h-12 w-12 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center">
+            <TrendingUp size={24} />
+          </div>
+        </Card>
+
+        <Card className="p-6 bg-white border-none shadow-sm rounded-3xl flex items-center justify-between">
+          <div>
+            <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">{isRTL ? "نسبة النجاح المقدرة" : "Pass Rate"}</p>
+            <h4 className="text-3xl font-black text-emerald-600 mt-2 num-en">{passRate}%</h4>
+          </div>
+          <div className="h-12 w-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+            <CheckCircle2 size={24} />
+          </div>
+        </Card>
+
+        <Card className="p-6 bg-white border-none shadow-sm rounded-3xl flex items-center justify-between">
+          <div>
+            <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">{isRTL ? "أعلى درجة مرصودة" : "Highest Score"}</p>
+            <h4 className="text-3xl font-black text-amber-500 mt-2 num-en">{max}/{maxScore}</h4>
+          </div>
+          <div className="h-12 w-12 rounded-2xl bg-amber-50 text-amber-500 flex items-center justify-center">
+            <Trophy size={24} />
+          </div>
+        </Card>
+      </div>
+
+      <Card className="p-6 md:p-8 bg-white border-none shadow-sm rounded-[40px] space-y-6">
+        {/* Config controls */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 border-b border-stone-50 pb-6">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-bold text-stone-400 uppercase tracking-widest">{isRTL ? "اختر الفصل" : "Class Section"}</label>
+            <select 
+              value={selectedClassId}
+              onChange={(e) => {
+                setSelectedClassId(e.target.value);
+                setGrades({});
+                setNotes({});
+              }}
+              className="bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20"
+              dir={isRTL ? "rtl" : "ltr"}
+            >
+              {classes.map(c => (
+                <option key={c.id} value={c.id}>
+                  {c.name} - {isRTL ? "القسم" : "Section"} {c.section || 'A'} ({c.grade_level})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-bold text-stone-400 uppercase tracking-widest">{isRTL ? "الفترة / الفصل الدراسي" : "Term"}</label>
+            <select 
+              value={term}
+              onChange={(e) => setTerm(e.target.value)}
+              className="bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20"
+              dir={isRTL ? "rtl" : "ltr"}
+            >
+              <option value="Term 1">{isRTL ? "الفصل الدراسي الأول" : "Term 1"}</option>
+              <option value="Term 2">{isRTL ? "الفصل الدراسي الثاني" : "Term 2"}</option>
+              <option value="Term 3">{isRTL ? "الفصل الدراسي الثالث" : "Term 3"}</option>
+              <option value="Final">{isRTL ? "الامتحان النهائي" : "Final"}</option>
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1.5 md:col-span-1">
+            <label className="text-xs font-bold text-stone-400 uppercase tracking-widest">{isRTL ? "اسم الاختبار / التقييم" : "Assessment / Test Title"}</label>
+            <Input 
+              value={assessmentName}
+              onChange={(e) => setAssessmentName(e.target.value)}
+              placeholder={isRTL ? "مثال: اختبار قصير 1، امتحان نصفي" : "e.g., Quiz 1, Midterm"}
+              className="h-11 rounded-xl border-stone-200 font-semibold bg-stone-50 text-xs"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-bold text-stone-400 uppercase tracking-widest">{isRTL ? "الدرجة العظمى" : "Max Score"}</label>
+            <Input 
+              type="number"
+              value={maxScore}
+              onChange={(e) => setMaxScore(Number(e.target.value) || 100)}
+              className="h-11 rounded-xl border-stone-200 font-semibold bg-stone-50 text-xs num-en"
+            />
+          </div>
+        </div>
+
+        {classStudents.length === 0 ? (
+          <div className="py-12 text-center text-stone-400 border border-dashed border-stone-100 rounded-3xl">
+            <Users size={40} className="opacity-20 mx-auto mb-2" />
+            <p className="font-bold text-base">{isRTL ? "لا يوجد طلاب مسجلين في هذا الفصل" : "No students found in this class"}</p>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            <div className="overflow-x-auto rounded-3xl border border-stone-100">
+              <Table>
+                <TableHeader className="bg-stone-50/50">
+                  <TableRow>
+                    <TableHead className="w-[60px] text-center">#</TableHead>
+                    <TableHead>{isRTL ? "الطالب" : "Student"}</TableHead>
+                    <TableHead>{isRTL ? "الرقم المدرسي" : "Student ID"}</TableHead>
+                    <TableHead className="w-[150px]">{isRTL ? "الدرجة المرصودة" : "Score"}</TableHead>
+                    <TableHead>{isRTL ? "ملاحظات المعلم / التغذية الراجعة" : "Notes / Feedback"}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {classStudents.map((student, idx) => (
+                    <TableRow key={student.id} className="hover:bg-stone-50/30 transition-colors">
+                      <TableCell className="text-center text-stone-400 font-mono text-xs">{idx + 1}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          {student.photo_url ? (
+                            <div className="h-9 w-9 rounded-xl overflow-hidden border border-stone-200 shadow-sm shrink-0">
+                              <img src={student.photo_url} alt="" className="h-full w-full object-cover" />
+                            </div>
+                          ) : (
+                            <div className="h-9 w-9 rounded-xl bg-stone-100 flex items-center justify-center text-stone-400 font-bold shrink-0">
+                              {(student.full_name || student.name)?.[0]}
+                            </div>
+                          )}
+                          <span className="font-bold text-stone-850 text-xs">{student.full_name || student.name}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-mono text-stone-550 text-xs">#{student.student_id}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Input 
+                            type="number"
+                            min="0"
+                            max={maxScore}
+                            value={grades[student.id] || ""}
+                            onChange={(e) => handleScoreChange(student.id, e.target.value)}
+                            placeholder="0"
+                            className="w-20 h-10 rounded-lg border-stone-200 text-center font-bold num-en"
+                          />
+                          <span className="text-xs font-semibold text-stone-450">/ {maxScore}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Input 
+                          value={notes[student.id] || ""}
+                          onChange={(e) => handleNoteChange(student.id, e.target.value)}
+                          placeholder={isRTL ? "ملاحظات حول أداء الطالب..." : "Student performance feedback..."}
+                          className="h-10 rounded-lg border-stone-200 text-xs"
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+
+            <div className="flex justify-end pt-4">
+              <button 
+                onClick={handleSaveGrades}
+                disabled={isSaving || Object.keys(grades).length === 0}
+                className={`${btnPrimary} h-12 px-8 shadow-md`}
+              >
+                {isSaving ? (isRTL ? "جاري الحفظ والرفع..." : "Saving & Posting...") : (isRTL ? "تأكيد ورصد درجات الطلاب" : "Post Student Grades")}
+              </button>
+            </div>
+          </div>
+        )}
+      </Card>
     </div>
   );
 }

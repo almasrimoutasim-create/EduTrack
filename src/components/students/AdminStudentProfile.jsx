@@ -1019,12 +1019,12 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
                           <tbody>
                             {gradesData.map((g) => (
                               <tr key={g.id} className="border-b border-stone-150/40 hover:bg-stone-50/30 transition-colors">
-                                <td className="py-3 px-3 font-bold text-stone-850">{g.subject}</td>
-                                <td className="py-3 px-3 text-center text-stone-500 text-xs">{g.semester}</td>
+                                <td className="py-3 px-3 font-bold text-stone-850">{g.subject || g.subject_name}</td>
+                                <td className="py-3 px-3 text-center text-stone-500 text-xs">{g.semester || g.term}</td>
                                 <td className="py-3 px-3 text-center font-mono font-bold text-stone-800 num-en">{g.score || "-"}%</td>
                                 <td className="py-3 px-3 text-center">
                                   <Badge className="bg-primary/10 text-primary border-none shadow-none font-bold rounded">
-                                    {g.grade_value || "A"}
+                                    {g.grade_value || g.grade_label || "A"}
                                   </Badge>
                                 </td>
                                 <td className="py-3 px-3 text-stone-500 text-xs hidden md:table-cell">{g.notes || "-"}</td>
