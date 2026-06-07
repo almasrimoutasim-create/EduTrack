@@ -22,8 +22,10 @@ import {
   MapPin,
   BookOpen,
   CheckCircle2,
-  Megaphone
+  Megaphone,
+  ClipboardCheck
 } from "lucide-react";
+import PortalGrades from "@/components/portal/PortalGrades";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -571,6 +573,97 @@ export default function StudentPortal() {
                   })
                 )}
               </div>
+            </div>
+          ) : view === "grades" ? (
+            <div className="space-y-6">
+              <PageHeader 
+                title={isRTL ? "سجل الدرجات والشهادات" : "Grades & Certificates"} 
+                subtitle={isRTL ? "عرض الدرجات الأكاديمية والتقارير الشهرية والفصلية" : "View academic grades, monthly and term reports"}
+              >
+                <button onClick={() => window.location.href = "/student-portal"} className={`${btnOutline} h-11 px-5 rounded-xl`}>
+                  {isRTL ? "العودة للوحة التحكم" : "Back to Dashboard"}
+                </button>
+              </PageHeader>
+              <Card className="p-6 md:p-8 bg-white border-none shadow-sm rounded-[32px]">
+                <PortalGrades student={student} />
+              </Card>
+            </div>
+          ) : view === "attendance" ? (
+            <div className="space-y-6">
+              <PageHeader 
+                title={isRTL ? "سجل الحضور والغياب" : "Attendance Log"} 
+                subtitle={isRTL ? "متابعة سجل الحضور اليومي، بوابات الدخول والخروج، وحضور الحصص" : "Track daily attendance, school gates swipes, and class logs"}
+              >
+                <button onClick={() => window.location.href = "/student-portal"} className={`${btnOutline} h-11 px-5 rounded-xl`}>
+                  {isRTL ? "العودة للوحة التحكم" : "Back to Dashboard"}
+                </button>
+              </PageHeader>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <Card className="p-6 bg-white border-none shadow-sm rounded-3xl text-center">
+                  <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">{isRTL ? "نسبة الحضور العام" : "Attendance Rate"}</span>
+                  <p className="text-3xl font-black text-emerald-600 mt-2 num-en">
+                    {attendanceLogs.length > 0 
+                      ? `${Math.min(100, Math.round((attendanceLogs.filter(l => l.status === "present").length / attendanceLogs.length) * 100))}%`
+                      : "100%"
+                    }
+                  </p>
+                </Card>
+                <Card className="p-6 bg-white border-none shadow-sm rounded-3xl text-center">
+                  <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">{isRTL ? "أيام الحضور" : "Days Present"}</span>
+                  <p className="text-3xl font-black text-blue-600 mt-2 num-en">
+                    {attendanceLogs.filter(l => l.status === "present").length}
+                  </p>
+                </Card>
+                <Card className="p-6 bg-white border-none shadow-sm rounded-3xl text-center">
+                  <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">{isRTL ? "أيام الغياب" : "Days Absent"}</span>
+                  <p className="text-3xl font-black text-rose-500 mt-2 num-en">
+                    {attendanceLogs.filter(l => l.status === "absent").length}
+                  </p>
+                </Card>
+              </div>
+
+              <Card className="p-6 md:p-8 bg-white border-none shadow-sm rounded-[32px] space-y-6">
+                <h3 className="font-serif font-black text-stone-900 text-lg">{isRTL ? "سجل الحركات اليومية" : "Swipe & Logs Timeline"}</h3>
+                
+                <div className="space-y-4">
+                  {attendanceLogs.length === 0 ? (
+                    <div className="text-center py-12 text-stone-400">
+                      <Clock size={32} className="mx-auto mb-2 opacity-25" />
+                      <p className="text-xs font-bold">{isRTL ? "لا توجد حركات حضور مسجلة حالياً." : "No attendance logs recorded yet."}</p>
+                    </div>
+                  ) : (
+                    attendanceLogs.map((log, idx) => (
+                      <div key={log.id || idx} className="flex items-center justify-between p-4 bg-stone-50 border border-stone-100 rounded-2xl">
+                        <div className="flex items-center gap-3">
+                          <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${
+                            log.type === "gate_in" ? "bg-emerald-50 text-emerald-600" :
+                            log.type === "gate_out" ? "bg-amber-50 text-amber-600" :
+                            "bg-blue-50 text-blue-600"
+                          }`}>
+                            <ClipboardCheck size={20} />
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-bold text-stone-850">
+                              {log.type === "gate_in" ? (isRTL ? "دخول بوابة المدرسة" : "Gate IN") :
+                               log.type === "gate_out" ? (isRTL ? "خروج من المدرسة" : "Gate OUT") :
+                               log.type === "bus_in" ? (isRTL ? "صعود الحافلة" : "Bus Boarded") :
+                               log.type === "bus_out" ? (isRTL ? "نزول من الحافلة" : "Bus Checked-Out") :
+                               (isRTL ? "حضور أكاديمي" : "Class Attendance")}
+                            </h4>
+                            <p className="text-[10px] text-stone-400 font-semibold mt-0.5">{log.notes || log.recorded_by}</p>
+                          </div>
+                        </div>
+
+                        <div className="text-end">
+                          <p className="text-xs font-black text-stone-800 num-en">{log.date}</p>
+                          <p className="text-[10px] font-bold text-stone-450 mt-0.5 num-en">{log.time}</p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </Card>
             </div>
           ) : (
             <>
