@@ -83,7 +83,7 @@ export default function StaffPortal() {
       id: "security", 
       icon: Shield, 
       label: { ar: "حارس أمن", en: "Security Guard" }, 
-      color: "bg-stone-850 text-white",
+      color: "bg-stone-800 text-white",
       path: "#security"
     },
     { 
