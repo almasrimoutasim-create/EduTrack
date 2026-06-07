@@ -42,7 +42,8 @@ export default function Teachers() {
 
   const { data: teachers = [], isLoading } = useQuery({ 
     queryKey: ["teachers"], 
-    queryFn: () => base44.entities.Teacher.list() 
+    queryFn: () => base44.entities.Teacher.list("-created_at", 100),
+    staleTime: 1000 * 60 * 10
   });
 
   const handleAdd = () => {

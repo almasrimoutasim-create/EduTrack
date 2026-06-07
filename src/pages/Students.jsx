@@ -67,7 +67,8 @@ export default function Students() {
   const { data: linkRequests = [], refetch: refetchRequests } = useQuery({
     queryKey: ["parent-link-requests"],
     // @ts-ignore
-    queryFn: () => base44.entities.ParentLinkRequest.list("-created_at")
+    queryFn: () => base44.entities.ParentLinkRequest.list("-created_at", 100),
+    staleTime: 1000 * 60 * 5
   });
 
   const pendingRequestsCount = linkRequests.filter(r => r.status === "pending").length;
@@ -75,6 +76,7 @@ export default function Students() {
   const handleApproveLink = async (request) => {
     try {
       // Find target student by student_id
+      // @ts-ignore
       const matchedStudents = await base44.entities.Student.list("-created_at", { student_id: request.student_id });
       if (matchedStudents.length === 0) {
         toast.error(isRTL ? "الطالب المستهدف غير موجود في النظام." : "Target student not found in system.");
@@ -125,7 +127,8 @@ export default function Students() {
 
   const { data: students = [], isLoading, refetch } = useQuery({ 
     queryKey: ["students", refreshKey], 
-    queryFn: () => base44.entities.Student.list()
+    queryFn: () => base44.entities.Student.list("-created_at", 500),
+    staleTime: 1000 * 60 * 10
   });
 
   const sectionOptions = useMemo(() => {

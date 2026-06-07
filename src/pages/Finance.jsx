@@ -62,18 +62,21 @@ export default function Finance() {
 
   const { data: purchases = [], isLoading } = useQuery({ 
     queryKey: ["finance-purchases"], 
-    queryFn: () => base44.entities.Purchase.list("-created_date", 50) 
+    queryFn: () => base44.entities.Purchase.list("-created_date", 50),
+    staleTime: 1000 * 60 * 5
   });
 
   const { data: financialRecords = [] } = useQuery({ 
     queryKey: ["financial-records"], 
-    queryFn: () => base44.entities.FinancialRecord.list("-payment_date", 50) 
+    queryFn: () => base44.entities.FinancialRecord.list("-payment_date", 50),
+    staleTime: 1000 * 60 * 5
   });
 
   const { data: fines = [], refetch: refetchFines } = useQuery({
     queryKey: ["finance-fines"],
     // @ts-ignore
-    queryFn: () => base44.entities.Fine.list("-created_date", 100)
+    queryFn: () => base44.entities.Fine.list("-created_date", 100),
+    staleTime: 1000 * 60 * 5
   });
 
   const handlePayFine = async (fine) => {

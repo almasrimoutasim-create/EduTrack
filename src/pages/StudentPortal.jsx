@@ -267,18 +267,21 @@ export default function StudentPortal() {
   const { data: studentSchedules = [] } = useQuery({
     queryKey: ["student-schedules", student?.grade],
     queryFn: () => base44.entities.ClassSchedule.filter({ grade: student?.grade }),
-    enabled: !!student?.grade
+    enabled: !!student?.grade,
+    staleTime: 1000 * 60 * 10
   });
 
   const { data: studentTasks = [] } = useQuery({
     queryKey: ["student-tasks", student?.grade],
     queryFn: () => base44.entities.TeacherTask.filter({ grade: student?.grade }),
-    enabled: !!student?.grade
+    enabled: !!student?.grade,
+    staleTime: 1000 * 60 * 10
   });
 
   const { data: officialAnnouncements = [] } = useQuery({
     queryKey: ["official-announcements-student"],
-    queryFn: () => base44.entities.OfficialAnnouncement.list("-created_at")
+    queryFn: () => base44.entities.OfficialAnnouncement.list("-created_at", 50),
+    staleTime: 1000 * 60 * 10
   });
 
   const studentAnnouncements = React.useMemo(() => {

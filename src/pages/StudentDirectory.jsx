@@ -50,7 +50,8 @@ export default function StudentDirectory() {
   const { data: linkRequests = [], refetch: refetchRequests } = useQuery({
     queryKey: ["parent-link-requests"],
     // @ts-ignore
-    queryFn: () => base44.entities.ParentLinkRequest.list("-created_at")
+    queryFn: () => base44.entities.ParentLinkRequest.list("-created_at", 100),
+    staleTime: 1000 * 60 * 5
   });
 
   const pendingRequestsCount = linkRequests.filter(r => r.status === "pending").length;
@@ -97,7 +98,8 @@ export default function StudentDirectory() {
 
   const { data: students = [], isLoading } = useQuery({ 
     queryKey: ["student-directory-list"], 
-    queryFn: () => base44.entities.Student.list("-created_date", 100) 
+    queryFn: () => base44.entities.Student.list("-created_date", 100),
+    staleTime: 1000 * 60 * 10
   });
 
   const filteredStudents = students.filter(s =>

@@ -30,11 +30,31 @@ export default function Dashboard() {
   const { language } = useLanguage();
   const isRTL = language === "ar";
   
-  const { data: students = [] } = useQuery({ queryKey: ["students"], queryFn: () => base44.entities.Student.list() });
-  const { data: teachers = [] } = useQuery({ queryKey: ["teachers"], queryFn: () => base44.entities.Teacher.list() });
-  const { data: attendance = [] } = useQuery({ queryKey: ["attendance-recent"], queryFn: () => base44.entities.Attendance.list("-created_date", 8) });
-  const { data: allAttendance = [] } = useQuery({ queryKey: ["attendance-trends"], queryFn: () => base44.entities.Attendance.list("-date", 500) });
-  const { data: materials = [] } = useQuery({ queryKey: ["materials"], queryFn: () => base44.entities.StudyMaterial.list() });
+  const { data: students = [] } = useQuery({ 
+    queryKey: ["students"], 
+    queryFn: () => base44.entities.Student.list("-created_at", 500),
+    staleTime: 1000 * 60 * 10 // rare changes
+  });
+  const { data: teachers = [] } = useQuery({ 
+    queryKey: ["teachers"], 
+    queryFn: () => base44.entities.Teacher.list("-created_at", 100),
+    staleTime: 1000 * 60 * 10 // rare changes
+  });
+  const { data: attendance = [] } = useQuery({ 
+    queryKey: ["attendance-recent"], 
+    queryFn: () => base44.entities.Attendance.list("-created_date", 8),
+    staleTime: 1000 * 60 * 2 // frequently changes
+  });
+  const { data: allAttendance = [] } = useQuery({ 
+    queryKey: ["attendance-trends"], 
+    queryFn: () => base44.entities.Attendance.list("-date", 200),
+    staleTime: 1000 * 60 * 2 // frequently changes
+  });
+  const { data: materials = [] } = useQuery({ 
+    queryKey: ["materials"], 
+    queryFn: () => base44.entities.StudyMaterial.list("-created_date", 100),
+    staleTime: 1000 * 60 * 10 // rare changes
+  });
 
   const activeStudents = students.filter(s => s.status === "active").length;
   const todayDate = format(new Date(), "yyyy-MM-dd");

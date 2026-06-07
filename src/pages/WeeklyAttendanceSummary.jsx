@@ -22,7 +22,9 @@ export default function WeeklyAttendanceSummary() {
 
   const { data: attendanceData = [] } = useQuery({ 
     queryKey: ["weekly-attendance"], 
-    queryFn: () => base44.entities.Attendance.list("-created_at", {}, 50) 
+    // @ts-ignore
+    queryFn: () => base44.entities.Attendance.list("-created_at", {}, 50),
+    staleTime: 1000 * 60 * 5
   });
 
   const containerVariants = {

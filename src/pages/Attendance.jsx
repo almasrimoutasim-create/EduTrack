@@ -32,12 +32,15 @@ export default function Attendance() {
 
   const { data: students = [] } = useQuery({ 
     queryKey: ["students"], 
-    queryFn: () => base44.entities.Student.list() 
+    queryFn: () => base44.entities.Student.list("-created_at", 500),
+    staleTime: 1000 * 60 * 10
   });
 
   const { data: attendanceRecords = [], isLoading } = useQuery({
     queryKey: ["attendance", selectedDate],
-    queryFn: () => base44.entities.Attendance.list("-created_at", 100, { date: selectedDate })
+    // @ts-ignore
+    queryFn: () => base44.entities.Attendance.list("-created_at", { date: selectedDate }, 100),
+    staleTime: 1000 * 60 * 2
   });
 
   const markAttendanceMutation = useMutation({

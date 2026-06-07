@@ -18,7 +18,7 @@ class EntityClient {
 
   async list(order = '-created_at', filtersOrLimit = null, limitOrOffset = null, offset = null) {
     let filters = null;
-    let limit = 200;
+    let limit = 50;
     let finalOffset = 0;
 
     if (typeof filtersOrLimit === 'number') {
@@ -26,10 +26,10 @@ class EntityClient {
       finalOffset = typeof limitOrOffset === 'number' ? limitOrOffset : 0;
     } else if (filtersOrLimit && typeof filtersOrLimit === 'object') {
       filters = filtersOrLimit;
-      limit = typeof limitOrOffset === 'number' ? limitOrOffset : 200;
+      limit = typeof limitOrOffset === 'number' ? limitOrOffset : 50;
       finalOffset = typeof offset === 'number' ? offset : 0;
     } else {
-      limit = typeof limitOrOffset === 'number' ? limitOrOffset : 200;
+      limit = typeof limitOrOffset === 'number' ? limitOrOffset : 50;
       finalOffset = typeof offset === 'number' ? offset : 0;
     }
 
