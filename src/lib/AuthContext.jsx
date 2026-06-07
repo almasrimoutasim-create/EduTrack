@@ -153,6 +153,9 @@ export const AuthProvider = ({ children }) => {
       }
       
       const loggedUser = data.user;
+      if (loggedUser && loggedUser.role) {
+        loggedUser.role = loggedUser.role.toLowerCase();
+      }
       setUser(loggedUser);
       setIsAuthenticated(true);
       

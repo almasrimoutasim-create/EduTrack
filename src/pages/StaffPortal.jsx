@@ -145,7 +145,8 @@ export default function StaffPortal() {
       }
 
       // Check if the staff member role matches the clicked department
-      const userRole = data.user.role; // e.g. registrar, hr, accountant, store, bus_supervisor, security
+      const userRole = data.user.role ? data.user.role.toLowerCase() : "";
+      data.user.role = userRole;
       
       // Map roles to make sure they align
       const targetDeptId = selectedDept.id; // e.g. registrar, bus_supervisor, store_keeper, security, hr, accountant
