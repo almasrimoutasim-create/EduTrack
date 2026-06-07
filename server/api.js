@@ -112,6 +112,123 @@ if (process.env.DATABASE_URL) {
   }).catch(err => {
     console.error('[neon] failed to verify/create official_announcements table:', err.message);
   });
+
+  // Auto-create hall_rentals table
+  sql`
+    CREATE TABLE IF NOT EXISTS hall_rentals (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      hall_name TEXT NOT NULL,
+      amount NUMERIC NOT NULL,
+      payment_method TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      created_by TEXT,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `.then(() => {
+    console.log('[neon] hall_rentals table verified/created');
+  }).catch(err => {
+    console.error('[neon] failed to verify/create hall_rentals table:', err.message);
+  });
+
+  // Auto-create other_revenue table
+  sql`
+    CREATE TABLE IF NOT EXISTS other_revenue (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      title TEXT NOT NULL,
+      amount NUMERIC NOT NULL,
+      payment_method TEXT NOT NULL,
+      created_by TEXT,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `.then(() => {
+    console.log('[neon] other_revenue table verified/created');
+  }).catch(err => {
+    console.error('[neon] failed to verify/create other_revenue table:', err.message);
+  });
+
+  // Auto-create expenses table
+  sql`
+    CREATE TABLE IF NOT EXISTS expenses (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      category TEXT NOT NULL,
+      description TEXT NOT NULL,
+      amount NUMERIC NOT NULL,
+      vendor TEXT,
+      expense_date TEXT NOT NULL,
+      payment_method TEXT NOT NULL,
+      academic_year TEXT DEFAULT '2025-2026',
+      created_by TEXT,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `.then(() => {
+    console.log('[neon] expenses table verified/created');
+  }).catch(err => {
+    console.error('[neon] failed to verify/create expenses table:', err.message);
+  });
+
+  // Auto-create salary_records table
+  sql`
+    CREATE TABLE IF NOT EXISTS salary_records (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      employee_name TEXT NOT NULL,
+      employee_type TEXT NOT NULL,
+      base_salary NUMERIC NOT NULL,
+      allowances NUMERIC DEFAULT 0,
+      deductions NUMERIC DEFAULT 0,
+      net_salary NUMERIC NOT NULL,
+      month TEXT NOT NULL,
+      year INTEGER NOT NULL,
+      payment_method TEXT NOT NULL,
+      notes TEXT,
+      status TEXT NOT NULL DEFAULT 'pending',
+      payment_date TEXT,
+      created_by TEXT,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `.then(() => {
+    console.log('[neon] salary_records table verified/created');
+  }).catch(err => {
+    console.error('[neon] failed to verify/create salary_records table:', err.message);
+  });
+
+  // Auto-create purchase_orders table
+  sql`
+    CREATE TABLE IF NOT EXISTS purchase_orders (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      category TEXT NOT NULL,
+      item_description TEXT NOT NULL,
+      quantity INTEGER NOT NULL DEFAULT 1,
+      total_amount NUMERIC NOT NULL,
+      vendor TEXT,
+      status TEXT NOT NULL DEFAULT 'pending',
+      approved_by TEXT,
+      approved_at TEXT,
+      expense_id UUID,
+      created_by TEXT,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `.then(() => {
+    console.log('[neon] purchase_orders table verified/created');
+  }).catch(err => {
+    console.error('[neon] failed to verify/create purchase_orders table:', err.message);
+  });
+
+  // Alter donations table to add payment_method, is_anonymous, acknowledgment_sent columns
+  sql`
+    ALTER TABLE donations
+    ADD COLUMN IF NOT EXISTS payment_method TEXT,
+    ADD COLUMN IF NOT EXISTS is_anonymous BOOLEAN DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS acknowledgment_sent BOOLEAN DEFAULT FALSE;
+  `.then(() => {
+    console.log('[neon] donations table altered successfully');
+  }).catch(err => {
+    console.error('[neon] failed to alter donations table:', err.message);
+  });
 }
 
 // Map entity names to table names
@@ -167,6 +284,11 @@ const ENTITY_TABLE_MAP = {
   StudentActivityFee: 'student_activity_fees',
   StudentWallet: 'student_wallet',
   WalletTransaction: 'wallet_transactions',
+  HallRental: 'hall_rentals',
+  OtherRevenue: 'other_revenue',
+  Expense: 'expenses',
+  SalaryRecord: 'salary_records',
+  PurchaseOrder: 'purchase_orders',
 };
 
 async function createStripePaymentIntent(amount, currency) {

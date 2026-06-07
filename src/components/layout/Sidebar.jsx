@@ -226,48 +226,37 @@ export default function Sidebar() {
       case "accountant":
         return [
           {
-            label: isRTL ? "الرئيسية" : "Overview",
+            label: isRTL ? "نظرة عامة" : "Overview",
             items: [
-              { label: isRTL ? "لوحة التحكم" : "Dashboard", path: "/finance", icon: LayoutDashboard }
+              { label: isRTL ? "لوحة التحكم المالية" : "Dashboard", path: "/finance", icon: LayoutDashboard },
             ]
           },
           {
-            label: isRTL ? "الرسوم والمدفوعات" : "Fees & Payments",
+            label: isRTL ? "الإيرادات" : "Revenue",
             items: [
-              { label: isRTL ? "الرسوم الدراسية" : "Tuition Fees", path: "/finance", icon: DollarSign },
-              { label: isRTL ? "إضافة رسوم" : "Add New Fee", path: "#", icon: PlusCircle },
-              { label: isRTL ? "المدفوعات" : "Payments", path: "#", icon: CreditCard },
-              { label: isRTL ? "سندات القبض" : "Receipt Vouchers", path: "#", icon: FileText },
-              { label: isRTL ? "الأقساط" : "Installments", path: "#", icon: Calendar }
+              { label: isRTL ? "الرسوم الدراسية" : "Tuition Fees",    path: "/finance?tab=tuition",       icon: GraduationCap },
+              { label: isRTL ? "تسعيرة الصفوف" : "Fee Structures",    path: "/finance?tab=structures",     icon: Layers },
+              { label: isRTL ? "رسوم الأنشطة" : "Activity Fees",      path: "/finance?tab=activities",     icon: Calendar },
+              { label: isRTL ? "إيرادات أخرى" : "Other Revenue",      path: "/finance?tab=other-revenue",  icon: DollarSign },
             ]
           },
           {
-            label: isRTL ? "الإدارة المالية" : "Financial Management",
+            label: isRTL ? "المصروفات" : "Expenses",
             items: [
-              { label: isRTL ? "الإيرادات" : "Revenues", path: "#", icon: DollarSign },
-              { label: isRTL ? "المصروفات" : "Expenses", path: "#", icon: CreditCard },
-              { label: isRTL ? "الخصومات" : "Discounts", path: "#", icon: Percent },
-              { label: isRTL ? "الغرامات" : "Fines", path: "#", icon: AlertTriangle }
+              { label: isRTL ? "المصروفات العامة" : "Expenses",        path: "/finance?tab=expenses",        icon: CreditCard },
+              { label: isRTL ? "طلبات المشتريات" : "Purchase Orders",  path: "/finance?tab=purchase-orders", icon: ShoppingCart },
             ]
           },
           {
-            label: isRTL ? "الدفع الإلكتروني" : "Electronic Payments",
+            label: isRTL ? "المتجر والمحافظ" : "Store",
             items: [
-              { label: isRTL ? "بوابات الدفع" : "Payment Gateways", path: "#", icon: CreditCard },
-              { label: isRTL ? "إعدادات الدفع" : "Payment Settings", path: "#", icon: Settings }
-            ]
-          },
-          {
-            label: isRTL ? "الحسابات" : "Accounts",
-            items: [
-              { label: isRTL ? "كشف حساب الطالب" : "Student Statement", path: "#", icon: Users },
-              { label: isRTL ? "إشعارات المالية" : "Financial Alerts", path: "#", icon: FileText }
+              { label: isRTL ? "مبيعات المتجر والمحافظ" : "Store & Wallets", path: "/finance?tab=store", icon: ShoppingBag },
             ]
           },
           {
             label: isRTL ? "التقارير" : "Reports",
             items: [
-              { label: isRTL ? "التقارير المالية" : "Financial Reports", path: "#", icon: FileSpreadsheet }
+              { label: isRTL ? "التقارير المالية" : "Reports", path: "/finance?tab=reports", icon: FileSpreadsheet },
             ]
           }
         ];
@@ -379,7 +368,9 @@ export default function Sidebar() {
               </p>
               <div className="space-y-1">
                 {group.items.map((item) => {
-                  const isActive = location.pathname === item.path;
+                  const isActive = item.path.includes("?") 
+                    ? (location.pathname + location.search) === item.path
+                    : location.pathname === item.path;
                   return (
                     <Link
                       key={item.label}

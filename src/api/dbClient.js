@@ -137,7 +137,8 @@ const entityNames = [
   'FollowUp', 'CaseVisibilityLog',
   'FeeStructure', 'StudentFee', 'FeePayment',
   'ActivityFee', 'StudentActivityFee', 'StudentWallet',
-  'WalletTransaction',
+  'WalletTransaction', 'HallRental', 'OtherRevenue',
+  'Expense', 'SalaryRecord', 'PurchaseOrder',
 ];
 
 const entities = {};

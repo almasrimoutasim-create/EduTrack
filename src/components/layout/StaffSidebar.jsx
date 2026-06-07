@@ -1,6 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import {
-  LayoutDashboard, Users, Calendar, CreditCard, ShieldCheck, MessageSquare, LogOut, Settings, DollarSign, Menu, X, FileText
+  LayoutDashboard, Users, Calendar, CreditCard, ShieldCheck, MessageSquare, LogOut, Settings, DollarSign, Menu, X, FileText,
+  GraduationCap, Layers, ShoppingCart, ShoppingBag, FileSpreadsheet
 } from "lucide-react";
 import { useState } from "react";
 import { motion } from "framer-motion";
@@ -55,12 +56,42 @@ export default function StaffSidebar() {
       ]
     });
   } else if (portalRole === "accountant") {
-    navGroups.push({
-      label: isRTL ? "الحسابات والمالية" : "Finance & Accounts",
-      items: [
-        { label: isRTL ? "المالية والرسوم" : "Finance & Fees", path: "/finance", icon: DollarSign }
-      ]
-    });
+    navGroups.push(
+      {
+        label: isRTL ? "نظرة عامة" : "Overview",
+        items: [
+          { label: isRTL ? "لوحة التحكم المالية" : "Dashboard", path: "/finance", icon: LayoutDashboard },
+        ]
+      },
+      {
+        label: isRTL ? "الإيرادات" : "Revenue",
+        items: [
+          { label: isRTL ? "الرسوم الدراسية" : "Tuition Fees",    path: "/finance?tab=tuition",       icon: GraduationCap },
+          { label: isRTL ? "تسعيرة الصفوف" : "Fee Structures",    path: "/finance?tab=structures",     icon: Layers },
+          { label: isRTL ? "رسوم الأنشطة" : "Activity Fees",      path: "/finance?tab=activities",     icon: Calendar },
+          { label: isRTL ? "إيرادات أخرى" : "Other Revenue",      path: "/finance?tab=other-revenue",  icon: DollarSign },
+        ]
+      },
+      {
+        label: isRTL ? "المصروفات" : "Expenses",
+        items: [
+          { label: isRTL ? "المصروفات العامة" : "Expenses",        path: "/finance?tab=expenses",        icon: CreditCard },
+          { label: isRTL ? "طلبات المشتريات" : "Purchase Orders",  path: "/finance?tab=purchase-orders", icon: ShoppingCart },
+        ]
+      },
+      {
+        label: isRTL ? "المتجر والمحافظ" : "Store",
+        items: [
+          { label: isRTL ? "مبيعات المتجر والمحافظ" : "Store & Wallets", path: "/finance?tab=store", icon: ShoppingBag },
+        ]
+      },
+      {
+        label: isRTL ? "التقارير" : "Reports",
+        items: [
+          { label: isRTL ? "التقارير المالية" : "Reports", path: "/finance?tab=reports", icon: FileSpreadsheet },
+        ]
+      }
+    );
   }
 
   return (
@@ -108,7 +139,9 @@ export default function StaffSidebar() {
               </p>
               <div className="space-y-1">
                 {group.items.map((item) => {
-                  const isActive = location.pathname === item.path;
+                  const isActive = item.path.includes("?") 
+                    ? (location.pathname + location.search) === item.path
+                    : location.pathname === item.path;
                   return (
                     <Link
                       key={item.label}
