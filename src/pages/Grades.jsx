@@ -131,7 +131,7 @@ export default function Grades() {
     setIsSaving(true);
     try {
       const numericScore = parseFloat(score);
-      const maxScoreNum = parseFloat(maxScore);
+      const maxScoreNum = Number(maxScore);
       const percentage = Math.round((numericScore / maxScoreNum) * 100);
       let label = `${percentage}%`;
       if (percentage >= 90) label = "A+";
@@ -368,7 +368,7 @@ export default function Grades() {
       {/* Add Grade Dialog */}
       <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
         <DialogContent className="max-w-md rounded-3xl p-6" dir={isRTL ? "rtl" : "ltr"}>
-          <DialogHeader>
+          <DialogHeader className="">
             <DialogTitle className="font-serif font-black text-xl text-stone-900 flex items-center gap-2 mb-2">
               <Award className="text-primary h-5 w-5" />
               {isRTL ? "رصد درجة طالب جديدة" : "Post New Student Grade"}
