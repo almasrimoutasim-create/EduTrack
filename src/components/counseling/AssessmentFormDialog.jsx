@@ -35,10 +35,10 @@ export default function AssessmentFormDialog({ open, onOpenChange, caseId, onSuc
       if (!user?.id) throw new Error("User ID is missing");
       return base44.entities.CaseAssessment.create({
         case_id: parseInt(caseId),
-        academic_score: parseInt(academicScore),
-        behavioral_score: parseInt(behavioralScore),
-        social_score: parseInt(socialScore),
-        psychological_score: parseInt(psychologicalScore),
+        academic_score: String(academicScore),
+        behavioral_score: String(behavioralScore),
+        social_score: String(socialScore),
+        psychological_score: String(psychologicalScore),
         notes,
         created_by: user.id
       });

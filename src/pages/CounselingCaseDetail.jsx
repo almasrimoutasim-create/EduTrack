@@ -198,7 +198,7 @@ export default function CounselingCaseDetail() {
 
   // Formatting chart data
   const chartData = [...assessments]
-    .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
     .map(a => ({
       date: new Date(a.created_at).toLocaleDateString("ar-EG", { month: "short", day: "numeric" }),
       "أكاديمي": a.academic_score,

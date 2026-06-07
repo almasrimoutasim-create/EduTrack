@@ -1202,7 +1202,7 @@ function GradesTabContent({ isRTL, classes, students, portalUser }) {
           student_name: student.full_name || student.name,
           subject_name: `${selectedClass.name} - ${assessmentName}`,
           score: numericScore,
-          max_score: parseFloat(maxScore),
+          max_score: String(maxScore),
           grade_label: label,
           term: term,
           academic_year: "2025-2026",
