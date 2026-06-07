@@ -306,7 +306,8 @@ export default function Sidebar() {
               { label: t("common.library", language), path: "/library", icon: BookOpen },
               { label: t("common.store", language), path: "/store", icon: ShoppingCart },
               { label: t("common.finance", language), path: "/finance", icon: DollarSign },
-              { label: t("common.staffControl", language), path: "/staff-control", icon: Shield }
+              { label: t("common.staffControl", language), path: "/staff-control", icon: Shield },
+              { label: isRTL ? "الإرشاد الطلابي" : "Counseling", path: "/counseling", icon: Shield }
             ]
           },
           {
