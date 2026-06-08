@@ -23,7 +23,11 @@ import {
   BookOpen,
   CheckCircle2,
   Megaphone,
-  ClipboardCheck
+  ClipboardCheck,
+  BookMarked,
+  ExternalLink,
+  Download,
+  ChevronDown
 } from "lucide-react";
 import PortalGrades from "@/components/portal/PortalGrades";
 import { Label } from "@/components/ui/label";
@@ -54,7 +58,8 @@ export default function StudentPortal() {
   const navigate = useNavigate();
   const view = searchParams.get("view");
   const subjectIdParam = searchParams.get("subjectId");
-  const [activeSubjectTab, setActiveSubjectTab] = useState("lessons"); // 'lessons' | 'assignments' | 'exams'
+  const [activeSubjectTab, setActiveSubjectTab] = useState("lessons"); // 'lessons' | 'assignments' | 'exams' | 'textbook'
+  const [selectedBookIdx, setSelectedBookIdx] = useState(0);
   const [isSwiping, setIsSwiping] = React.useState(null); // null | "gate_in" | "gate_out"
 
   const handleGateSwipe = async (type) => {
@@ -148,6 +153,11 @@ export default function StudentPortal() {
     queryKey: ["student-awards", student?.student_id],
     queryFn: () => base44.entities.StudentAward.filter({ student_id: student?.student_id }, "-date"),
     enabled: !!student?.student_id
+  });
+
+  const { data: allLibraryBooks = [] } = useQuery({
+    queryKey: ["student-library-books"],
+    queryFn: () => base44.entities.LibraryBook.list("-created_at", 100)
   });
 
   const [showScheduleModal, setShowScheduleModal] = useState(false);
@@ -434,6 +444,12 @@ export default function StudentPortal() {
                   return { icon: BookOpen, color: "text-teal-650", bg: "bg-teal-50" };
                 };
 
+                // --- Textbook: filter LibraryBooks linked to this subject ---
+                const subjectBooks = allLibraryBooks.filter(b =>
+                  b.subject_id === selectedSubject.id ||
+                  b.subject_name?.toLowerCase() === selectedSubject.name?.toLowerCase()
+                );
+
                 return (
                   <div className="space-y-6">
                     {/* Header */}
@@ -478,7 +494,8 @@ export default function StudentPortal() {
                       {[
                         { id: "lessons", label: isRTL ? "📚 الدروس اليومية" : "📚 Daily Lessons", count: subjectMaterials.length },
                         { id: "assignments", label: isRTL ? "📝 الواجبات" : "📝 Assignments", count: subjectTasks.length + subjectLocalStorageAsms.length },
-                        { id: "exams", label: isRTL ? "🏆 الاختبارات والدرجات" : "🏆 Exams & Grades", count: subjectGradesList.length }
+                        { id: "exams", label: isRTL ? "🏆 الاختبارات والدرجات" : "🏆 Exams & Grades", count: subjectGradesList.length },
+                        { id: "textbook", label: isRTL ? "📖 كتاب المادة" : "📖 Textbook", count: subjectBooks.length }
                       ].map(tab => (
                         <button
                           key={tab.id}
@@ -700,6 +717,129 @@ export default function StudentPortal() {
                                 );
                               })}
                             </div>
+                          )}
+                        </div>
+                      )}
+
+                      {activeSubjectTab === "textbook" && (
+                        <div className="space-y-5">
+                          {subjectBooks.length === 0 ? (
+                            <Card className="p-16 text-center border-dashed border-2 border-stone-200 bg-stone-50/50 text-stone-400 rounded-[30px]">
+                              <BookMarked size={48} className="mb-4 opacity-15 mx-auto" />
+                              <p className="font-bold text-sm">{isRTL ? "لم يتم ربط كتاب مدرسي بهذه المادة بعد." : "No textbook linked to this subject yet."}</p>
+                              <p className="text-[11px] mt-1.5 text-stone-400">{isRTL ? "يمكن للمشرف إضافة كتاب المادة من صفحة المكتبة الإلكترونية." : "The admin can link a textbook from the Library page."}</p>
+                            </Card>
+                          ) : (
+                            <>
+                              {/* Book Selector (if multiple books) */}
+                              {subjectBooks.length > 1 && (
+                                <div className="flex items-center gap-3 flex-wrap">
+                                  <span className="text-xs font-bold text-stone-500">{isRTL ? "اختر الكتاب:" : "Select Book:"}</span>
+                                  <div className="flex gap-2 flex-wrap">
+                                    {subjectBooks.map((bk, bkIdx) => (
+                                      <button
+                                        key={bk.id}
+                                        onClick={() => setSelectedBookIdx(bkIdx)}
+                                        className={`h-9 px-4 text-xs font-bold rounded-xl border transition-all cursor-pointer ${
+                                          selectedBookIdx === bkIdx
+                                            ? "bg-teal-600 text-white border-teal-600 shadow-lg shadow-teal-600/20"
+                                            : "bg-white text-stone-600 border-stone-200 hover:border-teal-300"
+                                        }`}
+                                      >
+                                        {bk.title}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {(() => {
+                                const activeBook = subjectBooks[selectedBookIdx] || subjectBooks[0];
+                                if (!activeBook) return null;
+
+                                return (
+                                  <div className="space-y-5">
+                                    {/* Book Info Card */}
+                                    <Card className="p-5 bg-gradient-to-br from-amber-50/60 via-white to-orange-50/40 border border-amber-100/60 rounded-2xl">
+                                      <div className="flex items-start gap-5">
+                                        {/* Thumbnail */}
+                                        <div className="w-20 h-28 rounded-xl bg-stone-100 overflow-hidden border border-stone-200 shadow-md shrink-0">
+                                          {activeBook.thumbnail_url ? (
+                                            <img src={activeBook.thumbnail_url} alt={activeBook.title} className="w-full h-full object-cover" />
+                                          ) : (
+                                            <div className="w-full h-full flex items-center justify-center text-stone-300">
+                                              <BookMarked size={28} />
+                                            </div>
+                                          )}
+                                        </div>
+                                        {/* Details */}
+                                        <div className="flex-1 min-w-0">
+                                          <h4 className="font-serif font-black text-stone-900 text-lg leading-tight">{activeBook.title}</h4>
+                                          {activeBook.author && (
+                                            <p className="text-xs text-stone-500 font-semibold mt-1 flex items-center gap-1">
+                                              <span className="text-stone-400">{isRTL ? "المؤلف:" : "Author:"}</span> {activeBook.author}
+                                            </p>
+                                          )}
+                                          {activeBook.description && (
+                                            <p className="text-[11px] text-stone-500 mt-2 leading-relaxed line-clamp-2">{activeBook.description}</p>
+                                          )}
+                                          <div className="flex items-center gap-2 mt-3 flex-wrap">
+                                            <Badge className="bg-amber-100 text-amber-700 border-none font-bold text-[9px] rounded-lg px-2 py-0.5">
+                                              PDF
+                                            </Badge>
+                                            {activeBook.subject_code && (
+                                              <Badge className="bg-stone-100 text-stone-600 border-none font-bold text-[9px] rounded-lg px-2 py-0.5 num-en">
+                                                {activeBook.subject_code}
+                                              </Badge>
+                                            )}
+                                            <a
+                                              href={activeBook.file_url}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="inline-flex items-center gap-1 text-[10px] font-bold text-teal-600 hover:text-teal-700 hover:underline transition-colors"
+                                            >
+                                              <ExternalLink size={10} />
+                                              {isRTL ? "فتح في نافذة جديدة" : "Open in new tab"}
+                                            </a>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </Card>
+
+                                    {/* Embedded PDF Viewer */}
+                                    <Card className="overflow-hidden rounded-2xl border border-stone-200 shadow-sm bg-white">
+                                      <div className="bg-stone-800 px-5 py-3 flex items-center justify-between">
+                                        <div className="flex items-center gap-2.5">
+                                          <div className="h-8 w-8 rounded-lg bg-white/10 flex items-center justify-center">
+                                            <BookMarked size={16} className="text-white" />
+                                          </div>
+                                          <div>
+                                            <p className="text-white text-xs font-bold truncate max-w-[200px] md:max-w-md">{activeBook.title}</p>
+                                            <p className="text-stone-400 text-[9px] font-semibold">{isRTL ? "عارض الكتاب المدرسي المضمّن" : "Embedded Textbook Viewer"}</p>
+                                          </div>
+                                        </div>
+                                        <a
+                                          href={activeBook.file_url}
+                                          download
+                                          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-white/10 hover:bg-white/20 text-white text-[10px] font-bold transition-colors cursor-pointer border-none"
+                                        >
+                                          <Download size={12} />
+                                          {isRTL ? "تحميل" : "Download"}
+                                        </a>
+                                      </div>
+                                      <div className="relative w-full" style={{ height: "75vh", minHeight: "500px" }}>
+                                        <iframe
+                                          src={activeBook.file_url}
+                                          title={activeBook.title}
+                                          className="absolute inset-0 w-full h-full border-none"
+                                          style={{ background: "#f5f5f4" }}
+                                        />
+                                      </div>
+                                    </Card>
+                                  </div>
+                                );
+                              })()}
+                            </>
                           )}
                         </div>
                       )}
