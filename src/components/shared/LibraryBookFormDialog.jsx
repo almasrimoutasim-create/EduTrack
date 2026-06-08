@@ -10,6 +10,7 @@ import { useLanguage } from "@/lib/LanguageContext";
 import { FileUp, Loader2, Book } from "lucide-react";
 
 const grades = ["1","2","3","4","5","6","7","8","9","10","11","12"];
+const stages = ["ابتدائي", "متوسط", "ثانوي"];
 
 const generateCoverFromPDF = async (file) => {
   return new Promise((resolve, reject) => {
@@ -56,7 +57,7 @@ export default function LibraryBookFormDialog({ open, onClose, book }) {
   const [uploadError, setUploadError] = useState("");
 
   const [form, setForm] = useState(book || {
-    title: "", subject_name: "General", subject_code: "", grade: "1",
+    title: "", subject_name: "General", subject_code: "", grade: "1", stage: "",
     description: "", file_url: "", uploaded_by: "", thumbnail_url: "", subject_id: ""
   });
 
@@ -68,7 +69,7 @@ export default function LibraryBookFormDialog({ open, onClose, book }) {
 
   useEffect(() => {
     setForm(book || {
-      title: "", subject_name: "General", subject_code: "", grade: "1",
+      title: "", subject_name: "General", subject_code: "", grade: "1", stage: "",
       description: "", file_url: "", uploaded_by: "", thumbnail_url: "", subject_id: ""
     });
     setUploadError("");
@@ -134,7 +135,7 @@ export default function LibraryBookFormDialog({ open, onClose, book }) {
       const reader = new FileReader();
       reader.onload = async (event) => {
         try {
-          const pdfBase64 = event.target.result.split(",")[1];
+          const pdfBase64 = /** @type {string} */ (event.target.result).split(",")[1];
           const uploadRes = await fetch("/neon-db/upload", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -194,6 +195,8 @@ export default function LibraryBookFormDialog({ open, onClose, book }) {
     subjectCode: isRTL ? "رمز المادة" : "Subject Code",
     grade: isRTL ? "الصف" : "Grade",
     gradeItem: (g) => isRTL ? `الصف ${g}` : `Grade ${g}`,
+    stage: isRTL ? "المرحلة الدراسية" : "Academic Stage",
+    stagePlaceholder: isRTL ? "اختر مرحلة..." : "Select stage...",
     fileUrl: isRTL ? "ملف الكتاب (PDF) *" : "Book File (PDF) *",
     description: isRTL ? "وصف الكتاب" : "Description",
     uploadedBy: isRTL ? "تم الرفع بواسطة" : "Uploaded By",
@@ -301,14 +304,26 @@ export default function LibraryBookFormDialog({ open, onClose, book }) {
             </div>
           </div>
 
-          <div>
-            <Label className="text-stone-700 font-semibold">{t.grade}</Label>
-            <Select value={form.grade || "1"} onValueChange={v => update("grade", v)}>
-              <SelectTrigger className="mt-1 rounded-lg border-stone-200"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {grades.map(g => <SelectItem key={g} value={g}>{t.gradeItem(g)}</SelectItem>)}
-              </SelectContent>
-            </Select>
+          {/* المرحلة والصف */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label className="text-stone-700 font-semibold">{t.stage}</Label>
+              <Select value={form.stage || ""} onValueChange={v => update("stage", v)}>
+                <SelectTrigger className="mt-1 rounded-lg border-stone-200"><SelectValue placeholder={t.stagePlaceholder} /></SelectTrigger>
+                <SelectContent>
+                  {stages.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-stone-700 font-semibold">{t.grade}</Label>
+              <Select value={form.grade || "1"} onValueChange={v => update("grade", v)}>
+                <SelectTrigger className="mt-1 rounded-lg border-stone-200"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {grades.map(g => <SelectItem key={g} value={g}>{t.gradeItem(g)}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div>

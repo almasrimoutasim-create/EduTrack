@@ -4,14 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { 
   Book, 
   Search, 
-  Filter, 
   Plus, 
-  Bookmark, 
-  User, 
-  Layers,
-  History,
-  CheckCircle2,
-  Clock,
   MoreVertical,
   Edit2,
   Trash2
@@ -41,6 +34,8 @@ export default function Library() {
   const [searchTerm, setSearchTerm] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedBook, setSelectedBook] = useState(null);
+  const [gradeFilter, setGradeFilter] = useState("all");
+  const [stageFilter, setStageFilter] = useState("all");
 
   const { data: books = [], isLoading } = useQuery({ 
     queryKey: ["library-books"], 
@@ -48,10 +43,18 @@ export default function Library() {
     queryFn: () => base44.entities.LibraryBook.list("-created_at", {}, 50) 
   });
 
-  const filteredBooks = books.filter(book => 
-    book.title?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    book.author?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const availableGrades = [...new Set(books.map(b => b.grade).filter(Boolean))].sort((a, b) => parseInt(a) - parseInt(b));
+  const availableStages = [...new Set(books.map(b => b.stage).filter(Boolean))];
+
+  const filteredBooks = books.filter(book => {
+    const matchSearch =
+      book.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      book.author?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      book.category?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchGrade = gradeFilter === "all" || book.grade === gradeFilter;
+    const matchStage = stageFilter === "all" || book.stage === stageFilter;
+    return matchSearch && matchGrade && matchStage;
+  });
 
   const handleAdd = () => {
     setSelectedBook(null);
@@ -78,41 +81,28 @@ export default function Library() {
         title={t("common.library", language)} 
         subtitle={isRTL ? "استكشف مجموعة واسعة من الكتب والموارد المعرفية" : "Explore a vast collection of books and knowledge resources"}
       >
-        <div className="flex gap-3">
-          <button className={`${btnOutline} h-11 px-5`}>
-            <History size={18} />
-            <span>{isRTL ? "سجل الاستعارة" : "Lending History"}</span>
-          </button>
-          <button onClick={handleAdd} className={`${btnPrimary} h-11 px-5`}>
-            <Plus size={18} />
-            <span>{isRTL ? "إضافة كتاب جديد" : "Add New Book"}</span>
-          </button>
-        </div>
+        <button onClick={handleAdd} className={`${btnPrimary} h-11 px-5`}>
+          <Plus size={18} />
+          <span>{isRTL ? "إضافة كتاب جديد" : "Add New Book"}</span>
+        </button>
       </PageHeader>
 
       {/* Library Stats Section */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {[
-          { label: isRTL ? "إجمالي الكتب" : "Total Books", value: books.length, icon: Book, color: "text-primary", bg: "bg-primary/10" },
-          { label: isRTL ? "كتب مستعارة" : "Borrowed Books", value: 42, icon: Clock, color: "text-blue-600", bg: "bg-blue-50" },
-          { label: isRTL ? "الفئات" : "Categories", value: 15, icon: Layers, color: "text-emerald-600", bg: "bg-emerald-50" },
-        ].map((stat, i) => (
-          <Card key={i} className="p-5 border shadow-sm bg-white rounded-xl flex items-center gap-5">
-            <div className={`h-14 w-14 rounded-xl ${stat.bg} flex items-center justify-center ${stat.color}`}>
-              <stat.icon size={28} />
-            </div>
-            <div>
-              <p className="text-stone-400 text-[10px] font-semibold uppercase tracking-wide mb-0.5">{stat.label}</p>
-              <h4 className="text-2xl font-bold text-stone-900 num-en">{stat.value}</h4>
-            </div>
-          </Card>
-        ))}
-      </div>
+      <Card className="p-5 border shadow-sm bg-white rounded-xl flex items-center gap-5 w-fit">
+        <div className="h-14 w-14 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+          <Book size={28} />
+        </div>
+        <div>
+          <p className="text-stone-400 text-[10px] font-semibold uppercase tracking-wide mb-0.5">{isRTL ? "إجمالي الكتب" : "Total Books"}</p>
+          <h4 className="text-2xl font-bold text-stone-900 num-en">{books.length}</h4>
+        </div>
+      </Card>
 
       {/* Search & Collection */}
       <section className="space-y-6">
-        <div className="flex flex-col md:flex-row items-center gap-4">
-          <Card className="flex-1 w-full p-2 border shadow-sm bg-white rounded-xl">
+        <div className="space-y-4">
+          {/* شريط البحث */}
+          <Card className="w-full p-2 border shadow-sm bg-white rounded-xl">
             <div className="relative">
               <Search className={`absolute ${isRTL ? 'right-4' : 'left-4'} top-1/2 -translate-y-1/2 text-stone-400`} size={18} />
               <Input 
@@ -124,15 +114,92 @@ export default function Library() {
               />
             </div>
           </Card>
-          <div className="flex gap-2 w-full md:w-auto">
-            <button className={`${btnOutline} h-12 px-5`}>
-              <Filter size={18} />
-              <span>{isRTL ? "تصفية" : "Filter"}</span>
-            </button>
-            <button className={`${btnOutline} h-12 px-5`}>
-              <Bookmark size={18} />
-              <span>{isRTL ? "المحفوظات" : "Saved"}</span>
-            </button>
+
+          {/* شريط الفلاتر */}
+          <div className="flex flex-wrap gap-2 items-center">
+            {/* فلتر المرحلة */}
+            {availableStages.length > 0 && (
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-bold text-stone-500">{isRTL ? "المرحلة:" : "Stage:"}</span>
+                <div className="flex gap-1.5">
+                  <button
+                    onClick={() => setStageFilter("all")}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      stageFilter === "all"
+                        ? "bg-stone-900 text-white"
+                        : "bg-stone-100 text-stone-600 hover:bg-stone-200"
+                    }`}
+                  >
+                    {isRTL ? "الكل" : "All"}
+                  </button>
+                  {availableStages.map(stage => (
+                    <button
+                      key={stage}
+                      onClick={() => setStageFilter(stage)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        stageFilter === stage
+                          ? "bg-stone-900 text-white"
+                          : "bg-stone-100 text-stone-600 hover:bg-stone-200"
+                      }`}
+                    >
+                      {stage}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* فاصل */}
+            {availableStages.length > 0 && availableGrades.length > 0 && (
+              <div className="h-5 w-px bg-stone-200" />
+            )}
+
+            {/* فلتر الصف */}
+            {availableGrades.length > 0 && (
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-bold text-stone-500">{isRTL ? "الصف:" : "Grade:"}</span>
+                <div className="flex gap-1.5 flex-wrap">
+                  <button
+                    onClick={() => setGradeFilter("all")}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      gradeFilter === "all"
+                        ? "bg-primary text-white"
+                        : "bg-stone-100 text-stone-600 hover:bg-stone-200"
+                    }`}
+                  >
+                    {isRTL ? "الكل" : "All"}
+                  </button>
+                  {availableGrades.map(grade => (
+                    <button
+                      key={grade}
+                      onClick={() => setGradeFilter(grade)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        gradeFilter === grade
+                          ? "bg-primary text-white"
+                          : "bg-stone-100 text-stone-600 hover:bg-stone-200"
+                      }`}
+                    >
+                      {grade}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* عداد النتائج وزر مسح الفلاتر */}
+            {(gradeFilter !== "all" || stageFilter !== "all" || searchTerm) && (
+              <div className="flex items-center gap-2 mr-auto">
+                <Badge className="bg-stone-100 text-stone-600 border-none rounded-lg text-xs font-bold">
+                  {filteredBooks.length} {isRTL ? "كتاب" : "books"}
+                </Badge>
+                <button
+                  onClick={() => { setGradeFilter("all"); setStageFilter("all"); setSearchTerm(""); }}
+                  className="text-xs font-bold text-rose-500 hover:text-rose-600 cursor-pointer"
+                >
+                  {isRTL ? "مسح الفلاتر" : "Clear filters"}
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -197,21 +264,31 @@ export default function Library() {
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
-                      {book.status === 'available' && (
-                        <div className={`absolute bottom-5 ${isRTL ? 'left-5' : 'right-5'} bg-emerald-500 text-white h-9 w-9 rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/30`}>
-                          <CheckCircle2 size={18} />
-                        </div>
-                      )}
+
                     </div>
 
                     <div className="p-6 flex-1 flex flex-col">
                       <h5 className="text-lg font-bold text-stone-900 mb-1.5 leading-tight group-hover:text-primary transition-colors">
                         {book.title}
                       </h5>
-                      <div className="flex items-center gap-2 text-stone-400 mb-5">
-                        <User size={14} />
+                      <div className="flex items-center gap-2 text-stone-400 mb-3">
                         <span className="text-xs font-semibold">{book.author || (isRTL ? "مؤلف مجهول" : "Unknown Author")}</span>
                       </div>
+                      {/* badges الصف والمرحلة */}
+                      {(book.stage || book.grade) && (
+                        <div className="flex gap-1.5 flex-wrap mb-4">
+                          {book.stage && (
+                            <Badge className="bg-blue-50 text-blue-700 border-none rounded-lg text-[10px] font-bold px-2 py-0.5">
+                              {book.stage}
+                            </Badge>
+                          )}
+                          {book.grade && (
+                            <Badge className="bg-emerald-50 text-emerald-700 border-none rounded-lg text-[10px] font-bold px-2 py-0.5">
+                              {isRTL ? `الصف ${book.grade}` : `Grade ${book.grade}`}
+                            </Badge>
+                          )}
+                        </div>
+                      )}
 
                       <div className="mt-auto space-y-3">
                         <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wide">
@@ -219,19 +296,14 @@ export default function Library() {
                           <span className="text-stone-600 num-en">{book.subject_code || 'GEN-100'}</span>
                         </div>
                         <div className="h-px bg-stone-100" />
-                        <div className="flex gap-2">
-                          <a 
-                            href={book.file_url} 
-                            target="_blank" 
-                            rel="noopener noreferrer" 
-                            className={`flex-1 ${btnPrimary.split(' ').filter(c => !c.includes('shadow')).join(' ')} h-11 text-center justify-center items-center`}
-                          >
-                            {isRTL ? "تحميل PDF" : "Download PDF"}
-                          </a>
-                          <button className={`${btnOutline} h-11 w-11 p-0`}>
-                            <Bookmark size={16} />
-                          </button>
-                        </div>
+                        <a 
+                          href={book.file_url} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className={`${btnPrimary.split(' ').filter(c => !c.includes('shadow')).join(' ')} w-full h-11 text-center justify-center items-center`}
+                        >
+                          {isRTL ? "تحميل PDF" : "Download PDF"}
+                        </a>
                       </div>
                     </div>
                   </Card>
