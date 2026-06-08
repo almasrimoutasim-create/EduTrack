@@ -52,7 +52,7 @@ export default function Schedules() {
   // Fetch all class schedules
   const { data: schedules = [], isLoading } = useQuery({
     queryKey: ["class-schedules"],
-    queryFn: () => base44.entities.ClassSchedule.list()
+    queryFn: () => base44.entities.ClassSchedule.list("-created_at", 1000)
   });
 
   // Create schedule mutation
