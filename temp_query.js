@@ -10,10 +10,10 @@ async function run() {
     const columns = await sql.query(`
       SELECT column_name, data_type 
       FROM information_schema.columns 
-      WHERE table_schema = 'public' AND table_name = 'student_awards'
+      WHERE table_schema = 'public' AND table_name = 'class_schedules'
       ORDER BY ordinal_position;
     `);
-    console.log('--- STUDENT AWARDS COLUMNS ---');
+    console.log('--- CLASS SCHEDULES COLUMNS ---');
     console.log(columns.map(c => `${c.column_name} (${c.data_type})`));
   } catch (err) {
     console.error('Error:', err.message);

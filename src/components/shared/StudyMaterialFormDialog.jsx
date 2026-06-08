@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { base44 } from "@/api/base44Client";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 const types = [
   { value: "document", label: "Document" },
@@ -25,6 +25,11 @@ export default function StudyMaterialFormDialog({ open, onClose, material }) {
     title: "", subject_name: "", grade: "", type: "document",
     content: "", file_url: "", external_url: "",
     teacher_name: "", description: "", is_published: true
+  });
+
+  const { data: subjects = [] } = useQuery({
+    queryKey: ["subjects-list"],
+    queryFn: () => base44.entities.Subject.list()
   });
 
   useEffect(() => {
@@ -68,7 +73,31 @@ export default function StudyMaterialFormDialog({ open, onClose, material }) {
           <div className="grid grid-cols-3 gap-4">
             <div>
               <Label>Subject *</Label>
-              <Input value={form.subject_name} onChange={e => update("subject_name", e.target.value)} />
+              {(() => {
+                const filteredSubjects = form.grade 
+                  ? subjects.filter(s => s.grade === form.grade)
+                  : subjects;
+                const subjectsToDisplay = filteredSubjects.length > 0 ? filteredSubjects : subjects;
+                const uniqueSubjectNames = [...new Set(subjectsToDisplay.map(s => s.name))];
+
+                return (
+                  <Select value={form.subject_name} onValueChange={v => {
+                    const subObj = subjects.find(s => s.name === v);
+                    setForm(f => ({
+                      ...f,
+                      subject_name: v,
+                      subject_id: subObj?.id || f.subject_id
+                    }));
+                  }}>
+                    <SelectTrigger><SelectValue placeholder="Subject" /></SelectTrigger>
+                    <SelectContent>
+                      {uniqueSubjectNames.map(name => (
+                        <SelectItem key={name} value={name}>{name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                );
+              })()}
             </div>
             <div>
               <Label>Grade *</Label>

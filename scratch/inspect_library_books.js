@@ -1,0 +1,32 @@
+import { neon } from '../server/db_compat.js';
+import dotenv from 'dotenv';
+dotenv.config();
+
+async function run() {
+  const url = process.env.DATABASE_URL;
+  if (!url) {
+    console.error('DATABASE_URL is not set!');
+    return;
+  }
+  const sql = neon(url);
+  try {
+    console.log('--- TABLES ---');
+    const tables = await sql`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public';
+    `;
+    console.log(tables.map(t => t.table_name));
+
+    console.log('--- LIBRARY_BOOKS COLUMNS ---');
+    const cols = await sql`
+      SELECT column_name, data_type 
+      FROM information_schema.columns 
+      WHERE table_name = 'library_books';
+    `;
+    console.log(cols);
+  } catch (err) {
+    console.error('Error:', err);
+  }
+}
+run();

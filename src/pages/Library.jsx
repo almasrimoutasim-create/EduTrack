@@ -159,11 +159,15 @@ export default function Library() {
                   className="group"
                 >
                   <Card className="p-0 border shadow-sm hover:shadow-lg transition-all duration-300 rounded-2xl bg-white overflow-hidden h-full flex flex-col">
-                    {/* Book Cover Placeholder */}
-                    <div className="h-56 bg-gradient-to-br from-stone-100 to-stone-200 relative overflow-hidden group-hover:scale-105 transition-transform duration-500">
-                      <div className="absolute inset-0 flex items-center justify-center text-stone-300">
-                        <Book size={64} className="group-hover:scale-110 transition-transform duration-500 opacity-20" />
-                      </div>
+                    {/* Book Cover */}
+                    <div className="h-56 bg-gradient-to-br from-stone-100 to-stone-200 relative overflow-hidden group-hover:scale-105 transition-transform duration-500 flex items-center justify-center">
+                      {book.thumbnail_url ? (
+                        <img src={book.thumbnail_url} alt={book.title} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="absolute inset-0 flex items-center justify-center text-stone-300">
+                          <Book size={64} className="group-hover:scale-110 transition-transform duration-500 opacity-20" />
+                        </div>
+                      )}
                       <div className={`absolute top-5 ${isRTL ? 'left-5' : 'right-5'} flex items-center gap-1.5 z-10`}>
                         <Badge className="bg-white/90 backdrop-blur-md text-stone-900 border-none rounded-lg font-bold text-[10px] px-2.5 py-1 shadow-md">
                           {book.subject_name || (isRTL ? "عام" : "General")}
@@ -211,14 +215,19 @@ export default function Library() {
 
                       <div className="mt-auto space-y-3">
                         <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wide">
-                          <span className="text-stone-300">{isRTL ? "الموقع" : "Location"}</span>
-                          <span className="text-stone-600 num-en">{book.location || 'A-12'}</span>
+                          <span className="text-stone-300">{isRTL ? "المادة" : "Subject"}</span>
+                          <span className="text-stone-600 num-en">{book.subject_code || 'GEN-100'}</span>
                         </div>
                         <div className="h-px bg-stone-100" />
                         <div className="flex gap-2">
-                          <button className={`flex-1 ${btnPrimary.split(' ').filter(c => !c.includes('shadow')).join(' ')} h-11`}>
-                            {isRTL ? "استعارة" : "Borrow"}
-                          </button>
+                          <a 
+                            href={book.file_url} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className={`flex-1 ${btnPrimary.split(' ').filter(c => !c.includes('shadow')).join(' ')} h-11 text-center justify-center items-center`}
+                          >
+                            {isRTL ? "تحميل PDF" : "Download PDF"}
+                          </a>
                           <button className={`${btnOutline} h-11 w-11 p-0`}>
                             <Bookmark size={16} />
                           </button>

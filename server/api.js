@@ -229,6 +229,17 @@ if (process.env.DATABASE_URL) {
   }).catch(err => {
     console.error('[neon] failed to alter donations table:', err.message);
   });
+
+  // Alter library_books table to add thumbnail_url and subject_id columns
+  sql`
+    ALTER TABLE library_books
+    ADD COLUMN IF NOT EXISTS thumbnail_url TEXT,
+    ADD COLUMN IF NOT EXISTS subject_id UUID;
+  `.then(() => {
+    console.log('[neon] library_books table altered successfully');
+  }).catch(err => {
+    console.error('[neon] failed to alter library_books table:', err.message);
+  });
 }
 
 // Map entity names to table names
@@ -353,6 +364,43 @@ async function dbQuery(queryStr, params = []) {
 
 export function createApiHandler() {
   return async (req, res, next) => {
+    // Intercept file upload endpoint
+    if (req.url === '/neon-db/upload' && req.method === 'POST') {
+      res.setHeader('Content-Type', 'application/json');
+      try {
+        const body = await parseBody(req);
+        const { fileName, fileData } = body;
+        if (!fileName || !fileData) {
+          res.statusCode = 400;
+          return res.end(JSON.stringify({ error: 'fileName and fileData are required' }));
+        }
+
+        // Decode base64
+        const buffer = Buffer.from(fileData, 'base64');
+        
+        // Ensure folder public/uploads exists
+        const fs = await import('fs');
+        const path = await import('path');
+        const uploadDir = path.join(process.cwd(), 'public', 'uploads');
+        if (!fs.existsSync(uploadDir)) {
+          fs.mkdirSync(uploadDir, { recursive: true });
+        }
+
+        // Save file
+        const safeName = `${Date.now()}_${fileName.replace(/[^a-zA-Z0-9.\-_]/g, '_')}`;
+        const filePath = path.join(uploadDir, safeName);
+        fs.writeFileSync(filePath, buffer);
+
+        return res.end(JSON.stringify({
+          success: true,
+          fileUrl: `/uploads/${safeName}`
+        }));
+      } catch (error) {
+        res.statusCode = 500;
+        return res.end(JSON.stringify({ error: error.message }));
+      }
+    }
+
     // Intercept Stripe payment intent creation endpoint
     if (req.url === '/neon-db/payments/create-intent' && req.method === 'POST') {
       res.setHeader('Content-Type', 'application/json');

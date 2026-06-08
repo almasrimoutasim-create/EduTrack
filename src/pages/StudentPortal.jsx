@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
@@ -51,7 +51,10 @@ export default function StudentPortal() {
   const { logout } = useAuth();
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const view = searchParams.get("view");
+  const subjectIdParam = searchParams.get("subjectId");
+  const [activeSubjectTab, setActiveSubjectTab] = useState("lessons"); // 'lessons' | 'assignments' | 'exams'
   const [isSwiping, setIsSwiping] = React.useState(null); // null | "gate_in" | "gate_out"
 
   const handleGateSwipe = async (type) => {
@@ -119,9 +122,20 @@ export default function StudentPortal() {
     queryFn: () => base44.entities.Attendance.filter({ student_id: studentId }, "-date")
   });
 
+  const { data: allStudyMaterials = [] } = useQuery({
+    queryKey: ["student-all-study-materials"],
+    queryFn: () => base44.entities.StudyMaterial.list("-created_date", 200)
+  });
+
   const { data: materials = [] } = useQuery({
     queryKey: ["student-materials"],
     queryFn: () => base44.entities.StudyMaterial.list("-created_date", 4)
+  });
+
+  const { data: studentGrades = [] } = useQuery({
+    queryKey: ["student-portal-grades", student?.student_id || studentId],
+    queryFn: () => base44.entities.StudentGrade.filter({ student_id: student?.student_id || studentId }),
+    enabled: !!(student?.student_id || studentId)
   });
 
   const { data: studentSubjects = [] } = useQuery({
@@ -379,59 +393,368 @@ export default function StudentPortal() {
             </div>
           ) : view === "materials" ? (
             <div className="space-y-6">
-              <PageHeader 
-                title={isRTL ? "المواد الدراسية" : "Academic Subjects"} 
-                subtitle={isRTL ? `المواد الدراسية المقررة للصف الدراسي - الصف ${student.grade || ""}` : `Academic subjects allocated for Grade ${student.grade || ""}`}
-              >
-                <button onClick={() => window.location.href = "/student-portal"} className={`${btnOutline} h-11 px-5 rounded-xl`}>
-                  {isRTL ? "العودة للوحة التحكم" : "Back to Dashboard"}
-                </button>
-              </PageHeader>
+              {subjectIdParam ? (() => {
+                const decodedName = decodeURIComponent(subjectIdParam);
+                const selectedSubject = studentSubjects.find(s => s.id === subjectIdParam || s.name === decodedName);
+                
+                if (!selectedSubject) {
+                  return (
+                    <div className="text-center py-12">
+                      <p className="text-stone-500 font-bold">{isRTL ? "لم يتم العثور على المادة الدراسية." : "Subject not found."}</p>
+                      <button onClick={() => navigate("/student-portal?view=materials")} className={`${btnOutline} mt-4 px-4 h-10`}>
+                        {isRTL ? "العودة للمواد الدراسية" : "Back to Subjects"}
+                      </button>
+                    </div>
+                  );
+                }
 
-              {studentSubjects.length === 0 ? (
-                <Card className="p-12 text-center bg-stone-50 border border-dashed border-stone-200 rounded-3xl">
-                  <BookOpen className="h-8 w-8 text-stone-300 mx-auto mb-2" />
-                  <p className="text-stone-400 text-xs font-bold">{isRTL ? "لا توجد مواد مخصصة لصفك الدراسي حالياً." : "No subjects assigned for your grade currently."}</p>
-                </Card>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {studentSubjects.map((subject, idx) => (
-                    <motion.div
-                      key={subject.id || idx}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.05 * idx }}
-                    >
-                      <Card className="p-6 bg-white border-none shadow-sm rounded-3xl hover:shadow-md transition-shadow relative overflow-hidden group">
-                        <div className="flex items-center gap-4">
-                          <div className="h-12 w-12 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center shrink-0">
-                            <BookOpen size={24} />
+                // Filter data
+                const subjectMaterials = allStudyMaterials.filter(m => 
+                  m.subject_id === selectedSubject.id || 
+                  m.subject_name?.toLowerCase() === selectedSubject.name?.toLowerCase()
+                );
+
+                const subjectTasks = studentTasks.filter(t => 
+                  t.subject_id === selectedSubject.id || 
+                  t.subject_name?.toLowerCase() === selectedSubject.name?.toLowerCase()
+                );
+
+                const subjectLocalStorageAsms = assignments.filter(a => 
+                  a.subject?.toLowerCase() === selectedSubject.name?.toLowerCase()
+                );
+
+                const subjectGradesList = studentGrades.filter(g => 
+                  g.subject_name?.toLowerCase().includes(selectedSubject.name?.toLowerCase())
+                );
+
+                const getFileIcon = (type) => {
+                  const t = type?.toLowerCase();
+                  if (t?.includes("pdf") || t?.includes("doc")) return { icon: FileText, color: "text-rose-500", bg: "bg-rose-50" };
+                  if (t?.includes("video") || t?.includes("mp4")) return { icon: PlayCircle, color: "text-blue-500", bg: "bg-blue-50" };
+                  return { icon: BookOpen, color: "text-teal-650", bg: "bg-teal-50" };
+                };
+
+                return (
+                  <div className="space-y-6">
+                    {/* Header */}
+                    <div className="flex items-center justify-between">
+                      <button 
+                        onClick={() => navigate("/student-portal?view=materials")} 
+                        className={`${btnOutline} h-10 px-4 rounded-xl flex items-center gap-1.5`}
+                      >
+                        <ChevronLeft size={16} className={isRTL ? "rotate-180" : ""} />
+                        <span>{isRTL ? "العودة للمواد" : "Back to Subjects"}</span>
+                      </button>
+                      
+                      <Badge className="bg-teal-50 text-teal-600 border-none font-bold text-xs px-3 py-1 rounded-xl">
+                        {isRTL ? "الصف" : "Grade"} {selectedSubject.grade}
+                      </Badge>
+                    </div>
+
+                    {/* Subject Card Banner */}
+                    <div className="relative p-8 bg-gradient-to-br from-teal-600 via-teal-700 to-emerald-700 text-white rounded-[32px] shadow-xl overflow-hidden">
+                      <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl" />
+                      <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                        <div className="flex items-center gap-5">
+                          <div className="h-16 w-16 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/10 shrink-0">
+                            <BookOpen size={32} className="text-white" />
                           </div>
                           <div>
-                            <h4 className="font-bold text-stone-900 text-lg leading-tight">{subject.name}</h4>
-                            <p className="text-stone-400 text-xs font-semibold mt-1">
-                              {isRTL ? `كود المادة: ${subject.code || "—"}` : `Code: ${subject.code || "—"}`}
+                            <h2 className="text-2xl md:text-3xl font-serif font-black tracking-tight">{selectedSubject.name}</h2>
+                            <p className="text-teal-100 text-xs font-semibold mt-1">
+                              {isRTL ? `كود المادة: ${selectedSubject.code || "—"}` : `Subject Code: ${selectedSubject.code || "—"}`}
                             </p>
                           </div>
                         </div>
-
-                        <div className="mt-6 pt-4 border-t border-stone-50 flex justify-between items-center text-xs">
-                          <div>
-                            <p className="text-stone-400 font-bold uppercase tracking-wider text-[9px]">
-                              {isRTL ? "معلم المادة" : "Teacher"}
-                            </p>
-                            <p className="text-stone-750 font-bold mt-0.5">
-                              {subject.teacher_name || (isRTL ? "غير محدد" : "Not Assigned")}
-                            </p>
-                          </div>
-                          <Badge className="bg-stone-50 border-none text-stone-500 font-black px-2 py-0.5 rounded-lg text-[9px] uppercase tracking-wider num-en">
-                            {isRTL ? "الصف" : "Grade"} {subject.grade}
-                          </Badge>
+                        <div className="text-left md:text-right">
+                          <p className="text-teal-200 font-bold uppercase tracking-widest text-[9px]">{isRTL ? "معلم المادة" : "Responsible Teacher"}</p>
+                          <p className="text-lg font-serif font-black mt-0.5">{selectedSubject.teacher_name || (isRTL ? "لم يتم التحديد" : "Not Assigned")}</p>
                         </div>
-                      </Card>
-                    </motion.div>
-                  ))}
-                </div>
+                      </div>
+                    </div>
+
+                    {/* Tab Navigation */}
+                    <div className="flex border-b border-stone-200">
+                      {[
+                        { id: "lessons", label: isRTL ? "📚 الدروس اليومية" : "📚 Daily Lessons", count: subjectMaterials.length },
+                        { id: "assignments", label: isRTL ? "📝 الواجبات" : "📝 Assignments", count: subjectTasks.length + subjectLocalStorageAsms.length },
+                        { id: "exams", label: isRTL ? "🏆 الاختبارات والدرجات" : "🏆 Exams & Grades", count: subjectGradesList.length }
+                      ].map(tab => (
+                        <button
+                          key={tab.id}
+                          onClick={() => setActiveSubjectTab(tab.id)}
+                          className={`py-3 px-6 text-sm font-bold border-b-2 transition-all relative ${
+                            activeSubjectTab === tab.id 
+                              ? "border-teal-600 text-teal-600" 
+                              : "border-transparent text-stone-500 hover:text-stone-850"
+                          }`}
+                        >
+                          <span className="flex items-center gap-1.5">
+                            {tab.label}
+                            <Badge className={`border-none rounded-lg text-[9px] px-1.5 py-0.5 leading-none ${
+                              activeSubjectTab === tab.id ? "bg-teal-100 text-teal-700" : "bg-stone-100 text-stone-500"
+                            }`}>
+                              {tab.count}
+                            </Badge>
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Tab Content */}
+                    <div className="pt-2">
+                      {activeSubjectTab === "lessons" && (
+                        <div className="space-y-4">
+                          {subjectMaterials.length === 0 ? (
+                            <Card className="p-16 text-center border-dashed border-2 border-stone-200 bg-stone-50/50 text-stone-400 rounded-[30px]">
+                              <BookOpen size={40} className="mb-3 opacity-20 mx-auto" />
+                              <p className="font-bold text-sm">{isRTL ? "لا توجد مواد أو دروس مرفوعة حالياً." : "No study materials or daily lessons uploaded yet."}</p>
+                            </Card>
+                          ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {subjectMaterials.map(mat => {
+                                const style = getFileIcon(mat.type);
+                                return (
+                                  <Card key={mat.id} className="p-5 bg-white border-none shadow-sm rounded-2xl flex items-center justify-between hover:shadow-md transition-shadow">
+                                    <div className="flex items-center gap-4 min-w-0">
+                                      <div className={`h-11 w-11 rounded-xl ${style.bg} ${style.color} flex items-center justify-center shrink-0`}>
+                                        <style.icon size={20} />
+                                      </div>
+                                      <div className="min-w-0">
+                                        <h4 className="font-bold text-stone-850 text-sm truncate">{mat.title}</h4>
+                                        <p className="text-[10px] text-stone-400 font-bold mt-0.5">
+                                          {isRTL ? "تم الرفع بتاريخ: " : "Uploaded: "}
+                                          <span className="num-en">{mat.created_date ? new Date(mat.created_date).toLocaleDateString(isRTL ? "ar-EG" : "en-US") : ""}</span>
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <a 
+                                      href={mat.file_url || "#"} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer"
+                                      className={`${btnOutline} h-9 px-4 rounded-xl text-xs gap-1.5`}
+                                    >
+                                      {isRTL ? "عرض الملف 📥" : "View File 📥"}
+                                    </a>
+                                  </Card>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {activeSubjectTab === "assignments" && (
+                        <div className="space-y-4">
+                          {/* Live/Database Tasks */}
+                          {subjectTasks.length > 0 && (
+                            <div className="space-y-3">
+                              <h4 className="text-xs font-bold text-stone-400 uppercase tracking-widest px-1">
+                                {isRTL ? "المهام والأنشطة المقررة" : "Scheduled Tasks & Assignments"}
+                              </h4>
+                              {subjectTasks.map(task => (
+                                <Card key={task.id} className="p-5 bg-white border-none shadow-sm rounded-2xl flex items-center justify-between hover:shadow-md transition-shadow">
+                                  <div className="flex items-center gap-4">
+                                    <div className="h-11 w-11 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
+                                      <FileText size={20} />
+                                    </div>
+                                    <div>
+                                      <h5 className="font-bold text-stone-850 text-sm">{task.title}</h5>
+                                      <p className="text-[10px] text-rose-500 font-bold mt-0.5 flex items-center gap-1">
+                                        <Clock size={10} /> {isRTL ? "تاريخ التسليم:" : "Due Date:"} <span className="num-en">{task.due_date}</span>
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <Badge className="bg-stone-50 border-none text-stone-500 font-bold text-[10px] px-2.5 py-1 rounded-lg">
+                                    {task.points || 10} {isRTL ? "درجات" : "points"}
+                                  </Badge>
+                                </Card>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Local Storage Interactive Assignments */}
+                          <div className="space-y-3">
+                            <h4 className="text-xs font-bold text-stone-400 uppercase tracking-widest px-1">
+                              {isRTL ? "الواجبات التفاعلية والمنزلية" : "Interactive Homework"}
+                            </h4>
+                            
+                            {(() => {
+                              const savedSubmissions = localStorage.getItem("edu_submissions") ? JSON.parse(localStorage.getItem("edu_submissions")) : {};
+                              const studentIdVal = localStorage.getItem("portal_user_id") || "STU-882";
+                              const totalSubjHomeworkCount = subjectLocalStorageAsms.length;
+                              const completedSubjCount = subjectLocalStorageAsms.filter(task => {
+                                const asmSubs = savedSubmissions[task.id] || [];
+                                return asmSubs.some(s => s.studentId === studentIdVal);
+                              }).length;
+                              const subjProgressPct = totalSubjHomeworkCount > 0 ? Math.round((completedSubjCount / totalSubjHomeworkCount) * 100) : 0;
+
+                              return totalSubjHomeworkCount > 0 && (
+                                <Card className="p-5 bg-gradient-to-r from-teal-50 to-emerald-50 border border-teal-100 rounded-2xl mb-4">
+                                  <div className="flex justify-between items-center mb-2">
+                                    <div>
+                                      <h5 className="text-xs font-bold text-teal-800">{isRTL ? "معدل إنجاز الواجبات التفاعلية للمادة" : "Subject Homework Progress"}</h5>
+                                      <p className="text-[10px] text-stone-500 mt-0.5">{isRTL ? `تم تسليم ${completedSubjCount} من أصل ${totalSubjHomeworkCount} واجب` : `Submitted ${completedSubjCount} of ${totalSubjHomeworkCount} homeworks`}</p>
+                                    </div>
+                                    <span className="text-sm font-black text-teal-650 num-en">{subjProgressPct}%</span>
+                                  </div>
+                                  <div className="h-2 bg-stone-200/60 rounded-full overflow-hidden">
+                                    <div className="h-full bg-teal-600 rounded-full transition-all duration-500" style={{ width: `${subjProgressPct}%` }} />
+                                  </div>
+                                </Card>
+                              );
+                            })()}
+
+                            {subjectLocalStorageAsms.length === 0 && subjectTasks.length === 0 ? (
+                              <Card className="p-16 text-center border-dashed border-2 border-stone-200 bg-stone-50/50 text-stone-400 rounded-[30px]">
+                                <FileText size={40} className="mb-3 opacity-20 mx-auto" />
+                                <p className="font-bold text-sm">{isRTL ? "لا توجد واجبات للمادة حالياً." : "No homework set for this subject yet."}</p>
+                              </Card>
+                            ) : (
+                              subjectLocalStorageAsms.map(task => {
+                                const savedSubmissions = localStorage.getItem("edu_submissions");
+                                const submissions = savedSubmissions ? JSON.parse(savedSubmissions) : {};
+                                const asmSubs = submissions[task.id] || [];
+                                const studentIdVal = localStorage.getItem("portal_user_id") || "STU-882";
+                                const isDone = asmSubs.some(s => s.studentId === studentIdVal);
+                                const submission = asmSubs.find(s => s.studentId === studentIdVal);
+
+                                return (
+                                  <Card key={task.id} className="p-5 bg-white border-none shadow-sm rounded-2xl flex items-center justify-between hover:shadow-md transition-shadow">
+                                    <div className="flex items-center gap-4">
+                                      <div className={`h-11 w-11 rounded-xl ${isDone ? "bg-emerald-50 text-emerald-600" : "bg-teal-50 text-teal-600"} flex items-center justify-center shrink-0`}>
+                                        <FileText size={20} />
+                                      </div>
+                                      <div>
+                                        <h5 className="font-bold text-stone-850 text-sm">{task.title}</h5>
+                                        <p className="text-[10px] text-rose-500 font-bold mt-0.5 flex items-center gap-1">
+                                          <Clock size={10} /> {isRTL ? "تاريخ التسليم:" : "Due Date:"} <span className="num-en">{task.dueDate}</span>
+                                          {isDone && (
+                                            <>
+                                              <span className="h-1 w-1 rounded-full bg-stone-200 mx-1.5" />
+                                              <span className="text-emerald-600 font-bold">
+                                                {isRTL ? "تم التسليم" : "Submitted"}
+                                                {submission?.status === "graded" && ` (${submission.score}/${task.points})`}
+                                              </span>
+                                            </>
+                                          )}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <button
+                                      onClick={() => handleStartTask(task)}
+                                      disabled={isDone}
+                                      className={`rounded-xl h-9 px-4 text-xs font-bold transition-all border-none cursor-pointer ${
+                                        isDone 
+                                          ? "bg-emerald-50 text-emerald-600 cursor-default"
+                                          : "bg-stone-50 text-stone-900 hover:bg-stone-900 hover:text-white"
+                                      }`}
+                                    >
+                                      {isDone ? (isRTL ? "تم إنجازه" : "Completed") : (isRTL ? "حل الواجب" : "Solve")}
+                                    </button>
+                                  </Card>
+                                );
+                              })
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {activeSubjectTab === "exams" && (
+                        <div className="space-y-4">
+                          {subjectGradesList.length === 0 ? (
+                            <Card className="p-16 text-center border-dashed border-2 border-stone-200 bg-stone-50/50 text-stone-400 rounded-[30px]">
+                              <Trophy size={40} className="mb-3 opacity-20 mx-auto" />
+                              <p className="font-bold text-sm">{isRTL ? "لا توجد نتائج اختبارات مرصودة بعد." : "No exam grades recorded yet."}</p>
+                            </Card>
+                          ) : (
+                            <div className="space-y-3">
+                              {subjectGradesList.map(g => {
+                                const pct = Math.round((g.score / (g.max_score || 100)) * 100);
+                                return (
+                                  <Card key={g.id} className="p-5 bg-white border-none shadow-sm rounded-2xl">
+                                    <div className="flex items-center justify-between mb-3">
+                                      <div>
+                                        <h5 className="font-serif font-black text-stone-850 text-sm">{g.subject_name}</h5>
+                                        <p className="text-[10px] text-stone-400 font-bold mt-0.5 uppercase tracking-wide">{g.term}</p>
+                                      </div>
+                                      <div className="text-right">
+                                        <span className="font-mono font-bold text-sm text-stone-800 num-en">{g.score} / {g.max_score || 100}</span>
+                                        <Badge className={`mx-2 ${
+                                          pct >= 85 ? "bg-emerald-50 text-emerald-600" :
+                                          pct >= 70 ? "bg-blue-50 text-blue-600" :
+                                          pct >= 50 ? "bg-amber-50 text-amber-600" :
+                                          "bg-rose-50 text-rose-600"
+                                        } border-none font-black text-[9px] rounded-lg`}>
+                                          {g.grade_label || `${pct}%`}
+                                        </Badge>
+                                      </div>
+                                    </div>
+                                    <div className="h-1.5 bg-stone-100 rounded-full overflow-hidden">
+                                      <div className={`h-full rounded-full transition-all ${
+                                        pct >= 85 ? "bg-emerald-500" : pct >= 70 ? "bg-blue-500" : pct >= 50 ? "bg-amber-500" : "bg-rose-500"
+                                      }`} style={{ width: `${pct}%` }} />
+                                    </div>
+                                    {g.notes && <p className="text-[10px] text-stone-500 mt-2.5 italic bg-stone-50 p-2.5 rounded-lg font-medium">{g.notes}</p>}
+                                  </Card>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })() : (
+                <>
+                  {studentSubjects.length === 0 ? (
+                    <Card className="p-12 text-center bg-stone-50 border border-dashed border-stone-200 rounded-3xl">
+                      <BookOpen className="h-8 w-8 text-stone-300 mx-auto mb-2" />
+                      <p className="text-stone-400 text-xs font-bold">{isRTL ? "لا توجد مواد مخصصة لصفك الدراسي حالياً." : "No subjects assigned for your grade currently."}</p>
+                    </Card>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {studentSubjects.map((subject, idx) => (
+                        <motion.div
+                          key={subject.id || idx}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.05 * idx }}
+                          onClick={() => navigate(`/student-portal?view=materials&subjectId=${subject.id || encodeURIComponent(subject.name)}`)}
+                        >
+                          <Card className="p-6 bg-white border-none shadow-sm rounded-3xl hover:shadow-md transition-shadow relative overflow-hidden group cursor-pointer hover:border-teal-500 border border-transparent">
+                            <div className="flex items-center gap-4">
+                              <div className="h-12 w-12 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center shrink-0">
+                                <BookOpen size={24} />
+                              </div>
+                              <div>
+                                <h4 className="font-bold text-stone-900 text-lg leading-tight group-hover:text-teal-600 transition-colors">{subject.name}</h4>
+                                <p className="text-stone-400 text-xs font-semibold mt-1">
+                                  {isRTL ? `كود المادة: ${subject.code || "—"}` : `Code: ${subject.code || "—"}`}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="mt-6 pt-4 border-t border-stone-50 flex justify-between items-center text-xs">
+                              <div>
+                                <p className="text-stone-400 font-bold uppercase tracking-wider text-[9px]">
+                                  {isRTL ? "معلم المادة" : "Teacher"}
+                                </p>
+                                <p className="text-stone-750 font-bold mt-0.5">
+                                  {subject.teacher_name || (isRTL ? "غير محدد" : "Not Assigned")}
+                                </p>
+                              </div>
+                              <Badge className="bg-stone-50 border-none text-stone-500 font-black px-2 py-0.5 rounded-lg text-[9px] uppercase tracking-wider num-en">
+                                {isRTL ? "الصف" : "Grade"} {subject.grade}
+                              </Badge>
+                            </div>
+                          </Card>
+                        </motion.div>
+                      ))}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           ) : view === "badges" ? (
@@ -504,6 +827,32 @@ export default function StudentPortal() {
                 </button>
               </PageHeader>
               
+              {(() => {
+                const totalHomeworkCount = assignments.length;
+                const savedSubmissions = localStorage.getItem("edu_submissions") ? JSON.parse(localStorage.getItem("edu_submissions")) : {};
+                const studentIdVal = localStorage.getItem("portal_user_id") || "STU-882";
+                const completedCount = assignments.filter(task => {
+                  const asmSubs = savedSubmissions[task.id] || [];
+                  return asmSubs.some(s => s.studentId === studentIdVal);
+                }).length;
+                const progressPct = totalHomeworkCount > 0 ? Math.round((completedCount / totalHomeworkCount) * 100) : 0;
+
+                return totalHomeworkCount > 0 && (
+                  <Card className="p-6 bg-gradient-to-r from-teal-50 to-emerald-50 border border-teal-100 rounded-3xl mb-6 shadow-sm">
+                    <div className="flex justify-between items-center mb-2">
+                      <div>
+                        <h4 className="text-sm font-bold text-teal-950">{isRTL ? "معدل إنجاز الواجبات العام" : "General Homework Completion"}</h4>
+                        <p className="text-xs text-stone-500 mt-0.5">{isRTL ? `لقد أنجزت ${completedCount} واجب من أصل ${totalHomeworkCount}` : `You completed ${completedCount} out of ${totalHomeworkCount} assignments`}</p>
+                      </div>
+                      <span className="text-lg font-black text-teal-650 num-en">{progressPct}%</span>
+                    </div>
+                    <div className="h-3 bg-stone-200/60 rounded-full overflow-hidden">
+                      <div className="h-full bg-teal-600 rounded-full transition-all duration-500" style={{ width: `${progressPct}%` }} />
+                    </div>
+                  </Card>
+                );
+              })()}
+
               <div className="grid grid-cols-1 gap-4">
                 {assignments.length === 0 ? (
                   <Card className="p-8 text-center bg-stone-50 border border-dashed border-stone-200 rounded-3xl">

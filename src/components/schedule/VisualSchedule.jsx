@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { 
@@ -42,19 +43,20 @@ function getSubjectIcon(subjectName) {
 
 function getSubjectBadgeStyle(subjectName) {
   const name = subjectName || "";
-  if (name.includes("رياضيات")) return "bg-blue-50 text-blue-800 border-blue-200/60";
-  if (name.includes("عربي") || name.includes("العربية")) return "bg-orange-50 text-orange-800 border-orange-200/60";
-  if (name.includes("إنجليزي") || name.includes("الإنجليزية")) return "bg-purple-50 text-purple-800 border-purple-200/60";
-  if (name.includes("علوم") || name.includes("فيزياء") || name.includes("كيمياء") || name.includes("أحياء")) return "bg-emerald-50 text-emerald-800 border-emerald-200/60";
-  if (name.includes("تكنولوجيا") || name.includes("حاسوب") || name.includes("هندسية")) return "bg-cyan-50 text-cyan-800 border-cyan-200/60";
-  if (name.includes("تاريخ") || name.includes("جغرافيا")) return "bg-amber-50 text-amber-800 border-amber-200/60";
-  if (name.includes("إسلامية") || name.includes("التربية الاسلامية")) return "bg-rose-50 text-rose-800 border-rose-200/60";
-  if (name.includes("نشاط")) return "bg-teal-50 text-teal-800 border-teal-200/60";
-  if (name.includes("إشراف")) return "bg-stone-100 text-stone-700 border-stone-200";
-  return "bg-stone-50 text-stone-700 border-stone-200";
+  if (name.includes("رياضيات")) return "bg-blue-50 text-blue-800 border-blue-200/60 hover:bg-blue-100";
+  if (name.includes("عربي") || name.includes("العربية")) return "bg-orange-50 text-orange-800 border-orange-200/60 hover:bg-orange-100";
+  if (name.includes("إنجليزي") || name.includes("الإنجليزية")) return "bg-purple-50 text-purple-800 border-purple-200/60 hover:bg-purple-100";
+  if (name.includes("علوم") || name.includes("فيزياء") || name.includes("كيمياء") || name.includes("أحياء")) return "bg-emerald-50 text-emerald-800 border-emerald-200/60 hover:bg-emerald-100";
+  if (name.includes("تكنولوجيا") || name.includes("حاسوب") || name.includes("هندسية")) return "bg-cyan-50 text-cyan-800 border-cyan-200/60 hover:bg-cyan-100";
+  if (name.includes("تاريخ") || name.includes("جغرافيا")) return "bg-amber-50 text-amber-800 border-amber-200/60 hover:bg-amber-100";
+  if (name.includes("إسلامية") || name.includes("التربية الاسلامية")) return "bg-rose-50 text-rose-800 border-rose-200/60 hover:bg-rose-100";
+  if (name.includes("نشاط")) return "bg-teal-50 text-teal-800 border-teal-200/60 hover:bg-teal-100";
+  if (name.includes("إشراف")) return "bg-stone-100 text-stone-700 border-stone-200 hover:bg-stone-200";
+  return "bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100";
 }
 
 export default function VisualSchedule({ classes = [], tasks = [] }) {
+  const navigate = useNavigate();
   const isRTL = typeof document !== 'undefined' && (document.documentElement.dir === 'rtl' || document.documentElement.lang === 'ar');
   const today = new Date().toISOString().split("T")[0];
 
@@ -148,7 +150,10 @@ export default function VisualSchedule({ classes = [], tasks = [] }) {
                           <div key={cls.id || idx} className="truncate border-b border-dashed border-stone-305 flex items-center justify-between hover:text-stone-900 transition-colors h-[34px] px-1">
                             <span className="truncate flex items-center gap-1.5">
                               <span className="text-[10px] text-stone-450 font-black">{idx + 1}.</span>
-                              <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg border text-[11px] font-black leading-none shadow-sm ${getSubjectBadgeStyle(cls.subject_name)}`}>
+                              <span 
+                                onClick={() => navigate(`/student-portal?view=materials&subjectId=${cls.subject_id || encodeURIComponent(cls.subject_name)}`)}
+                                className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg border text-[11px] font-black leading-none shadow-sm cursor-pointer transition-all hover:scale-105 active:scale-95 ${getSubjectBadgeStyle(cls.subject_name)}`}
+                              >
                                 {getSubjectIcon(cls.subject_name)}
                                 <span>{cls.subject_name}</span>
                               </span>

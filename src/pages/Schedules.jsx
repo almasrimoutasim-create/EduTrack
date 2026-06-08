@@ -34,6 +34,8 @@ export default function Schedules() {
 
   const [selectedGrade, setSelectedGrade] = useState("1");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedClassBooks, setSelectedClassBooks] = useState(null);
+  const [booksDialogOpen, setBooksDialogOpen] = useState(false);
 
   // Form states
   const [dayOfWeek, setDayOfWeek] = useState("Sunday");
@@ -53,6 +55,12 @@ export default function Schedules() {
   const { data: schedules = [], isLoading } = useQuery({
     queryKey: ["class-schedules"],
     queryFn: () => base44.entities.ClassSchedule.list("-created_at", 1000)
+  });
+
+  // Fetch library books to link to schedules
+  const { data: books = [] } = useQuery({
+    queryKey: ["library-books"],
+    queryFn: () => base44.entities.LibraryBook.list("-created_at", 1000)
   });
 
   // Create schedule mutation
@@ -126,6 +134,7 @@ export default function Schedules() {
       start_time: startTime,
       end_time: endTime,
       room: room,
+      subject_id: selectedSub.id,
       subject_name: selectedSub.name,
       teacher_id: selectedSub.teacher_id || "",
       teacher_name: selectedSub.teacher_name || (isRTL ? "غير محدد" : "Not assigned")
@@ -190,14 +199,20 @@ export default function Schedules() {
                     <p className="text-[10px] font-bold text-stone-400">{isRTL ? "لا توجد حصص" : "No classes"}</p>
                   </div>
                 ) : (
-                  dayClasses.map(cls => (
-                    <motion.div
-                      key={cls.id}
-                      initial={{ scale: 0.95, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      className="group p-3 border border-stone-100 bg-stone-50 hover:bg-stone-100/50 rounded-2xl relative overflow-hidden transition-all duration-300"
-                    >
-                      <div className="absolute top-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                  dayClasses.map(cls => {
+                    const subjectBooks = books.filter(b => 
+                      (b.subject_id && b.subject_id === cls.subject_id) || 
+                      (b.subject_name && b.subject_name.toLowerCase() === cls.subject_name.toLowerCase())
+                    );
+
+                    return (
+                      <motion.div
+                        key={cls.id}
+                        initial={{ scale: 0.95, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        className="group p-3 border border-stone-100 bg-stone-50 hover:bg-stone-100/50 rounded-2xl relative overflow-hidden transition-all duration-300"
+                      >
+                        <div className="absolute top-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
                         <button
                           onClick={() => {
                             if (confirm(isRTL ? "هل تريد حذف هذه الحصة؟" : "Delete this class schedule?")) {
@@ -223,6 +238,19 @@ export default function Schedules() {
                           <span className="truncate">{cls.teacher_name}</span>
                         </div>
 
+                        {subjectBooks.length > 0 && (
+                          <button
+                            onClick={() => {
+                              setSelectedClassBooks({ subjectName: cls.subject_name, books: subjectBooks });
+                              setBooksDialogOpen(true);
+                            }}
+                            className="w-full flex items-center gap-1 mt-1 text-[9px] font-bold text-teal-650 bg-teal-50 hover:bg-teal-100 rounded px-1.5 py-0.5 cursor-pointer transition-colors"
+                          >
+                            <BookOpen size={9} className="text-teal-600" />
+                            <span>{isRTL ? `المراجع: ${subjectBooks.length} كتب` : `References: ${subjectBooks.length} books`}</span>
+                          </button>
+                        )}
+
                         <div className="flex justify-between items-center pt-1.5 border-t border-stone-200/50">
                           <Badge className="bg-stone-200 text-stone-600 border-none font-bold text-[8px] px-1.5 py-0.5 rounded">
                             {isRTL ? "شعبة" : "Sec"} {cls.section || 'A'}
@@ -234,8 +262,9 @@ export default function Schedules() {
                           )}
                         </div>
                       </div>
-                    </motion.div>
-                  ))
+                      </motion.div>
+                    );
+                  })
                 )}
               </div>
             </Card>
@@ -348,6 +377,58 @@ export default function Schedules() {
             </DialogFooter>
 
           </form>
+        </DialogContent>
+      </Dialog>
+      {/* Reference Books Dialog */}
+      <Dialog open={booksDialogOpen} onOpenChange={setBooksDialogOpen}>
+        <DialogContent className="max-w-md rounded-[32px] p-6" dir={isRTL ? "rtl" : "ltr"}>
+          <DialogHeader>
+            <DialogTitle className="font-serif font-black text-lg text-stone-900 flex items-center gap-2">
+              <BookOpen className="text-teal-600 h-5 w-5" />
+              <span>
+                {isRTL ? `الكتب والمراجع لـ ${selectedClassBooks?.subjectName}` : `Books & References for ${selectedClassBooks?.subjectName}`}
+              </span>
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 mt-4 max-h-[60vh] overflow-y-auto pr-1">
+            {selectedClassBooks?.books && selectedClassBooks.books.length === 0 ? (
+              <p className="text-xs text-stone-400 text-center py-6">{isRTL ? "لا توجد كتب مرجعية لهذه المادة حالياً." : "No reference books for this subject yet."}</p>
+            ) : (
+              selectedClassBooks?.books && selectedClassBooks.books.map(book => (
+                <div key={book.id} className="flex gap-3 items-start p-3 bg-stone-50 rounded-2xl border border-stone-100 hover:bg-stone-100/50 transition-colors">
+                  {book.thumbnail_url ? (
+                    <img src={book.thumbnail_url} alt={book.title} className="w-12 h-16 rounded-lg object-cover border border-stone-200" />
+                  ) : (
+                    <div className="w-12 h-16 bg-white rounded-lg border border-dashed border-stone-200 flex items-center justify-center text-stone-300">
+                      <BookOpen size={20} />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <h5 className="text-xs font-bold text-stone-900 truncate">{book.title}</h5>
+                    <p className="text-[10px] text-stone-400 mt-0.5">{book.author || (isRTL ? "مؤلف مجهول" : "Unknown Author")}</p>
+                    <a 
+                      href={book.file_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 mt-2 text-[9px] font-extrabold text-teal-600 hover:underline"
+                    >
+                      {isRTL ? "تحميل الكتاب PDF 📥" : "Download PDF 📥"}
+                    </a>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <DialogFooter className="pt-4">
+            <button
+              onClick={() => setBooksDialogOpen(false)}
+              className={`${btnOutline} px-5 h-10 w-full`}
+            >
+              {isRTL ? "إغلاق" : "Close"}
+            </button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

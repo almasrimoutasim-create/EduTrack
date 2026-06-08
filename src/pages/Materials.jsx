@@ -38,16 +38,24 @@ export default function Materials() {
   const [viewMode, setViewMode] = useState("grid");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedMaterial, setSelectedMaterial] = useState(null);
+  const [selectedSubjectFilter, setSelectedSubjectFilter] = useState("all");
 
   const { data: materials = [], isLoading } = useQuery({ 
     queryKey: ["materials"], 
     queryFn: () => base44.entities.StudyMaterial.list("-created_date", 50) 
   });
 
-  const filteredMaterials = materials.filter(m =>
-    m.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    m.subject_name?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const { data: subjects = [] } = useQuery({
+    queryKey: ["subjects-list"],
+    queryFn: () => base44.entities.Subject.list()
+  });
+
+  const filteredMaterials = materials.filter(m => {
+    const matchesSearch = m.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          m.subject_name?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSubject = selectedSubjectFilter === "all" || m.subject_name === selectedSubjectFilter;
+    return matchesSearch && matchesSubject;
+  });
 
   const handleAdd = () => {
     setSelectedMaterial(null);
@@ -121,7 +129,17 @@ export default function Materials() {
                 />
               </div>
             </Card>
-            <button className={`${btnOutline} h-11 w-11 rounded-xl`}><Filter size={18} /></button>
+            <select
+              value={selectedSubjectFilter}
+              onChange={(e) => setSelectedSubjectFilter(e.target.value)}
+              className="bg-white border border-stone-200 rounded-xl h-11 px-3 text-xs font-semibold focus:outline-none cursor-pointer hover:bg-stone-50 transition-colors"
+              dir={isRTL ? "rtl" : "ltr"}
+            >
+              <option value="all">{isRTL ? "جميع المواد" : "All Subjects"}</option>
+              {[...new Set(subjects.map(s => s.name))].map(subName => (
+                <option key={subName} value={subName}>{subName}</option>
+              ))}
+            </select>
           </div>
           
           <div className="flex bg-white p-1 rounded-xl shadow-sm border border-stone-200">

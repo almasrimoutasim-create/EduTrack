@@ -29,6 +29,7 @@ app.use(createApiHandler());
 
 // Serve built frontend static files
 app.use(express.static(path.join(__dirname, 'dist')));
+app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
 
 // Health check (useful for Render)
 app.get('/health', (_req, res) => {

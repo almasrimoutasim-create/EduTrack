@@ -1,4 +1,4 @@
-import { neon } from '@neondatabase/serverless';
+import { neon } from '../server/db_compat.js';
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -10,19 +10,23 @@ async function run() {
   }
   const sql = neon(url);
   try {
+    console.log('--- CLASS_SCHEDULES COLUMNS ---');
     const cols = await sql`
       SELECT column_name, data_type 
       FROM information_schema.columns 
       WHERE table_name = 'class_schedules';
     `;
-    console.log('--- CLASS_SCHEDULES COLUMNS ---');
     console.log(cols);
 
-    const rows = await sql`SELECT * FROM class_schedules LIMIT 5;`;
-    console.log('--- CLASS_SCHEDULES SAMPLE ROWS ---');
-    console.log(rows);
+    console.log('--- SUBJECTS COLUMNS ---');
+    const scols = await sql`
+      SELECT column_name, data_type 
+      FROM information_schema.columns 
+      WHERE table_name = 'subjects';
+    `;
+    console.log(scols);
   } catch (err) {
-    console.error('Error:', err.message);
+    console.error('Error:', err);
   }
 }
 run();
