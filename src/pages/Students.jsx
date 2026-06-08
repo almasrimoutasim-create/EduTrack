@@ -44,6 +44,7 @@ import {
 import StudentForm from "@/components/students/StudentForm.jsx";
 import AdminStudentProfile from "@/components/students/AdminStudentProfile.jsx";
 import { AnimatePresence } from "framer-motion";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 const btnOutline = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border-2 border-stone-300 bg-white text-stone-800 hover:bg-stone-50 hover:border-stone-400 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
 const btnPrimary = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed";
@@ -63,6 +64,7 @@ export default function Students() {
   const queryClient = useQueryClient();
 
   const [activeAdminTab, setActiveAdminTab] = useState("directory"); // "directory" | "requests"
+  const [printDialogOpen, setPrintDialogOpen] = useState(false);
 
   const { data: linkRequests = [], refetch: refetchRequests } = useQuery({
     queryKey: ["parent-link-requests"],
@@ -176,6 +178,124 @@ export default function Students() {
     refetch();
   };
 
+  const handlePrint = (gradeFilter) => {
+    const targetStudents = gradeFilter === "all"
+      ? students
+      : students.filter(s => s.grade === gradeFilter);
+
+    if (targetStudents.length === 0) {
+      toast.error("لا يوجد طلاب في هذا الصف");
+      return;
+    }
+
+    const gradeLabel = gradeFilter === "all"
+      ? "جميع الصفوف"
+      : `الصف ${gradeFilter}`;
+
+    const printWindow = window.open("", "_blank");
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>سجل الطلاب — ${gradeLabel}</title>
+          <style>
+            body { font-family: 'Segoe UI', Tahoma, sans-serif; padding: 40px; direction: rtl; text-align: right; color: #1c1917; }
+            .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #1c1917; padding-bottom: 16px; margin-bottom: 24px; }
+            h1 { font-family: serif; font-size: 22px; margin: 0; }
+            .meta { font-size: 12px; color: #78716c; margin-top: 4px; }
+            .stats { display: flex; gap: 24px; margin-bottom: 24px; }
+            .stat-box { background: #f5f5f4; padding: 12px 20px; border-radius: 12px; text-align: center; }
+            .stat-val { font-size: 22px; font-weight: 900; color: #1c1917; }
+            .stat-lbl { font-size: 11px; color: #78716c; font-weight: 600; text-transform: uppercase; }
+            table { width: 100%; border-collapse: collapse; }
+            th { background: #1c1917; color: #fff; padding: 10px 14px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+            td { padding: 10px 14px; font-size: 13px; font-weight: 600; border-bottom: 1px solid #f5f5f4; }
+            tr:nth-child(even) td { background: #fafaf9; }
+            .badge-active { background: #d1fae5; color: #065f46; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; }
+            .badge-inactive { background: #f3f4f6; color: #6b7280; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; }
+            .footer { margin-top: 40px; font-size: 11px; color: #a8a29e; text-align: center; border-top: 1px solid #f5f5f4; padding-top: 16px; }
+            @media print { body { padding: 20px; } }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div>
+              <h1>سجل الطلاب — ${gradeLabel}</h1>
+              <p class="meta">النظام الأكاديمي EduTrack | السنة الدراسية 2025-2026</p>
+            </div>
+            <div style="text-align:left">
+              <p class="meta">تاريخ الإصدار: ${new Date().toLocaleDateString('ar-EG')}</p>
+              <p class="meta">إجمالي الطلاب: ${targetStudents.length}</p>
+            </div>
+          </div>
+
+          <div class="stats">
+            <div class="stat-box">
+              <div class="stat-val">${targetStudents.length}</div>
+              <div class="stat-lbl">إجمالي الطلاب</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-val">${targetStudents.filter(s => s.status === 'active' || !s.status).length}</div>
+              <div class="stat-lbl">طلاب نشطون</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-val">${[...new Set(targetStudents.map(s => s.grade).filter(Boolean))].length}</div>
+              <div class="stat-lbl">صفوف</div>
+            </div>
+            ${gradeFilter === "all" ? `
+            <div class="stat-box">
+              <div class="stat-val">${[...new Set(targetStudents.map(s => s.grade).filter(Boolean))].join(' / ')}</div>
+              <div class="stat-lbl">الصفوف المشمولة</div>
+            </div>` : ''}
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>رقم الطالب</th>
+                <th>الاسم الكامل</th>
+                <th>الصف</th>
+                <th>الشعبة</th>
+                <th>البريد الإلكتروني</th>
+                <th>الهاتف</th>
+                <th>الحالة</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${targetStudents.map((s, idx) => `
+                <tr>
+                  <td>${idx + 1}</td>
+                  <td>${s.student_id || s.id || '—'}</td>
+                  <td>${s.full_name || s.name || '—'}</td>
+                  <td>${s.grade ? `الصف ${s.grade}` : '—'}</td>
+                  <td>${s.section || '—'}</td>
+                  <td>${s.email || s.user_email || '—'}</td>
+                  <td>${s.phone || s.parent_phone || '—'}</td>
+                  <td>
+                    <span class="${s.status === 'inactive' ? 'badge-inactive' : 'badge-active'}">
+                      ${s.status === 'inactive' ? 'غير نشط' : 'نشط'}
+                    </span>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+
+          <div class="footer">
+            EduTrack — نظام إدارة المدرسة © ${new Date().getFullYear()} | 
+            تم إنشاء هذا التقرير تلقائياً بتاريخ ${new Date().toLocaleString('ar-EG')}
+          </div>
+
+          <script>
+            window.onload = function() { window.print(); window.close(); }
+          <\/script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    setPrintDialogOpen(false);
+  };
+
   const clearFilters = () => {
     setSearchTerm("");
     setSelectedGrade("all");
@@ -266,6 +386,13 @@ export default function Students() {
                 >
                   <RefreshCw size={16} />
                   <span className="num-en">{t("common.refresh", language) || "Refresh"}</span>
+                </button>
+                <button
+                  onClick={() => setPrintDialogOpen(true)}
+                  className={`${btnOutline} h-11 px-5`}
+                >
+                  <Printer size={18} />
+                  <span>طباعة السجل</span>
                 </button>
                 <button 
                   className={`${btnPrimary} h-11 px-5`}
@@ -670,6 +797,66 @@ export default function Students() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* PRINT DIALOG */}
+      <Dialog open={printDialogOpen} onOpenChange={setPrintDialogOpen}>
+        <DialogContent className="max-w-sm rounded-3xl p-6" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="font-serif text-xl font-bold text-stone-900 text-right flex items-center gap-2">
+              <Printer size={20} />
+              طباعة سجل الطلاب
+            </DialogTitle>
+            <DialogDescription className="text-right text-xs text-stone-500 mt-1">
+              اختر الصف الذي تريد طباعة سجله، أو اطبع جميع الطلاب دفعة واحدة.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 mt-4">
+            {/* زر طباعة الكل */}
+            <button
+              onClick={() => handlePrint("all")}
+              className={`${btnPrimary} w-full h-12 rounded-xl`}
+            >
+              <FileText size={16} />
+              <span>طباعة جميع الطلاب ({students.length})</span>
+            </button>
+
+            {/* فاصل */}
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-px bg-stone-100" />
+              <span className="text-xs text-stone-400 font-semibold">أو اختر صفاً محدداً</span>
+              <div className="flex-1 h-px bg-stone-100" />
+            </div>
+
+            {/* أزرار الصفوف */}
+            <div className="grid grid-cols-3 gap-2">
+              {[...new Set(students.map(s => s.grade).filter(Boolean))]
+                .sort((a, b) => parseInt(a) - parseInt(b))
+                .map(grade => {
+                  const count = students.filter(s => s.grade === grade).length;
+                  return (
+                    <button
+                      key={grade}
+                      onClick={() => handlePrint(grade)}
+                      className={`${btnOutline} flex-col h-16 rounded-xl gap-0.5`}
+                    >
+                      <span className="font-black text-sm">الصف {grade}</span>
+                      <span className="text-[10px] text-stone-400 font-semibold">{count} طالب</span>
+                    </button>
+                  );
+                })}
+            </div>
+
+            {/* زر إلغاء */}
+            <button
+              onClick={() => setPrintDialogOpen(false)}
+              className={`${btnOutline} w-full h-11 rounded-xl mt-2`}
+            >
+              إلغاء
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
