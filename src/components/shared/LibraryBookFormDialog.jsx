@@ -171,11 +171,21 @@ export default function LibraryBookFormDialog({ open, onClose, book }) {
     if (!form.title || !form.file_url) return;
     setSaving(true);
     try {
+      // Clean form data: convert empty strings to null for UUID/numeric columns
+      const cleanedForm = { ...form };
+      if (!cleanedForm.subject_id) cleanedForm.subject_id = null;
+      if (!cleanedForm.subject_name) cleanedForm.subject_name = 'General';
+      if (!cleanedForm.stage) delete cleanedForm.stage;
+      // Remove undefined/empty optional fields that might cause DB errors
+      Object.keys(cleanedForm).forEach(key => {
+        if (cleanedForm[key] === undefined) delete cleanedForm[key];
+      });
+
       if (isEdit) {
-        await base44.entities.LibraryBook.update(book.id, form);
+        await base44.entities.LibraryBook.update(book.id, cleanedForm);
       } else {
         await base44.entities.LibraryBook.create({
-          ...form,
+          ...cleanedForm,
           status: "available"
         });
       }
