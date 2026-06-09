@@ -4,7 +4,7 @@ import {
   FileText, ShoppingCart, Menu, X, Newspaper, Trophy, DollarSign, Shield, BarChart3, LogOut,
   Calendar, FileSpreadsheet, Award, History, Layers, Clock, FolderArchive, HelpCircle, Settings,
   Briefcase, CreditCard, Search, Percent, AlertTriangle, PlusCircle, UserCheck, ArrowLeft, MessageSquare,
-  Megaphone
+  Megaphone, Video
 } from "lucide-react";
 import { useState } from "react";
 import { motion } from "framer-motion";
@@ -304,6 +304,12 @@ export default function Sidebar() {
             items: [
               { label: isRTL ? "مراقبة المحادثات" : "Monitor Chats", path: "/admin-chats", icon: MessageSquare },
               { label: isRTL ? "التعاميم والقرارات" : "Official Announcements", path: "/official-announcements", icon: Megaphone }
+            ]
+          },
+          {
+            label: isRTL ? "الفصول الافتراضية" : "Virtual Classrooms",
+            items: [
+              { label: isRTL ? "مراقبة الحصص المباشرة" : "Monitor Live Sessions", path: "/admin-virtual-classrooms", icon: Video }
             ]
           }
         ];

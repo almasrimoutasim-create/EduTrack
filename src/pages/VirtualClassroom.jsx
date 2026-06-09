@@ -27,6 +27,7 @@ export default function VirtualClassroom() {
   const userId = localStorage.getItem("portal_user_id") || "S-temp";
   const userName = localStorage.getItem("portal_user_name") || (role === "teacher" ? "أ. أحمد" : "طالب زائر");
   const isTeacher = role === "teacher";
+  const isAdmin = role === "admin";
 
   // Component States
   const [micActive, setMicActive] = useState(true);
@@ -747,6 +748,9 @@ export default function VirtualClassroom() {
         toast.success(isRTL ? "تم إنهاء الفصل وتوثيق سجل الحضور." : "Class ended and attendance log saved.");
         navigate("/teacher-portal");
       }
+    } else if (isAdmin) {
+      toast.info(isRTL ? "غادرت الفصل — العودة إلى لوحة المراقبة" : "Left classroom — returning to admin monitor");
+      navigate("/admin-virtual-classrooms");
     } else {
       toast.info(isRTL ? "غادرت الفصل الدراسي." : "You left the classroom.");
       navigate("/student-portal");
@@ -1066,6 +1070,12 @@ export default function VirtualClassroom() {
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 inline-block" />
             {isRTL ? "مباشر" : "LIVE"}
           </Badge>
+          {isAdmin && (
+            <Badge className="bg-violet-500/15 text-violet-300 border border-violet-500/30 px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5">
+              <ShieldAlert size={11} />
+              {isRTL ? "مراقب — مدير النظام" : "Observer — Admin"}
+            </Badge>
+          )}
           <button
             onClick={() => {
               navigator.clipboard.writeText(window.location.href);
