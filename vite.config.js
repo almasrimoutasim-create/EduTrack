@@ -1,13 +1,17 @@
-import base44 from "@base44/vite-plugin"
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
+import path from 'path'
 import { createApiHandler } from "./server/api.js"
 
 const hasNeon = process.env.DATABASE_URL;
 
-// https://vite.dev/config/
 export default defineConfig({
   logLevel: 'info',
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+    },
+  },
   build: {
     chunkSizeWarningLimit: 800,
     rollupOptions: {
@@ -44,31 +48,17 @@ export default defineConfig({
     }
   },
   server: {
-    proxy: {
-      '/api': {
-        target: 'https://api.base44.io',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, '')
-      }
-    },
     hmr: {
       overlay: false
     }
   },
   plugins: [
-    base44({
-      legacySDKImports: process.env.BASE44_LEGACY_SDK_IMPORTS === 'true',
-      hmrNotifier: true,
-      navigationNotifier: true,
-      analyticsTracker: true,
-      visualEditAgent: true
-    }),
     react(),
     hasNeon ? {
       name: 'neon-api-middleware',
       configureServer(server) {
         server.middlewares.use(createApiHandler());
-        console.log('[neon] API routes enabled synchronously at /neon-db/*');
+        console.log('[neon] API routes enabled at /neon-db/*');
       }
     } : null
   ].filter(Boolean)
