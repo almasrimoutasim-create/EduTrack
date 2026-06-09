@@ -86,7 +86,15 @@ export default function CounselingDashboard() {
       <PageHeader 
         title="لوحة تحكم الإرشاد الطلابي" 
         subtitle="متابعة المؤشرات والتقارير العامة لحالات الإرشاد الطلابي في المدرسة"
-      />
+      >
+        <button
+          onClick={() => navigate("/counseling/cases")}
+          className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 h-11 px-5"
+        >
+          <ClipboardList size={18} />
+          <span>إدارة الحالات</span>
+        </button>
+      </PageHeader>
 
       {/* 4 StatCards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

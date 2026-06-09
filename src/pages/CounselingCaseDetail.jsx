@@ -68,21 +68,21 @@ export default function CounselingCaseDetail() {
   // 3. Fetch Case Assessments
   const { data: assessments = [], isLoading: assessmentsLoading } = useQuery({
     queryKey: ["case-assessments", id],
-    queryFn: () => base44.entities.CaseAssessment.filter({ case_id: parseInt(id) }),
+    queryFn: () => base44.entities.CaseAssessment.filter({ case_id: id }),
     staleTime: 1000 * 60 * 2
   });
 
   // 4. Fetch Follow Ups
   const { data: followUps = [], isLoading: followUpsLoading } = useQuery({
     queryKey: ["case-followups", id],
-    queryFn: () => base44.entities.FollowUp.filter({ case_id: parseInt(id) }),
+    queryFn: () => base44.entities.FollowUp.filter({ case_id: id }),
     staleTime: 1000 * 60 * 2
   });
 
   // 5. Fetch Intervention Plans
   const { data: plans = [], isLoading: plansLoading } = useQuery({
     queryKey: ["intervention-plans", id],
-    queryFn: () => base44.entities.InterventionPlan.filter({ case_id: parseInt(id) }),
+    queryFn: () => base44.entities.InterventionPlan.filter({ case_id: id }),
     staleTime: 1000 * 60 * 2
   });
 
@@ -113,7 +113,7 @@ export default function CounselingCaseDetail() {
       if (!planStartDate || !planEndDate) throw new Error("يرجى إدخال التواريخ");
 
       return base44.entities.InterventionPlan.create({
-        case_id: parseInt(id),
+        case_id: id,
         goal_text: planGoal,
         responsible_person: planResponsible,
         start_date: planStartDate,
@@ -144,7 +144,7 @@ export default function CounselingCaseDetail() {
       if (!followUpNote.trim()) throw new Error("يرجى كتابة ملاحظة المتابعة");
 
       return base44.entities.FollowUp.create({
-        case_id: parseInt(id),
+        case_id: id,
         note: followUpNote,
         progress_status: followUpStatus,
         created_by: user.id

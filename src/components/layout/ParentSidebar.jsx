@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import {
-  LayoutDashboard, Users, ClipboardCheck, Calendar, CreditCard, MessageCircle, LogOut, Menu, X, ShoppingBag, Wallet, Bell
+  LayoutDashboard, Users, ClipboardCheck, Calendar, CreditCard, MessageCircle, LogOut, Menu, X, ShoppingBag, Wallet, Bell, ShieldCheck
 } from "lucide-react";
 import { useState, useMemo } from "react";
 import { motion } from "framer-motion";

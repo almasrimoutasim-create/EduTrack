@@ -218,6 +218,102 @@ if (process.env.DATABASE_URL) {
     console.error('[neon] failed to verify/create purchase_orders table:', err.message);
   });
 
+  // Auto-create counseling_cases table
+  sql`
+    CREATE TABLE IF NOT EXISTS counseling_cases (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      student_id UUID NOT NULL,
+      title TEXT NOT NULL,
+      problem_type TEXT NOT NULL DEFAULT 'academic',
+      referral_reason TEXT,
+      status TEXT NOT NULL DEFAULT 'open',
+      risk_level TEXT NOT NULL DEFAULT 'medium',
+      created_by TEXT,
+      closed_at TIMESTAMP WITH TIME ZONE,
+      closed_by TEXT,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `.then(() => {
+    console.log('[neon] counseling_cases table verified/created');
+  }).catch(err => {
+    console.error('[neon] failed to verify/create counseling_cases table:', err.message);
+  });
+
+  // Auto-create case_assessments table
+  sql`
+    CREATE TABLE IF NOT EXISTS case_assessments (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      case_id UUID NOT NULL,
+      academic_score TEXT,
+      behavioral_score TEXT,
+      social_score TEXT,
+      psychological_score TEXT,
+      average_score TEXT,
+      notes TEXT,
+      created_by TEXT,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `.then(() => {
+    console.log('[neon] case_assessments table verified/created');
+  }).catch(err => {
+    console.error('[neon] failed to verify/create case_assessments table:', err.message);
+  });
+
+  // Auto-create intervention_plans table
+  sql`
+    CREATE TABLE IF NOT EXISTS intervention_plans (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      case_id UUID NOT NULL,
+      goal_text TEXT NOT NULL,
+      responsible_person TEXT,
+      start_date TEXT,
+      end_date TEXT,
+      actions JSONB DEFAULT '[]'::jsonb,
+      status TEXT NOT NULL DEFAULT 'active',
+      created_by TEXT,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `.then(() => {
+    console.log('[neon] intervention_plans table verified/created');
+  }).catch(err => {
+    console.error('[neon] failed to verify/create intervention_plans table:', err.message);
+  });
+
+  // Auto-create follow_ups table
+  sql`
+    CREATE TABLE IF NOT EXISTS follow_ups (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      case_id UUID NOT NULL,
+      note TEXT NOT NULL,
+      progress_status TEXT NOT NULL DEFAULT 'stable',
+      created_by TEXT,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `.then(() => {
+    console.log('[neon] follow_ups table verified/created');
+  }).catch(err => {
+    console.error('[neon] failed to verify/create follow_ups table:', err.message);
+  });
+
+  // Auto-create case_visibility_logs table
+  sql`
+    CREATE TABLE IF NOT EXISTS case_visibility_logs (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      case_id UUID NOT NULL,
+      viewer_id TEXT,
+      viewer_role TEXT,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `.then(() => {
+    console.log('[neon] case_visibility_logs table verified/created');
+  }).catch(err => {
+    console.error('[neon] failed to verify/create case_visibility_logs table:', err.message);
+  });
+
   // Alter donations table to add payment_method, is_anonymous, acknowledgment_sent columns
   sql`
     ALTER TABLE donations
@@ -288,6 +384,11 @@ const ENTITY_TABLE_MAP = {
   VirtualSession: 'virtual_sessions',
   SessionParticipant: 'session_participants',
   OfficialAnnouncement: 'official_announcements',
+  CounselingCase: 'counseling_cases',
+  CaseAssessment: 'case_assessments',
+  InterventionPlan: 'intervention_plans',
+  FollowUp: 'follow_ups',
+  CaseVisibilityLog: 'case_visibility_logs',
   FeeStructure: 'fee_structures',
   StudentFee: 'student_fees',
   FeePayment: 'fee_payments',
@@ -729,7 +830,7 @@ export function createApiHandler() {
         }
 
         // Sanitize: convert empty strings to null for UUID/ID columns to avoid PostgreSQL type errors
-        const UUID_COLUMNS = ['subject_id', 'session_id', 'student_id', 'teacher_id', 'expense_id', 'parent_id'];
+        const UUID_COLUMNS = ['subject_id', 'session_id', 'student_id', 'teacher_id', 'expense_id', 'parent_id', 'case_id'];
         for (const col of UUID_COLUMNS) {
           if (body[col] !== undefined && body[col] === '') {
             body[col] = null;

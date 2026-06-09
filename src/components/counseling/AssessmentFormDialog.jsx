@@ -33,12 +33,14 @@ export default function AssessmentFormDialog({ open, onOpenChange, caseId, onSuc
   const mutation = useMutation({
     mutationFn: async () => {
       if (!user?.id) throw new Error("User ID is missing");
+      const avg = ((academicScore + behavioralScore + socialScore + psychologicalScore) / 4.0).toFixed(2);
       return base44.entities.CaseAssessment.create({
-        case_id: parseInt(caseId),
+        case_id: caseId,
         academic_score: String(academicScore),
         behavioral_score: String(behavioralScore),
         social_score: String(socialScore),
         psychological_score: String(psychologicalScore),
+        average_score: avg,
         notes,
         created_by: user.id
       });
