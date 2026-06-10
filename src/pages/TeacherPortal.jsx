@@ -246,6 +246,18 @@ export default function TeacherPortal() {
               </PageHeader>
               <ParentTeacherChat me={{ ...portalUser, id: teacherId, role: "teacher", full_name: portalUser?.full_name || "المعلم" }} />
             </div>
+          ) : activeTab === "requests" ? (
+            <div className="space-y-6">
+              <PageHeader 
+                title={isRTL ? "طلباتي الشخصية" : "My Personal Requests"} 
+                subtitle={isRTL ? "إرسال ومتابعة طلبات الإجازات والاستئذان والسلف الخاصة بك" : "Submit and track your leaves, permissions and loan requests"}
+              >
+                <button onClick={() => setActiveTab("classes")} className={`${btnOutline} h-11 px-5 rounded-xl`}>
+                  {isRTL ? "العودة للوحة التحكم" : "Back to Dashboard"}
+                </button>
+              </PageHeader>
+              <TeacherRequestsView isRTL={isRTL} portalUser={portalUser} teacherId={teacherId} />
+            </div>
           ) : activeTab === "notifications" ? (
             <div className="space-y-6">
               <PageHeader 
@@ -1405,6 +1417,244 @@ function GradesTabContent({ isRTL, classes, students, portalUser }) {
           </div>
         )}
       </Card>
+    </div>
+  );
+}
+
+function TeacherRequestsView({ isRTL, portalUser, teacherId }) {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [isNewRequestOpen, setIsNewRequestOpen] = useState(false);
+
+  const myName = portalUser?.full_name || "الأستاذ أحمد";
+
+  const [requests, setRequests] = useState(() => {
+    const saved = localStorage.getItem("staff_requests");
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const myRequests = useMemo(() => {
+    return requests.filter(r => r.employeeName === myName);
+  }, [requests, myName]);
+
+  const [newReqType, setNewReqType] = useState("LEAVE");
+  const [newReqReason, setNewReqReason] = useState("");
+  const [newReqAmount, setNewReqAmount] = useState("");
+  const [newReqDuration, setNewReqDuration] = useState("");
+
+  const handleCreateRequest = (e) => {
+    e.preventDefault();
+    if (!newReqReason) return;
+
+    const id = "req-" + Date.now();
+    const durationText = newReqType === "LOAN" 
+      ? (isRTL ? `سلفة بقيمة ${Number(newReqAmount).toLocaleString()} ر.س` : `Loan of ${Number(newReqAmount).toLocaleString()} SAR`)
+      : newReqDuration;
+
+    const newRequest = {
+      id,
+      employeeName: myName,
+      role: "Teacher",
+      type: newReqType,
+      date: new Date().toISOString().split('T')[0],
+      duration: durationText || (isRTL ? "يوم واحد" : "1 Day"),
+      reason: newReqReason,
+      loanAmount: newReqType === "LOAN" ? Number(newReqAmount || 0) : undefined,
+      status: "PENDING",
+      createdAt: new Date().toISOString().split('T')[0]
+    };
+
+    const updated = [newRequest, ...requests];
+    setRequests(updated);
+    localStorage.setItem("staff_requests", JSON.stringify(updated));
+    setIsNewRequestOpen(false);
+    toast.success(isRTL ? "تم إرسال طلبك للإدارة بنجاح" : "Request submitted to administration successfully");
+
+    setNewReqReason("");
+    setNewReqAmount("");
+    setNewReqDuration("");
+  };
+
+  const getStatusBadge = (status) => {
+    const map = {
+      'PENDING': { bg: 'bg-amber-50 text-amber-700 border-amber-200/50', label: isRTL ? 'قيد الانتظار' : 'Pending' },
+      'APPROVED': { bg: 'bg-emerald-50 text-emerald-700 border-emerald-200/50', label: isRTL ? 'معتمد' : 'Approved' },
+      'REJECTED': { bg: 'bg-rose-50 text-rose-700 border-rose-200/50', label: isRTL ? 'مرفوض' : 'Rejected' },
+    };
+    const current = map[status] || map['PENDING'];
+    return (
+      <Badge className={`${current.bg} border rounded-lg font-bold text-xs px-2.5 py-1`}>
+        {current.label}
+      </Badge>
+    );
+  };
+
+  const getRequestTypeDisplay = (type) => {
+    const map = {
+      'LEAVE': { label: isRTL ? 'طلب إجازة' : 'Leave Request', color: 'text-blue-600 bg-blue-50' },
+      'PERMISSION': { label: isRTL ? 'طلب استئذان' : 'Permission', color: 'text-amber-600 bg-amber-50' },
+      'PUNCH_CORRECTION': { label: isRTL ? 'تصحيح بصمة' : 'Punch Correction', color: 'text-violet-600 bg-violet-50' },
+      'LOAN': { label: isRTL ? 'طلب سلفة' : 'Loan Request', color: 'text-emerald-600 bg-emerald-50' },
+    };
+    return map[type] || { label: type, color: 'text-stone-600 bg-stone-50' };
+  };
+
+  const filteredRequests = useMemo(() => {
+    return myRequests.filter(r => {
+      const matchSearch = r.reason.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchType = typeFilter === "all" || r.type === typeFilter;
+      return matchSearch && matchType;
+    });
+  }, [myRequests, searchTerm, typeFilter]);
+
+  const btnOutline = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-sm font-semibold transition-all border-2 border-stone-300 bg-white text-stone-800 hover:bg-stone-50 hover:border-stone-400 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
+  const btnPrimary = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-sm font-semibold transition-all bg-stone-900 text-white hover:bg-black cursor-pointer shadow-lg shadow-stone-200 disabled:opacity-50 disabled:cursor-not-allowed";
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center gap-4">
+        <button onClick={() => setIsNewRequestOpen(true)} className={`${btnPrimary} h-11 px-5 rounded-xl`}>
+          <Plus size={16} />
+          <span>{isRTL ? "طلب جديد" : "New Request"}</span>
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card className="p-6 bg-white border-none shadow-sm rounded-2xl flex items-center justify-between">
+          <div>
+            <p className="text-stone-400 text-xs font-bold uppercase">{isRTL ? "طلباتي الكلية" : "Total Requests"}</p>
+            <h4 className="text-2xl font-black text-stone-900 num-en">{myRequests.length}</h4>
+          </div>
+        </Card>
+        <Card className="p-6 bg-white border-none shadow-sm rounded-2xl flex items-center justify-between">
+          <div>
+            <p className="text-stone-400 text-xs font-bold uppercase">{isRTL ? "قيد الانتظار" : "Pending"}</p>
+            <h4 className="text-2xl font-black text-amber-600 num-en">{myRequests.filter(r => r.status === "PENDING").length}</h4>
+          </div>
+        </Card>
+        <Card className="p-6 bg-white border-none shadow-sm rounded-2xl flex items-center justify-between">
+          <div>
+            <p className="text-stone-400 text-xs font-bold uppercase">{isRTL ? "المعتمدة" : "Approved"}</p>
+            <h4 className="text-2xl font-black text-emerald-600 num-en">{myRequests.filter(r => r.status === "APPROVED").length}</h4>
+          </div>
+        </Card>
+      </div>
+
+      <Card className="p-6 bg-white border-none shadow-sm rounded-3xl space-y-4">
+        <div className="relative">
+          <Search className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 text-stone-400`} size={16} />
+          <Input 
+            placeholder={isRTL ? "ابحث في طلباتك..." : "Search your requests..."} 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className={`${isRTL ? 'pr-10 pl-4' : 'pl-10 pr-4'} bg-stone-50 border-stone-200 rounded-xl h-11 text-xs`}
+            dir={isRTL ? "rtl" : "ltr"}
+          />
+        </div>
+
+        <div className="space-y-3 pt-2">
+          {filteredRequests.length === 0 ? (
+            <div className="py-12 text-center text-stone-400 border border-dashed border-stone-100 rounded-2xl">
+              {isRTL ? "لا توجد طلبات مسجلة." : "No requests found."}
+            </div>
+          ) : (
+            filteredRequests.map((req) => {
+              const display = getRequestTypeDisplay(req.type);
+              return (
+                <div key={req.id} className="p-4 bg-stone-50 rounded-2xl flex items-center justify-between gap-4 border border-stone-100/50">
+                  <div>
+                    <h5 className="font-bold text-stone-850 text-sm">{req.reason}</h5>
+                    <p className="text-xs text-stone-400 mt-1 flex items-center gap-2 font-medium">
+                      <span className={`px-2 py-0.5 rounded ${display.color} text-[10px] font-bold`}>{display.label}</span>
+                      <span>·</span>
+                      <span className="num-en">{req.date}</span>
+                      <span>·</span>
+                      <span>{req.duration}</span>
+                    </p>
+                  </div>
+                  <div>
+                    {getStatusBadge(req.status)}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </Card>
+
+      <Dialog open={isNewRequestOpen} onOpenChange={setIsNewRequestOpen}>
+        <DialogContent className="max-w-md rounded-3xl" dir={isRTL ? "rtl" : "ltr"}>
+          <DialogHeader>
+            <DialogTitle className="text-lg font-serif font-black">{isRTL ? "تقديم طلب جديد" : "New Request"}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleCreateRequest} className="space-y-4 mt-2">
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-stone-500">{isRTL ? "نوع الطلب" : "Request Type"}</label>
+              <select 
+                value={newReqType} 
+                onChange={(e) => setNewReqType(e.target.value)}
+                className="w-full bg-white border border-stone-200 rounded-xl h-10 px-3 text-xs font-bold text-stone-700 outline-none"
+              >
+                <option value="LEAVE">{isRTL ? "طلب إجازة" : "Leave"}</option>
+                <option value="PERMISSION">{isRTL ? "طلب استئذان" : "Permission"}</option>
+                <option value="PUNCH_CORRECTION">{isRTL ? "تصحيح بصمة" : "Punch Correction"}</option>
+                <option value="LOAN">{isRTL ? "طلب سلفة مالية" : "Financial Loan"}</option>
+              </select>
+            </div>
+
+            {newReqType === "LOAN" ? (
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-stone-500">{isRTL ? "مبلغ السلفة (بالريال السعودي)" : "Loan Amount (SAR)"}</label>
+                <Input 
+                  type="number" 
+                  value={newReqAmount} 
+                  onChange={(e) => setNewReqAmount(e.target.value)} 
+                  placeholder="1500" 
+                  className="rounded-xl border-stone-200"
+                  required
+                />
+              </div>
+            ) : (
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-stone-500">{isRTL ? "المدة أو التفاصيل" : "Duration / Detail"}</label>
+                <Input 
+                  value={newReqDuration} 
+                  onChange={(e) => setNewReqDuration(e.target.value)} 
+                  placeholder={isRTL ? "مثال: ٣ أيام أو ساعتان" : "e.g. 3 days or 2 hours"} 
+                  className="rounded-xl border-stone-200"
+                />
+              </div>
+            )}
+
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-stone-500">{isRTL ? "السبب / الملاحظات" : "Reason / Note"}</label>
+              <Input 
+                value={newReqReason} 
+                onChange={(e) => setNewReqReason(e.target.value)} 
+                placeholder={isRTL ? "أدخل تفاصيل ومبررات الطلب..." : "Describe the reason"} 
+                className="rounded-xl border-stone-200"
+                required
+              />
+            </div>
+
+            <DialogFooter className="pt-2 flex gap-2">
+              <button 
+                type="button" 
+                onClick={() => setIsNewRequestOpen(false)} 
+                className={`${btnOutline} rounded-xl h-10 px-4`}
+              >
+                {isRTL ? "إلغاء" : "Cancel"}
+              </button>
+              <button 
+                type="submit" 
+                className={`${btnPrimary} h-10 px-4`}
+              >
+                {isRTL ? "تقديم الطلب" : "Submit"}
+              </button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

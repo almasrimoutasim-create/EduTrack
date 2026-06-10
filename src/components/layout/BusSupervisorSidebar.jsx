@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import {
-  LayoutDashboard, Bus, Users, MapPin, AlertTriangle, MessageSquare, LogOut, Navigation, Menu, X
+  LayoutDashboard, Bus, Users, MapPin, AlertTriangle, MessageSquare, LogOut, Navigation, Menu, X, FileText
 } from "lucide-react";
 import { useState } from "react";
 import { motion } from "framer-motion";
@@ -43,6 +43,13 @@ export default function BusSupervisorSidebar() {
       label: isRTL ? "التواصل" : "Communication",
       items: [
         { label: isRTL ? "الرسائل" : "Messages", path: "#", icon: MessageSquare }
+      ]
+    },
+    {
+      label: isRTL ? "الخدمات الذاتية" : "Self Service",
+      items: [
+        { label: isRTL ? "بوابة الأقسام" : "Departments Portal", path: "/staff-portal", icon: LayoutDashboard },
+        { label: isRTL ? "طلباتي الشخصية" : "My Requests", path: "/staff/personal-requests", icon: FileText }
       ]
     }
   ];

@@ -29,10 +29,11 @@ const isPathAllowed = (role, path) => {
     return path.startsWith('/staff-portal') || path.startsWith('/bus-supervisor');
   }
   
-  if (role === 'staff') return path.startsWith('/staff-portal');
+  if (role === 'staff') return path.startsWith('/staff-portal') || path.startsWith('/staff/personal-requests');
 
   if (role === 'registrar') {
     return path.startsWith('/staff-portal') || 
+           path.startsWith('/staff/personal-requests') ||
            path.startsWith('/student-directory') || 
            path.startsWith('/attendance') || 
            path.startsWith('/attendance-summary') || 
@@ -47,23 +48,23 @@ const isPathAllowed = (role, path) => {
   }
 
   if (role === 'hr') {
-    return path.startsWith('/staff-portal') || path.startsWith('/staff-control');
+    return path.startsWith('/staff-portal') || path.startsWith('/staff/personal-requests') || path.startsWith('/staff-control');
   }
 
   if (role === 'library') {
-    return path.startsWith('/staff-portal') || path.startsWith('/library');
+    return path.startsWith('/staff-portal') || path.startsWith('/staff/personal-requests') || path.startsWith('/library');
   }
 
   if (role === 'store' || role === 'store_keeper') {
-    return path.startsWith('/staff-portal') || path.startsWith('/store');
+    return path.startsWith('/staff-portal') || path.startsWith('/staff/personal-requests') || path.startsWith('/store');
   }
 
   if (role === 'accountant') {
-    return path.startsWith('/staff-portal') || path.startsWith('/finance');
+    return path.startsWith('/staff-portal') || path.startsWith('/staff/personal-requests') || path.startsWith('/finance');
   }
 
   if (role === 'security') {
-    return path.startsWith('/staff-portal');
+    return path.startsWith('/staff-portal') || path.startsWith('/staff/personal-requests');
   }
 
   return false;

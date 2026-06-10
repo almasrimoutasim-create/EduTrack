@@ -94,6 +94,24 @@ export default function StaffSidebar() {
     );
   }
 
+  // إضافة مجموعة الخدمات الذاتية لجميع الأدوار الإدارية
+  if (portalRole !== "staff" && portalRole !== "security") {
+    navGroups.push({
+      label: isRTL ? "الخدمات الذاتية" : "Self Service",
+      items: [
+        { label: isRTL ? "بوابة الأقسام" : "Departments Portal", path: "/staff-portal", icon: LayoutDashboard },
+        { label: isRTL ? "طلباتي الشخصية" : "My Requests", path: "/staff/personal-requests", icon: FileText }
+      ]
+    });
+  } else {
+    // للدور العام أو الأمن
+    if (navGroups[0]) {
+      navGroups[0].items.push(
+        { label: isRTL ? "طلباتي الشخصية" : "My Requests", path: "/staff/personal-requests", icon: FileText }
+      );
+    }
+  }
+
   return (
     <>
 

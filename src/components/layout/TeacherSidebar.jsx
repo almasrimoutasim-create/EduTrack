@@ -75,7 +75,8 @@ export default function TeacherSidebar() {
         { label: isRTL ? "الحضور" : "Attendance", path: "/teacher-portal?tab=attendance", icon: ClipboardCheck },
         { label: isRTL ? "الواجبات والتصحيح" : "Assignments & Grading", path: "/teacher-portal?tab=grading", icon: FileText },
         { label: isRTL ? "الدرجات والنتائج" : "Grades & Results", path: "/teacher-portal?tab=grades", icon: Award },
-        { label: isRTL ? "الإرشاد الطلابي" : "Counseling", path: "/counseling/cases", icon: ClipboardCheck }
+        { label: isRTL ? "الإرشاد الطلابي" : "Counseling", path: "/counseling/cases", icon: ClipboardCheck },
+        { label: isRTL ? "طلباتي" : "My Requests", path: "/teacher-portal?tab=requests", icon: FileText }
       ]
     },
     {

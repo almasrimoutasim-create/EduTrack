@@ -33,6 +33,10 @@ import ActivityFeed from './pages/ActivityFeed';
 import Awards from './pages/Awards';
 import Finance from './pages/Finance';
 import StaffControl from './pages/StaffControl';
+import StaffAttendance from './pages/StaffAttendance';
+import StaffPayroll from './pages/StaffPayroll';
+import StaffRequests from './pages/StaffRequests';
+import StaffPersonalRequests from './pages/StaffPersonalRequests';
 import StaffPortal from './pages/StaffPortal';
 import StudentDirectory from './pages/StudentDirectory';
 import AuditLog from './pages/AuditLog';
@@ -89,6 +93,10 @@ const AuthenticatedApp = () => {
         <Route path="/awards" element={<Awards />} />
         <Route path="/finance" element={<Finance />} />
         <Route path="/staff-control" element={<StaffControl />} />
+        <Route path="/staff/attendance" element={<StaffAttendance />} />
+        <Route path="/staff/payroll" element={<StaffPayroll />} />
+        <Route path="/staff/requests" element={<StaffRequests />} />
+        <Route path="/staff/personal-requests" element={<StaffPersonalRequests />} />
         <Route path="/student-directory" element={<StudentDirectory />} />
         <Route path="/grades" element={<Grades />} />
         <Route path="/audit-log" element={<AuditLog />} />

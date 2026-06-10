@@ -4,7 +4,7 @@ import {
   FileText, ShoppingCart, Menu, X, Newspaper, Trophy, DollarSign, Shield, BarChart3, LogOut,
   Calendar, FileSpreadsheet, Award, History, Layers, Clock, FolderArchive, HelpCircle, Settings,
   Briefcase, CreditCard, Search, Percent, AlertTriangle, PlusCircle, UserCheck, ArrowLeft, MessageSquare,
-  Megaphone, Video
+  Megaphone, Video, ChevronDown
 } from "lucide-react";
 import { useState } from "react";
 import { motion } from "framer-motion";
@@ -74,9 +74,17 @@ const BRAND_CONFIGS = {
 export default function Sidebar() {
   const location = useLocation();
   const [open, setOpen] = useState(false);
+  const [expandedMenus, setExpandedMenus] = useState({});
   const { language } = useLanguage();
   const { logout } = useAuth();
   const isRTL = language === "ar";
+
+  const toggleMenu = (menuLabel) => {
+    setExpandedMenus(prev => ({
+      ...prev,
+      [menuLabel]: !prev[menuLabel]
+    }));
+  };
 
   const portalRole = localStorage.getItem("portal_role") || "admin";
   const brand = BRAND_CONFIGS[portalRole] || BRAND_CONFIGS.admin;
@@ -220,6 +228,13 @@ export default function Sidebar() {
             items: [
               { label: isRTL ? "تقارير المبيعات" : "Sales Reports", path: "#", icon: FileSpreadsheet }
             ]
+          },
+          {
+            label: isRTL ? "الخدمات الذاتية" : "Self Service",
+            items: [
+              { label: isRTL ? "بوابة الأقسام" : "Departments Portal", path: "/staff-portal", icon: LayoutDashboard },
+              { label: isRTL ? "طلباتي الشخصية" : "My Requests", path: "/staff/personal-requests", icon: FileText }
+            ]
           }
         ];
 
@@ -295,7 +310,17 @@ export default function Sidebar() {
               { label: t("common.library", language), path: "/library", icon: BookOpen },
               { label: t("common.store", language), path: "/store", icon: ShoppingCart },
               { label: t("common.finance", language), path: "/finance", icon: DollarSign },
-              { label: t("common.staffControl", language), path: "/staff-control", icon: Shield },
+              { 
+                label: t("common.staffControl", language), 
+                path: "/staff-control", 
+                icon: Shield,
+                subItems: [
+                  { label: isRTL ? "قائمة الموظفين" : "Staff List", path: "/staff-control", icon: Users },
+                  { label: isRTL ? "الحضور والانصراف" : "Staff Attendance", path: "/staff/attendance", icon: ClipboardCheck },
+                  { label: isRTL ? "مسير الرواتب" : "Payroll", path: "/staff/payroll", icon: DollarSign },
+                  { label: isRTL ? "طلبات الموظفين" : "Staff Requests", path: "/staff/requests", icon: FileText }
+                ]
+              },
               { label: isRTL ? "الإرشاد الطلابي" : "Counseling", path: "/counseling", icon: Shield },
               { label: isRTL ? "إدارة الحالات الإرشادية" : "Counseling Cases", path: "/counseling/cases", icon: Shield }
             ]
@@ -375,9 +400,61 @@ export default function Sidebar() {
               </p>
               <div className="space-y-1">
                 {group.items.map((item) => {
+                  const hasSubItems = item.subItems && item.subItems.length > 0;
+                  const isExpanded = expandedMenus[item.label] || (hasSubItems && item.subItems.some(sub => location.pathname === sub.path));
+                  
                   const isActive = item.path.includes("?") 
                     ? (location.pathname + location.search) === item.path
                     : location.pathname === item.path;
+
+                  if (hasSubItems) {
+                    return (
+                      <div key={item.label} className="space-y-1">
+                        <button
+                          onClick={() => toggleMenu(item.label)}
+                          className={cn(
+                            "flex items-center justify-between w-full px-4 py-3 rounded-2xl text-sm font-bold transition-all duration-300 relative group cursor-pointer border-0 bg-transparent text-start",
+                            isActive ?
+                            brand.activeColor :
+                            "text-stone-500 hover:bg-stone-50 hover:text-stone-900"
+                          )}
+                        >
+                          <div className="flex items-center gap-3">
+                            <item.icon className={cn("h-5 w-5 shrink-0 transition-transform group-hover:scale-110", isActive ? "text-white" : brand.iconColor)} />
+                            <span>{item.label}</span>
+                          </div>
+                          <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", isExpanded ? "rotate-180" : "")} />
+                        </button>
+                        
+                        {isExpanded && (
+                          <div className={cn("space-y-1 mt-1", isRTL ? "pr-4 border-r border-stone-100 mr-4" : "pl-4 border-l border-stone-100 ml-4")}>
+                            {item.subItems.map((subItem) => {
+                              const isSubActive = subItem.path.includes("?") 
+                                ? (location.pathname + location.search) === subItem.path
+                                : location.pathname === subItem.path;
+                              return (
+                                <Link
+                                  key={subItem.label}
+                                  to={subItem.path}
+                                  onClick={() => setOpen(false)}
+                                  className={cn(
+                                    "flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-300 relative group",
+                                    isSubActive ?
+                                    "bg-stone-100 text-stone-900" :
+                                    "text-stone-400 hover:bg-stone-50/50 hover:text-stone-700"
+                                  )}
+                                >
+                                  <subItem.icon className={cn("h-4 w-4 shrink-0 transition-transform group-hover:scale-110", isSubActive ? "text-stone-900" : "text-stone-400")} />
+                                  <span>{subItem.label}</span>
+                                </Link>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
+
                   return (
                     <Link
                       key={item.label}
