@@ -301,7 +301,7 @@ export default function StudentDirectory() {
                       <td className="px-6 py-4 text-sm font-bold text-stone-600 num-en text-start">{student.student_id || student.id}</td>
                       <td className="px-6 py-4 text-start">
                         <Badge className="bg-stone-50 text-stone-600 border-none rounded-lg text-[9px] font-bold px-2 py-0.5 num-en">
-                          {isRTL ? `الصف ${student.grade || '10'}` : `Grade ${student.grade || '10'}`}-{student.section || 'A'}
+                          {isRTL ? `الصف ${student.grade || '10'}` : `Grade ${student.grade || '10'}`} - {student.section || 'أبو بكر'}
                         </Badge>
                       </td>
                       <td className="px-6 py-4 text-start">

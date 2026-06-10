@@ -79,7 +79,7 @@ export default function BulkImportDialog({ open, onOpenChange }) {
             full_name: record.full_name,
             student_id: record.student_id,
             grade: record.grade,
-            section: record.section || "A",
+            section: record.section || "أبو بكر",
             gender: record.gender || "male",
             parent_name: record.parent_name || "",
             parent_email: record.parent_email || "",

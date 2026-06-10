@@ -15,7 +15,7 @@ export default function LiveClassesTab({ teacher }) {
   const [saving, setSaving] = useState(false);
   const [showShare, setShowShare] = useState(null);
   const [platformUrl, setPlatformUrl] = useState("");
-  const [form, setForm] = useState({ room_name: "", subject_name: "", grade: "1", section: "", description: "" });
+  const [form, setForm] = useState({ room_name: "", subject_name: "", grade: "1", section: "أبو بكر", description: "" });
   const upd = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   const { data: rooms = [] } = useQuery({
@@ -74,7 +74,7 @@ export default function LiveClassesTab({ teacher }) {
     qc.invalidateQueries(["teacher-rooms", teacher.id]);
     setSaving(false);
     setShowCreate(false);
-    setForm({ room_name: "", subject_name: "", grade: "1", section: "", description: "" });
+    setForm({ room_name: "", subject_name: "", grade: "1", section: "أبو بكر", description: "" });
     
     // Open the room
     window.open(`/room-view?roomId=${newRoom.id}&mode=teach`, "_blank");
@@ -277,13 +277,18 @@ export default function LiveClassesTab({ teacher }) {
                 </Select>
               </div>
               <div className="col-span-2">
-                <Label>Section</Label>
-                <Input
-                  className="mt-1"
-                  placeholder="e.g. A, B, C"
+                <Label>Class / الفصل</Label>
+                <select
                   value={form.section}
                   onChange={e => upd("section", e.target.value)}
-                />
+                  className="w-full h-10 rounded-xl border border-stone-200 bg-white text-xs font-bold px-3 text-stone-700 outline-none cursor-pointer mt-1"
+                >
+                  <option value="أبو بكر">أبو بكر (Abu Bakr)</option>
+                  <option value="عمر">عمر (Omar)</option>
+                  <option value="عثمان">عثمان (Othman)</option>
+                  <option value="علي">علي (Ali)</option>
+                  <option value="حمزة">حمزة (Hamza)</option>
+                </select>
               </div>
             </div>
             <div>

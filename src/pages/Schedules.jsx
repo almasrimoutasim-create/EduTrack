@@ -10,7 +10,8 @@ import {
   GraduationCap, 
   Layers, 
   MapPin, 
-  AlertCircle 
+  AlertCircle,
+  Pencil
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/lib/LanguageContext";
@@ -24,6 +25,95 @@ import { toast } from "sonner";
 const DAYS_EN = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const DAYS_AR = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
 
+const getSubjectColors = (subjectName = "") => {
+  const name = subjectName.toLowerCase();
+  
+  if (name.includes("إسلام") || name.includes("دين") || name.includes("قرآن") || name.includes("islamic")) {
+    return {
+      bg: "bg-emerald-50/40 hover:bg-emerald-50/70",
+      border: "border-emerald-100/80 hover:border-emerald-250",
+      text: "text-emerald-950",
+      subtext: "text-emerald-700",
+      accent: "bg-emerald-500",
+      badge: "bg-emerald-100/80 text-emerald-800",
+      icon: "text-emerald-600",
+      glow: "hover:shadow-emerald-100/40"
+    };
+  }
+  if (name.includes("عرب") || name.includes("arabic")) {
+    return {
+      bg: "bg-rose-50/40 hover:bg-rose-50/70",
+      border: "border-rose-100/80 hover:border-rose-250",
+      text: "text-rose-950",
+      subtext: "text-rose-700",
+      accent: "bg-rose-500",
+      badge: "bg-rose-100/80 text-rose-800",
+      icon: "text-rose-600",
+      glow: "hover:shadow-rose-100/40"
+    };
+  }
+  if (name.includes("رياضيات") || name.includes("math")) {
+    return {
+      bg: "bg-indigo-50/40 hover:bg-indigo-50/70",
+      border: "border-indigo-100/80 hover:border-indigo-250",
+      text: "text-indigo-950",
+      subtext: "text-indigo-700",
+      accent: "bg-indigo-500",
+      badge: "bg-indigo-100/80 text-indigo-850",
+      icon: "text-indigo-600",
+      glow: "hover:shadow-indigo-100/40"
+    };
+  }
+  if (name.includes("علوم") || name.includes("science") || name.includes("فيزياء") || name.includes("كيمياء") || name.includes("أحياء")) {
+    return {
+      bg: "bg-cyan-50/40 hover:bg-cyan-50/70",
+      border: "border-cyan-100/80 hover:border-cyan-250",
+      text: "text-cyan-950",
+      subtext: "text-cyan-700",
+      accent: "bg-cyan-500",
+      badge: "bg-cyan-100/80 text-cyan-850",
+      icon: "text-cyan-600",
+      glow: "hover:shadow-cyan-100/40"
+    };
+  }
+  if (name.includes("إنجليز") || name.includes("english")) {
+    return {
+      bg: "bg-purple-50/40 hover:bg-purple-50/70",
+      border: "border-purple-100/80 hover:border-purple-250",
+      text: "text-purple-950",
+      subtext: "text-purple-700",
+      accent: "bg-purple-500",
+      badge: "bg-purple-100/80 text-purple-850",
+      icon: "text-purple-600",
+      glow: "hover:shadow-purple-100/40"
+    };
+  }
+  if (name.includes("اجتماعيات") || name.includes("تاريخ") || name.includes("جغرافيا") || name.includes("history") || name.includes("social")) {
+    return {
+      bg: "bg-amber-50/40 hover:bg-amber-50/70",
+      border: "border-amber-100/80 hover:border-amber-250",
+      text: "text-amber-950",
+      subtext: "text-amber-700",
+      accent: "bg-amber-500",
+      badge: "bg-amber-100/80 text-amber-850",
+      icon: "text-amber-600",
+      glow: "hover:shadow-amber-100/40"
+    };
+  }
+  
+  // Default/Fallback
+  return {
+    bg: "bg-stone-50 hover:bg-stone-100/50",
+    border: "border-stone-200 hover:border-stone-300",
+    text: "text-stone-900",
+    subtext: "text-stone-500",
+    accent: "bg-stone-400",
+    badge: "bg-stone-100 text-stone-600",
+    icon: "text-stone-450",
+    glow: "hover:shadow-stone-100/40"
+  };
+};
+
 const btnOutline = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border border-stone-200 bg-white text-stone-800 hover:bg-stone-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
 const btnPrimary = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-stone-900 text-white hover:bg-black cursor-pointer shadow-lg shadow-stone-200 disabled:opacity-50 disabled:cursor-not-allowed";
 
@@ -36,14 +126,16 @@ export default function Schedules() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedClassBooks, setSelectedClassBooks] = useState(null);
   const [booksDialogOpen, setBooksDialogOpen] = useState(false);
+  const [editingSchedule, setEditingSchedule] = useState(null);
 
   // Form states
   const [dayOfWeek, setDayOfWeek] = useState("Sunday");
+  const [grade, setGrade] = useState("1");
   const [subjectId, setSubjectId] = useState("");
   const [startTime, setStartTime] = useState("08:00");
   const [endTime, setEndTime] = useState("09:00");
   const [room, setRoom] = useState("");
-  const [section, setSection] = useState("A");
+  const [section, setSection] = useState("أبو بكر");
 
   // Fetch subjects
   const { data: subjects = [] } = useQuery({
@@ -80,6 +172,25 @@ export default function Schedules() {
     }
   });
 
+  // Update schedule mutation
+  const updateScheduleMutation = useMutation({
+    // @ts-ignore
+    mutationFn: async ({ id, updatedData }) => {
+      // @ts-ignore
+      return base44.entities.ClassSchedule.update(id, updatedData);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["class-schedules"] });
+      setDialogOpen(false);
+      setEditingSchedule(null);
+      resetForm();
+      toast.success(isRTL ? "تم تحديث الحصة بنجاح" : "Class schedule updated successfully");
+    },
+    onError: (err) => {
+      toast.error(isRTL ? "فشل تحديث الحصة" : "Failed to update class schedule");
+    }
+  });
+
   // Delete schedule mutation
   const deleteScheduleMutation = useMutation({
     mutationFn: async (id) => {
@@ -94,11 +205,24 @@ export default function Schedules() {
 
   const resetForm = () => {
     setDayOfWeek("Sunday");
+    setGrade(selectedGrade);
     setSubjectId("");
     setStartTime("08:00");
     setEndTime("09:00");
     setRoom("");
-    setSection("A");
+    setSection("أبو بكر");
+  };
+
+  const handleStartEdit = (cls) => {
+    setEditingSchedule(cls);
+    setGrade(cls.grade || "1");
+    setSection(cls.section || "أبو بكر");
+    setDayOfWeek(cls.day_of_week || "Sunday");
+    setStartTime(cls.start_time || "08:00");
+    setEndTime(cls.end_time || "09:00");
+    setRoom(cls.room || "");
+    setSubjectId(cls.subject_id || "");
+    setDialogOpen(true);
   };
 
   const handleAddSchedule = (e) => {
@@ -113,7 +237,8 @@ export default function Schedules() {
 
     // Check for potential conflict in same grade, section and day/time range
     const hasConflict = schedules.some(s => 
-      s.grade === selectedGrade && 
+      (!editingSchedule || s.id !== editingSchedule.id) &&
+      s.grade === grade && 
       s.section === section && 
       s.day_of_week === dayOfWeek && 
       ((startTime >= s.start_time && startTime < s.end_time) || 
@@ -126,9 +251,8 @@ export default function Schedules() {
       return;
     }
 
-    // @ts-ignore
-    createScheduleMutation.mutate({
-      grade: selectedGrade,
+    const scheduleData = {
+      grade: grade,
       section: section,
       day_of_week: dayOfWeek,
       start_time: startTime,
@@ -138,7 +262,18 @@ export default function Schedules() {
       subject_name: selectedSub.name,
       teacher_id: selectedSub.teacher_id || "",
       teacher_name: selectedSub.teacher_name || (isRTL ? "غير محدد" : "Not assigned")
-    });
+    };
+
+    if (editingSchedule) {
+      // @ts-ignore
+      updateScheduleMutation.mutate({
+        id: editingSchedule.id,
+        updatedData: scheduleData
+      });
+    } else {
+      // @ts-ignore
+      createScheduleMutation.mutate(scheduleData);
+    }
   };
 
   const filteredSchedules = schedules.filter(s => s.grade === selectedGrade);
@@ -157,7 +292,7 @@ export default function Schedules() {
         title={isRTL ? "إدارة الجداول الدراسية" : "Class Schedules Admin"} 
         subtitle={isRTL ? "تخطيط الحصص الأسبوعية وربطها بالصفوف والمواد والمعلمين" : "Plan weekly class schedules and link them to grades, subjects, and teachers"}
       >
-        <button onClick={() => setDialogOpen(true)} className={`${btnPrimary} h-11 px-5`}>
+        <button onClick={() => { setEditingSchedule(null); resetForm(); setDialogOpen(true); }} className={`${btnPrimary} h-11 px-5`}>
           <Plus size={18} />
           <span>{isRTL ? "إضافة حصة للجدول" : "Schedule New Class"}</span>
         </button>
@@ -204,64 +339,74 @@ export default function Schedules() {
                       (b.subject_id && b.subject_id === cls.subject_id) || 
                       (b.subject_name && b.subject_name.toLowerCase() === cls.subject_name.toLowerCase())
                     );
+                    const colors = getSubjectColors(cls.subject_name);
 
                     return (
                       <motion.div
                         key={cls.id}
                         initial={{ scale: 0.95, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
-                        className="group p-3 border border-stone-100 bg-stone-50 hover:bg-stone-100/50 rounded-2xl relative overflow-hidden transition-all duration-300"
+                        className={`group p-3 border ${colors.border} ${colors.bg} rounded-2xl relative overflow-hidden transition-all duration-300 hover:shadow-md ${colors.glow} flex flex-col justify-between`}
                       >
-                        <div className="absolute top-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                        <button
-                          onClick={() => {
-                            if (confirm(isRTL ? "هل تريد حذف هذه الحصة؟" : "Delete this class schedule?")) {
-                              deleteScheduleMutation.mutate(cls.id);
-                            }
-                          }}
-                          className="text-stone-400 hover:text-rose-600 bg-white shadow-sm border border-stone-100 rounded-lg p-1.5 transition-colors cursor-pointer"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-
-                      <div className="space-y-2 relative z-0">
-                        <p className="font-bold text-stone-900 text-xs truncate pr-5">{cls.subject_name}</p>
-                        
-                        <div className="flex items-center gap-1.5 text-[9px] font-bold text-stone-400 uppercase tracking-wide">
-                          <Clock size={10} />
-                          <span className="num-en">{cls.start_time} - {cls.end_time}</span>
-                        </div>
-
-                        <div className="flex items-center gap-1.5 text-[9px] font-semibold text-stone-500">
-                          <GraduationCap size={10} className="text-stone-400" />
-                          <span className="truncate">{cls.teacher_name}</span>
-                        </div>
-
-                        {subjectBooks.length > 0 && (
+                        <div className={`absolute top-0 right-0 left-0 h-1 ${colors.accent}`} />
+                        <div className="absolute top-1.5 right-1.5 p-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10 flex gap-1">
+                          <button
+                            onClick={() => handleStartEdit(cls)}
+                            className="text-stone-400 hover:text-teal-650 bg-white shadow-sm border border-stone-100 rounded-md p-1 transition-colors cursor-pointer"
+                          >
+                            <Pencil size={10} />
+                          </button>
                           <button
                             onClick={() => {
-                              setSelectedClassBooks({ subjectName: cls.subject_name, books: subjectBooks });
-                              setBooksDialogOpen(true);
+                              if (confirm(isRTL ? "هل تريد حذف هذه الحصة؟" : "Delete this class schedule?")) {
+                                deleteScheduleMutation.mutate(cls.id);
+                              }
                             }}
-                            className="w-full flex items-center gap-1 mt-1 text-[9px] font-bold text-teal-650 bg-teal-50 hover:bg-teal-100 rounded px-1.5 py-0.5 cursor-pointer transition-colors"
+                            className="text-stone-400 hover:text-rose-600 bg-white shadow-sm border border-stone-100 rounded-md p-1 transition-colors cursor-pointer"
                           >
-                            <BookOpen size={9} className="text-teal-600" />
-                            <span>{isRTL ? `المراجع: ${subjectBooks.length} كتب` : `References: ${subjectBooks.length} books`}</span>
+                            <Trash2 size={10} />
                           </button>
-                        )}
-
-                        <div className="flex justify-between items-center pt-1.5 border-t border-stone-200/50">
-                          <Badge className="bg-stone-200 text-stone-600 border-none font-bold text-[8px] px-1.5 py-0.5 rounded">
-                            {isRTL ? "شعبة" : "Sec"} {cls.section || 'A'}
-                          </Badge>
-                          {cls.room && (
-                            <span className="text-[9px] font-bold text-stone-400 flex items-center gap-0.5">
-                              <MapPin size={8} /> {cls.room}
-                            </span>
-                          )}
                         </div>
-                      </div>
+
+                        <div className="space-y-1.5 relative z-0 mt-1">
+                          <p className={`font-extrabold ${colors.text} text-xs text-center px-1.5 truncate w-full block`} title={cls.subject_name}>
+                            {cls.subject_name}
+                          </p>
+                          
+                          <div className={`flex items-center justify-center gap-1 text-[9px] font-bold ${colors.subtext} uppercase tracking-wide`}>
+                            <Clock size={9} className={colors.icon} />
+                            <span className="num-en">{cls.start_time} - {cls.end_time}</span>
+                          </div>
+
+                          <div className={`flex items-center justify-center gap-1 text-[9px] font-semibold ${colors.text} opacity-85`}>
+                            <GraduationCap size={9} className={colors.icon} />
+                            <span className="truncate max-w-[95px]">{cls.teacher_name}</span>
+                          </div>
+
+                          {subjectBooks.length > 0 && (
+                            <button
+                              onClick={() => {
+                                setSelectedClassBooks({ subjectName: cls.subject_name, books: subjectBooks });
+                                setBooksDialogOpen(true);
+                              }}
+                              className={`w-full flex items-center justify-center gap-1 mt-1 text-[8.5px] font-bold ${colors.subtext} ${colors.bg} hover:opacity-90 rounded-md py-0.5 px-1.5 cursor-pointer transition-colors border ${colors.border}`}
+                            >
+                              <BookOpen size={8.5} className={colors.icon} />
+                              <span>{isRTL ? `المراجع: ${subjectBooks.length}` : `Ref: ${subjectBooks.length}`}</span>
+                            </button>
+                          )}
+
+                          <div className={`flex justify-between items-center pt-1.5 border-t border-stone-200/40 flex-wrap gap-1 mt-1`}>
+                            <Badge className={`${colors.badge} border-none font-bold text-[8px] px-1 py-0.5 rounded-md`}>
+                              {isRTL ? `${cls.grade} - ${cls.section || 'أبو بكر'}` : `Gr ${cls.grade} - ${cls.section || 'Abu Bakr'}`}
+                            </Badge>
+                            {cls.room && (
+                              <span className={`text-[8.5px] font-bold ${colors.subtext} flex items-center gap-0.5`}>
+                                <MapPin size={8.5} className={colors.icon} /> {cls.room}
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </motion.div>
                     );
                   })
@@ -278,7 +423,10 @@ export default function Schedules() {
           <DialogHeader className="">
             <DialogTitle className="font-serif font-black text-xl text-stone-900 flex items-center gap-2">
               <Calendar className="text-primary h-5 w-5" />
-              {isRTL ? "إضافة حصة دراسية جديدة" : "Schedule New Class"}
+              {editingSchedule 
+                ? (isRTL ? "تعديل الحصة الدراسية" : "Edit Class Schedule")
+                : (isRTL ? "إضافة حصة دراسية جديدة" : "Schedule New Class")
+              }
             </DialogTitle>
           </DialogHeader>
 
@@ -294,6 +442,20 @@ export default function Schedules() {
               >
                 {DAYS_EN.slice(0, 5).map((day, idx) => (
                   <option key={day} value={day}>{isRTL ? DAYS_AR[idx] : day}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Grade Select */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-stone-550 block">{isRTL ? "الصف" : "Grade"}</label>
+              <select
+                value={grade}
+                onChange={(e) => setGrade(e.target.value)}
+                className="w-full h-11 rounded-xl border border-stone-200 bg-white text-xs font-bold px-3 text-stone-700 outline-none cursor-pointer"
+              >
+                {["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"].map(g => (
+                  <option key={g} value={g}>{isRTL ? `الصف ${g}` : `Grade ${g}`}</option>
                 ))}
               </select>
             </div>
@@ -316,14 +478,18 @@ export default function Schedules() {
             {/* Section & Room */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-stone-550 block">{isRTL ? "الشعبة" : "Section"}</label>
-                <Input
+                <label className="text-xs font-bold text-stone-550 block">{isRTL ? "الفصل" : "Class"}</label>
+                <select
                   value={section}
                   onChange={(e) => setSection(e.target.value)}
-                  placeholder="A, B, C..."
-                  className="h-11 rounded-xl border-stone-200 text-xs font-bold"
-                  dir={isRTL ? "rtl" : "ltr"}
-                />
+                  className="w-full h-11 rounded-xl border border-stone-200 bg-white text-xs font-bold px-3 text-stone-700 outline-none cursor-pointer"
+                >
+                  <option value="أبو بكر">{isRTL ? "أبو بكر" : "Abu Bakr"}</option>
+                  <option value="عمر">{isRTL ? "عمر" : "Omar"}</option>
+                  <option value="عثمان">{isRTL ? "عثمان" : "Othman"}</option>
+                  <option value="علي">{isRTL ? "علي" : "Ali"}</option>
+                  <option value="حمزة">{isRTL ? "حمزة" : "Hamza"}</option>
+                </select>
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-stone-550 block">{isRTL ? "القاعة / الصف" : "Room"}</label>
@@ -370,9 +536,12 @@ export default function Schedules() {
               <button
                 type="submit"
                 className={`${btnPrimary} px-5 h-11 bg-teal-600 hover:bg-teal-700`}
-                disabled={createScheduleMutation.isPending}
+                disabled={createScheduleMutation.isPending || updateScheduleMutation.isPending}
               >
-                {createScheduleMutation.isPending ? (isRTL ? "جاري الإضافة..." : "Adding...") : (isRTL ? "إضافة الحصة" : "Add Class")}
+                {createScheduleMutation.isPending || updateScheduleMutation.isPending 
+                  ? (isRTL ? "جاري الحفظ..." : "Saving...") 
+                  : (editingSchedule ? (isRTL ? "تعديل الحصة" : "Update Class") : (isRTL ? "إضافة الحصة" : "Add Class"))
+                }
               </button>
             </DialogFooter>
 
@@ -411,7 +580,7 @@ export default function Schedules() {
                       href={book.file_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 mt-2 text-[9px] font-extrabold text-teal-600 hover:underline"
+                      className="inline-flex items-center gap-1 mt-2 text-[9px] font-extrabold text-teal-650 hover:underline"
                     >
                       {isRTL ? "تحميل الكتاب PDF 📥" : "Download PDF 📥"}
                     </a>

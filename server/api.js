@@ -882,6 +882,14 @@ export function createApiHandler() {
       if (req.method === 'PUT' && entityId) {
         const body = await parseBody(req);
 
+        // Sanitize: convert empty strings to null for UUID/ID columns to avoid PostgreSQL type errors
+        const UUID_COLUMNS = ['subject_id', 'session_id', 'student_id', 'teacher_id', 'expense_id', 'parent_id', 'case_id'];
+        for (const col of UUID_COLUMNS) {
+          if (body[col] !== undefined && body[col] === '') {
+            body[col] = null;
+          }
+        }
+
         if (body.portal_password !== undefined) {
           if (body.portal_password === '') {
             delete body.portal_password;

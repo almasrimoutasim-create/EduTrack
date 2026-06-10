@@ -124,7 +124,7 @@ export default function TeacherPortal() {
             name: subj.name,
             grade: subj.grade,
             grade_level: subj.grade,
-            section: "A" // default fallback section
+            section: "أبو بكر" // default fallback section
           });
         }
       });
@@ -405,7 +405,7 @@ export default function TeacherPortal() {
                       </div>
 
                       <h4 className="text-2xl font-serif font-black text-stone-900 mb-2 group-hover:text-primary transition-colors">{cls.name}</h4>
-                      <p className="text-stone-400 text-xs font-bold uppercase tracking-widest mb-8">{isRTL ? "القسم" : "Section"} {cls.section || 'A'}</p>
+                      <p className="text-stone-400 text-xs font-bold uppercase tracking-widest mb-8">{isRTL ? "الفصل" : "Class"} {cls.section || 'أبو بكر'}</p>
 
                       <div className="grid grid-cols-2 gap-4 mb-8">
                         <div className="bg-stone-50 p-4 rounded-3xl text-center">
@@ -512,7 +512,7 @@ export default function TeacherPortal() {
                         <option value="all">{isRTL ? "جميع طلابي" : "All My Students"}</option>
                         {classes.map(c => (
                           <option key={c.id} value={c.id}>
-                            {c.name} - {isRTL ? "القسم" : "Section"} {c.section || 'A'} ({c.grade_level})
+                            {c.name} - {isRTL ? "الفصل" : "Class"} {c.section || 'أبو بكر'} ({c.grade_level})
                           </option>
                         ))}
                       </select>
@@ -580,7 +580,7 @@ export default function TeacherPortal() {
                             </TableCell>
                             <TableCell className="font-mono text-stone-550 text-xs">#{student.student_id}</TableCell>
                             <TableCell className="text-xs font-semibold text-stone-600">
-                              {isRTL ? "الصف" : "Grade"} {student.grade} - {student.section || "A"}
+                              {isRTL ? "الصف" : "Grade"} {student.grade} - {student.section || "أبو بكر"}
                             </TableCell>
                             <TableCell>
                               <div className="space-y-0.5 text-[10px] text-stone-400 font-medium">
@@ -818,7 +818,7 @@ function AttendanceTabContent({ isRTL, classes, students, portalUser }) {
               >
                 {classes.map(c => (
                   <option key={c.id} value={c.id}>
-                    {c.name} - {isRTL ? "القسم" : "Section"} {c.section || 'A'} ({c.grade_level})
+                    {c.name} - {isRTL ? "الفصل" : "Class"} {c.section || 'أبو بكر'} ({c.grade_level})
                   </option>
                 ))}
               </select>
@@ -883,7 +883,7 @@ function AttendanceTabContent({ isRTL, classes, students, portalUser }) {
                       </TableCell>
                       <TableCell className="font-mono text-stone-550 text-xs">#{student.student_id}</TableCell>
                       <TableCell className="text-xs font-semibold text-stone-600">
-                        {isRTL ? "الصف" : "Grade"} {student.grade} - {student.section || "A"}
+                        {isRTL ? "الصف" : "Grade"} {student.grade} - {student.section || "أبو بكر"}
                       </TableCell>
                       <TableCell className="text-center">
                         <div className="inline-flex p-1 bg-stone-100 rounded-xl gap-1">
@@ -1286,7 +1286,7 @@ function GradesTabContent({ isRTL, classes, students, portalUser }) {
             >
               {classes.map(c => (
                 <option key={c.id} value={c.id}>
-                  {c.name} - {isRTL ? "القسم" : "Section"} {c.section || 'A'} ({c.grade_level})
+                  {c.name} - {isRTL ? "الفصل" : "Class"} {c.section || 'أبو بكر'} ({c.grade_level})
                 </option>
               ))}
             </select>

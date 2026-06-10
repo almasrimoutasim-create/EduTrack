@@ -255,7 +255,7 @@ export default function Students() {
                 <th>رقم الطالب</th>
                 <th>الاسم الكامل</th>
                 <th>الصف</th>
-                <th>الشعبة</th>
+                <th>الفصل</th>
                 <th>البريد الإلكتروني</th>
                 <th>الهاتف</th>
                 <th>الحالة</th>

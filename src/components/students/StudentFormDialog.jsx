@@ -18,7 +18,7 @@ export default function StudentFormDialog({ open, onClose, student }) {
   const isRTL = language === "ar";
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(student || {
-    full_name: "", student_id: "", user_email: "", portal_password: "", parent_password: "", grade: "1", section: "A",
+    full_name: "", student_id: "", user_email: "", portal_password: "", parent_password: "", grade: "1", section: "أبو بكر",
     date_of_birth: "", parent_name: "", parent_phone: "", parent_email: "",
     address: "", card_balance: 0, bus_registered: false, bus_route: "", status: "active"
   });
@@ -33,7 +33,7 @@ export default function StudentFormDialog({ open, onClose, student }) {
       });
     } else {
       setForm({
-        full_name: "", student_id: "", user_email: student?.user_email || "", portal_password: "", parent_password: "", grade: "1", section: "A",
+        full_name: "", student_id: "", user_email: student?.user_email || "", portal_password: "", parent_password: "", grade: "1", section: "أبو بكر",
         date_of_birth: "", parent_name: "", parent_phone: "", parent_email: "",
         address: "", card_balance: 0, bus_registered: false, bus_route: "", status: "active"
       });
@@ -77,7 +77,7 @@ export default function StudentFormDialog({ open, onClose, student }) {
     studentId: isRTL ? "الرقم الجامعي / الهوية *" : "Student ID *",
     grade: isRTL ? "الصف *" : "Grade *",
     gradeItem: (g) => isRTL ? `الصف ${g}` : `Grade ${g}`,
-    section: isRTL ? "الشعبة" : "Section",
+    section: isRTL ? "الفصل" : "Class",
     dob: isRTL ? "تاريخ الميلاد" : "Date of Birth",
     parentName: isRTL ? "اسم ولي الأمر" : "Parent Name",
     parentPhone: isRTL ? "رقم هاتف ولي الأمر" : "Parent Phone",
@@ -141,12 +141,18 @@ export default function StudentFormDialog({ open, onClose, student }) {
             </div>
             <div>
               <Label className="text-stone-700 font-medium">{t.section}</Label>
-              <Input 
-                value={form.section} 
-                onChange={e => update("section", e.target.value)} 
-                className="mt-1 rounded-lg border-stone-200"
-                placeholder="A" 
-              />
+              <Select value={form.section || ""} onValueChange={v => update("section", v)}>
+                <SelectTrigger className="mt-1 rounded-lg border-stone-200 bg-white">
+                  <SelectValue placeholder={isRTL ? "اختر الفصل..." : "Select Class..."} />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  <SelectItem value="أبو بكر" className="font-semibold">{isRTL ? "أبو بكر" : "Abu Bakr"}</SelectItem>
+                  <SelectItem value="عمر" className="font-semibold">{isRTL ? "عمر" : "Omar"}</SelectItem>
+                  <SelectItem value="عثمان" className="font-semibold">{isRTL ? "عثمان" : "Othman"}</SelectItem>
+                  <SelectItem value="علي" className="font-semibold">{isRTL ? "علي" : "Ali"}</SelectItem>
+                  <SelectItem value="حمزة" className="font-semibold">{isRTL ? "حمزة" : "Hamza"}</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label className="text-stone-700 font-medium">{t.dob}</Label>
