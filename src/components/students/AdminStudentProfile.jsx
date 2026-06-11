@@ -36,6 +36,7 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
   const { language } = useLanguage();
   const isRTL = language === "ar";
   const _qc = useQueryClient();
+  const portalRole = localStorage.getItem("portal_role") || "admin";
 
   const [activeTab, setActiveTab] = useState("overview"); // "overview" | "academics" | "finance" | "activity"
   const [showStudentPass, setShowStudentPass] = useState(false);
@@ -741,13 +742,15 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
               <Printer size={16} />
               <span>{isRTL ? "طباعة وتصدير PDF" : "Print & Export PDF"}</span>
             </button>
-            <button 
-              onClick={() => onEdit(student)}
-              className="px-6 h-11 inline-flex items-center justify-center gap-2 font-bold rounded-xl bg-primary text-white hover:bg-primary/95 transition-all shadow-md hover:shadow-lg cursor-pointer"
-            >
-              <Pencil size={15} />
-              <span>{isRTL ? "تعديل بيانات الطالب" : "Edit Student Data"}</span>
-            </button>
+            {onEdit && portalRole === "admin" && (
+              <button 
+                onClick={() => onEdit(student)}
+                className="px-6 h-11 inline-flex items-center justify-center gap-2 font-bold rounded-xl bg-primary text-white hover:bg-primary/95 transition-all shadow-md hover:shadow-lg cursor-pointer"
+              >
+                <Pencil size={15} />
+                <span>{isRTL ? "تعديل بيانات الطالب" : "Edit Student Data"}</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -792,128 +795,132 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
             </Card>
 
             {/* Premium Interactive School Smart Card */}
-            <Card className="border-0 rounded-2xl overflow-hidden shadow-lg relative bg-gradient-to-br from-slate-900 via-primary to-slate-950 p-6 text-white min-h-[195px] flex flex-col justify-between group">
-              {/* Glowing chips / animations overlay */}
-              <div className="absolute -right-16 -top-16 w-44 h-44 bg-emerald-500/10 rounded-full blur-3xl group-hover:bg-emerald-500/15 transition-all duration-500" />
-              <div className="absolute -left-16 -bottom-16 w-44 h-44 bg-cyan-500/10 rounded-full blur-3xl group-hover:bg-cyan-500/15 transition-all duration-500" />
+            {portalRole === "admin" && (
+              <Card className="border-0 rounded-2xl overflow-hidden shadow-lg relative bg-gradient-to-br from-slate-900 via-primary to-slate-950 p-6 text-white min-h-[195px] flex flex-col justify-between group">
+                {/* Glowing chips / animations overlay */}
+                <div className="absolute -right-16 -top-16 w-44 h-44 bg-emerald-500/10 rounded-full blur-3xl group-hover:bg-emerald-500/15 transition-all duration-500" />
+                <div className="absolute -left-16 -bottom-16 w-44 h-44 bg-cyan-500/10 rounded-full blur-3xl group-hover:bg-cyan-500/15 transition-all duration-500" />
 
-              <div className="flex justify-between items-start z-10">
-                <div className="space-y-1">
-                  <span className="text-[10px] uppercase font-bold text-white/50 tracking-widest">{isRTL ? "البطاقة الذكية للمدرسة" : "School Smart Card"}</span>
-                  <p className="text-xs font-mono tracking-wider opacity-90 num-en">•••• •••• •••• {student.student_id?.replace(/[^0-9]/g, '').slice(-4) || '8254'}</p>
+                <div className="flex justify-between items-start z-10">
+                  <div className="space-y-1">
+                    <span className="text-[10px] uppercase font-bold text-white/50 tracking-widest">{isRTL ? "البطاقة الذكية للمدرسة" : "School Smart Card"}</span>
+                    <p className="text-xs font-mono tracking-wider opacity-90 num-en">•••• •••• •••• {student.student_id?.replace(/[^0-9]/g, '').slice(-4) || '8254'}</p>
+                  </div>
+                  <div className="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center">
+                    <CreditCard size={18} className="text-white/80" />
+                  </div>
                 </div>
-                <div className="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center">
-                  <CreditCard size={18} className="text-white/80" />
-                </div>
-              </div>
 
-              <div className="my-5 z-10">
-                <span className="text-[10px] text-white/50 block mb-0.5">{isRTL ? "رصيد المحفظة والبطاقة الذكية" : "Smart Card Wallet Balance"}</span>
-                <span className="text-2xl font-black text-emerald-400 num-en">${parseFloat(student.card_balance || 0).toFixed(2)}</span>
-              </div>
+                <div className="my-5 z-10">
+                  <span className="text-[10px] text-white/50 block mb-0.5">{isRTL ? "رصيد المحفظة والبطاقة الذكية" : "Smart Card Wallet Balance"}</span>
+                  <span className="text-2xl font-black text-emerald-400 num-en">${parseFloat(student.card_balance || 0).toFixed(2)}</span>
+                </div>
 
-              <div className="flex justify-between items-end border-t border-white/10 pt-3 z-10 text-[10px] font-semibold text-white/70">
-                <div>
-                  <span className="opacity-50 block">{isRTL ? "صاحب البطاقة" : "Card Holder"}</span>
-                  <span className="font-bold opacity-100">{student.full_name}</span>
+                <div className="flex justify-between items-end border-t border-white/10 pt-3 z-10 text-[10px] font-semibold text-white/70">
+                  <div>
+                    <span className="opacity-50 block">{isRTL ? "صاحب البطاقة" : "Card Holder"}</span>
+                    <span className="font-bold opacity-100">{student.full_name}</span>
+                  </div>
+                  <div className="flex items-center gap-1 bg-white/10 rounded px-1.5 py-0.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    <span className="uppercase text-[8px] font-bold">NFC Active</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1 bg-white/10 rounded px-1.5 py-0.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  <span className="uppercase text-[8px] font-bold">NFC Active</span>
-                </div>
-              </div>
-            </Card>
+              </Card>
+            )}
 
             {/* Portal Accounts Credentials Card */}
-            <Card className="border border-stone-200/80 rounded-2xl p-5 bg-white shadow-sm space-y-4">
-              <div className="flex items-center gap-2 border-b border-stone-100 pb-2">
-                <Lock className="text-primary stroke-[1.8]" size={16} />
-                <h4 className="font-display font-bold text-stone-800 text-sm">{isRTL ? "حسابات البوابات الإلكترونية" : "Portal Credentials"}</h4>
-              </div>
-
-              {/* Student Account */}
-              <div className="space-y-2.5 p-3 rounded-xl bg-stone-50/50 border border-stone-150/40 text-xs">
-                <span className="font-bold text-stone-500 block border-b border-stone-100 pb-1">{isRTL ? "بوابة الطالب" : "Student Portal"}</span>
-                
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-1.5 text-stone-600 font-semibold truncate">
-                    <Mail size={13} className="text-stone-400 shrink-0" />
-                    <span className="truncate num-en">{student.user_email || `${student.student_id}@school.edu`}</span>
-                  </div>
-                  <button 
-                    onClick={() => handleCopy(student.user_email || `${student.student_id}@school.edu`, "stuEmail")}
-                    className="text-stone-400 hover:text-stone-800 p-1 rounded hover:bg-stone-200/50 transition-colors shrink-0 cursor-pointer"
-                  >
-                    {copiedField === "stuEmail" ? <CheckCircle size={13} className="text-emerald-500" /> : <Copy size={13} />}
-                  </button>
+            {portalRole === "admin" && (
+              <Card className="border border-stone-200/80 rounded-2xl p-5 bg-white shadow-sm space-y-4">
+                <div className="flex items-center gap-2 border-b border-stone-100 pb-2">
+                  <Lock className="text-primary stroke-[1.8]" size={16} />
+                  <h4 className="font-display font-bold text-stone-800 text-sm">{isRTL ? "حسابات البوابات الإلكترونية" : "Portal Credentials"}</h4>
                 </div>
 
-                <div className="flex items-center justify-between gap-2 pt-1">
-                  <div className="flex items-center gap-1.5 text-stone-600 font-semibold">
-                    <Lock size={13} className="text-stone-400 shrink-0" />
-                    <span className="font-mono">
-                      {showStudentPass ? (student.portal_password || "12345678") : "••••••••"}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1 shrink-0">
+                {/* Student Account */}
+                <div className="space-y-2.5 p-3 rounded-xl bg-stone-50/50 border border-stone-150/40 text-xs">
+                  <span className="font-bold text-stone-500 block border-b border-stone-100 pb-1">{isRTL ? "بوابة الطالب" : "Student Portal"}</span>
+                  
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 text-stone-600 font-semibold truncate">
+                      <Mail size={13} className="text-stone-400 shrink-0" />
+                      <span className="truncate num-en">{student.user_email || `${student.student_id}@school.edu`}</span>
+                    </div>
                     <button 
-                      onClick={() => setShowStudentPass(!showStudentPass)}
-                      className="text-stone-400 hover:text-stone-850 p-1 rounded hover:bg-stone-200/50 transition-colors cursor-pointer"
+                      onClick={() => handleCopy(student.user_email || `${student.student_id}@school.edu`, "stuEmail")}
+                      className="text-stone-400 hover:text-stone-850 p-1 rounded hover:bg-stone-200/50 transition-colors shrink-0 cursor-pointer"
                     >
-                      {showStudentPass ? <EyeOff size={13} /> : <Eye size={13} />}
-                    </button>
-                    <button 
-                      onClick={() => handleCopy(student.portal_password || "12345678", "stuPass")}
-                      className="text-stone-400 hover:text-stone-850 p-1 rounded hover:bg-stone-200/50 transition-colors cursor-pointer"
-                    >
-                      {copiedField === "stuPass" ? <CheckCircle size={13} className="text-emerald-500" /> : <Copy size={13} />}
+                      {copiedField === "stuEmail" ? <CheckCircle size={13} className="text-emerald-500" /> : <Copy size={13} />}
                     </button>
                   </div>
-                </div>
-              </div>
 
-              {/* Parent Account */}
-              <div className="space-y-2.5 p-3 rounded-xl bg-stone-50/50 border border-stone-150/40 text-xs">
-                <span className="font-bold text-stone-500 block border-b border-stone-100 pb-1">{isRTL ? "بوابة ولي الأمر" : "Parent Portal"}</span>
-                
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-1.5 text-stone-600 font-semibold truncate">
-                    <Mail size={13} className="text-stone-400 shrink-0" />
-                    <span className="truncate num-en">{student.parent_email || "-"}</span>
+                  <div className="flex items-center justify-between gap-2 pt-1">
+                    <div className="flex items-center gap-1.5 text-stone-600 font-semibold">
+                      <Lock size={13} className="text-stone-400 shrink-0" />
+                      <span className="font-mono">
+                        {showStudentPass ? (student.portal_password || "12345678") : "••••••••"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button 
+                        onClick={() => setShowStudentPass(!showStudentPass)}
+                        className="text-stone-400 hover:text-stone-855 p-1 rounded hover:bg-stone-200/50 transition-colors cursor-pointer"
+                      >
+                        {showStudentPass ? <EyeOff size={13} /> : <Eye size={13} />}
+                      </button>
+                      <button 
+                        onClick={() => handleCopy(student.portal_password || "12345678", "stuPass")}
+                        className="text-stone-400 hover:text-stone-850 p-1 rounded hover:bg-stone-200/50 transition-colors cursor-pointer"
+                      >
+                        {copiedField === "stuPass" ? <CheckCircle size={13} className="text-emerald-500" /> : <Copy size={13} />}
+                      </button>
+                    </div>
                   </div>
-                  <button 
-                    disabled={!student.parent_email}
-                    onClick={() => handleCopy(student.parent_email, "parentEmail")}
-                    className="text-stone-400 hover:text-stone-850 p-1 rounded hover:bg-stone-200/50 transition-colors shrink-0 disabled:opacity-50 cursor-pointer"
-                  >
-                    {copiedField === "parentEmail" ? <CheckCircle size={13} className="text-emerald-500" /> : <Copy size={13} />}
-                  </button>
                 </div>
 
-                <div className="flex items-center justify-between gap-2 pt-1">
-                  <div className="flex items-center gap-1.5 text-stone-600 font-semibold">
-                    <Lock size={13} className="text-stone-400 shrink-0" />
-                    <span className="font-mono">
-                      {showParentPass ? (student.parent_password || "Parent123") : "••••••••"}
-                    </span>
+                {/* Parent Account */}
+                <div className="space-y-2.5 p-3 rounded-xl bg-stone-50/50 border border-stone-150/40 text-xs">
+                  <span className="font-bold text-stone-500 block border-b border-stone-100 pb-1">{isRTL ? "بوابة ولي الأمر" : "Parent Portal"}</span>
+                  
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 text-stone-600 font-semibold truncate">
+                      <Mail size={13} className="text-stone-400 shrink-0" />
+                      <span className="truncate num-en">{student.parent_email || "-"}</span>
+                    </div>
+                    <button 
+                      disabled={!student.parent_email}
+                      onClick={() => handleCopy(student.parent_email, "parentEmail")}
+                      className="text-stone-400 hover:text-stone-850 p-1 rounded hover:bg-stone-200/50 transition-colors shrink-0 disabled:opacity-50 cursor-pointer"
+                    >
+                      {copiedField === "parentEmail" ? <CheckCircle size={13} className="text-emerald-500" /> : <Copy size={13} />}
+                    </button>
                   </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <button 
-                      onClick={() => setShowParentPass(!showParentPass)}
-                      className="text-stone-400 hover:text-stone-850 p-1 rounded hover:bg-stone-200/50 transition-colors cursor-pointer"
-                    >
-                      {showParentPass ? <EyeOff size={13} /> : <Eye size={13} />}
-                    </button>
-                    <button 
-                      onClick={() => handleCopy(student.parent_password || "Parent123", "parentPass")}
-                      className="text-stone-400 hover:text-stone-850 p-1 rounded hover:bg-stone-200/50 transition-colors cursor-pointer"
-                    >
-                      {copiedField === "parentPass" ? <CheckCircle size={13} className="text-emerald-500" /> : <Copy size={13} />}
-                    </button>
+
+                  <div className="flex items-center justify-between gap-2 pt-1">
+                    <div className="flex items-center gap-1.5 text-stone-600 font-semibold">
+                      <Lock size={13} className="text-stone-400 shrink-0" />
+                      <span className="font-mono">
+                        {showParentPass ? (student.parent_password || "Parent123") : "••••••••"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button 
+                        onClick={() => setShowParentPass(!showParentPass)}
+                        className="text-stone-400 hover:text-stone-850 p-1 rounded hover:bg-stone-200/50 transition-colors cursor-pointer"
+                      >
+                        {showParentPass ? <EyeOff size={13} /> : <Eye size={13} />}
+                      </button>
+                      <button 
+                        onClick={() => handleCopy(student.parent_password || "Parent123", "parentPass")}
+                        className="text-stone-400 hover:text-stone-850 p-1 rounded hover:bg-stone-200/50 transition-colors cursor-pointer"
+                      >
+                        {copiedField === "parentPass" ? <CheckCircle size={13} className="text-emerald-500" /> : <Copy size={13} />}
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </Card>
+              </Card>
+            )}
           </div>
 
           {/* Right Column: Tabbed View (Academic, financial, activity detail panels) */}
@@ -924,10 +931,10 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
               {[
                 { id: "overview", label: isRTL ? "معلومات الطالب" : "General Info", icon: ClipboardList },
                 { id: "academics", label: isRTL ? "الأكاديميات والدرجات" : "Academics", icon: GraduationCap },
-                { id: "finance", label: isRTL ? "الرسوم والمالية" : "Tuition & Finance", icon: DollarSign },
-                { id: "activity", label: isRTL ? "المتجر والمكتبة" : "Canteen & Library", icon: ShoppingBag },
-                { id: "fines", label: isRTL ? "المستحقات الأخرى" : "Other Dues & Fines", icon: AlertCircle }
-              ].map(tab => {
+                portalRole === "admin" && { id: "finance", label: isRTL ? "الرسوم والمالية" : "Tuition & Finance", icon: DollarSign },
+                portalRole === "admin" && { id: "activity", label: isRTL ? "المتجر والمكتبة" : "Canteen & Library", icon: ShoppingBag },
+                portalRole === "admin" && { id: "fines", label: isRTL ? "المستحقات الأخرى" : "Other Dues & Fines", icon: AlertCircle }
+              ].filter(Boolean).map(tab => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
                 return (
