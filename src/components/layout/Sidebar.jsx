@@ -308,10 +308,13 @@ export default function Sidebar() {
             label: isRTL ? "الأنظمة المساندة" : "Support Systems",
             items: [
               { label: t("common.library", language), path: "/library", icon: BookOpen },
-              { label: t("common.store", language), path: "/store", icon: ShoppingCart },
-              { label: t("common.finance", language), path: "/finance", icon: DollarSign },
+              { label: isRTL ? "أمين المستودع (المتجر)" : "Storekeeper (Store)", path: "/store", icon: ShoppingCart },
+              { label: isRTL ? "المحاسب (المالية)" : "Accountant (Finance)", path: "/finance", icon: DollarSign },
+              { label: isRTL ? "المسجل (دليل الطلاب)" : "Registrar (Student Directory)", path: "/student-directory", icon: FileText },
+              { label: isRTL ? "مشرف الحافلة" : "Bus Supervisor", path: "/bus-supervisor", icon: Bus },
+              { label: isRTL ? "حارس الأمن (بوابة الموظفين)" : "Security Guard (Staff Portal)", path: "/staff-portal", icon: Shield },
               { 
-                label: t("common.staffControl", language), 
+                label: isRTL ? "الموارد البشرية (إدارة الموظفين)" : "Human Resources (Staff Control)", 
                 path: "/staff-control", 
                 icon: Shield,
                 subItems: [
