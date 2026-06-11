@@ -65,6 +65,7 @@ export default function StaffMemberFormDialog({ open, onClose, member }) {
     { value: "HR", label: isRTL ? "موارد بشرية" : "HR" },
     { value: "Accountant", label: isRTL ? "محاسب" : "Accountant" },
     { value: "Registrar", label: isRTL ? "مسجل" : "Registrar" },
+    { value: "counselor", label: isRTL ? "مرشد طلابي" : "Counselor" },
   ];
 
   const statuses = [

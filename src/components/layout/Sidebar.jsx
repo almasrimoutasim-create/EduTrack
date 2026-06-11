@@ -4,7 +4,7 @@ import {
   FileText, ShoppingCart, Menu, X, Newspaper, Trophy, DollarSign, Shield, BarChart3, LogOut,
   Calendar, FileSpreadsheet, Award, History, Layers, Clock, FolderArchive, HelpCircle, Settings,
   Briefcase, CreditCard, Search, Percent, AlertTriangle, PlusCircle, UserCheck, ArrowLeft, MessageSquare,
-  Megaphone, Video, ChevronDown
+  Megaphone, Video, ChevronDown, Bus, ShoppingBag
 } from "lucide-react";
 import { useState } from "react";
 import { motion } from "framer-motion";
@@ -312,7 +312,14 @@ export default function Sidebar() {
               { label: isRTL ? "المحاسب (المالية)" : "Accountant (Finance)", path: "/finance", icon: DollarSign },
               { label: isRTL ? "المسجل (دليل الطلاب)" : "Registrar (Student Directory)", path: "/student-directory", icon: FileText },
               { label: isRTL ? "مشرف الحافلة" : "Bus Supervisor", path: "/bus-supervisor", icon: Bus },
-              { label: isRTL ? "حارس الأمن (بوابة الموظفين)" : "Security Guard (Staff Portal)", path: "/staff-portal", icon: Shield },
+              { 
+                label: isRTL ? "حارس الأمن" : "Security Guard", 
+                path: "/staff-portal", 
+                icon: Shield,
+                onClick: () => {
+                  localStorage.setItem("portal_role", "security");
+                }
+              },
               { 
                 label: isRTL ? "الموارد البشرية (إدارة الموظفين)" : "Human Resources (Staff Control)", 
                 path: "/staff-control", 
@@ -464,6 +471,9 @@ export default function Sidebar() {
                       to={item.path}
                       onClick={(e) => {
                         setOpen(false);
+                        if (item.onClick) {
+                          item.onClick();
+                        }
                         if (item.path === "#") {
                           e.preventDefault();
                           toast.info(isRTL ? `قسم (${item.label}) سيتم تفعيله قريباً` : `${item.label} section will be activated soon`);

@@ -21,13 +21,15 @@ import {
   Phone,
   UserCheck,
   DoorOpen,
-  Wifi
+  Wifi,
+  HeartHandshake
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/lib/LanguageContext";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { useAuth } from "@/lib/AuthContext";
 
 const btnOutline = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full text-sm font-semibold transition-all border-2 border-stone-200 bg-white/50 backdrop-blur-md text-stone-800 hover:bg-stone-100 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
 const btnPrimary = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed";
@@ -36,6 +38,7 @@ export default function StaffPortal() {
   const navigate = useNavigate();
   const { language } = useLanguage();
   const isRTL = language === "ar";
+  const { user } = useAuth();
   
   const currentRole = localStorage.getItem("portal_role") || "staff";
   const currentUserStr = localStorage.getItem("portal_user");
@@ -100,6 +103,13 @@ export default function StaffPortal() {
       color: "bg-rose-600 text-white",
       path: "/finance"
     },
+    {
+      id: "counselor",
+      icon: HeartHandshake,
+      label: { ar: "المرشد الطلابي", en: "Student Counselor" },
+      color: "bg-emerald-600 text-white",
+      path: "/counseling"
+    }
   ];
 
   const handlePortalClick = (path, id) => {
@@ -157,7 +167,8 @@ export default function StaffPortal() {
         (targetDeptId === "accountant" && userRole === "accountant") ||
         (targetDeptId === "store_keeper" && (userRole === "store" || userRole === "store_keeper")) ||
         (targetDeptId === "bus_supervisor" && (userRole === "bus" || userRole === "bus_supervisor")) ||
-        (targetDeptId === "security" && userRole === "security");
+        (targetDeptId === "security" && userRole === "security") ||
+        (targetDeptId === "counselor" && (userRole === "counselor" || userRole === "counseling"));
 
       if (!isMatch) {
         throw new Error(isRTL ? "عذراً، هذا الحساب غير مصرح له بالدخول لهذا القسم الإداري" : "This account is not authorized for this department");
@@ -261,13 +272,26 @@ export default function StaffPortal() {
               <Wifi size={14} className="animate-pulse" />
               {isRTL ? "متصل بالنظام" : "System Connected"}
             </div>
-            <button 
-              onClick={handleLogoutDept}
-              className={`${btnOutline} border-stone-700 bg-stone-800 text-stone-300 hover:bg-stone-700 h-10 px-4 rounded-xl text-xs`}
-            >
-              <ArrowLeft size={14} className={isRTL ? "" : "rotate-180"} />
-              {isRTL ? "بوابة الموظفين" : "Staff Portal"}
-            </button>
+            {user?.role === "admin" ? (
+              <button 
+                onClick={() => {
+                  localStorage.setItem("portal_role", "admin");
+                  window.location.href = "/";
+                }}
+                className={`${btnOutline} border-stone-750 bg-stone-800 text-stone-200 hover:bg-stone-700 h-10 px-4 rounded-xl text-xs`}
+              >
+                <ArrowLeft size={14} className={isRTL ? "" : "rotate-180"} />
+                {isRTL ? "العودة للوحة الإدارة" : "Back to Admin"}
+              </button>
+            ) : (
+              <button 
+                onClick={handleLogoutDept}
+                className={`${btnOutline} border-stone-700 bg-stone-800 text-stone-300 hover:bg-stone-700 h-10 px-4 rounded-xl text-xs`}
+              >
+                <ArrowLeft size={14} className={isRTL ? "" : "rotate-180"} />
+                {isRTL ? "بوابة الموظفين" : "Staff Portal"}
+              </button>
+            )}
           </div>
         </header>
 

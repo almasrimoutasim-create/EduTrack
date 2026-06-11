@@ -143,6 +143,8 @@ export default function StaffControl() {
       'bus_supervisor': { bg: 'bg-amber-100 text-amber-700',     label: isRTL ? 'مشرف حافلة'     : 'Bus Supervisor' },
       'store_keeper':   { bg: 'bg-violet-100 text-violet-700',   label: isRTL ? 'أمين مستودع'    : 'Store Keeper' },
       'security':       { bg: 'bg-cyan-100 text-cyan-700',       label: isRTL ? 'حارس أمن'       : 'Security' },
+      'counselor':      { bg: 'bg-emerald-100 text-emerald-700', label: isRTL ? 'مرشد طلابي'     : 'Counselor' },
+      'counseling':     { bg: 'bg-emerald-100 text-emerald-700', label: isRTL ? 'مرشد طلابي'     : 'Counselor' },
     };
     return map[role] || { bg: 'bg-stone-100 text-stone-600', label: role };
   };

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { useAuth } from "@/lib/AuthContext";
 import PageHeader from "@/components/shared/PageHeader";
 import StatCard from "@/components/shared/StatCard";
@@ -25,7 +25,7 @@ export default function CounselingDashboard() {
   // Load all students for mapping
   const { data: students = [] } = useQuery({
     queryKey: ["students-mapping-list-dashboard"],
-    queryFn: () => base44.entities.Student.list("-created_at", 500),
+    queryFn: () => entities.Student.list("-created_at", 500),
     staleTime: 1000 * 60 * 10
   });
 
@@ -40,7 +40,7 @@ export default function CounselingDashboard() {
   // Load all cases for dashboard
   const { data: cases = [], isLoading } = useQuery({
     queryKey: ["all-counseling-cases"],
-    queryFn: () => base44.entities.CounselingCase.list(),
+    queryFn: () => entities.CounselingCase.list(),
     staleTime: 1000 * 60 * 3
   });
 

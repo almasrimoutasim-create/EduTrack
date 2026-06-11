@@ -1,7 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, Users, Calendar, CreditCard, ShieldCheck, MessageSquare, LogOut, Settings, DollarSign, Menu, X, FileText,
-  GraduationCap, Layers, ShoppingCart, ShoppingBag, FileSpreadsheet
+  GraduationCap, Layers, ShoppingCart, ShoppingBag, FileSpreadsheet, ArrowLeft
 } from "lucide-react";
 import { useState } from "react";
 import { motion } from "framer-motion";
@@ -15,7 +15,7 @@ export default function StaffSidebar() {
   const [open, setOpen] = useState(false);
   const { language } = useLanguage();
   const isRTL = language === "ar";
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
 
   const portalRole = localStorage.getItem("portal_role") || "staff";
 
@@ -199,6 +199,32 @@ export default function StaffSidebar() {
             </span>
             <LanguageSwitcher />
           </div>
+
+          {user?.role === "admin" && (
+            <button
+              onClick={() => {
+                localStorage.setItem("portal_role", "admin");
+                window.location.href = "/";
+              }}
+              className="flex items-center gap-3 w-full px-4 py-3 text-sm font-bold text-blue-600 hover:bg-blue-50 rounded-2xl transition-all"
+            >
+              <ArrowLeft className={cn("h-5 w-5", isRTL ? "rotate-180" : "")} />
+              {isRTL ? "العودة للوحة الإدارة" : "Back to Admin"}
+            </button>
+          )}
+
+          {portalRole !== "staff" && portalRole !== "admin" && (
+            <button
+              onClick={() => {
+                localStorage.setItem("portal_role", "staff");
+                window.location.href = "/staff-portal";
+              }}
+              className="flex items-center gap-3 w-full px-4 py-3 text-sm font-bold text-amber-600 hover:bg-amber-50 rounded-2xl transition-all"
+            >
+              <ArrowLeft className={cn("h-5 w-5", isRTL ? "rotate-180" : "")} />
+              {isRTL ? "بوابة الموظفين" : "Staff Portal"}
+            </button>
+          )}
           
           <button
             onClick={handleLogout}
