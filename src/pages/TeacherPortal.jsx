@@ -417,7 +417,12 @@ export default function TeacherPortal() {
                       </div>
 
                       <h4 className="text-2xl font-serif font-black text-stone-900 mb-2 group-hover:text-primary transition-colors">{cls.name}</h4>
-                      <p className="text-stone-400 text-xs font-bold uppercase tracking-widest mb-8">{isRTL ? "الفصل" : "Class"} {cls.section || 'أبو بكر'}</p>
+                      <p className="text-stone-400 text-xs font-bold uppercase tracking-widest mb-8">
+                        {isRTL 
+                          ? `الصف ${cls.grade_level} - الفصل ${cls.section || 'أبو بكر'}` 
+                          : `Grade ${cls.grade_level} - Class ${cls.section || 'Abu Bakr'}`
+                        }
+                      </p>
 
                       <div className="grid grid-cols-2 gap-4 mb-8">
                         <div className="bg-stone-50 p-4 rounded-3xl text-center">
