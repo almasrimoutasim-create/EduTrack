@@ -16,7 +16,9 @@ const PORTAL_REDIRECTS = {
   store: "/store",
   store_keeper: "/store",
   library: "/library",
-  security: "/staff-portal"
+  security: "/staff-portal",
+  counselor: "/counseling",
+  counseling: "/counseling"
 };
 
 const isPathAllowed = (role, path) => {
@@ -30,6 +32,12 @@ const isPathAllowed = (role, path) => {
   }
   
   if (role === 'staff') return path.startsWith('/staff-portal') || path.startsWith('/staff/personal-requests');
+
+  if (role === 'counselor' || role === 'counseling') {
+    return path.startsWith('/staff-portal') || 
+           path.startsWith('/staff/personal-requests') ||
+           path.startsWith('/counseling');
+  }
 
   if (role === 'registrar') {
     return path.startsWith('/staff-portal') || 
