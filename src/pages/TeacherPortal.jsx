@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
@@ -34,7 +34,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useAuth } from "@/lib/AuthContext";
 import TeacherSidebar from "@/components/layout/TeacherSidebar";
 import VisualSchedule from "@/components/schedule/VisualSchedule";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import PageHeader from "@/components/shared/PageHeader";
 import AssignmentsGradingTab from "@/components/teacher/AssignmentsGradingTab";
 import ParentTeacherChat from "@/components/portal/ParentTeacherChat";
