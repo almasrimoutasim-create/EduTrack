@@ -103,7 +103,7 @@ export default function Sidebar() {
             label: isRTL ? "إدارة الطلاب" : "Student Management",
             items: [
               { label: isRTL ? "الطلاب" : "Students", path: "/student-directory", icon: Users },
-              { label: isRTL ? "إضافة طالب" : "Add Student", path: "#", icon: PlusCircle },
+              { label: isRTL ? "إضافة طالب" : "Add Student", path: "/students?add=true", icon: PlusCircle },
               { label: isRTL ? "تسجيل الطلاب" : "Student Registration", path: "#", icon: UserCheck },
               { label: isRTL ? "الملفات الأكاديمية" : "Academic Files", path: "#", icon: FolderArchive },
               { label: isRTL ? "الحضور والغياب" : "Attendance", path: "/attendance", icon: Clock }
@@ -145,7 +145,7 @@ export default function Sidebar() {
             label: isRTL ? "الموظفون" : "Staff Management",
             items: [
               { label: isRTL ? "قائمة الموظفين" : "Employee List", path: "/staff-control", icon: Users },
-              { label: isRTL ? "إضافة موظف" : "Add Employee", path: "#", icon: PlusCircle },
+              { label: isRTL ? "إضافة موظف" : "Add Employee", path: "/staff-control?add=true", icon: PlusCircle },
               { label: isRTL ? "العقود" : "Contracts", path: "#", icon: Briefcase },
               { label: isRTL ? "الرواتب" : "Salaries & Payroll", path: "#", icon: DollarSign },
               { label: isRTL ? "الحضور والانصراف" : "Attendance", path: "#", icon: Clock }
@@ -181,7 +181,7 @@ export default function Sidebar() {
             label: isRTL ? "إدارة الكتب" : "Book Management",
             items: [
               { label: isRTL ? "الكتب" : "Books Catalog", path: "/library", icon: BookOpen },
-              { label: isRTL ? "إضافة كتاب" : "Add Book", path: "#", icon: PlusCircle },
+              { label: isRTL ? "إضافة كتاب" : "Add Book", path: "/library?add=true", icon: PlusCircle },
               { label: isRTL ? "التصنيفات" : "Categories", path: "#", icon: Layers },
               { label: isRTL ? "البحث" : "Search Catalog", path: "#", icon: Search }
             ]
@@ -209,7 +209,7 @@ export default function Sidebar() {
             label: isRTL ? "إدارة المنتجات" : "Product Management",
             items: [
               { label: isRTL ? "المنتجات" : "Products List", path: "/store", icon: ShoppingCart },
-              { label: isRTL ? "إضافة منتج" : "Add Product", path: "#", icon: PlusCircle },
+              { label: isRTL ? "إضافة منتج" : "Add Product", path: "/store?add=true", icon: PlusCircle },
               { label: isRTL ? "التصنيفات" : "Categories", path: "#", icon: Layers },
               { label: isRTL ? "المخزون" : "Inventory Control", path: "#", icon: FolderArchive }
             ]

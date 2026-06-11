@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { useSearchParams } from "react-router-dom";
 import { 
   Users, 
   Search, 
@@ -52,6 +53,7 @@ const btnPrimary = "inline-flex items-center justify-center gap-2 whitespace-now
 export default function Students() {
   const { language } = useLanguage();
   const isRTL = language === "ar";
+  const [searchParams, setSearchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedGrade, setSelectedGrade] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
@@ -62,6 +64,16 @@ export default function Students() {
   const [view, setView] = useState("list"); // "list" | "add" | "edit" | "profile"
   const [dialogStudent, setDialogStudent] = useState(null);
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (searchParams.get("add") === "true") {
+      setDialogStudent(null);
+      setView("add");
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete("add");
+      setSearchParams(newParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const [activeAdminTab, setActiveAdminTab] = useState("directory"); // "directory" | "requests"
   const [printDialogOpen, setPrintDialogOpen] = useState(false);

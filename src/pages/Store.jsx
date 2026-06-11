@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { useSearchParams } from "react-router-dom";
 import { 
   ShoppingBag, 
   Search, 
@@ -40,7 +41,7 @@ import StripePaymentForm from "@/components/portal/StripePaymentForm";
 // @ts-ignore
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
-const btnOutline = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border-2 border-stone-300 bg-white text-stone-800 hover:bg-stone-50 hover:border-stone-400 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
+const btnOutline = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border-2 border-stone-300 bg-white text-stone-850 hover:bg-stone-50 hover:border-stone-400 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
 const btnPrimary = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed";
 
 export default function Store() {
@@ -49,10 +50,21 @@ export default function Store() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const role = user?.role || localStorage.getItem("portal_role") || "student";
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
+
+  useEffect(() => {
+    if (searchParams.get("add") === "true") {
+      setSelectedItem(null);
+      setDialogOpen(true);
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete("add");
+      setSearchParams(newParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
   const [cart, setCart] = useState([]);
   const [showCart, setShowCart] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState("cart"); // "cart", "payment_method", "stripe"

@@ -1,6 +1,7 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { useSearchParams } from "react-router-dom";
 import { 
   Users, 
   Search, 
@@ -65,6 +66,7 @@ export default function StaffControl() {
   const { language } = useLanguage();
   const isRTL = language === "ar";
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
@@ -72,6 +74,17 @@ export default function StaffControl() {
   const [roleSettingsOpen, setRoleSettingsOpen] = useState(false);
   const [auditLogsOpen, setAuditLogsOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
+
+  useEffect(() => {
+    if (searchParams.get("add") === "true") {
+      setSelectedMember(null);
+      setDialogOpen(true);
+      
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete("add");
+      setSearchParams(newParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const { data: staffMembers = [], isLoading } = useQuery({ 
     queryKey: ["staff-members"], 

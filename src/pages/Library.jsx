@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { useSearchParams } from "react-router-dom";
 import { 
   Book, 
   Search, 
@@ -31,11 +32,22 @@ const btnPrimary = "inline-flex items-center justify-center gap-2 whitespace-now
 export default function Library() {
   const { language } = useLanguage();
   const isRTL = language === "ar";
+  const [searchParams, setSearchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedBook, setSelectedBook] = useState(null);
   const [gradeFilter, setGradeFilter] = useState("all");
   const [stageFilter, setStageFilter] = useState("all");
+
+  useEffect(() => {
+    if (searchParams.get("add") === "true") {
+      setSelectedBook(null);
+      setDialogOpen(true);
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete("add");
+      setSearchParams(newParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const { data: books = [], isLoading } = useQuery({ 
     queryKey: ["library-books"], 

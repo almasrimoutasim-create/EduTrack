@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLanguage } from "@/lib/LanguageContext";
+import { toast } from "sonner";
 
 export default function StaffMemberFormDialog({ open, onClose, member }) {
   const isEdit = !!member;
@@ -36,7 +37,14 @@ export default function StaffMemberFormDialog({ open, onClose, member }) {
   const update = (key, val) => setForm(f => ({ ...f, [key]: val }));
 
   const handleSave = async () => {
-    if (!form.full_name || !form.employee_id || !form.role) return;
+    if (!form.full_name) {
+      toast.error(isRTL ? "يرجى إدخال الاسم الكامل للموظف" : "Please enter the employee's full name");
+      return;
+    }
+    if (!form.role) {
+      toast.error(isRTL ? "يرجى تحديد دور الموظف" : "Please select the employee's role");
+      return;
+    }
     setSaving(true);
     try {
       const payload = { ...form };
@@ -46,13 +54,16 @@ export default function StaffMemberFormDialog({ open, onClose, member }) {
 
       if (isEdit) {
         await base44.entities.StaffMember.update(member.id, payload);
+        toast.success(isRTL ? "تم تحديث بيانات الموظف بنجاح" : "Staff member updated successfully");
       } else {
         await base44.entities.StaffMember.create(payload);
+        toast.success(isRTL ? "تم إضافة الموظف الجديد بنجاح" : "New staff member added successfully");
       }
       qc.invalidateQueries({ queryKey: ["staff-members"] });
       onClose();
     } catch (err) {
       console.error("Failed to save staff member:", err);
+      toast.error(isRTL ? `فشل حفظ البيانات: ${err.message}` : `Failed to save: ${err.message}`);
     }
     setSaving(false);
   };
@@ -79,7 +90,7 @@ export default function StaffMemberFormDialog({ open, onClose, member }) {
     titleAdd: isRTL ? "إضافة موظف جديد" : "Add Staff Member",
     titleEdit: isRTL ? "تعديل بيانات الموظف" : "Edit Staff Member",
     fullName: isRTL ? "الاسم الكامل *" : "Full Name *",
-    employeeId: isRTL ? "الرقم الوظيفي *" : "Employee ID *",
+    employeeId: isRTL ? "الرقم الوظيفي" : "Employee ID",
     role: isRTL ? "الدور / المسمى الوظيفي *" : "Role *",
     email: isRTL ? "البريد الإلكتروني" : "Email",
     phone: isRTL ? "رقم الهاتف" : "Phone",
@@ -184,7 +195,7 @@ export default function StaffMemberFormDialog({ open, onClose, member }) {
           </div>
           <button 
             onClick={handleSave} 
-            disabled={saving || !form.full_name || !form.employee_id || !form.role} 
+            disabled={saving} 
             className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed w-full h-11"
           >
             {saving ? t.saving : isEdit ? t.update : t.save}
