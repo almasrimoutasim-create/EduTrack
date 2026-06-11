@@ -88,8 +88,10 @@ export default function RoleGate({ children }) {
 
     if (isAuthenticated && user) {
       const userRole = user.role;
+      const isAllowed = isPathAllowed(userRole, path);
+      console.log("[RoleGate Debug]", { userRole, path, isAllowed, redirecting });
       // Validate path authorization
-      if (!isPathAllowed(userRole, path)) {
+      if (!isAllowed) {
         console.warn(`Unauthorized access attempt to ${path} by role: ${userRole}`);
         setRedirecting(true);
         const defaultRedirect = PORTAL_REDIRECTS[userRole] || "/";
@@ -104,6 +106,14 @@ export default function RoleGate({ children }) {
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-amber-400/30 border-t-amber-500 rounded-full animate-spin mx-auto mb-4" />
           <p className="text-sm font-semibold text-stone-600 font-sans">EduTrack | جاري التحقق من الصلاحيات...</p>
+          <div className="mt-4 p-4 bg-stone-50 rounded-2xl border border-stone-200 text-xs font-mono text-stone-600 space-y-1.5 text-left max-w-sm mx-auto shadow-sm" dir="ltr">
+            <div><strong className="text-stone-800">Path:</strong> {path}</div>
+            <div><strong className="text-stone-800">Authenticated:</strong> {isAuthenticated ? "Yes" : "No"}</div>
+            <div><strong className="text-stone-800">LoadingAuth:</strong> {isLoadingAuth ? "Yes" : "No"}</div>
+            <div><strong className="text-stone-800">Redirecting:</strong> {redirecting ? "Yes" : "No"}</div>
+            <div><strong className="text-stone-800">User Role:</strong> {user?.role || "None"}</div>
+            <div><strong className="text-stone-800">User Email:</strong> {user?.email || "None"}</div>
+          </div>
         </div>
       </div>
     );

@@ -1,0 +1,15 @@
+{
+  "short_name": "EduTrack",
+  "name": "EduTrack | نظام إدارة التعليم",
+  "icons": [
+    {
+      "src": "https://base44.com/logo_v2.svg",
+      "type": "image/svg+xml",
+      "sizes": "any"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#ffffff",
+  "theme_color": "#3b82f6",
+  "display": "standalone"
+}
