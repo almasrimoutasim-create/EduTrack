@@ -6,7 +6,7 @@ import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useAuth } from "@/lib/AuthContext";
@@ -24,7 +24,7 @@ export default function ParentSidebar() {
 
   const { data: allMessages = [] } = useQuery({
     queryKey: ["private-messages-sidebar-parent", parentId],
-    queryFn: () => base44.entities.PrivateMessage.list(),
+    queryFn: () => entities.PrivateMessage.list(),
     refetchInterval: 5000,
     enabled: !!parentId
   });
@@ -35,7 +35,7 @@ export default function ParentSidebar() {
 
   const { data: officialAnnouncements = [] } = useQuery({
     queryKey: ["official-announcements-sidebar"],
-    queryFn: () => base44.entities.OfficialAnnouncement.list("-created_at")
+    queryFn: () => entities.OfficialAnnouncement.list("-created_at")
   });
   
   const parentAnnouncements = officialAnnouncements.filter(
@@ -57,7 +57,7 @@ export default function ParentSidebar() {
   const { data: portalNotifications = [] } = useQuery({
     queryKey: ["portal-notifications-sidebar", parentEmail],
     // @ts-ignore
-    queryFn: () => base44.entities.PortalNotification.list("-created_at", { user_id: parentEmail }),
+    queryFn: () => entities.PortalNotification.list("-created_at", { user_id: parentEmail }),
     enabled: !!parentEmail
   });
 
@@ -82,9 +82,9 @@ export default function ParentSidebar() {
     {
       label: isRTL ? "الأبناء" : "Children",
       items: [
-        { label: isRTL ? "قائمة الأبناء" : "My Children", path: "#", icon: Users },
-        { label: isRTL ? "حضور الأبناء" : "Attendance", path: "#", icon: ClipboardCheck },
-        { label: isRTL ? "تقارير الأداء" : "Progress Reports", path: "#", icon: Calendar },
+        { label: isRTL ? "قائمة الأبناء" : "My Children", path: "/parent-portal?tab=overview", icon: Users },
+        { label: isRTL ? "حضور الأبناء" : "Attendance", path: "/parent-portal?tab=performance&sub=attendance", icon: ClipboardCheck },
+        { label: isRTL ? "تقارير الأداء" : "Progress Reports", path: "/parent-portal?tab=performance&sub=grades", icon: Calendar },
         { label: isRTL ? "الإرشاد الطلابي" : "Counseling", path: "/parent-portal?tab=counseling", icon: ShieldCheck }
       ]
     },

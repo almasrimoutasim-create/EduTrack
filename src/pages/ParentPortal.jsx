@@ -1,6 +1,6 @@
 import React from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { 
   GraduationCap,
   ClipboardCheck, 
@@ -74,6 +74,14 @@ export default function ParentPortal() {
 
   const [perfTab, setPerfTab] = React.useState("grades");
 
+  // Sync sub tab from query parameter if present
+  const querySub = searchParams.get("sub");
+  React.useEffect(() => {
+    if (querySub && (querySub === "grades" || querySub === "attendance" || querySub === "awards")) {
+      setPerfTab(querySub);
+    }
+  }, [querySub]);
+
   // Tuition payment states
   const [isTuitionDialogOpen, setIsTuitionDialogOpen] = React.useState(false);
   const [tuitionPayAmount, setTuitionPayAmount] = React.useState(0);
@@ -91,7 +99,7 @@ export default function ParentPortal() {
     queryKey: ["parent-children", parentEmail], 
     enabled: !!parentEmail,
     // @ts-ignore
-    queryFn: () => base44.entities.Student.list("-created_at", { parent_email: parentEmail }) 
+    queryFn: () => entities.Student.list("-created_at", { parent_email: parentEmail }) 
   });
 
   const [selectedStudentId, setSelectedStudentId] = React.useState(null);
@@ -118,10 +126,10 @@ export default function ParentPortal() {
       const newBalance = currentBalance + topUpAmount;
       
       // 1. Update Student's card balance in database
-      await base44.entities.Student.update(currentStudent.id, { card_balance: newBalance });
+      await entities.Student.update(currentStudent.id, { card_balance: newBalance });
       
       // 2. Create CardTopUp record in database
-      await base44.entities.CardTopUp.create({
+      await entities.CardTopUp.create({
         student_id: currentStudent.id,
         amount: topUpAmount,
         method: "card",
@@ -129,7 +137,7 @@ export default function ParentPortal() {
       });
 
       // 3. Create FinancialRecord in database
-      await base44.entities.FinancialRecord.create({
+      await entities.FinancialRecord.create({
         type: "income",
         record_type: "tuition",
         recipient_type: "student",
@@ -164,7 +172,7 @@ export default function ParentPortal() {
     setIsSubmittingLink(true);
     try {
       // Create Link Request
-      await base44.entities.ParentLinkRequest.create({
+      await entities.ParentLinkRequest.create({
         parent_email: parentEmail,
         parent_name: parentName,
         student_id: linkStudentId,
@@ -192,10 +200,10 @@ export default function ParentPortal() {
       const newPaid = currentPaid + tuitionPayAmount;
       
       // 1. Update Student's tuition_paid in database
-      await base44.entities.Student.update(currentStudent.id, { tuition_paid: newPaid });
+      await entities.Student.update(currentStudent.id, { tuition_paid: newPaid });
 
       // 2. Create FinancialRecord in database
-      await base44.entities.FinancialRecord.create({
+      await entities.FinancialRecord.create({
         type: "income",
         record_type: "tuition",
         recipient_type: "student",
@@ -238,13 +246,13 @@ export default function ParentPortal() {
       const newBalance = cardBalance - tuitionPayAmount;
 
       // 1. Update Student's tuition_paid and card_balance in database
-      await base44.entities.Student.update(currentStudent.id, { 
+      await entities.Student.update(currentStudent.id, { 
         tuition_paid: newPaid,
         card_balance: newBalance 
       });
 
       // 2. Create FinancialRecord in database
-      await base44.entities.FinancialRecord.create({
+      await entities.FinancialRecord.create({
         type: "income",
         record_type: "tuition",
         recipient_type: "student",
@@ -276,21 +284,21 @@ export default function ParentPortal() {
   const { data: recentActivity = [] } = useQuery({
     queryKey: ["parent-activity"],
     // @ts-ignore
-    queryFn: () => base44.entities.ActivityPost.list("-created_at", {}, 5) 
+    queryFn: () => entities.ActivityPost.list("-created_at", {}, 5) 
   });
 
   const { data: storePurchases = [] } = useQuery({
     queryKey: ["store-purchases", selectedStudentId],
     enabled: !!selectedStudentId,
     // @ts-ignore
-    queryFn: () => base44.entities.Purchase.list("-created_at", { student_id: selectedStudentId })
+    queryFn: () => entities.Purchase.list("-created_at", { student_id: selectedStudentId })
   });
 
   const { data: fines = [] } = useQuery({
     queryKey: ["parent-fines", selectedStudentId],
     enabled: !!selectedStudentId,
     // @ts-ignore
-    queryFn: () => base44.entities.Fine.filter({ student_id: selectedStudentId }, "-created_date")
+    queryFn: () => entities.Fine.filter({ student_id: selectedStudentId }, "-created_date")
   });
 
   const { data: currentStudentRecords = [] } = useQuery({
@@ -299,8 +307,8 @@ export default function ParentPortal() {
     // @ts-ignore
     queryFn: async () => {
       // recipient_id can store UUID or student_id, query both to be 100% robust
-      const list1 = await base44.entities.FinancialRecord.filter({ recipient_id: currentStudent.id });
-      const list2 = await base44.entities.FinancialRecord.filter({ recipient_id: currentStudent.student_id });
+      const list1 = await entities.FinancialRecord.filter({ recipient_id: currentStudent.id });
+      const list2 = await entities.FinancialRecord.filter({ recipient_id: currentStudent.student_id });
       const merged = [...list1, ...list2];
       const unique = Array.from(new Map(merged.map(item => [item.id, item])).values());
       return unique;
@@ -328,26 +336,26 @@ export default function ParentPortal() {
     queryKey: ["student-grades", perfStudentId],
     enabled: activeTab === "performance" && !!perfStudentId,
     // @ts-ignore
-    queryFn: () => base44.entities.StudentGrade.list("-created_at", { student_id: perfStudentId })
+    queryFn: () => entities.StudentGrade.list("-created_at", { student_id: perfStudentId })
   });
 
   const { data: attendanceLogs = [] } = useQuery({
     queryKey: ["student-attendance", perfStudentId],
     enabled: activeTab === "performance" && !!perfStudentId,
     // @ts-ignore
-    queryFn: () => base44.entities.Attendance.list("-date", { student_id: perfStudentId })
+    queryFn: () => entities.Attendance.list("-date", { student_id: perfStudentId })
   });
 
   const { data: studentAwards = [] } = useQuery({
     queryKey: ["student-awards", perfStudentId],
     enabled: activeTab === "performance" && !!perfStudentId,
     // @ts-ignore
-    queryFn: () => base44.entities.StudentAward.list("-created_at", { student_id: perfStudentId })
+    queryFn: () => entities.StudentAward.list("-created_at", { student_id: perfStudentId })
   });
 
   const { data: officialAnnouncements = [] } = useQuery({
     queryKey: ["official-announcements-parent"],
-    queryFn: () => base44.entities.OfficialAnnouncement.list("-created_at")
+    queryFn: () => entities.OfficialAnnouncement.list("-created_at")
   });
 
   const parentAnnouncements = React.useMemo(() => {
@@ -357,7 +365,7 @@ export default function ParentPortal() {
   const { data: portalNotifications = [] } = useQuery({
     queryKey: ["portal-notifications-parent", parentEmail],
     // @ts-ignore
-    queryFn: () => base44.entities.PortalNotification.list("-created_at", { user_id: parentEmail }),
+    queryFn: () => entities.PortalNotification.list("-created_at", { user_id: parentEmail }),
     enabled: !!parentEmail
   });
 
@@ -1056,13 +1064,13 @@ export default function ParentPortal() {
 
                           <div className="grid grid-cols-3 gap-4 mb-8">
                             {[
-                              { label: isRTL ? "الحضور" : "Attendance", value: "٩٨٪", color: "text-emerald-600", bg: "bg-emerald-50" },
-                              { label: isRTL ? "المعدل" : "GPA", value: "٣.٨", color: "text-indigo-600", bg: "bg-indigo-50" },
-                              { label: isRTL ? "النقاط" : "Points", value: "٤٥٠", color: "text-amber-600", bg: "bg-amber-50" },
+                              { label: isRTL ? "الحضور" : "Attendance", value: `${child.attendance_score || 100}%`, color: "text-emerald-600", bg: "bg-emerald-50" },
+                              { label: isRTL ? "الغياب" : "Absences", value: child.total_absences || 0, color: "text-rose-600", bg: "bg-rose-50" },
+                              { label: isRTL ? "الحافلة" : "Bus Status", value: child.bus_registered ? (isRTL ? "مشترك" : "Yes") : (isRTL ? "غير مشترك" : "No"), color: "text-amber-600", bg: "bg-amber-50" },
                             ].map((stat, idx) => (
                               <div key={idx} className={`${stat.bg} p-4 rounded-3xl text-center border border-white/50 shadow-sm`}>
                                 <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">{stat.label}</p>
-                                <p className={`text-xl font-black ${stat.color}`}>{stat.value}</p>
+                                <p className={`text-base font-black ${stat.color} num-en`}>{stat.value}</p>
                               </div>
                             ))}
                           </div>
