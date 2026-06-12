@@ -167,10 +167,25 @@ export default function StudentPortal() {
   const [answers, setAnswers] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const loadAssignments = () => {
+  const loadAssignments = (e) => {
     const saved = localStorage.getItem("edu_assignments");
     if (saved) {
-      setAssignments(JSON.parse(saved));
+      const parsed = JSON.parse(saved);
+      if (e && e.key === "edu_assignments") {
+        const oldVal = e.oldValue ? JSON.parse(e.oldValue) : [];
+        if (parsed.length > oldVal.length) {
+          const newAsm = parsed[0];
+          if (newAsm) {
+            toast.success(
+              isRTL 
+                ? `🔔 واجب جديد مضاف: ${newAsm.title} لمادة ${newAsm.subject}` 
+                : `🔔 New Assignment Added: ${newAsm.title} for ${newAsm.subject}`,
+              { duration: 6000 }
+            );
+          }
+        }
+      }
+      setAssignments(parsed);
     }
   };
 
@@ -1476,23 +1491,41 @@ export default function StudentPortal() {
 
           {/* Quick Learning Path */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-12">
-            <Card 
-              onClick={() => window.location.href = "/student-portal?view=homework"}
-              className="p-8 border-none shadow-sm bg-gradient-to-br from-rose-500 to-rose-600 text-white rounded-[40px] relative overflow-hidden group cursor-pointer"
-            >
-              <div className="relative z-10">
-                <FileText className="mb-4 text-rose-200" size={32} />
-                <h4 className="text-2xl font-serif font-bold mb-2">{isRTL ? "الواجبات المنزلية" : "Homework"}</h4>
-                <p className="text-rose-100/70 text-sm mb-6">{isRTL ? "تصفح وحل الواجبات والاختبارات المنزلية المرسلة من المعلمين." : "Browse and solve learning assignments assigned by your teachers."}</p>
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-rose-200">{isRTL ? "انقر للمتابعة" : "Click to continue"}</span>
-                  <div className="h-10 w-10 rounded-full bg-white/20 flex items-center justify-center group-hover:scale-125 transition-transform">
-                    <ArrowUpRight size={20} />
+            {(() => {
+              const savedSubmissions = localStorage.getItem("edu_submissions") ? JSON.parse(localStorage.getItem("edu_submissions")) : {};
+              const studentIdVal = localStorage.getItem("portal_user_id") || "STU-882";
+              const unsolvedCount = assignments.filter(task => {
+                const asmSubs = savedSubmissions[task.id] || [];
+                return !asmSubs.some(s => s.studentId === studentIdVal);
+              }).length;
+
+              return (
+                <Card 
+                  onClick={() => window.location.href = "/student-portal?view=homework"}
+                  className="p-8 border-none shadow-sm bg-gradient-to-br from-rose-500 to-rose-600 text-white rounded-[40px] relative overflow-hidden group cursor-pointer"
+                >
+                  <div className="relative z-10">
+                    <div className="flex justify-between items-start">
+                      <FileText className="mb-4 text-rose-200" size={32} />
+                      {unsolvedCount > 0 && (
+                        <Badge className="bg-white text-rose-600 border-none rounded-full px-3 py-1 font-black text-xs animate-bounce shadow-md">
+                          {isRTL ? `${unsolvedCount} جديد` : `${unsolvedCount} New`}
+                        </Badge>
+                      )}
+                    </div>
+                    <h4 className="text-2xl font-serif font-bold mb-2">{isRTL ? "الواجبات المنزلية" : "Homework"}</h4>
+                    <p className="text-rose-100/70 text-sm mb-6">{isRTL ? "تصفح وحل الواجبات والاختبارات المنزلية المرسلة من المعلمين." : "Browse and solve learning assignments assigned by your teachers."}</p>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-rose-200">{isRTL ? "انقر للمتابعة" : "Click to continue"}</span>
+                      <div className="h-10 w-10 rounded-full bg-white/20 flex items-center justify-center group-hover:scale-125 transition-transform">
+                        <ArrowUpRight size={20} />
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-              <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-white/5 rounded-full blur-2xl" />
-            </Card>
+                  <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-white/5 rounded-full blur-2xl" />
+                </Card>
+              );
+            })()}
 
             <Card className="p-8 border-none shadow-sm bg-gradient-to-br from-amber-500 to-amber-600 text-white rounded-[40px] relative overflow-hidden group cursor-pointer">
               <div className="relative z-10">
