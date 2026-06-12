@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { useSearchParams } from "react-router-dom";
 import { 
   Users, 
@@ -81,7 +81,7 @@ export default function Students() {
   const { data: linkRequests = [], refetch: refetchRequests } = useQuery({
     queryKey: ["parent-link-requests"],
     // @ts-ignore
-    queryFn: () => base44.entities.ParentLinkRequest.list("-created_at", 100),
+    queryFn: () => entities.ParentLinkRequest.list("-created_at", 100),
     staleTime: 1000 * 60 * 5
   });
 
@@ -91,7 +91,7 @@ export default function Students() {
     try {
       // Find target student by student_id
       // @ts-ignore
-      const matchedStudents = await base44.entities.Student.list("-created_at", { student_id: request.student_id });
+      const matchedStudents = await entities.Student.list("-created_at", { student_id: request.student_id });
       if (matchedStudents.length === 0) {
         toast.error(isRTL ? "الطالب المستهدف غير موجود في النظام." : "Target student not found in system.");
         return;
@@ -110,10 +110,10 @@ export default function Students() {
         updatePayload.parent_password = "Parent123";
       }
 
-      await base44.entities.Student.update(student.id, updatePayload);
+      await entities.Student.update(student.id, updatePayload);
 
       // Approve request in database
-      await base44.entities.ParentLinkRequest.update(request.id, { status: "approved" });
+      await entities.ParentLinkRequest.update(request.id, { status: "approved" });
 
       // Refresh queries
       queryClient.invalidateQueries({ queryKey: ["students"] });
@@ -129,7 +129,7 @@ export default function Students() {
 
   const handleRejectLink = async (requestId) => {
     try {
-      await base44.entities.ParentLinkRequest.update(requestId, { status: "rejected" });
+      await entities.ParentLinkRequest.update(requestId, { status: "rejected" });
       queryClient.invalidateQueries({ queryKey: ["parent-link-requests"] });
       refetchRequests();
       toast.info(isRTL ? "تم رفض طلب الربط." : "Link request rejected.");
@@ -141,7 +141,7 @@ export default function Students() {
 
   const { data: students = [], isLoading, refetch } = useQuery({ 
     queryKey: ["students", refreshKey], 
-    queryFn: () => base44.entities.Student.list("-created_at", 500),
+    queryFn: () => entities.Student.list("-created_at", 500),
     staleTime: 1000 * 60 * 10
   });
 

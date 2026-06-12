@@ -742,7 +742,7 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
               <Printer size={16} />
               <span>{isRTL ? "طباعة وتصدير PDF" : "Print & Export PDF"}</span>
             </button>
-            {onEdit && portalRole === "admin" && (
+            {onEdit && (portalRole === "admin" || portalRole === "registrar") && (
               <button 
                 onClick={() => onEdit(student)}
                 className="px-6 h-11 inline-flex items-center justify-center gap-2 font-bold rounded-xl bg-primary text-white hover:bg-primary/95 transition-all shadow-md hover:shadow-lg cursor-pointer"
