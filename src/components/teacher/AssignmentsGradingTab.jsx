@@ -294,8 +294,18 @@ export default function AssignmentsGradingTab({ isRTL = true, subjects = [] }) {
   };
 
   const handleSaveForm = () => {
-    if (!formTitle || !formSubject || !formDueDate) {
-      toast.error(isRTL ? "يرجى ملء جميع الحقول الأساسية" : "Please fill in all basic fields");
+    // Determine the subject to save. If formSubject is not selected, try using the first subject from subjects, or fallback to a default subject name.
+    let resolvedSubject = formSubject;
+    if (!resolvedSubject) {
+      if (subjects && subjects.length > 0) {
+        resolvedSubject = subjects[0].name;
+      } else {
+        resolvedSubject = isRTL ? "اللغة العربية" : "Arabic";
+      }
+    }
+
+    if (!formTitle || !formDueDate) {
+      toast.error(isRTL ? "يرجى ملء جميع الحقول الأساسية (العنوان وتاريخ التسليم)" : "Please fill in all basic fields (Title and Due Date)");
       return;
     }
 
@@ -309,7 +319,7 @@ export default function AssignmentsGradingTab({ isRTL = true, subjects = [] }) {
             return {
               ...asm,
               title: formTitle,
-              subject: formSubject,
+              subject: resolvedSubject,
               dueDate: formDueDate,
               questionsCount: formQuestions.length,
               points: totalPoints,
@@ -325,7 +335,7 @@ export default function AssignmentsGradingTab({ isRTL = true, subjects = [] }) {
       const newAsm = {
         id: `asm-${Date.now()}`,
         title: formTitle,
-        subject: formSubject,
+        subject: resolvedSubject,
         dueDate: formDueDate,
         questionsCount: formQuestions.length,
         points: totalPoints,
