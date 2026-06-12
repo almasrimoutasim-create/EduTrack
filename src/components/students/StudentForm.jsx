@@ -4,7 +4,7 @@ import { Label } from "@/components/ui/label";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useLanguage } from "@/lib/LanguageContext";
 import { motion } from "framer-motion";
@@ -55,6 +55,12 @@ export default function StudentForm({ student, onClose }) {
     tuition_total: 0, tuition_paid: 0
   });
 
+  // Fetch all fee structures to calculate total fees based on selected grade
+  const { data: feeStructures = [] } = useQuery({
+    queryKey: ['fee-structures'],
+    queryFn: () => entities.FeeStructure.list(),
+  });
+
   useEffect(() => {
     if (student) {
       setForm({
@@ -74,10 +80,31 @@ export default function StudentForm({ student, onClose }) {
     setErrorMsg("");
   }, [student]);
 
+  // Handle auto-tuition calculation when grade changes or when adding a new student
+  useEffect(() => {
+    if (feeStructures.length > 0) {
+      // Find fee structures for the current selected grade
+      const relevantFees = feeStructures.filter(
+        fs => String(fs.grade_level) === String(form.grade) || String(fs.grade_level) === "all"
+      );
+      const computedTotal = relevantFees.reduce((sum, fs) => sum + parseFloat(fs.amount || 0), 0);
+      
+      // Update form tuition_total if it changes and is not manually custom set by editing
+      // (or default set for new students / when changing grade)
+      setForm(f => {
+        // If adding a new student, or changing grade, auto-populate the fee
+        if (!isEdit || f.grade !== student?.grade) {
+          return { ...f, tuition_total: computedTotal };
+        }
+        return f;
+      });
+    }
+  }, [form.grade, feeStructures, isEdit, student]);
+
   // Auto-generate next sequential school ID (0001, 0002, ...) for new students
   const { data: allStudentsForId, isLoading: isLoadingId } = useQuery({
     queryKey: ["students-for-id-gen"],
-    queryFn: () => base44.entities.Student.list(),
+    queryFn: () => entities.Student.list(),
     enabled: !isEdit
   });
 
@@ -131,9 +158,9 @@ export default function StudentForm({ student, onClose }) {
       }
 
       if (isEdit) {
-        await base44.entities.Student.update(student.id, payload);
+        await entities.Student.update(student.id, payload);
       } else {
-        await base44.entities.Student.create(payload);
+        await entities.Student.create(payload);
       }
       qc.invalidateQueries({ queryKey: ["students"] });
       qc.invalidateQueries({ queryKey: ["student-directory-list"] });

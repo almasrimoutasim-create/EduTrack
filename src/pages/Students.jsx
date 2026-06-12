@@ -142,7 +142,8 @@ export default function Students() {
   const { data: students = [], isLoading, refetch } = useQuery({ 
     queryKey: ["students", refreshKey], 
     queryFn: () => entities.Student.list("-created_at", 500),
-    staleTime: 1000 * 60 * 10
+    staleTime: 0,
+    gcTime: 0
   });
 
   const sectionOptions = useMemo(() => {
@@ -342,7 +343,7 @@ export default function Students() {
     if (!window.confirm(isRTL ? "هل أنت متأكد من حذف الطالب؟" : "Are you sure you want to delete this student?")) {
       return;
     }
-    await base44.entities.Student.delete(studentId);
+    await entities.Student.delete(studentId);
     queryClient.invalidateQueries({ queryKey: ["students"] });
   };
 

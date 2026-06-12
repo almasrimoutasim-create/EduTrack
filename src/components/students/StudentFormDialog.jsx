@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DatePicker } from "@/components/ui/date-picker";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { useQueryClient } from "@tanstack/react-query";
 import { Switch } from "@/components/ui/switch";
 import { useLanguage } from "@/lib/LanguageContext";
@@ -57,9 +57,9 @@ export default function StudentFormDialog({ open, onClose, student }) {
       }
 
       if (isEdit) {
-        await base44.entities.Student.update(student.id, payload);
+        await entities.Student.update(student.id, payload);
       } else {
-        await base44.entities.Student.create(payload);
+        await entities.Student.create(payload);
       }
       qc.invalidateQueries({ queryKey: ["students"] });
       qc.invalidateQueries({ queryKey: ["student-directory-list"] });
