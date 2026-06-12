@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { 
-  FileText, Plus, Trash2, CheckCircle2, XCircle, Clock, AlertCircle, 
+  FileText, Plus, Trash2, CheckCircle2, XCircle, Clock, Clock3, AlertCircle, 
   HelpCircle, Eye, ChevronRight, Save, AlignLeft, CheckSquare, 
-  List, Award, Users, BookOpen, Star, RefreshCw, Check
+  List, Award, Users, BookOpen, Star, RefreshCw, Check, Edit2
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 // Mock Initial Data
 const initialAssignments = [
@@ -118,6 +119,57 @@ const mockSubmissions = {
   ]
 };
 
+const getThemeClasses = (subjectName, isPendingAmber) => {
+  if (isPendingAmber) {
+    return {
+      bg: "bg-amber-50 hover:bg-amber-100/70",
+      border: "border-amber-200",
+      text: "text-amber-800",
+      icon: "text-amber-600"
+    };
+  }
+
+  const name = subjectName || "";
+  if (name.includes("عرب") || name.includes("Arabic")) {
+    return {
+      bg: "bg-amber-50/50 hover:bg-amber-100/50",
+      border: "border-amber-200",
+      text: "text-amber-800",
+      icon: "text-amber-600"
+    };
+  }
+  if (name.includes("علوم") || name.includes("Science")) {
+    return {
+      bg: "bg-emerald-50/50 hover:bg-emerald-100/50",
+      border: "border-emerald-200",
+      text: "text-emerald-800",
+      icon: "text-emerald-600"
+    };
+  }
+  if (name.includes("رياضيات") || name.includes("Math")) {
+    return {
+      bg: "bg-blue-50/50 hover:bg-blue-100/50",
+      border: "border-blue-200",
+      text: "text-blue-800",
+      icon: "text-blue-600"
+    };
+  }
+  if (name.includes("انجليز") || name.includes("English") || name.includes("إنجليز")) {
+    return {
+      bg: "bg-violet-50/50 hover:bg-violet-100/50",
+      border: "border-violet-200",
+      text: "text-violet-800",
+      icon: "text-violet-600"
+    };
+  }
+  return {
+    bg: "bg-stone-50/60 hover:bg-stone-100/60",
+    border: "border-stone-250",
+    text: "text-stone-800",
+    icon: "text-stone-600"
+  };
+};
+
 export default function AssignmentsGradingTab({ isRTL = true, subjects = [] }) {
   const [assignments, setAssignments] = useState(() => {
     try {
@@ -140,6 +192,21 @@ export default function AssignmentsGradingTab({ isRTL = true, subjects = [] }) {
       return mockSubmissions;
     }
   });
+
+  const [editingAsmId, setEditingAsmId] = useState(null);
+  const [previewAsm, setPreviewAsm] = useState(null);
+
+  const handleDeleteAssignment = (id) => {
+    if (window.confirm(isRTL ? "هل أنت متأكد من حذف هذا الواجب نهائياً؟" : "Are you sure you want to delete this assignment permanently?")) {
+      setAssignments(prev => prev.filter(asm => asm.id !== id));
+      setSubmissions(prev => {
+        const updated = { ...prev };
+        delete updated[id];
+        return updated;
+      });
+      toast.success(isRTL ? "تم حذف الواجب بنجاح" : "Assignment deleted successfully");
+    }
+  };
 
   useEffect(() => {
     if (assignments) {
@@ -233,28 +300,51 @@ export default function AssignmentsGradingTab({ isRTL = true, subjects = [] }) {
     }
 
     const totalPoints = formQuestions.reduce((sum, q) => sum + (q.points || 0), 0);
-    const newAsm = {
-      id: `asm-${Date.now()}`,
-      title: formTitle,
-      subject: formSubject,
-      dueDate: formDueDate,
-      questionsCount: formQuestions.length,
-      points: totalPoints,
-      submissionsCount: 0,
-      gradedCount: 0,
-      averageScore: 0,
-      questions: formQuestions
-    };
 
-    setAssignments(prev => {
-      const safePrev = Array.isArray(prev) ? prev : [];
-      return [newAsm, ...safePrev];
-    });
-    setSubmissions(prev => {
-      const safePrev = prev && typeof prev === "object" ? prev : {};
-      return { ...safePrev, [newAsm.id]: [] };
-    });
-    toast.success(isRTL ? "تم إنشاء ونشر الواجب بنجاح!" : "Assignment created and published successfully!");
+    if (editingAsmId) {
+      setAssignments(prev => {
+        const safePrev = Array.isArray(prev) ? prev : [];
+        return safePrev.map(asm => {
+          if (asm.id === editingAsmId) {
+            return {
+              ...asm,
+              title: formTitle,
+              subject: formSubject,
+              dueDate: formDueDate,
+              questionsCount: formQuestions.length,
+              points: totalPoints,
+              questions: formQuestions
+            };
+          }
+          return asm;
+        });
+      });
+      toast.success(isRTL ? "تم تحديث الواجب بنجاح!" : "Assignment updated successfully!");
+      setEditingAsmId(null);
+    } else {
+      const newAsm = {
+        id: `asm-${Date.now()}`,
+        title: formTitle,
+        subject: formSubject,
+        dueDate: formDueDate,
+        questionsCount: formQuestions.length,
+        points: totalPoints,
+        submissionsCount: 0,
+        gradedCount: 0,
+        averageScore: 0,
+        questions: formQuestions
+      };
+
+      setAssignments(prev => {
+        const safePrev = Array.isArray(prev) ? prev : [];
+        return [newAsm, ...safePrev];
+      });
+      setSubmissions(prev => {
+        const safePrev = prev && typeof prev === "object" ? prev : {};
+        return { ...safePrev, [newAsm.id]: [] };
+      });
+      toast.success(isRTL ? "تم إنشاء ونشر الواجب بنجاح!" : "Assignment created and published successfully!");
+    }
     
     // Reset Form
     setFormTitle("");
@@ -334,12 +424,12 @@ export default function AssignmentsGradingTab({ isRTL = true, subjects = [] }) {
         <div>
           <h2 className="text-3xl font-serif font-black text-stone-900">
             {view === "list" && (isRTL ? "إدارة الواجبات والتقييمات" : "Assignments & Grading")}
-            {view === "create" && (isRTL ? "منشئ الواجبات التفاعلي" : "Interactive Assignment Builder")}
+            {view === "create" && (editingAsmId ? (isRTL ? "تعديل الواجب" : "Edit Assignment") : (isRTL ? "منشئ الواجبات التفاعلي" : "Interactive Assignment Builder"))}
             {view === "grade" && (isRTL ? `تصحيح: ${selectedAsm?.title}` : `Grading: ${selectedAsm?.title}`)}
           </h2>
           <p className="text-stone-400 text-sm mt-1">
             {view === "list" && (isRTL ? "قم بإنشاء وتصحيح واجبات الطلاب بنظام شبيه بنماذج جوجل" : "Create and grade student homework like Google Forms")}
-            {view === "create" && (isRTL ? "صمم الأسئلة وحدد الإجابات الصحيحة ونقاط التقييم تلقائياً" : "Design questions, specify correct answers, and set grading points")}
+            {view === "create" && (editingAsmId ? (isRTL ? "تحديث الأسئلة والخيارات والدرجات للواجب" : "Update questions, options and points for this assignment") : (isRTL ? "صمم الأسئلة وحدد الإجابات الصحيحة ونقاط التقييم تلقائياً" : "Design questions, specify correct answers, and set grading points"))}
             {view === "grade" && (isRTL ? "قم بمراجعة إجابات الطلاب والأسئلة المقالية وإضافة الدرجات والتوجيهات" : "Review student answers, grade essay questions, and provide feedback")}
           </p>
         </div>
@@ -374,45 +464,144 @@ export default function AssignmentsGradingTab({ isRTL = true, subjects = [] }) {
             const pendingCount = currentSubmissions.filter(s => s.status === "pending").length;
             
             return (
-              <Card key={asm.id} className="p-6 md:p-8 bg-white border-none shadow-sm rounded-[32px] hover:shadow-md transition-all duration-300 relative overflow-hidden group">
+              <Card key={asm.id} className="p-6 md:p-8 bg-white border border-stone-100 shadow-sm rounded-[32px] hover:shadow-md transition-all duration-300 relative overflow-hidden group">
                 <div className="absolute top-0 right-0 w-2.5 h-full bg-primary" />
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                  <div className="space-y-3 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge className="bg-primary/5 text-primary border-none rounded-lg text-[10px] font-black px-2 py-0.5 uppercase tracking-wider">
-                        {asm.subject}
-                      </Badge>
-                      <span className="text-stone-400 text-xs font-semibold flex items-center gap-1">
-                        <Clock size={12} />
-                        {isRTL ? "تاريخ التسليم:" : "Due Date:"} <span className="num-en">{asm.dueDate}</span>
-                      </span>
-                    </div>
+                
+                {/* Top Row: Buttons (Left), Title (Middle), Badge & Date (Right) */}
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-stone-100 pb-4 mb-6 w-full">
+                  {/* Left Side: Management Buttons */}
+                  <div className="flex items-center gap-1.5 order-2 md:order-1">
+                    <button 
+                      onClick={() => setPreviewAsm(asm)}
+                      className="inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-lg text-[10px] font-bold transition-all border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 h-8 px-2.5 cursor-pointer shadow-sm"
+                    >
+                      <Eye size={12} />
+                      <span>{isRTL ? "عرض" : "View"}</span>
+                    </button>
+                    
+                    <button 
+                      onClick={() => {
+                        setEditingAsmId(asm.id);
+                        setFormTitle(asm.title);
+                        setFormDesc(asm.description || "");
+                        setFormSubject(asm.subject);
+                        setFormDueDate(asm.dueDate);
+                        setFormQuestions(asm.questions || []);
+                        setView("create");
+                      }}
+                      className="inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-lg text-[10px] font-bold transition-all border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 h-8 px-2.5 cursor-pointer shadow-sm"
+                    >
+                      <Edit2 size={12} />
+                      <span>{isRTL ? "تعديل" : "Edit"}</span>
+                    </button>
 
-                    <h3 className="text-xl font-bold text-stone-900 group-hover:text-primary transition-colors">{asm.title}</h3>
-
-                    <div className="flex flex-wrap gap-4 text-xs text-stone-500 font-semibold pt-1">
-                      <span>{isRTL ? `الأسئلة: ${asm.questionsCount}` : `Questions: ${asm.questionsCount}`}</span>
-                      <span>•</span>
-                      <span>{isRTL ? `الدرجة الكلية: ${asm.points} درجات` : `Total Points: ${asm.points} pts`}</span>
-                    </div>
+                    <button 
+                      onClick={() => handleDeleteAssignment(asm.id)}
+                      className="inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-lg text-[10px] font-bold transition-all border border-rose-200 bg-rose-50/50 text-rose-600 hover:bg-rose-50 h-8 px-2.5 cursor-pointer shadow-sm"
+                    >
+                      <Trash2 size={12} />
+                      <span>{isRTL ? "حذف" : "Delete"}</span>
+                    </button>
                   </div>
 
-                  <div className="flex items-center gap-6 bg-stone-50 p-4 rounded-2xl w-full md:w-auto justify-around">
-                    <div className="text-center px-2">
-                      <p className="text-[10px] font-bold text-stone-450 uppercase mb-0.5">{isRTL ? "التسليمات" : "Submissions"}</p>
-                      <p className="text-lg font-black text-stone-900">{asm.submissionsCount}</p>
-                    </div>
-                    <div className="text-center px-2 border-r border-stone-200">
-                      <p className="text-[10px] font-bold text-stone-450 uppercase mb-0.5">{isRTL ? "بحاجة لمراجعة" : "To Review"}</p>
-                      <p className={`text-lg font-black ${pendingCount > 0 ? "text-amber-600 animate-pulse" : "text-stone-400"}`}>{pendingCount}</p>
-                    </div>
-                    <div className="text-center px-2 border-r border-stone-200">
-                      <p className="text-[10px] font-bold text-stone-450 uppercase mb-0.5">{isRTL ? "متوسط الدرجة" : "Avg Score"}</p>
-                      <p className="text-lg font-black text-primary num-en">{asm.averageScore} / {asm.points}</p>
-                    </div>
+                  {/* Middle: Assignment Title */}
+                  <div className="flex-1 text-center order-1 md:order-2 w-full md:px-6">
+                    <h3 className="text-base md:text-lg font-bold text-stone-900 group-hover:text-primary transition-colors leading-snug">
+                      {asm.title}
+                    </h3>
                   </div>
 
-                  <div className="flex gap-2 w-full md:w-auto">
+                  {/* Right Side: Subject Badge & Date */}
+                  <div className="flex items-center gap-3 order-3">
+                    <Badge className="bg-primary/5 text-primary border-none rounded-lg text-[10px] font-black px-2 py-0.5 uppercase tracking-wider">
+                      {asm.subject}
+                    </Badge>
+                    <span className="text-stone-400 text-xs font-semibold flex items-center gap-1 whitespace-nowrap">
+                      <Clock size={12} />
+                      {isRTL ? "تاريخ التسليم:" : "Due Date:"} <span className="num-en">{asm.dueDate}</span>
+                    </span>
+                  </div>
+                </div>
+
+                {/* Bottom Row: Stats Cards & Main Grade Button */}
+                <div className="flex flex-col md:flex-row justify-between items-center gap-6 w-full">
+                  {/* Left: Questions Count & Total Points Info */}
+                  <div className="flex gap-4 text-xs text-stone-400 font-semibold w-full md:w-auto">
+                    <span>{isRTL ? `الأسئلة: ${asm.questionsCount}` : `Questions: ${asm.questionsCount}`}</span>
+                    <span>•</span>
+                    <span>{isRTL ? `الدرجة الكلية: ${asm.points} درجات` : `Total Points: ${asm.points} pts`}</span>
+                  </div>
+
+                  {/* Center: Stats grid */}
+                  <div className="grid grid-cols-3 gap-3 w-full md:w-[420px] shrink-0">
+                    {/* Stat 1: Submissions */}
+                    {(() => {
+                      const theme = getThemeClasses(asm.subject, false);
+                      return (
+                        <div className={`p-3.5 rounded-2xl border ${theme.border} ${theme.bg} ${theme.text} hover:shadow-md transition-all duration-300 flex flex-col justify-between h-[105px] relative group/stat`}>
+                          <div>
+                            <FileText size={18} className={`${theme.icon} opacity-80`} />
+                          </div>
+                          <div className="flex flex-col mt-1">
+                            <span className="text-xl md:text-2xl font-black leading-none tracking-tight num-en">{asm.submissionsCount}</span>
+                            <span className="text-[10px] md:text-xs font-semibold whitespace-nowrap truncate mt-1">
+                              {isRTL ? "التسليمات" : "Submissions"}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Stat 2: Pending Review */}
+                    {(() => {
+                      const isPending = pendingCount > 0;
+                      const theme = getThemeClasses(asm.subject, isPending);
+                      return (
+                        <div className={`p-3.5 rounded-2xl border ${theme.border} ${theme.bg} ${theme.text} hover:shadow-md transition-all duration-300 flex flex-col justify-between h-[105px] relative group/stat`}>
+                          <div className="flex justify-between items-start">
+                            <Clock3 size={18} className={`${theme.icon} ${isPending ? "animate-pulse" : "opacity-80"}`} />
+                            {isPending && (
+                              <Badge className="bg-amber-600 hover:bg-amber-600 text-[8px] font-black px-1 py-0.5 rounded text-white border-none shrink-0 scale-90 origin-top-right">
+                                {isRTL ? "جديد" : "New"}
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="flex flex-col mt-1">
+                            <span className="text-xl md:text-2xl font-black leading-none tracking-tight num-en">{pendingCount}</span>
+                            <span className="text-[10px] md:text-xs font-semibold whitespace-nowrap truncate mt-1">
+                              {isRTL ? "بحاجة لمراجعة" : "To Review"}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Stat 3: Average Score */}
+                    {(() => {
+                      const theme = getThemeClasses(asm.subject, false);
+                      return (
+                        <div className={`p-3.5 rounded-2xl border ${theme.border} ${theme.bg} ${theme.text} hover:shadow-md transition-all duration-300 flex flex-col justify-between h-[105px] relative group/stat`}>
+                          <div>
+                            <Award size={18} className={`${theme.icon} opacity-80`} />
+                          </div>
+                          <div className="flex flex-col mt-1">
+                            <div className="flex items-baseline gap-0.5">
+                              <span className="text-xl md:text-2xl font-black leading-none tracking-tight num-en">{asm.averageScore}</span>
+                              <span className="text-[9px] font-bold opacity-60 whitespace-nowrap">
+                                {isRTL ? ` من ${asm.points}` : ` / ${asm.points}`}
+                              </span>
+                            </div>
+                            <span className="text-[10px] md:text-xs font-semibold whitespace-nowrap truncate mt-1">
+                              {isRTL ? "متوسط الدرجة" : "Avg Score"}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  {/* Right: Grade Button */}
+                  <div className="flex gap-2 w-full md:w-auto shrink-0">
                     <button 
                       onClick={() => handleOpenGrading(asm)}
                       className="flex-1 md:flex-none inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-xs font-black transition-all bg-stone-900 text-white hover:bg-black h-11 px-5 cursor-pointer"
@@ -662,7 +851,7 @@ export default function AssignmentsGradingTab({ isRTL = true, subjects = [] }) {
                 className="w-full inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-stone-900 text-white hover:bg-black h-12 cursor-pointer shadow-lg"
               >
                 <Save size={16} />
-                <span>{isRTL ? "حفظ ونشر الواجب" : "Publish Form"}</span>
+                <span>{editingAsmId ? (isRTL ? "حفظ التعديلات" : "Save Changes") : (isRTL ? "حفظ ونشر الواجب" : "Publish Form")}</span>
               </button>
             </Card>
           </div>
@@ -852,6 +1041,87 @@ export default function AssignmentsGradingTab({ isRTL = true, subjects = [] }) {
           </div>
         </div>
       )}
+      {/* Dialog for viewing assignment details (عرض الواجب) */}
+      <Dialog open={previewAsm !== null} onOpenChange={(open) => !open && setPreviewAsm(null)}>
+        <DialogContent className="max-w-2xl rounded-3xl p-6 overflow-y-auto max-h-[80vh]" dir={isRTL ? "rtl" : "ltr"}>
+          <DialogHeader className="border-b border-stone-150 pb-4 mb-4">
+            <DialogTitle className="font-serif font-black text-xl text-stone-900 flex items-center gap-2">
+              <FileText className="text-primary h-5 w-5" />
+              <span>{isRTL ? "تفاصيل وعرض الواجب" : "Assignment Details & Preview"}</span>
+            </DialogTitle>
+          </DialogHeader>
+
+          {previewAsm && (
+            <div className="space-y-6">
+              <div className="flex flex-wrap gap-4 items-center justify-between bg-stone-50 p-4 rounded-2xl border border-stone-100">
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">{isRTL ? "عنوان الواجب" : "Title"}</p>
+                  <h4 className="text-lg font-black text-stone-850">{previewAsm.title}</h4>
+                </div>
+                <div className="flex gap-4">
+                  <div className="text-center bg-white px-3 py-1.5 rounded-xl border border-stone-200">
+                    <p className="text-[10px] font-bold text-stone-400">{isRTL ? "الدرجة الكلية" : "Total Points"}</p>
+                    <p className="text-base font-black text-primary num-en">{previewAsm.points}</p>
+                  </div>
+                  <div className="text-center bg-white px-3 py-1.5 rounded-xl border border-stone-200">
+                    <p className="text-[10px] font-bold text-stone-400">{isRTL ? "الأسئلة" : "Questions"}</p>
+                    <p className="text-base font-black text-stone-800 num-en">{previewAsm.questionsCount}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h5 className="font-bold text-stone-900 border-b border-stone-50 pb-2">{isRTL ? "الأسئلة والتقييمات:" : "Questions:"}</h5>
+                {previewAsm.questions?.map((q, idx) => (
+                  <div key={q.id || idx} className="p-4 bg-white border border-stone-100 rounded-2xl space-y-2">
+                    <div className="flex justify-between items-start gap-4">
+                      <span className="font-bold text-stone-900 text-sm">
+                        {idx + 1}. {q.text}
+                      </span>
+                      <Badge className="bg-primary/5 text-primary border-none rounded-lg text-[10px] font-bold px-2 py-0.5 whitespace-nowrap">
+                        {q.points} {isRTL ? "نقاط" : "pts"}
+                      </Badge>
+                    </div>
+
+                    {(q.type === "mcq" || q.type === "checkbox") && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
+                        {q.options?.map((opt, oIdx) => {
+                          const isCorrect = Array.isArray(q.correctAnswer)
+                            ? q.correctAnswer.includes(opt)
+                            : q.correctAnswer === opt;
+                          return (
+                            <div key={oIdx} className={`p-2 rounded-xl border text-xs font-semibold flex items-center gap-2 ${
+                              isCorrect ? "bg-emerald-50 border-emerald-300 text-emerald-700" : "bg-stone-50 border-stone-100 text-stone-600"
+                            }`}>
+                              <div className={`h-3.5 w-3.5 rounded-full border flex items-center justify-center shrink-0 ${isCorrect ? "border-emerald-500 bg-emerald-500 text-white" : "border-stone-300"}`}>
+                                {isCorrect && <Check size={10} />}
+                              </div>
+                              <span>{opt}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {q.type === "short" && (
+                      <div className="pt-2 text-xs">
+                        <span className="text-stone-400 font-bold">{isRTL ? "الإجابة النموذجية:" : "Model Answer:"} </span>
+                        <span className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-lg">{q.correctAnswer}</span>
+                      </div>
+                    )}
+
+                    {q.type === "paragraph" && (
+                      <div className="pt-2 text-xs text-stone-400 font-semibold italic">
+                        {isRTL ? "[سؤال مقالي - يتطلب تصحيح يدوي]" : "[Essay Question - requires manual grading]"}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

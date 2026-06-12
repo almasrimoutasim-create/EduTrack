@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { entities } from "@/api/dbClient";
 import { 
   DollarSign, 
   Search, 
@@ -41,7 +41,7 @@ export default function StaffPayroll() {
   // جلب قائمة الموظفين
   const { data: staffMembers = [], isLoading } = useQuery({ 
     queryKey: ["staff-members"], 
-    queryFn: () => base44.entities.StaffMember.list("-created_at", 200),
+    queryFn: () => entities.StaffMember.list("-created_at", 200),
     staleTime: 1000 * 60 * 5
   });
 

@@ -114,8 +114,7 @@ export default function Sidebar() {
             items: [
               { label: isRTL ? "الفصول والشعب" : "Classes", path: "/subjects", icon: BookOpen },
               { label: isRTL ? "الجداول الدراسية" : "Schedules", path: "/schedules", icon: Calendar },
-              { label: isRTL ? "الامتحانات" : "Exams", path: "#", icon: FileText },
-              { label: isRTL ? "الدرجات والنتائج" : "Grades & Results", path: "#", icon: Trophy }
+              { label: isRTL ? "الدرجات والنتائج" : "Grades & Results", path: "/grades", icon: Trophy }
             ]
           },
           {
@@ -147,7 +146,7 @@ export default function Sidebar() {
               { label: isRTL ? "قائمة الموظفين" : "Employee List", path: "/staff-control", icon: Users },
               { label: isRTL ? "إضافة موظف" : "Add Employee", path: "/staff-control?add=true", icon: PlusCircle },
               { label: isRTL ? "العقود" : "Contracts", path: "#", icon: Briefcase },
-              { label: isRTL ? "الرواتب" : "Salaries & Payroll", path: "#", icon: DollarSign },
+              { label: isRTL ? "الرواتب" : "Salaries & Payroll", path: "/staff/payroll", icon: DollarSign },
               { label: isRTL ? "الحضور والانصراف" : "Attendance", path: "#", icon: Clock }
             ]
           },

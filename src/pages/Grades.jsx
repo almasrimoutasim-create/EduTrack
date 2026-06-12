@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { 
   Award, 
   Search, 
@@ -47,12 +47,12 @@ export default function Grades() {
   // Queries
   const { data: allGrades = [], isLoading } = useQuery({
     queryKey: ["admin-all-grades"],
-    queryFn: () => base44.entities.StudentGrade.list("-created_at", 100)
+    queryFn: () => entities.StudentGrade.list("-created_at", 100)
   });
 
   const { data: students = [] } = useQuery({
     queryKey: ["admin-all-students-grades"],
-    queryFn: () => base44.entities.Student.list()
+    queryFn: () => entities.Student.list()
   });
 
   // Extract unique subjects for filter
@@ -109,7 +109,7 @@ export default function Grades() {
       return;
     }
     try {
-      await base44.entities.StudentGrade.delete(id);
+      await entities.StudentGrade.delete(id);
       toast.success(isRTL ? "تم حذف الدرجة بنجاح" : "Grade deleted successfully");
       qc.invalidateQueries({ queryKey: ["admin-all-grades"] });
     } catch (err) {
@@ -141,7 +141,7 @@ export default function Grades() {
       else if (percentage >= 50) label = "D";
       else label = "F";
 
-      await base44.entities.StudentGrade.create({
+      await entities.StudentGrade.create({
         student_id: studentObj.student_id || studentObj.id,
         student_name: studentObj.full_name || studentObj.name,
         subject_name: `${subjectName} - ${assessmentName}`,
