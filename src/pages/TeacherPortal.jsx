@@ -194,6 +194,111 @@ export default function TeacherPortal() {
     visible: { opacity: 1, transition: { staggerChildren: 0.1 } }
   };
 
+  // Dynamic calculations for stats & headers
+  const todayDayEN = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][new Date().getDay()];
+  const todayClassesCount = teacherSchedules.filter(s => s.day_of_week === todayDayEN).length;
+
+  // Assignments & pending reviews
+  const dynamicAssignments = React.useMemo(() => {
+    try {
+      const saved = localStorage.getItem("edu_assignments");
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  }, []);
+
+  const dynamicSubmissions = React.useMemo(() => {
+    try {
+      const saved = localStorage.getItem("edu_submissions");
+      return saved ? JSON.parse(saved) : {};
+    } catch (e) {
+      return {};
+    }
+  }, []);
+
+  const pendingGradingCount = React.useMemo(() => {
+    let count = 0;
+    Object.keys(dynamicSubmissions).forEach(asmId => {
+      const subs = dynamicSubmissions[asmId] || [];
+      count += subs.filter(s => s.status === "pending").length;
+    });
+    return count;
+  }, [dynamicSubmissions]);
+
+  const totalCompletedAssignmentsCount = React.useMemo(() => {
+    let count = 0;
+    Object.keys(dynamicSubmissions).forEach(asmId => {
+      const subs = dynamicSubmissions[asmId] || [];
+      count += subs.length;
+    });
+    return count;
+  }, [dynamicSubmissions]);
+
+  // Average GPA calculation from student grades in database
+  const { data: allGrades = [] } = useQuery({
+    queryKey: ["teacher-all-students-grades"],
+    queryFn: () => base44.entities.StudentGrade.list()
+  });
+
+  const averageGPA = React.useMemo(() => {
+    if (allGrades.length === 0) return "٣.٧٥";
+    const total = allGrades.reduce((sum, g) => sum + (parseFloat(g.score || g.grade_point || 0)), 0);
+    const avg = total / allGrades.length;
+    // Format to Arabic numerals if RTL
+    const val = avg.toFixed(2);
+    if (isRTL) {
+      return val.replace(/\d/g, d => "٠١٢٣٤٥٦٧٨٩"[d]);
+    }
+    return val;
+  }, [allGrades, isRTL]);
+
+  // Student Performance distributions (Above Average: >= 85, Average: 50-84, Needs Review: < 50)
+  const performanceStats = React.useMemo(() => {
+    if (allGrades.length === 0) {
+      return { aboveAverage: 70, average: 20, needsReview: 10 };
+    }
+    let above = 0, avg = 0, low = 0;
+    allGrades.forEach(g => {
+      const scorePct = parseFloat(g.score || 0);
+      if (scorePct >= 85) above++;
+      else if (scorePct >= 50) avg++;
+      else low++;
+    });
+    const total = allGrades.length;
+    return {
+      aboveAverage: Math.round((above / total) * 100),
+      average: Math.round((avg / total) * 100),
+      needsReview: Math.round((low / total) * 100)
+    };
+  }, [allGrades]);
+
+  // Alerts calculation
+  const urgentAlertsList = React.useMemo(() => {
+    const alerts = [];
+    // 1. Student recurrent absences (if any student has status absent in attendance)
+    // 2. Announcements of high priority
+    // 3. Static default fallbacks if none
+    activeHighPriorityAnnouncements.forEach(ann => {
+      alerts.push({
+        title: ann.title,
+        time: isRTL ? "عاجل" : "Urgent",
+        icon: AlertCircle,
+        color: "text-rose-500",
+        bg: "bg-rose-50"
+      });
+    });
+
+    if (alerts.length === 0) {
+      return [
+        { title: isRTL ? "غياب متكرر - طالب ٤٠٥" : "Frequent Absence - Student 405", time: isRTL ? "١٠:١٥ ص" : "10:15 AM", icon: AlertCircle, color: "text-rose-500", bg: "bg-rose-50" },
+        { title: isRTL ? "طلب مراجعة درجة - سارة" : "Grade Review Request - Sarah", time: isRTL ? "٠٩:٣٠ ص" : "09:30 AM", icon: MessageCircle, color: "text-blue-500", bg: "bg-blue-50" },
+        { title: isRTL ? "تم تحديث خطة المنهج" : "Curriculum plan updated", time: isRTL ? "٠٨:٠٠ ص" : "08:00 AM", icon: CheckCircle2, color: "text-emerald-500", bg: "bg-emerald-50" }
+      ];
+    }
+    return alerts;
+  }, [activeHighPriorityAnnouncements, isRTL]);
+
   return (
     <div className={`min-h-screen bg-stone-50 text-stone-900 ${isRTL ? 'font-cairo' : 'font-sans'}`} dir={isRTL ? "rtl" : "ltr"}>
       <TeacherSidebar />
@@ -329,7 +434,20 @@ export default function TeacherPortal() {
               {isRTL ? "أكاديمي" : "Academic"}
             </Badge>
           </div>
-          <p className="text-stone-400 font-medium">{isRTL ? "أهلاً بك يا أستاذ! لديك ٣ حصص اليوم و١٢ واجباً بانتظار التصحيح." : "Welcome back! You have 3 classes today and 12 assignments to grade."}</p>
+          <p className="text-stone-400 font-medium">
+            {isRTL 
+              ? `أهلاً بك يا أستاذ! لديك ${
+                  isRTL 
+                    ? todayClassesCount.toString().replace(/\d/g, d => "٠١٢٣٤٥٦٧٨٩"[d]) 
+                    : todayClassesCount 
+                } حصص اليوم و ${
+                  isRTL 
+                    ? pendingGradingCount.toString().replace(/\d/g, d => "٠١٢٣٤٥٦٧٨٩"[d]) 
+                    : pendingGradingCount 
+                } واجباً بانتظار التصحيح.` 
+              : `Welcome back! You have ${todayClassesCount} classes today and ${pendingGradingCount} assignments to grade.`
+            }
+          </p>
         </div>
         
         <div className="flex gap-3">
@@ -631,9 +749,25 @@ export default function TeacherPortal() {
           {/* Quick Stats Grid */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[
-              { label: isRTL ? "متوسط المعدل" : "Average GPA", value: "٣.٤٥", icon: Star, color: "text-amber-500", bg: "bg-amber-50" },
-              { label: isRTL ? "الواجبات المكتملة" : "Assignments Done", value: "١٢٨", icon: FileText, color: "text-blue-500", bg: "bg-blue-50" },
-              { label: isRTL ? "ساعات التدريس" : "Teaching Hours", value: "٤٢", icon: Clock, color: "text-purple-500", bg: "bg-purple-50" },
+              { label: isRTL ? "متوسط المعدل" : "Average GPA", value: averageGPA, icon: Star, color: "text-amber-500", bg: "bg-amber-50" },
+              { 
+                label: isRTL ? "الواجبات المكتملة" : "Assignments Done", 
+                value: isRTL 
+                  ? totalCompletedAssignmentsCount.toString().replace(/\d/g, d => "٠١٢٣٤٥٦٧٨٩"[d]) 
+                  : totalCompletedAssignmentsCount.toString(), 
+                icon: FileText, 
+                color: "text-blue-500", 
+                bg: "bg-blue-50" 
+              },
+              { 
+                label: isRTL ? "ساعات التدريس" : "Teaching Hours", 
+                value: isRTL 
+                  ? (teacherSchedules.length * 2).toString().replace(/\d/g, d => "٠١٢٣٤٥٦٧٨٩"[d]) 
+                  : (teacherSchedules.length * 2).toString(), 
+                icon: Clock, 
+                color: "text-purple-500", 
+                bg: "bg-purple-50" 
+              },
             ].map((stat, i) => (
               <Card key={i} className="p-6 border-none shadow-sm bg-white rounded-[32px] flex items-center gap-4">
                 <div className={`h-12 w-12 rounded-2xl ${stat.bg} ${stat.color} flex items-center justify-center`}>
@@ -653,20 +787,25 @@ export default function TeacherPortal() {
           <Card className="p-8 border-none shadow-sm bg-stone-900 text-white rounded-[48px] relative overflow-hidden">
             <div className="relative z-10">
               <div className="flex items-center justify-between mb-8">
-                <h4 className="font-bold">{isRTL ? "أداء الطلاب" : "Student Performance"}</h4>
+                <h4 className="font-bold">{isRTL ? "كارت أداء الطلاب" : "Student Performance"}</h4>
                 <TrendingUp size={20} className="text-emerald-400" />
               </div>
               
               <div className="space-y-6">
                 {[
-                  { label: isRTL ? "فوق المتوسط" : "Above Average", value: 70, color: "bg-emerald-500" },
-                  { label: isRTL ? "متوسط" : "Average", value: 20, color: "bg-amber-500" },
-                  { label: isRTL ? "يحتاج تحسين" : "Needs Review", value: 10, color: "bg-rose-500" },
+                  { label: isRTL ? "فوق المتوسط" : "Above Average", value: performanceStats.aboveAverage, color: "bg-emerald-500" },
+                  { label: isRTL ? "متوسط" : "Average", value: performanceStats.average, color: "bg-amber-500" },
+                  { label: isRTL ? "يحتاج تحسين" : "Needs Review", value: performanceStats.needsReview, color: "bg-rose-500" },
                 ].map((item, i) => (
                   <div key={i}>
                     <div className="flex justify-between items-center mb-2 text-[10px] font-bold uppercase tracking-widest opacity-60">
                       <span>{item.label}</span>
-                      <span>{item.value}٪</span>
+                      <span>
+                        {isRTL 
+                          ? `${item.value.toString().replace(/\d/g, d => "٠١٢٣٤٥٦٧٨٩"[d])}٪` 
+                          : `${item.value}%`
+                        }
+                      </span>
                     </div>
                     <Progress value={item.value} className={`h-1.5 bg-white/10 ${item.color}`} />
                   </div>
@@ -683,21 +822,22 @@ export default function TeacherPortal() {
           <Card className="p-8 border-none shadow-sm bg-white rounded-[48px]">
             <div className="flex items-center justify-between mb-8">
               <h4 className="font-bold text-stone-900">{isRTL ? "التنبيهات العاجلة" : "Urgent Alerts"}</h4>
-              <Badge className="bg-rose-500 text-white border-none rounded-full h-5 w-5 flex items-center justify-center p-0 text-[10px] font-black"> 3</Badge>
+              <Badge className="bg-rose-500 text-white border-none rounded-full h-5 w-5 flex items-center justify-center p-0 text-[10px] font-black">
+                {isRTL 
+                  ? urgentAlertsList.length.toString().replace(/\d/g, d => "٠١٢٣٤٥٦٧٨٩"[d]) 
+                  : urgentAlertsList.length.toString()
+                }
+              </Badge>
             </div>
             
             <div className="space-y-6">
-              {[
-                { title: "غياب متكرر - طالب ٤٠٥", time: "١٠:١٥ ص", icon: AlertCircle, color: "text-rose-500", bg: "bg-rose-50" },
-                { title: "طلب مراجعة درجة - سارة", time: "٠٩:٣٠ ص", icon: MessageCircle, color: "text-blue-500", bg: "bg-blue-50" },
-                { title: "تم تحديث خطة المنهج", time: "٠٨:٠٠ ص", icon: CheckCircle2, color: "text-emerald-500", bg: "bg-emerald-50" },
-              ].map((alert, i) => (
+              {urgentAlertsList.map((alert, i) => (
                 <div key={i} className="flex gap-4 group cursor-pointer">
                   <div className={`h-12 w-12 rounded-2xl ${alert.bg} ${alert.color} flex items-center justify-center group-hover:scale-110 transition-transform`}>
                     <alert.icon size={20} />
                   </div>
                   <div>
-                    <h5 className="text-sm font-bold text-stone-800 leading-tight group-hover:text-primary transition-colors">{alert.title}</h5>
+                    <h5 className="text-sm font-bold text-stone-850 leading-tight group-hover:text-primary transition-colors">{alert.title}</h5>
                     <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mt-1">{alert.time}</p>
                   </div>
                 </div>

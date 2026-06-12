@@ -778,13 +778,38 @@ export default function AssignmentsGradingTab({ isRTL = true, subjects = [] }) {
 
                       {/* Display message for text based questions */}
                       {q.type === "short" && (
-                        <div className="bg-stone-50 p-4 rounded-xl border border-dashed border-stone-200 text-stone-400 text-xs font-semibold">
-                          {isRTL ? "إدخال نص إجابة قصيرة للطلاب (سيتم تصحيحه يدوياً أو بناء على الكلمات الدلالية)" : "Short answer text field for students"}
+                        <div className="space-y-2">
+                          <Label className="text-stone-550 text-xs font-bold">{isRTL ? "الإجابة النموذجية (مفتاح التصحيح):" : "Model Answer (Key):"}</Label>
+                          <Input 
+                            value={q.correctAnswer || ""}
+                            onChange={e => {
+                              const val = e.target.value;
+                              setFormQuestions(prev => prev.map(item => item.id === q.id ? { ...item, correctAnswer: val } : item));
+                            }}
+                            className="h-10 rounded-xl border-stone-200 font-semibold focus-visible:ring-primary/20 bg-white"
+                            placeholder={isRTL ? "أدخل الإجابة الصحيحة التي سيتم مطابقة إجابة الطالب معها..." : "Enter the correct answer to match against..."}
+                          />
+                          <p className="text-[10px] text-stone-400 font-semibold">
+                            {isRTL ? "* سيتم مقارنة إجابات الطلاب مع هذه الإجابة النموذجية." : "* Students answers will be compared with this model answer."}
+                          </p>
                         </div>
                       )}
                       {q.type === "paragraph" && (
-                        <div className="bg-stone-50 p-4 rounded-xl border border-dashed border-stone-200 text-stone-400 text-xs font-semibold">
-                          {isRTL ? "منطقة كتابة واسعة للفقرات والمواضيع الإنشائية (يتطلب مراجعة وتصحيح يدوي من المعلم)" : "Long answer text field for essay writing"}
+                        <div className="space-y-2">
+                          <Label className="text-stone-550 text-xs font-bold">{isRTL ? "إرشادات التصحيح للمعلم (اختياري):" : "Grading Guidelines (Optional):"}</Label>
+                          <Textarea 
+                            value={q.correctAnswer || ""}
+                            onChange={e => {
+                              const val = e.target.value;
+                              setFormQuestions(prev => prev.map(item => item.id === q.id ? { ...item, correctAnswer: val } : item));
+                            }}
+                            rows={2}
+                            className="rounded-xl border-stone-200 font-semibold focus-visible:ring-primary/20 bg-white"
+                            placeholder={isRTL ? "اكتب الكلمات الدلالية أو النقاط الهامة التي يجب توافرها في موضوع الطالب..." : "Enter keywords or critical points students should include..."}
+                          />
+                          <p className="text-[10px] text-stone-400 font-semibold">
+                            {isRTL ? "* هذا الحقل المقالي يتطلب تصحيحاً ومراجعة يدوية من المعلم لاحقاً." : "* This essay question requires manual grading by the teacher later."}
+                          </p>
                         </div>
                       )}
                     </div>
