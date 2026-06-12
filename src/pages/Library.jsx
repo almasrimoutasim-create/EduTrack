@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { useSearchParams } from "react-router-dom";
 import { 
   Book, 
@@ -52,7 +52,7 @@ export default function Library() {
   const { data: books = [], isLoading } = useQuery({ 
     queryKey: ["library-books"], 
     // @ts-ignore
-    queryFn: () => base44.entities.LibraryBook.list("-created_at", {}, 50) 
+    queryFn: () => entities.LibraryBook.list("-created_at", {}, 500) 
   });
 
   const availableGrades = [...new Set(books.map(b => b.grade).filter(Boolean))].sort((a, b) => parseInt(a) - parseInt(b));
@@ -75,7 +75,7 @@ export default function Library() {
 
   const handleDelete = async (book) => {
     try {
-      await base44.entities.LibraryBook.delete(book.id);
+      await entities.LibraryBook.delete(book.id);
       toast.success(isRTL ? "تم حذف الكتاب" : "Book deleted");
     } catch (err) {
       toast.error(isRTL ? "فشل الحذف" : "Failed to delete");

@@ -181,24 +181,7 @@ export default function Sidebar() {
             label: isRTL ? "إدارة الكتب" : "Book Management",
             items: [
               { label: isRTL ? "الكتب" : "Books Catalog", path: "/library", icon: BookOpen },
-              { label: isRTL ? "إضافة كتاب" : "Add Book", path: "/library?add=true", icon: PlusCircle },
-              { label: isRTL ? "التصنيفات" : "Categories", path: "#", icon: Layers },
-              { label: isRTL ? "البحث" : "Search Catalog", path: "#", icon: Search }
-            ]
-          },
-          {
-            label: isRTL ? "الاستعارات" : "Borrowings & Returns",
-            items: [
-              { label: isRTL ? "استعارة كتاب" : "Borrow Book", path: "#", icon: HelpCircle },
-              { label: isRTL ? "إرجاع كتاب" : "Return Book", path: "#", icon: History },
-              { label: isRTL ? "سجل الاستعارات" : "Borrowing Log", path: "#", icon: FileSpreadsheet },
-              { label: isRTL ? "الغرامات" : "Library Fines", path: "#", icon: AlertTriangle }
-            ]
-          },
-          {
-            label: isRTL ? "التقارير" : "Reports",
-            items: [
-              { label: isRTL ? "تقارير المكتبة" : "Library Reports", path: "#", icon: FileSpreadsheet }
+              { label: isRTL ? "إضافة كتاب" : "Add Book", path: "/library?add=true", icon: PlusCircle }
             ]
           }
         ];
