@@ -8,7 +8,8 @@ import {
   Plus, 
   Coffee, 
   Fingerprint, 
-  DollarSign 
+  DollarSign,
+  LifeBuoy
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/lib/LanguageContext";
@@ -129,6 +130,7 @@ export default function StaffPersonalRequests() {
       'PERMISSION': { label: isRTL ? 'طلب استئذان' : 'Permission', color: 'text-amber-600 bg-amber-50', icon: Clock },
       'PUNCH_CORRECTION': { label: isRTL ? 'تصحيح بصمة' : 'Punch Correction', color: 'text-violet-600 bg-violet-50', icon: Fingerprint },
       'LOAN': { label: isRTL ? 'طلب سلفة' : 'Loan Request', color: 'text-emerald-600 bg-emerald-50', icon: DollarSign },
+      'SUPPORT': { label: isRTL ? 'دعم فني' : 'Technical Support', color: 'text-rose-600 bg-rose-50', icon: LifeBuoy }
     };
     return map[type] || { label: type, color: 'text-stone-600 bg-stone-50', icon: FileText };
   };
@@ -198,7 +200,7 @@ export default function StaffPersonalRequests() {
             >
               {isRTL ? "الكل" : "All"}
             </button>
-            {["LEAVE", "PERMISSION", "PUNCH_CORRECTION", "LOAN"].map(type => {
+            {["LEAVE", "PERMISSION", "PUNCH_CORRECTION", "LOAN", "SUPPORT"].map(type => {
               const display = getRequestTypeDisplay(type);
               return (
                 <button

@@ -72,7 +72,7 @@ export default function StudentSidebar() {
       label: isRTL ? "الإنجازات" : "Achievements",
       items: [
         { label: isRTL ? "الأوسمة" : "Badges", path: "/student-portal?view=badges", icon: Trophy },
-        { label: isRTL ? "النقاط والمستويات" : "Levels & XP", path: "#", icon: Rocket }
+        { label: isRTL ? "النقاط والمستويات" : "Levels & XP", path: "/student-portal?view=levels", icon: Rocket }
       ]
     }
   ];

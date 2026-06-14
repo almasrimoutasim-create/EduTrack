@@ -1,7 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, Users, Calendar, CreditCard, ShieldCheck, MessageSquare, LogOut, Settings, DollarSign, Menu, X, FileText,
-  GraduationCap, Layers, ShoppingCart, ShoppingBag, FileSpreadsheet, ArrowLeft
+  GraduationCap, Layers, ShoppingCart, ShoppingBag, FileSpreadsheet, ArrowLeft, LifeBuoy
 } from "lucide-react";
 import { useState } from "react";
 import { motion } from "framer-motion";
@@ -30,7 +30,7 @@ export default function StaffSidebar() {
 
   const navGroups = [];
 
-  if (portalRole === "staff" || portalRole === "security") {
+  if (portalRole === "staff" || portalRole === "security" || portalRole === "support") {
     navGroups.push({
       label: isRTL ? "الرئيسية" : "Overview",
       items: [
@@ -95,7 +95,7 @@ export default function StaffSidebar() {
   }
 
   // إضافة مجموعة الخدمات الذاتية لجميع الأدوار الإدارية
-  if (portalRole !== "staff" && portalRole !== "security") {
+  if (portalRole !== "staff" && portalRole !== "security" && portalRole !== "support") {
     navGroups.push({
       label: isRTL ? "الخدمات الذاتية" : "Self Service",
       items: [

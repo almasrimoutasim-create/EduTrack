@@ -22,7 +22,8 @@ import {
   UserCheck,
   DoorOpen,
   Wifi,
-  HeartHandshake
+  HeartHandshake,
+  LifeBuoy
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/lib/LanguageContext";
@@ -109,6 +110,13 @@ export default function StaffPortal() {
       label: { ar: "المرشد الطلابي", en: "Student Counselor" },
       color: "bg-emerald-600 text-white",
       path: "/counseling"
+    },
+    {
+      id: "support",
+      icon: LifeBuoy,
+      label: { ar: "الدعم الفني", en: "Technical Support" },
+      color: "bg-rose-500 text-white",
+      path: "#support"
     }
   ];
 
@@ -123,9 +131,9 @@ export default function StaffPortal() {
       setErrorMsg("");
     } else {
       // If they are already logged in specifically
-      if (id === "security") {
-        // Just let them view the custom security screen in this component
-        localStorage.setItem("portal_role", "security");
+      if (id === "security" || id === "support") {
+        // Just let them view the custom security or support screen in this component
+        localStorage.setItem("portal_role", id);
         window.location.reload();
       } else {
         localStorage.setItem("portal_role", id);
@@ -168,6 +176,7 @@ export default function StaffPortal() {
         (targetDeptId === "store_keeper" && (userRole === "store" || userRole === "store_keeper")) ||
         (targetDeptId === "bus_supervisor" && (userRole === "bus" || userRole === "bus_supervisor")) ||
         (targetDeptId === "security" && userRole === "security") ||
+        (targetDeptId === "support" && userRole === "support") ||
         (targetDeptId === "counselor" && (userRole === "counselor" || userRole === "counseling"));
 
       if (!isMatch) {
@@ -185,7 +194,7 @@ export default function StaffPortal() {
 
       setSelectedDept(null);
       
-      if (targetDeptId === "security") {
+      if (targetDeptId === "security" || targetDeptId === "support") {
         window.location.reload();
       } else {
         window.location.href = selectedDept.path;
@@ -247,6 +256,173 @@ export default function StaffPortal() {
     hidden: { opacity: 0 },
     visible: { opacity: 1, transition: { staggerChildren: 0.1 } }
   };
+
+  // RENDER TECHNICAL SUPPORT PORTAL IN-PAGE
+  if (currentRole === "support") {
+    const savedReqs = JSON.parse(localStorage.getItem("staff_requests") || "[]");
+    const supportTickets = savedReqs.filter(r => r.type === "SUPPORT");
+
+    const totalCount = supportTickets.length;
+    const pendingTickets = supportTickets.filter(t => t.status === "PENDING");
+    const resolvedTickets = supportTickets.filter(t => t.status === "APPROVED" || t.status === "RESOLVED");
+
+    const handleResolveTicket = async (ticketId, employeeName) => {
+      try {
+        const updated = savedReqs.map(r => {
+          if (r.id === ticketId) {
+            return { ...r, status: "APPROVED" };
+          }
+          return r;
+        });
+        localStorage.setItem("staff_requests", JSON.stringify(updated));
+
+        await entities.AuditLog.create({
+          timestamp: new Date().toISOString(),
+          user_name: "مهندس الدعم الفني",
+          action: "RESOLVE_SUPPORT_TICKET",
+          entity_type: "SupportTicket",
+          entity_id: ticketId,
+          details: `Technical support ticket resolved for employee ${employeeName}`
+        });
+
+        window.dispatchEvent(new Event("storage"));
+
+        toast.success(isRTL ? "تم تحديد التذكرة كمحلولة بنجاح" : "Support ticket marked as resolved");
+        window.location.reload();
+      } catch (err) {
+        console.error(err);
+        toast.error(isRTL ? "فشل تحديث حالة التذكرة" : "Failed to resolve support ticket");
+      }
+    };
+
+    return (
+      <div className="min-h-screen bg-stone-50 text-stone-900 flex flex-col p-4 md:p-8" dir={isRTL ? "rtl" : "ltr"}>
+        <header className="max-w-6xl w-full mx-auto flex flex-col md:flex-row items-center justify-between border-b border-stone-200 pb-6 mb-8 gap-4">
+          <div className="flex items-center gap-3">
+            <div className="h-12 w-12 rounded-2xl bg-rose-500 text-white flex items-center justify-center shadow-lg">
+              <LifeBuoy size={24} />
+            </div>
+            <div>
+              <h1 className="text-2xl font-serif font-black text-stone-900">
+                {isRTL ? "بوابة الدعم الفني | Helpdesk" : "Technical Support Portal | Helpdesk"}
+              </h1>
+              <p className="text-stone-400 text-xs mt-0.5">
+                {isRTL ? "متابعة ومعالجة البلاغات والمشاكل التقنية الواردة من الكوادر" : "Resolve and track tech tickets reported by staff"}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 bg-rose-50 rounded-full px-4 py-1.5 text-xs text-rose-600 font-bold border border-rose-200">
+              <Wifi size={14} className="animate-pulse" />
+              {isRTL ? "نظام الدعم نشط" : "Support System Online"}
+            </div>
+            {user?.role === "admin" ? (
+              <button 
+                onClick={() => {
+                  localStorage.setItem("portal_role", "admin");
+                  window.location.href = "/";
+                }}
+                className={`${btnOutline} h-10 px-4 rounded-xl text-xs`}
+              >
+                <ArrowLeft size={14} className={isRTL ? "" : "rotate-180"} />
+                {isRTL ? "العودة للوحة الإدارة" : "Back to Admin"}
+              </button>
+            ) : (
+              <button 
+                onClick={handleLogoutDept}
+                className={`${btnOutline} h-10 px-4 rounded-xl text-xs`}
+              >
+                <ArrowLeft size={14} className={isRTL ? "" : "rotate-180"} />
+                {isRTL ? "بوابة الموظفين" : "Staff Portal"}
+              </button>
+            )}
+          </div>
+        </header>
+
+        <main className="max-w-6xl w-full mx-auto space-y-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[
+              { label: isRTL ? "إجمالي بلاغات الدعم" : "Total Support Tickets", value: totalCount, color: "text-stone-900", bg: "bg-white border-stone-200" },
+              { label: isRTL ? "بلاغات معلقة" : "Pending Review", value: pendingTickets.length, color: "text-amber-600", bg: "bg-amber-50 border-amber-200/50" },
+              { label: isRTL ? "بلاغات محلولة" : "Resolved Cases", value: resolvedTickets.length, color: "text-emerald-600", bg: "bg-emerald-50 border-emerald-200/50" },
+            ].map((stat, i) => (
+              <Card key={i} className={`p-6 border shadow-sm rounded-2xl flex items-center justify-between overflow-hidden relative ${stat.bg}`}>
+                <div>
+                  <p className="text-stone-400 text-[10px] font-bold uppercase tracking-wider mb-1">{stat.label}</p>
+                  <h4 className="text-3xl font-black num-en">{stat.value}</h4>
+                </div>
+                <div className={`h-12 w-12 rounded-xl flex items-center justify-center ${stat.color} bg-white shadow-sm border border-stone-100`}>
+                  <LifeBuoy size={22} />
+                </div>
+              </Card>
+            ))}
+          </div>
+
+          <Card className="p-6 border-none shadow-sm rounded-[32px] bg-white">
+            <h3 className="text-lg font-serif font-black text-stone-900 mb-6 flex items-center gap-2">
+              <LifeBuoy className="text-rose-500" size={20} />
+              {isRTL ? "تذاكر وبلاغات الدعم الواردة" : "Incoming Support Tickets"}
+            </h3>
+
+            <div className="space-y-4">
+              {supportTickets.map((ticket) => {
+                const isPending = ticket.status === "PENDING";
+                return (
+                  <div key={ticket.id} className={`p-5 rounded-2xl border-2 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 transition-all duration-300 ${
+                    isPending ? "border-amber-500/25 bg-amber-50/10" : "border-emerald-500/20 bg-emerald-50/10"
+                  }`}>
+                    <div className="flex gap-4">
+                      <div className={`h-12 w-12 rounded-2xl flex items-center justify-center shrink-0 ${
+                        isPending ? "bg-amber-100 text-amber-600" : "bg-emerald-100 text-emerald-600"
+                      }`}>
+                        <LifeBuoy size={22} className={isPending ? "animate-spin" : ""} style={{ animationDuration: '3s' }} />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-stone-900 flex items-center gap-2 flex-wrap">
+                          {ticket.employeeName}
+                          <Badge className="bg-stone-100 text-stone-600 border-none rounded text-[9px] font-bold px-2 py-0.5">
+                            {ticket.role}
+                          </Badge>
+                          <Badge className={`${isPending ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'} border-none rounded-lg text-[9px] font-black`}>
+                            {isPending ? (isRTL ? "معلق" : "Pending") : (isRTL ? "تم الحل" : "Resolved")}
+                          </Badge>
+                        </h4>
+                        <p className="text-sm font-semibold text-stone-600 mt-2 bg-white/50 p-3 rounded-xl border border-stone-100/50">{ticket.reason}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end border-t md:border-t-0 pt-3 md:pt-0 border-stone-100">
+                      <div className="text-end shrink-0">
+                        <span className="text-[10px] text-stone-400 font-bold block">{isRTL ? "تاريخ التقديم" : "Submitted Date"}</span>
+                        <span className="text-xs text-stone-800 font-bold num-en">{ticket.date}</span>
+                      </div>
+                      
+                      {isPending && (
+                        <button
+                          onClick={() => handleResolveTicket(ticket.id, ticket.employeeName)}
+                          className="h-11 px-5 rounded-xl bg-stone-900 text-white hover:bg-black font-bold text-xs gap-1.5 cursor-pointer shadow-md transition-all flex items-center"
+                        >
+                          <CheckCircle2 size={16} />
+                          {isRTL ? "اعتماد الحل" : "Resolve Case"}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {supportTickets.length === 0 && (
+                <div className="py-20 text-center text-stone-400 border border-dashed border-stone-200 rounded-3xl">
+                  <LifeBuoy size={48} className="mx-auto mb-4 opacity-20" />
+                  <p className="font-bold">{isRTL ? "لا توجد أي تذاكر دعم فني مسجلة" : "No technical support tickets found"}</p>
+                </div>
+              )}
+            </div>
+          </Card>
+        </main>
+      </div>
+    );
+  }
 
   // RENDER SECURITY PORTAL IN-PAGE
   if (currentRole === "security") {

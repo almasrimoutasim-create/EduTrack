@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { useSearchParams } from "react-router-dom";
 import { 
   Users, 
@@ -88,13 +88,13 @@ export default function StaffControl() {
 
   const { data: staffMembers = [], isLoading } = useQuery({ 
     queryKey: ["staff-members"], 
-    queryFn: () => base44.entities.StaffMember.list("-created_at", 200),
+    queryFn: () => entities.StaffMember.list("-created_at", 200),
     staleTime: 1000 * 60 * 5
   });
 
   const { data: logs = [] } = useQuery({ 
     queryKey: ["audit-logs"], 
-    queryFn: () => base44.entities.AuditLog.list("-timestamp", 100),
+    queryFn: () => entities.AuditLog.list("-timestamp", 100),
     staleTime: 1000 * 60 * 5
   });
 
@@ -133,7 +133,7 @@ export default function StaffControl() {
 
   const handleDelete = async (member) => {
     try {
-      await base44.entities.StaffMember.delete(member.id);
+      await entities.StaffMember.delete(member.id);
       queryClient.invalidateQueries({ queryKey: ["staff-members"] });
       toast.success(isRTL ? "تم حذف الموظف بنجاح" : "Staff member deleted");
     } catch (err) {
@@ -158,6 +158,7 @@ export default function StaffControl() {
       'security':       { bg: 'bg-cyan-100 text-cyan-700',       label: isRTL ? 'حارس أمن'       : 'Security' },
       'counselor':      { bg: 'bg-emerald-100 text-emerald-700', label: isRTL ? 'مرشد طلابي'     : 'Counselor' },
       'counseling':     { bg: 'bg-emerald-100 text-emerald-700', label: isRTL ? 'مرشد طلابي'     : 'Counselor' },
+      'support':        { bg: 'bg-rose-100 text-rose-700',       label: isRTL ? 'دعم فني'        : 'Technical Support' },
     };
     return map[role] || { bg: 'bg-stone-100 text-stone-600', label: role };
   };

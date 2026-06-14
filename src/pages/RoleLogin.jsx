@@ -15,7 +15,8 @@ import {
   Eye,
   EyeOff,
   AlertCircle,
-  X
+  X,
+  LifeBuoy
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card } from "@/components/ui/card";
@@ -40,7 +41,8 @@ export default function RoleLogin() {
     { id: "teacher", icon: GraduationCap, label: { ar: "بوابة المعلم", en: "Teacher Portal" }, color: "bg-indigo-600 text-white", desc: { ar: "إدارة الفصول والحضور والدرجات.", en: "Manage classes, attendance, and grades." }, path: "/teacher-portal" },
     { id: "student", icon: User, label: { ar: "بوابة الطالب", en: "Student Portal" }, color: "bg-teal-600 text-white", desc: { ar: "الجدول الدراسي والنتائج والأنشطة.", en: "Schedule, results, and activities." }, path: "/student-portal" },
     { id: "parent", icon: Users, label: { ar: "بوابة ولي الأمر", en: "Parent Portal" }, color: "bg-rose-600 text-white", desc: { ar: "متابعة تقدم أبنائك الأكاديمي.", en: "Track your children's academic progress." }, path: "/parent-portal" },
-    { id: "staff", icon: ShieldCheck, label: { ar: "بوابة الموظف", en: "Staff Portal" }, color: "bg-blue-600 text-white", desc: { ar: "الأنظمة المساندة والأقسام الإدارية.", en: "Support systems and departments." }, path: "/staff-portal" }
+    { id: "staff", icon: ShieldCheck, label: { ar: "بوابة الموظف", en: "Staff Portal" }, color: "bg-blue-600 text-white", desc: { ar: "الأنظمة المساندة والأقسام الإدارية.", en: "Support systems and departments." }, path: "/staff-portal" },
+    { id: "support", icon: LifeBuoy, label: { ar: "الدعم الفني", en: "Technical Support" }, color: "bg-rose-500 text-white", desc: { ar: "حل المشكلات الفنية وتذاكر الدعم.", en: "Resolve technical issues and support tickets." }, path: "/staff-portal" }
   ];
 
   const toggleLanguage = () => {
@@ -83,6 +85,8 @@ export default function RoleLogin() {
       // Admin uses the admin role directly
       if (resolvedRole === "admin") {
         resolvedRole = "admin";
+      } else if (resolvedRole === "support") {
+        resolvedRole = "staff";
       }
 
       await login(resolvedRole, identifier.trim(), password);
@@ -166,21 +170,7 @@ export default function RoleLogin() {
               }}
               whileHover={{ y: -5 }}
               onClick={() => {
-                if (role.id === "staff") {
-                  localStorage.setItem("portal_role", "staff");
-                  localStorage.setItem("portal_user", JSON.stringify({
-                    id: "staff-guest",
-                    full_name: "موظف زائر",
-                    email: "guest@edutrack.com",
-                    role: "staff"
-                  }));
-                  localStorage.setItem("portal_user_id", "staff-guest");
-                  localStorage.setItem("portal_user_name", "موظف زائر");
-                  localStorage.setItem("portal_is_auth", "true");
-                  window.location.href = "/staff-portal";
-                } else {
-                  openLoginPopup(role);
-                }
+                openLoginPopup(role);
               }}
               className="group cursor-pointer"
             >
@@ -359,6 +349,27 @@ export default function RoleLogin() {
                       </>
                     )}
                   </button>
+
+                  {(selectedRole.id === "staff" || selectedRole.id === "support") && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const guestUser = selectedRole.id === "support" 
+                          ? { id: "support-guest", full_name: isRTL ? "مهندس الدعم الفني" : "Technical Support", email: "support@edutrack.com", role: "support" }
+                          : { id: "staff-guest", full_name: isRTL ? "موظف زائر" : "Staff Guest", email: "guest@edutrack.com", role: "staff" };
+                        
+                        localStorage.setItem("portal_role", guestUser.role);
+                        localStorage.setItem("portal_user", JSON.stringify(guestUser));
+                        localStorage.setItem("portal_user_id", guestUser.id);
+                        localStorage.setItem("portal_user_name", guestUser.full_name);
+                        localStorage.setItem("portal_is_auth", "true");
+                        window.location.href = "/staff-portal";
+                      }}
+                      className="w-full h-12 rounded-xl border-2 border-stone-200 bg-white hover:bg-stone-50 text-stone-700 font-bold text-sm transition-all cursor-pointer flex items-center justify-center gap-2"
+                    >
+                      <span>{isRTL ? "دخول سريع (زائر)" : "Quick Login (Guest)"}</span>
+                    </button>
+                  )}
 
                   {/* Security Badge */}
                   <div className="text-center pt-2">

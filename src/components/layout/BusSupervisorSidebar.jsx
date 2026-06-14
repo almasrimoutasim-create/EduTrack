@@ -28,21 +28,21 @@ export default function BusSupervisorSidebar() {
     {
       label: isRTL ? "الحافلة" : "Bus",
       items: [
-        { label: isRTL ? "الطلاب على الحافلة" : "Bus Students", path: "#", icon: Users },
-        { label: isRTL ? "المسار" : "Route", path: "#", icon: MapPin },
-        { label: isRTL ? "عرض الخريطة" : "Map View", path: "#", icon: Navigation }
+        { label: isRTL ? "الطلاب على الحافلة" : "Bus Students", path: "#students", icon: Users },
+        { label: isRTL ? "المسار" : "Route", path: "#route", icon: MapPin },
+        { label: isRTL ? "عرض الخريطة" : "Map View", path: "#map", icon: Navigation }
       ]
     },
     {
       label: isRTL ? "الطوارئ" : "Emergency",
       items: [
-        { label: isRTL ? "الحوادث" : "Incidents", path: "#", icon: AlertTriangle }
+        { label: isRTL ? "الحوادث" : "Incidents", path: "#incidents", icon: AlertTriangle }
       ]
     },
     {
       label: isRTL ? "التواصل" : "Communication",
       items: [
-        { label: isRTL ? "الرسائل" : "Messages", path: "#", icon: MessageSquare }
+        { label: isRTL ? "الرسائل" : "Messages", path: "#messages", icon: MessageSquare }
       ]
     },
     {
@@ -99,7 +99,9 @@ export default function BusSupervisorSidebar() {
               </p>
               <div className="space-y-1">
                 {group.items.map((item) => {
-                  const isActive = location.pathname === item.path;
+                  const isActive = 
+                    (item.path.startsWith("#") && (location.hash === item.path || (item.path === "#students" && !location.hash))) || 
+                    (location.pathname === item.path);
                   return (
                     <Link
                       key={item.label}

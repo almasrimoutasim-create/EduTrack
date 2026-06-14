@@ -18,7 +18,8 @@ const PORTAL_REDIRECTS = {
   library: "/library",
   security: "/staff-portal",
   counselor: "/counseling",
-  counseling: "/counseling"
+  counseling: "/counseling",
+  support: "/staff-portal"
 };
 
 const isPathAllowed = (role, path) => {
@@ -32,6 +33,10 @@ const isPathAllowed = (role, path) => {
   }
   
   if (role === 'staff') return path.startsWith('/staff-portal') || path.startsWith('/staff/personal-requests');
+
+  if (role === 'support') {
+    return path.startsWith('/staff-portal') || path.startsWith('/staff/personal-requests');
+  }
 
   if (role === 'counselor' || role === 'counseling') {
     return path.startsWith('/staff-portal') || 

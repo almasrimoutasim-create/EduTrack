@@ -15,7 +15,8 @@ import {
   CreditCard,
   Eye,
   Edit,
-  Trash
+  Trash,
+  LifeBuoy
 } from "lucide-react";
 
 export default function RoleSettingsDialog({ open, onClose }) {
@@ -94,6 +95,16 @@ export default function RoleSettingsDialog({ open, onClose }) {
         auditLogs: true,
         systemSettings: false,
       }
+    },
+    support: {
+      label: isRTL ? "الدعم الفني" : "Technical Support",
+      icon: LifeBuoy,
+      color: "bg-rose-500 text-white",
+      permissions: {
+        viewTickets: true,
+        resolveTickets: true,
+        viewStaffRecords: false,
+      }
     }
   };
 
@@ -156,6 +167,8 @@ export default function RoleSettingsDialog({ open, onClose }) {
     approveRefunds: isRTL ? "اعتماد المبالغ المستردة" : "Approve Financial Refunds",
     auditLogs: isRTL ? "عرض سجل التدقيق المالي" : "View Financial Audit Logs",
     systemSettings: isRTL ? "تعديل إعدادات النظام الحساسة" : "Modify Sensitive System Settings",
+    viewTickets: isRTL ? "عرض تذاكر الدعم" : "View Support Tickets",
+    resolveTickets: isRTL ? "حل وإغلاق تذاكر الدعم" : "Resolve Support Tickets",
   };
 
   return (

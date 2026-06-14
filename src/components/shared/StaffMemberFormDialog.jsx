@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLanguage } from "@/lib/LanguageContext";
 import { toast } from "sonner";
@@ -53,10 +53,10 @@ export default function StaffMemberFormDialog({ open, onClose, member }) {
       }
 
       if (isEdit) {
-        await base44.entities.StaffMember.update(member.id, payload);
+        await entities.StaffMember.update(member.id, payload);
         toast.success(isRTL ? "تم تحديث بيانات الموظف بنجاح" : "Staff member updated successfully");
       } else {
-        await base44.entities.StaffMember.create(payload);
+        await entities.StaffMember.create(payload);
         toast.success(isRTL ? "تم إضافة الموظف الجديد بنجاح" : "New staff member added successfully");
       }
       qc.invalidateQueries({ queryKey: ["staff-members"] });
@@ -77,6 +77,7 @@ export default function StaffMemberFormDialog({ open, onClose, member }) {
     { value: "Accountant", label: isRTL ? "محاسب" : "Accountant" },
     { value: "Registrar", label: isRTL ? "مسجل" : "Registrar" },
     { value: "counselor", label: isRTL ? "مرشد طلابي" : "Counselor" },
+    { value: "support", label: isRTL ? "الدعم الفني" : "Technical Support" },
   ];
 
   const statuses = [

@@ -45,6 +45,7 @@ import StudentIDCard from "@/components/student-dashboard/StudentIDCard";
 import VisualSchedule from "@/components/schedule/VisualSchedule";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import PageHeader from "@/components/shared/PageHeader";
+import StudentLevelsXP from "@/components/student-dashboard/StudentLevelsXP";
 
 const btnOutline = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-sm font-semibold transition-all border-2 border-stone-300 bg-white text-stone-800 hover:bg-stone-50 hover:border-stone-400 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
 const btnPrimary = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-sm font-semibold transition-all bg-stone-900 text-white hover:bg-black cursor-pointer shadow-lg shadow-stone-200 disabled:opacity-50 disabled:cursor-not-allowed";
@@ -158,6 +159,12 @@ export default function StudentPortal() {
   const { data: allLibraryBooks = [] } = useQuery({
     queryKey: ["student-library-books"],
     queryFn: () => base44.entities.LibraryBook.list("-created_at", 100)
+  });
+
+  const { data: classStudents = [] } = useQuery({
+    queryKey: ["class-students", student?.grade],
+    queryFn: () => base44.entities.Student.filter({ grade: student?.grade }),
+    enabled: !!student?.grade
   });
 
   const [showScheduleModal, setShowScheduleModal] = useState(false);
@@ -331,6 +338,29 @@ export default function StudentPortal() {
     return studentAnnouncements.filter(a => a.priority === "high");
   }, [studentAnnouncements]);
 
+  // Calculate dynamic XP and Level
+  const baseXP = 500;
+  const awardsXP = studentAwards.reduce((sum, a) => sum + (Number(a.points) || 0), 0);
+  
+  // Homework XP
+  const savedSubmissionsForXP = localStorage.getItem("edu_submissions") ? JSON.parse(localStorage.getItem("edu_submissions")) : {};
+  const studentIdForXP = student.student_id || studentId;
+  let homeworkXP = 0;
+  assignments.forEach(task => {
+    const asmSubs = savedSubmissionsForXP[task.id] || [];
+    const sub = asmSubs.find(s => s.studentId === studentIdForXP || s.studentId === student.id);
+    if (sub && sub.score) {
+      homeworkXP += Number(sub.score) || 0;
+    }
+  });
+
+  // Attendance XP (50 XP per present day / gate_in)
+  const presentDaysCount = attendanceLogs.filter(l => l.status === "present" || l.type === "gate_in").length;
+  const attendanceXP = presentDaysCount * 50;
+
+  const totalXP = baseXP + awardsXP + homeworkXP + attendanceXP;
+  const studentLevel = Math.floor(totalXP / 500) + 1;
+
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: { opacity: 1, transition: { staggerChildren: 0.1 } }
@@ -354,6 +384,21 @@ export default function StudentPortal() {
               <Card className="p-6 md:p-8 bg-white border-none shadow-sm rounded-[32px]">
                 <VisualSchedule classes={studentSchedules} tasks={studentTasks} />
               </Card>
+            </div>
+          ) : view === "levels" ? (
+            <div className="space-y-6">
+              <PageHeader 
+                title={isRTL ? "نظام المستويات ونقاط الخبرة" : "Levels & XP System"} 
+                subtitle={isRTL ? "متابعة تقدمك ونقاطك التي كسبتها خلال الفصل الدراسي الحالي." : "Track your progress and XP earned during the current term."}
+              />
+              <StudentLevelsXP 
+                student={student}
+                studentAwards={studentAwards}
+                assignments={assignments}
+                attendanceLogs={attendanceLogs}
+                classStudents={classStudents}
+                isRTL={isRTL}
+              />
             </div>
           ) : view === "notifications" ? (
             <div className="space-y-6">
@@ -1212,7 +1257,7 @@ export default function StudentPortal() {
             <div className="flex flex-col md:flex-row items-center gap-4 mb-2 justify-center md:justify-start">
               <h2 className="text-4xl md:text-5xl font-serif font-black">{isRTL ? `أهلاً، ${student.full_name || student.name || 'بطل'}` : `Hi, ${student.full_name || student.name || 'Hero'}`}</h2>
               <Badge className="bg-yellow-400 text-teal-900 border-none font-black text-xs px-3 py-1 rounded-full flex items-center gap-1 shadow-lg shadow-yellow-400/30">
-                <Star size={12} fill="currentColor" /> {isRTL ? "المستوى ٥" : "Level 5"}
+                <Star size={12} fill="currentColor" /> {isRTL ? `المستوى ${studentLevel}` : `Level ${studentLevel}`}
               </Badge>
             </div>
             <p className="text-teal-50 text-lg font-medium opacity-80 mb-8 max-w-xl">
@@ -1224,7 +1269,7 @@ export default function StudentPortal() {
                 <Zap size={24} className="text-yellow-400" />
                 <div className="text-right">
                   <p className="text-[10px] font-bold text-teal-100 uppercase tracking-widest">{isRTL ? "نقاط الخبرة" : "XP Points"}</p>
-                  <p className="text-lg font-black leading-none"> 2,٤٥٠</p>
+                  <p className="text-lg font-black leading-none"> {totalXP.toLocaleString(isRTL ? 'ar-EG' : 'en-US')}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3 bg-white/10 backdrop-blur-md px-6 py-3 rounded-2xl border border-white/10">

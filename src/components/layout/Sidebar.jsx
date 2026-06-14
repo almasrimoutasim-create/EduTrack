@@ -4,7 +4,7 @@ import {
   FileText, ShoppingCart, Menu, X, Newspaper, Trophy, DollarSign, Shield, BarChart3, LogOut,
   Calendar, FileSpreadsheet, Award, History, Layers, Clock, FolderArchive, HelpCircle, Settings,
   Briefcase, CreditCard, Search, Percent, AlertTriangle, PlusCircle, UserCheck, ArrowLeft, MessageSquare,
-  Megaphone, Video, ChevronDown, Bus, ShoppingBag
+  Megaphone, Video, ChevronDown, Bus, ShoppingBag, LifeBuoy
 } from "lucide-react";
 import { useState } from "react";
 import { motion } from "framer-motion";
@@ -300,6 +300,14 @@ export default function Sidebar() {
                 icon: Shield,
                 onClick: () => {
                   localStorage.setItem("portal_role", "security");
+                }
+              },
+              { 
+                label: isRTL ? "الدعم الفني" : "Technical Support", 
+                path: "/staff-portal", 
+                icon: LifeBuoy,
+                onClick: () => {
+                  localStorage.setItem("portal_role", "support");
                 }
               },
               { 
