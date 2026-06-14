@@ -170,7 +170,21 @@ export default function RoleLogin() {
               }}
               whileHover={{ y: -5 }}
               onClick={() => {
-                openLoginPopup(role);
+                if (role.id === "staff") {
+                  localStorage.setItem("portal_role", "staff");
+                  localStorage.setItem("portal_user", JSON.stringify({
+                    id: "staff-guest",
+                    full_name: "موظف زائر",
+                    email: "guest@edutrack.com",
+                    role: "staff"
+                  }));
+                  localStorage.setItem("portal_user_id", "staff-guest");
+                  localStorage.setItem("portal_user_name", "موظف زائر");
+                  localStorage.setItem("portal_is_auth", "true");
+                  window.location.href = "/staff-portal";
+                } else {
+                  openLoginPopup(role);
+                }
               }}
               className="group cursor-pointer"
             >
