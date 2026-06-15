@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { entities } from "@/api/dbClient";
 import { 
   Users, 
   FileText, 
@@ -56,10 +58,13 @@ export default function StaffPortal() {
   // Security View state (Mock Visitor log data)
   const [visitorName, setVisitorName] = useState("");
   const [visitorReason, setVisitorReason] = useState("");
-  const [visitors, setVisitors] = useState([
-    { id: 1, name: isRTL ? "أحمد المحمود" : "Ahmad Al-Mahmoud", reason: isRTL ? "مقابلة الإدارة" : "Admin Meeting", time: "09:30 AM", status: "Checked In" },
-    { id: 2, name: isRTL ? "سارة الضاهر" : "Sara Al-Daher", reason: isRTL ? "استلام شهادة" : "Certificate Pickup", time: "10:15 AM", status: "Checked In" },
-  ]);
+  const queryClient = useQueryClient();
+  const { data: visitors = [] } = useQuery({
+    queryKey: ["visitors-today"],
+    queryFn: () => entities.Visitor.list("-created_at", 50),
+    staleTime: 1000 * 30,
+    refetchInterval: 1000 * 30
+  });
 
   const subPortals = [
     { 
@@ -229,27 +234,38 @@ export default function StaffPortal() {
     window.location.href = "/staff-portal";
   };
 
-  const handleAddVisitor = (e) => {
+  const handleAddVisitor = async (e) => {
     e.preventDefault();
     if (!visitorName.trim()) return;
 
-    const newVisitor = {
-      id: Date.now(),
-      name: visitorName,
-      reason: visitorReason || (isRTL ? "زيارة عامة" : "General Visit"),
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      status: "Checked In"
-    };
+    try {
+      await entities.Visitor.create({
+        visitor_name: visitorName,
+        reason: visitorReason || (isRTL ? "زيارة عامة" : "General Visit"),
+        status: "checked_in",
+        recorded_by: currentUser?.full_name || currentUser?.id || "security"
+      });
 
-    setVisitors([newVisitor, ...visitors]);
-    setVisitorName("");
-    setVisitorReason("");
-    toast.success(isRTL ? "تم تسجيل دخول الزائر" : "Visitor checked in successfully");
+      setVisitorName("");
+      setVisitorReason("");
+      queryClient.invalidateQueries({ queryKey: ["visitors-today"] });
+      toast.success(isRTL ? "تم تسجيل دخول الزائر" : "Visitor checked in successfully");
+    } catch (err) {
+      toast.error(isRTL ? "فشل تسجيل الزائر" : "Failed to check in visitor");
+    }
   };
 
-  const handleCheckOutVisitor = (id) => {
-    setVisitors(visitors.map(v => v.id === id ? { ...v, status: "Checked Out" } : v));
-    toast.success(isRTL ? "تم تسجيل خروج الزائر" : "Visitor checked out successfully");
+  const handleCheckOutVisitor = async (id) => {
+    try {
+      await entities.Visitor.update(id, {
+        status: "checked_out",
+        check_out_time: new Date().toISOString()
+      });
+      queryClient.invalidateQueries({ queryKey: ["visitors-today"] });
+      toast.success(isRTL ? "تم تسجيل خروج الزائر" : "Visitor checked out successfully");
+    } catch (err) {
+      toast.error(isRTL ? "فشل تسجيل الخروج" : "Failed to check out visitor");
+    }
   };
 
   const containerVariants = {
@@ -555,24 +571,26 @@ export default function StaffPortal() {
                 {visitors.map((visitor) => (
                   <div key={visitor.id} className="flex items-center justify-between p-4 bg-stone-800/40 border border-stone-750 rounded-2xl hover:bg-stone-800/80 transition-colors">
                     <div className="flex items-center gap-3.5">
-                      <div className={`h-9 w-9 rounded-xl flex items-center justify-center ${visitor.status === 'Checked In' ? 'bg-amber-500/10 text-amber-400' : 'bg-stone-700 text-stone-400'}`}>
+                      <div className={`h-9 w-9 rounded-xl flex items-center justify-center ${visitor.status === 'checked_in' ? 'bg-amber-500/10 text-amber-400' : 'bg-stone-700 text-stone-400'}`}>
                         <Users size={16} />
                       </div>
                       <div>
-                        <h4 className="text-sm font-bold text-white">{visitor.name}</h4>
+                        <h4 className="text-sm font-bold text-white">{visitor.visitor_name}</h4>
                         <p className="text-[10px] text-stone-400 font-semibold mt-0.5">{visitor.reason}</p>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-4">
                       <div className="text-end">
-                        <p className="text-xs font-bold text-stone-300 num-en">{visitor.time}</p>
-                        <span className={`text-[9px] font-black uppercase ${visitor.status === 'Checked In' ? 'text-emerald-500' : 'text-stone-400'}`}>
-                          {visitor.status === 'Checked In' ? (isRTL ? "موجود بالحرم" : "On Campus") : (isRTL ? "غادر" : "Departed")}
+                        <p className="text-xs font-bold text-stone-300 num-en">
+                          {visitor.check_in_time ? new Date(visitor.check_in_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ""}
+                        </p>
+                        <span className={`text-[9px] font-black uppercase ${visitor.status === 'checked_in' ? 'text-emerald-500' : 'text-stone-400'}`}>
+                          {visitor.status === 'checked_in' ? (isRTL ? "موجود بالحرم" : "On Campus") : (isRTL ? "غادر" : "Departed")}
                         </span>
                       </div>
 
-                      {visitor.status === "Checked In" && (
+                      {visitor.status === "checked_in" && (
                         <button 
                           onClick={() => handleCheckOutVisitor(visitor.id)}
                           className="h-8 px-4 rounded-xl bg-stone-700 hover:bg-stone-600 text-[10px] font-bold text-white transition-colors"

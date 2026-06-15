@@ -25,9 +25,28 @@ if (process.env.DATABASE_URL) {
       updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     )
   `.then(() => {
-    console.log('[neon] parent_link_requests table verified/created');
+      console.log('[neon] parent_link_requests table verified/created');
+    }).catch(err => {
+      console.error('[neon] failed to verify/create parent_link_requests table:', err.message);
+    });
+
+  // Auto-create visitors table
+  sql`
+    CREATE TABLE IF NOT EXISTS visitors (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      visitor_name TEXT NOT NULL,
+      reason TEXT,
+      check_in_time TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      check_out_time TIMESTAMP WITH TIME ZONE,
+      status TEXT NOT NULL DEFAULT 'checked_in',
+      recorded_by TEXT,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `.then(() => {
+    console.log('[neon] visitors table verified/created');
   }).catch(err => {
-    console.error('[neon] failed to verify/create parent_link_requests table:', err.message);
+    console.error('[neon] failed to verify/create visitors table:', err.message);
   });
 
   // Auto-create virtual_sessions table
@@ -401,6 +420,7 @@ const ENTITY_TABLE_MAP = {
   Expense: 'expenses',
   SalaryRecord: 'salary_records',
   PurchaseOrder: 'purchase_orders',
+  Visitor: 'visitors',
 };
 
 async function createStripePaymentIntent(amount, currency) {
