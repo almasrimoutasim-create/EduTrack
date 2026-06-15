@@ -355,6 +355,16 @@ if (process.env.DATABASE_URL) {
   }).catch(err => {
     console.error('[neon] failed to alter library_books table:', err.message);
   });
+
+  // Alter staff_members table to add salary column
+  sql`
+    ALTER TABLE staff_members
+    ADD COLUMN IF NOT EXISTS salary NUMERIC DEFAULT 4000;
+  `.then(() => {
+    console.log('[neon] staff_members table altered successfully with salary column');
+  }).catch(err => {
+    console.error('[neon] failed to alter staff_members table:', err.message);
+  });
 }
 
 // Map entity names to table names

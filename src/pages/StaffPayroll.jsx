@@ -66,10 +66,17 @@ export default function StaffPayroll() {
     return staffMembers.map(member => {
       // 1. حساب القيم الأساسية الافتراضية
       let basic = 4000;
-      if (member.role === "Admin") basic = 9000;
-      else if (member.role === "HR") basic = 6500;
-      else if (member.role === "Accountant") basic = 7000;
-      else if (member.role === "Registrar") basic = 5500;
+      if (member.salary !== undefined && member.salary !== null) {
+        basic = Number(member.salary);
+      } else if (member.role === "Admin") {
+        basic = 9000;
+      } else if (member.role === "HR") {
+        basic = 6500;
+      } else if (member.role === "Accountant") {
+        basic = 7000;
+      } else if (member.role === "Registrar") {
+        basic = 5500;
+      }
 
       let allowances = Math.round(basic * 0.15); // 15% بدلات افتراضية
       

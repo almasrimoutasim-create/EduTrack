@@ -420,6 +420,12 @@ export default function StaffControl() {
                               </a>
                             </div>
                           )}
+                          <div className="flex items-center gap-2.5 text-stone-400 group-hover:text-stone-600 transition-colors">
+                            <span className="text-xs shrink-0 font-bold text-emerald-600">💵</span>
+                            <span className="text-xs font-semibold text-stone-700">
+                              {isRTL ? "الراتب الأساسي:" : "Basic Salary:"} <span className="num-en text-emerald-600 font-extrabold">{Number(member.salary || 4000).toLocaleString()}</span> {isRTL ? "ريال" : "SAR"}
+                            </span>
+                          </div>
                           {joinDate && (
                             <div className="flex items-center gap-2.5 text-stone-400">
                               <Briefcase size={13} className="shrink-0" />

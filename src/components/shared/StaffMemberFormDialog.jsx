@@ -15,21 +15,25 @@ export default function StaffMemberFormDialog({ open, onClose, member }) {
   const { language } = useLanguage();
   const isRTL = language === "ar";
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState(member || {
+  const [form, setForm] = useState(member ? {
+    ...member,
+    salary: member.salary !== undefined && member.salary !== null ? Number(member.salary) : 4000
+  } : {
     full_name: "", employee_id: "", role: "bus_supervisor",
-    email: "", phone: "", portal_password: "", status: "active", notes: ""
+    email: "", phone: "", portal_password: "", status: "active", notes: "", salary: 4000
   });
 
   useEffect(() => {
     if (member) {
       setForm({
         ...member,
-        portal_password: ""
+        portal_password: "",
+        salary: member.salary !== undefined && member.salary !== null ? Number(member.salary) : 4000
       });
     } else {
       setForm({
         full_name: "", employee_id: "", role: "bus_supervisor",
-        email: "", phone: "", portal_password: "", status: "active", notes: ""
+        email: "", phone: "", portal_password: "", status: "active", notes: "", salary: 4000
       });
     }
   }, [member]);
@@ -43,6 +47,10 @@ export default function StaffMemberFormDialog({ open, onClose, member }) {
     }
     if (!form.role) {
       toast.error(isRTL ? "يرجى تحديد دور الموظف" : "Please select the employee's role");
+      return;
+    }
+    if (form.salary === "" || form.salary === undefined || form.salary === null) {
+      toast.error(isRTL ? "يرجى تحديد الراتب للموظف" : "Please specify the employee's salary");
       return;
     }
     setSaving(true);
@@ -175,14 +183,26 @@ export default function StaffMemberFormDialog({ open, onClose, member }) {
               className="mt-1 rounded-lg border-stone-200 num-en"
             />
           </div>
-          <div>
-            <Label className="text-stone-700 font-medium">{t.status}</Label>
-            <Select value={form.status} onValueChange={v => update("status", v)}>
-              <SelectTrigger className="mt-1 rounded-lg border-stone-200"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {statuses.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label className="text-stone-700 font-medium">{t.status}</Label>
+              <Select value={form.status} onValueChange={v => update("status", v)}>
+                <SelectTrigger className="mt-1 rounded-lg border-stone-200"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {statuses.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-stone-700 font-medium">{isRTL ? "الراتب الأساسي (ريال) *" : "Basic Salary (SAR) *"}</Label>
+              <Input 
+                type="number"
+                value={form.salary !== undefined && form.salary !== null ? form.salary : ""} 
+                onChange={e => update("salary", e.target.value !== "" ? Number(e.target.value) : "")} 
+                className="mt-1 rounded-lg border-stone-200 num-en"
+                placeholder={isRTL ? "مثال: 5000" : "e.g. 5000"}
+              />
+            </div>
           </div>
           <div>
             <Label className="text-stone-700 font-medium">{t.notes}</Label>
