@@ -39,11 +39,33 @@ export default function StaffPayroll() {
   const [editDeductions, setEditDeductions] = useState("");
 
   // جلب قائمة الموظفين
-  const { data: staffMembers = [], isLoading } = useQuery({ 
+  const { data: staffMembers = [], isLoading: isLoadingStaff } = useQuery({ 
     queryKey: ["staff-members"], 
     queryFn: () => entities.StaffMember.list("-created_at", 200),
     staleTime: 1000 * 60 * 5
   });
+
+  // جلب قائمة المعلمين
+  const { data: teachers = [], isLoading: isLoadingTeachers } = useQuery({ 
+    queryKey: ["teachers"], 
+    queryFn: () => entities.Teacher.list("-created_at", 200),
+    staleTime: 1000 * 60 * 5
+  });
+
+  const isLoading = isLoadingStaff || isLoadingTeachers;
+
+  const combinedList = useMemo(() => {
+    const formattedStaff = staffMembers.map(member => ({
+      ...member,
+      isTeacher: false
+    }));
+    const formattedTeachers = teachers.map(teacher => ({
+      ...teacher,
+      isTeacher: true,
+      role: teacher.role || "Teacher"
+    }));
+    return [...formattedStaff, ...formattedTeachers];
+  }, [staffMembers, teachers]);
 
   // التعديلات اليدوية المحفوظة
   const [customPayrollData, setCustomPayrollData] = useState(() => {
@@ -63,11 +85,13 @@ export default function StaffPayroll() {
 
   // احتساب مسير الرواتب ودمج السلف والتعديلات اليدوية
   const payrollList = useMemo(() => {
-    return staffMembers.map(member => {
+    return combinedList.map(member => {
       // 1. حساب القيم الأساسية الافتراضية
       let basic = 4000;
       if (member.salary !== undefined && member.salary !== null) {
         basic = Number(member.salary);
+      } else if (member.isTeacher) {
+        basic = 8000; // الراتب الافتراضي للمعلم في حال لم يتم تعيينه بقاعدة البيانات
       } else if (member.role === "Admin") {
         basic = 9000;
       } else if (member.role === "HR") {
@@ -105,7 +129,7 @@ export default function StaffPayroll() {
         net
       };
     });
-  }, [staffMembers, customPayrollData, approvedLoans]);
+  }, [combinedList, customPayrollData, approvedLoans]);
 
   // إحصائيات الرواتب
   const stats = useMemo(() => {
@@ -180,6 +204,8 @@ export default function StaffPayroll() {
       'bus_supervisor': { label: isRTL ? 'مشرف حافلة' : 'Bus Supervisor' },
       'store_keeper': { label: isRTL ? 'أمين مستودع' : 'Store Keeper' },
       'security': { label: isRTL ? 'حارس أمن' : 'Security' },
+      'Teacher': { label: isRTL ? 'معلم' : 'Teacher' },
+      'teacher': { label: isRTL ? 'معلم' : 'Teacher' },
     };
     return map[role] || { label: role };
   };
