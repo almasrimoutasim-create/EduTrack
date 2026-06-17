@@ -51,6 +51,26 @@ import CounselingDashboard from './pages/CounselingDashboard';
 import CounselingCases from './pages/CounselingCases';
 import CounselingCaseDetail from './pages/CounselingCaseDetail';
 
+// HR Modules
+import StaffContracts from './pages/StaffContracts';
+import StaffLeaves from './pages/StaffLeaves';
+import StaffEvaluations from './pages/StaffEvaluations';
+import HRReports from './pages/HRReports';
+import Departments from './pages/Departments';
+import CareerLadder from './pages/CareerLadder';
+
+// Store Modules
+import StoreInventory from './pages/StoreInventory';
+import StoreCategories from './pages/StoreCategories';
+import StorePOS from './pages/StorePOS';
+import SalesOrders from './pages/SalesOrders';
+import SalesReports from './pages/SalesReports';
+
+// Registrar Modules
+import StudentEnrollment from './pages/StudentEnrollment';
+import AcademicFiles from './pages/AcademicFiles';
+import StudentArchive from './pages/StudentArchive';
+
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
 
@@ -86,6 +106,17 @@ const AuthenticatedApp = () => {
         <Route path="/schedules" element={<Schedules />} />
 
         <Route path="/store" element={<Store />} />
+        <Route path="/store/inventory" element={<StoreInventory />} />
+        <Route path="/store/categories" element={<StoreCategories />} />
+        <Route path="/store/pos" element={<StorePOS />} />
+        <Route path="/store/orders" element={<SalesOrders />} />
+        <Route path="/store/reports" element={<SalesReports />} />
+
+        {/* Registrar Routes */}
+        <Route path="/registrar/enrollment" element={<StudentEnrollment />} />
+        <Route path="/registrar/files" element={<AcademicFiles />} />
+        <Route path="/registrar/archive" element={<StudentArchive />} />
+        
         <Route path="/card" element={<StudentCard />} />
         <Route path="/study-rooms" element={<StudyRooms />} />
         <Route path="/room-view" element={<RoomView />} />
@@ -93,9 +124,15 @@ const AuthenticatedApp = () => {
         <Route path="/awards" element={<Awards />} />
         <Route path="/finance" element={<Finance />} />
         <Route path="/staff-control" element={<StaffControl />} />
+        <Route path="/staff/contracts" element={<StaffContracts />} />
         <Route path="/staff/attendance" element={<StaffAttendance />} />
         <Route path="/staff/payroll" element={<StaffPayroll />} />
         <Route path="/staff/requests" element={<StaffRequests />} />
+        <Route path="/staff/leaves" element={<StaffLeaves />} />
+        <Route path="/staff/evaluations" element={<StaffEvaluations />} />
+        <Route path="/staff/reports" element={<HRReports />} />
+        <Route path="/staff/departments" element={<Departments />} />
+        <Route path="/staff/career" element={<CareerLadder />} />
         <Route path="/staff/personal-requests" element={<StaffPersonalRequests />} />
         <Route path="/student-directory" element={<StudentDirectory />} />
         <Route path="/grades" element={<Grades />} />

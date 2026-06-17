@@ -104,8 +104,8 @@ export default function Sidebar() {
             items: [
               { label: isRTL ? "الطلاب" : "Students", path: "/student-directory", icon: Users },
               { label: isRTL ? "إضافة طالب" : "Add Student", path: "/students?add=true", icon: PlusCircle },
-              { label: isRTL ? "تسجيل الطلاب" : "Student Registration", path: "#", icon: UserCheck },
-              { label: isRTL ? "الملفات الأكاديمية" : "Academic Files", path: "#", icon: FolderArchive },
+              { label: isRTL ? "تسجيل الطلاب" : "Student Registration", path: "/registrar/enrollment", icon: UserCheck },
+              { label: isRTL ? "الملفات الأكاديمية" : "Academic Files", path: "/registrar/files", icon: FolderArchive },
               { label: isRTL ? "الحضور والغياب" : "Attendance", path: "/attendance", icon: Clock }
             ]
           },
@@ -121,7 +121,7 @@ export default function Sidebar() {
             label: isRTL ? "الوثائق والطباعة" : "Documents & Print",
             items: [
               { label: isRTL ? "الشهادات والطباعة" : "Certificates & Print", path: "/card", icon: Award },
-              { label: isRTL ? "الأرشيف" : "Archive", path: "#", icon: FolderArchive }
+              { label: isRTL ? "الأرشيف" : "Archive", path: "/registrar/archive", icon: FolderArchive }
             ]
           },
           {
@@ -141,29 +141,28 @@ export default function Sidebar() {
             ]
           },
           {
-            label: isRTL ? "الموظفون" : "Staff Management",
+            label: isRTL ? "إدارة الموظفين" : "Staff Management",
             items: [
-              { label: isRTL ? "قائمة الموظفين" : "Employee List", path: "/staff-control", icon: Users },
-              { label: isRTL ? "إضافة موظف" : "Add Employee", path: "/staff-control?add=true", icon: PlusCircle },
-              { label: isRTL ? "العقود" : "Contracts", path: "#", icon: Briefcase },
-              { label: isRTL ? "الرواتب" : "Salaries & Payroll", path: "/staff/payroll", icon: DollarSign },
-              { label: isRTL ? "الحضور والانصراف" : "Attendance", path: "#", icon: Clock }
+              { label: isRTL ? "قائمة الموظفين" : "Staff List", path: "/staff-control", icon: Users },
+              { label: isRTL ? "العقود" : "Contracts", path: "/staff/contracts", icon: FileText },
+              { label: isRTL ? "الرواتب" : "Payroll", path: "/staff/payroll", icon: DollarSign },
+              { label: isRTL ? "الحضور والانصراف" : "Attendance", path: "/staff/attendance", icon: Clock }
             ]
           },
           {
             label: isRTL ? "الإدارة الوظيفية" : "Job Management",
             items: [
-              { label: isRTL ? "الإجازات" : "Leaves & Vacations", path: "#", icon: Calendar },
-              { label: isRTL ? "الطلبات" : "Employee Requests", path: "#", icon: FileText },
-              { label: isRTL ? "التقييمات" : "Evaluations", path: "#", icon: Award }
+              { label: isRTL ? "الإجازات" : "Leaves & Vacations", path: "/staff/leaves", icon: Calendar },
+              { label: isRTL ? "الطلبات" : "Employee Requests", path: "/staff/requests", icon: FileText },
+              { label: isRTL ? "التقييمات" : "Evaluations", path: "/staff/evaluations", icon: Award }
             ]
           },
           {
             label: isRTL ? "التقارير والإعدادات" : "Reports & Settings",
             items: [
-              { label: isRTL ? "تقارير الموارد البشرية" : "HR Reports", path: "#", icon: FileSpreadsheet },
-              { label: isRTL ? "الأقسام الوظيفية" : "Departments", path: "#", icon: Layers },
-              { label: isRTL ? "السلم الوظيفي" : "Career Ladder", path: "#", icon: Trophy }
+              { label: isRTL ? "تقارير الموارد البشرية" : "HR Reports", path: "/staff/reports", icon: FileSpreadsheet },
+              { label: isRTL ? "الأقسام الوظيفية" : "Departments", path: "/staff/departments", icon: Layers },
+              { label: isRTL ? "السلم الوظيفي" : "Career Ladder", path: "/staff/career", icon: Trophy }
             ]
           }
         ];
@@ -192,23 +191,21 @@ export default function Sidebar() {
             items: [
               { label: isRTL ? "المنتجات" : "Products List", path: "/store", icon: ShoppingCart },
               { label: isRTL ? "إضافة منتج" : "Add Product", path: "/store?add=true", icon: PlusCircle },
-              { label: isRTL ? "التصنيفات" : "Categories", path: "#", icon: Layers },
-              { label: isRTL ? "المخزون" : "Inventory Control", path: "#", icon: FolderArchive }
+              { label: isRTL ? "التصنيفات" : "Categories", path: "/store/categories", icon: Layers },
+              { label: isRTL ? "المخزون" : "Inventory Control", path: "/store/inventory", icon: FolderArchive }
             ]
           },
           {
             label: isRTL ? "الطلبات والمبيعات" : "Orders & Sales",
             items: [
-              { label: isRTL ? "الطلبات" : "Sales Orders", path: "#", icon: FileText },
-              { label: isRTL ? "تفاصيل الطلب" : "Order Details", path: "#", icon: History },
-              { label: isRTL ? "السلة" : "Shopping Cart", path: "#", icon: ShoppingCart },
-              { label: isRTL ? "الدفع" : "Payments Cashier", path: "#", icon: DollarSign }
+              { label: isRTL ? "الطلبات" : "Sales Orders", path: "/store/orders", icon: FileText },
+              { label: isRTL ? "نقطة البيع (POS)" : "POS Cashier", path: "/store/pos", icon: DollarSign }
             ]
           },
           {
             label: isRTL ? "التقارير" : "Reports",
             items: [
-              { label: isRTL ? "تقارير المبيعات" : "Sales Reports", path: "#", icon: FileSpreadsheet }
+              { label: isRTL ? "تقارير المبيعات" : "Sales Reports", path: "/store/reports", icon: FileSpreadsheet }
             ]
           },
           {

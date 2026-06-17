@@ -123,17 +123,17 @@ export default function BusSupervisorPortal() {
   // Fetch Queries
   const { data: busDrivers = [] } = useQuery({ 
     queryKey: ["bus-drivers"], 
-    queryFn: () => entities.BusDriver.list("-created_at", 10) 
+    queryFn: () => entities.BusDriver.list("-created_at", {}, 10) 
   });
 
   const { data: supervisors = [] } = useQuery({ 
     queryKey: ["bus-supervisors"], 
-    queryFn: () => entities.Supervisor.list("-created_at", 10) 
+    queryFn: () => entities.Supervisor.list("-created_at", {}, 10) 
   });
 
   const { data: allStudents = [] } = useQuery({ 
     queryKey: ["bus-students"], 
-    queryFn: () => entities.Student.list("-created_at", 200) 
+    queryFn: () => entities.Student.list("-created_at", {}, 200) 
   });
 
   const { data: todayAttendance = [], refetch: refetchAttendance } = useQuery({

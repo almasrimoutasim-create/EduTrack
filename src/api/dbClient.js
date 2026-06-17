@@ -145,6 +145,8 @@ const entityNames = [
   'ActivityFee', 'StudentActivityFee', 'StudentWallet',
   'WalletTransaction', 'HallRental', 'OtherRevenue',
   'Expense', 'SalaryRecord', 'PurchaseOrder', 'Visitor',
+  'StaffLeave', 'StaffContract', 'StaffEvaluation', 'StaffRequest', 
+  'Department', 'CareerLadder', 'StoreCategory', 'SalesOrder',
 ];
 
 const entities = {};
