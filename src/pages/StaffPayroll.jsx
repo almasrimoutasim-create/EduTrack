@@ -216,7 +216,7 @@ export default function StaffPayroll({ isEmbedded = false }) {
       month: MONTHS_AR[selectedMonth - 1],
       year: new Date().getFullYear(),
       payment_method: 'bank_transfer',
-      status: 'paid'
+      status: 'pending' // Let accountant review and pay
     };
 
     createSalaryMutation.mutate(payload, {
@@ -230,36 +230,47 @@ export default function StaffPayroll({ isEmbedded = false }) {
     });
   };
 
-  const handleApproveAll = () => {
+  const handleApproveAll = async () => {
     const unapproved = payrollList.filter(m => !m.isPaid);
     if (unapproved.length === 0) {
       toast.info(isRTL ? "تم صرف رواتب جميع الموظفين مسبقاً." : "All payrolls are already paid.");
       return;
     }
     
-    // Create sequentially or parallel
-    Promise.all(unapproved.map(member => {
-      return entities.SalaryRecord.create({
-        employee_name: member.full_name || member.name,
-        employee_type: member.isTeacher ? 'teacher' : 'staff',
-        base_salary: member.basic,
-        allowances: member.allowances,
-        deductions: member.deductions - member.loanDeduction,
-        advances: member.loanDeduction,
-        net_salary: member.net,
-        month: MONTHS_AR[selectedMonth - 1],
-        year: new Date().getFullYear(),
-        payment_method: 'bank_transfer',
-        status: 'paid'
-      });
-    })).then(() => {
-      queryClient.invalidateQueries(["salary-records"]);
+    // Create sequentially to avoid database connection pool overload
+    let successCount = 0;
+    toast.info(isRTL ? "جاري اعتماد الرواتب، يرجى الانتظار..." : "Approving payrolls, please wait...");
+    
+    for (const member of unapproved) {
+      try {
+        await entities.SalaryRecord.create({
+          employee_name: member.full_name || member.name,
+          employee_type: member.isTeacher ? 'teacher' : 'staff',
+          base_salary: member.basic,
+          allowances: member.allowances,
+          deductions: member.deductions - member.loanDeduction,
+          advances: member.loanDeduction,
+          net_salary: member.net,
+          month: MONTHS_AR[selectedMonth - 1],
+          year: new Date().getFullYear(),
+          payment_method: 'bank_transfer',
+          status: 'pending' // Let accountant review and pay
+        });
+        successCount++;
+      } catch (err) {
+        console.error("Failed to create salary for", member.full_name || member.name, err);
+      }
+    }
+
+    queryClient.invalidateQueries(["salary-records"]);
+    
+    if (successCount > 0) {
       toast.success(
         isRTL 
-          ? `تم اعتماد مسيرات الرواتب لكافة الموظفين (${unapproved.length}) بنجاح.` 
-          : `Approved payroll sheets for all employees (${unapproved.length}) successfully.`
+          ? `تم إرسال مسيرات الرواتب لكافة الموظفين (${successCount}) بنجاح لتظهر عند المحاسب.` 
+          : `Sent payroll sheets for ${successCount} employees to Finance successfully.`
       );
-    });
+    }
   };
 
   const getRoleDisplay = (role) => {
@@ -447,10 +458,16 @@ export default function StaffPayroll({ isEmbedded = false }) {
                         >
                           <Edit2 size={14} />
                         </button>
-                        {member.isPaid ? (
-                          <div className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-50 text-emerald-700 font-bold text-xs h-9 px-3.5 border border-emerald-200">
-                            <CheckCircle2 size={14} />
-                            {isRTL ? "مصروف" : "Paid"}
+                        {member.existingRecord ? (
+                          <div className={`inline-flex items-center gap-1.5 rounded-xl font-bold text-xs h-9 px-3.5 border ${
+                            member.existingRecord.status === 'paid' 
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                              : 'bg-amber-50 text-amber-700 border-amber-200'
+                          }`}>
+                            {member.existingRecord.status === 'paid' ? <CheckCircle2 size={14} /> : <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></div>}
+                            {member.existingRecord.status === 'paid' 
+                              ? (isRTL ? "مصروف" : "Paid") 
+                              : (isRTL ? "بانتظار الصرف" : "Pending")}
                           </div>
                         ) : (
                           <button 
