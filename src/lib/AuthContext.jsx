@@ -110,6 +110,9 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('portal_user_id', loggedUser.id);
       localStorage.setItem('portal_user_name', loggedUser.full_name);
       localStorage.setItem('portal_is_auth', 'true');
+      if (data.token) {
+        localStorage.setItem('portal_jwt_token', data.token);
+      }
 
       return loggedUser;
     } catch (error) {
@@ -129,6 +132,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('portal_user_id');
     localStorage.removeItem('portal_user_name');
     localStorage.removeItem('portal_is_auth');
+    localStorage.removeItem('portal_jwt_token');
 
     if (shouldRedirect) {
       window.location.href = '/';

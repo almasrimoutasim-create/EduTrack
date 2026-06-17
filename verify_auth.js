@@ -1,12 +1,12 @@
 import { neon } from './server/db_compat.js';
 import dotenv from 'dotenv';
-import crypto from 'crypto';
+import bcrypt from 'bcryptjs';
 
 dotenv.config();
 
 function hashPassword(password) {
   if (!password) return '';
-  return crypto.createHash('sha256').update(password + 'edutrack_salt_2026').digest('hex');
+  return bcrypt.hashSync(password, 10);
 }
 
 async function runVerification() {
@@ -102,7 +102,7 @@ async function runVerification() {
     if (studentQuery.length === 0) throw new Error("E2E Student query failed to retrieve row");
     const retrievedStudent = studentQuery[0];
     
-    if (retrievedStudent.portal_password === hashPassword(plainStudentPass)) {
+    if (bcrypt.compareSync(plainStudentPass, retrievedStudent.portal_password)) {
       console.log("   ✅ E2E Student Login: SUCCESS (Hashed match)");
     } else {
       throw new Error("E2E Student Login: FAILED (Hashed password mismatch)");
@@ -116,7 +116,7 @@ async function runVerification() {
     if (parentQuery.length === 0) throw new Error("E2E Parent query failed to retrieve row");
     const retrievedParent = parentQuery[0];
     
-    if (retrievedParent.parent_password === hashPassword(plainParentPass)) {
+    if (bcrypt.compareSync(plainParentPass, retrievedParent.parent_password)) {
       console.log("   ✅ E2E Parent Login: SUCCESS (Hashed match)");
     } else {
       throw new Error("E2E Parent Login: FAILED (Hashed password mismatch)");
@@ -130,14 +130,14 @@ async function runVerification() {
     if (teacherQuery.length === 0) throw new Error("E2E Teacher query failed to retrieve row");
     const retrievedTeacher = teacherQuery[0];
 
-    if (retrievedTeacher.portal_password === hashPassword(plainTeacherPass)) {
+    if (bcrypt.compareSync(plainTeacherPass, retrievedTeacher.portal_password)) {
       console.log("   ✅ E2E Teacher Login: SUCCESS (Hashed match)");
     } else {
       throw new Error("E2E Teacher Login: FAILED (Hashed password mismatch)");
     }
 
     // Case D: Invalid Password Rejection
-    if (retrievedStudent.portal_password !== hashPassword("wrong_password")) {
+    if (!bcrypt.compareSync("wrong_password", retrievedStudent.portal_password)) {
       console.log("   ✅ E2E Auth Rejection: SUCCESS (Invalid password safely blocked)");
     } else {
       throw new Error("E2E Auth Rejection: FAILED (Allowed incorrect password!)");

@@ -16,6 +16,11 @@ class EntityClient {
     this.baseUrl = `${API_BASE}/${entityName}`;
   }
 
+  getHeaders() {
+    const token = localStorage.getItem('portal_jwt_token');
+    return token ? { 'Authorization': `Bearer ${token}` } : {};
+  }
+
   async list(order = '-created_at', filtersOrLimit = null, limitOrOffset = null, offset = null) {
     let filters = null;
     let limit = 1000;
@@ -39,7 +44,7 @@ class EntityClient {
     params.set('limit', limit.toString());
     params.set('offset', finalOffset.toString());
 
-    const response = await fetch(`${this.baseUrl}?${params.toString()}`);
+    const response = await fetch(`${this.baseUrl}?${params.toString()}`, { headers: this.getHeaders() });
     if (!response.ok) {
       const err = await response.json().catch(() => ({ error: response.statusText }));
       throw new Error(err.error || 'Failed to list entities');
@@ -52,7 +57,7 @@ class EntityClient {
   }
 
   async get(id) {
-    const response = await fetch(`${this.baseUrl}/${id}`);
+    const response = await fetch(`${this.baseUrl}/${id}`, { headers: this.getHeaders() });
     if (!response.ok) {
       const err = await response.json().catch(() => ({ error: response.statusText }));
       throw new Error(err.error || 'Entity not found');
@@ -67,7 +72,7 @@ class EntityClient {
   async create(data) {
     const response = await fetch(this.baseUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...this.getHeaders() },
       body: JSON.stringify(data),
     });
     if (!response.ok) {
@@ -84,7 +89,7 @@ class EntityClient {
   async update(id, data) {
     const response = await fetch(`${this.baseUrl}/${id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...this.getHeaders() },
       body: JSON.stringify(data),
     });
     if (!response.ok) {
@@ -101,6 +106,7 @@ class EntityClient {
   async delete(id) {
     const response = await fetch(`${this.baseUrl}/${id}`, {
       method: 'DELETE',
+      headers: this.getHeaders(),
     });
     if (!response.ok) {
       const err = await response.json().catch(() => ({ error: response.statusText }));

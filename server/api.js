@@ -1,11 +1,14 @@
 import { neon } from './db_compat.js';
 import dotenv from 'dotenv';
-import crypto from 'crypto';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 dotenv.config();
+
+const JWT_SECRET = process.env.JWT_SECRET || 'edutrack_secure_jwt_secret_2026_fallback';
 
 function hashPassword(password) {
   if (!password) return '';
-  return crypto.createHash('sha256').update(password + 'edutrack_salt_2026').digest('hex');
+  return bcrypt.hashSync(password, 10);
 }
 
 let sql = null;
@@ -568,14 +571,17 @@ export function createApiHandler() {
         // 1. Admin login
         if (role === 'admin') {
           if (identifier === 'admin@edutrack.com' && password === 'admin123') {
-            return res.end(JSON.stringify({
-              success: true,
-              user: {
+            const user = {
                 id: 'admin-id',
                 full_name: 'System Admin',
                 email: 'admin@edutrack.com',
                 role: 'admin'
-              }
+            };
+            const token = jwt.sign(user, JWT_SECRET, { expiresIn: '24h' });
+            return res.end(JSON.stringify({
+              success: true,
+              user,
+              token
             }));
           } else {
             res.statusCode = 401;
@@ -594,19 +600,21 @@ export function createApiHandler() {
             return res.end(JSON.stringify({ error: 'Teacher account not found or inactive' }));
           }
           const teacher = rows[0];
-          const hashed = hashPassword(password);
-          if (teacher.portal_password !== hashed) {
+          if (!bcrypt.compareSync(password, teacher.portal_password)) {
             res.statusCode = 401;
             return res.end(JSON.stringify({ error: 'Invalid password' }));
           }
-          return res.end(JSON.stringify({
-            success: true,
-            user: {
+          const user = {
               id: teacher.id,
               full_name: teacher.full_name,
               email: teacher.email,
               role: 'teacher'
-            }
+          };
+          const token = jwt.sign(user, JWT_SECRET, { expiresIn: '24h' });
+          return res.end(JSON.stringify({
+            success: true,
+            user,
+            token
           }));
         }
 
@@ -621,19 +629,21 @@ export function createApiHandler() {
             return res.end(JSON.stringify({ error: 'Student account not found or inactive' }));
           }
           const student = rows[0];
-          const hashed = hashPassword(password);
-          if (student.portal_password !== hashed) {
+          if (!bcrypt.compareSync(password, student.portal_password)) {
             res.statusCode = 401;
             return res.end(JSON.stringify({ error: 'Invalid password' }));
           }
-          return res.end(JSON.stringify({
-            success: true,
-            user: {
+          const user = {
               id: student.id,
               full_name: student.full_name,
               email: student.user_email,
               role: 'student'
-            }
+          };
+          const token = jwt.sign(user, JWT_SECRET, { expiresIn: '24h' });
+          return res.end(JSON.stringify({
+            success: true,
+            user,
+            token
           }));
         }
 
@@ -648,20 +658,22 @@ export function createApiHandler() {
             return res.end(JSON.stringify({ error: 'No student accounts found linked to this parent email' }));
           }
           const student = rows[0];
-          const hashed = hashPassword(password);
-          if (student.parent_password !== hashed) {
+          if (!bcrypt.compareSync(password, student.parent_password)) {
             res.statusCode = 401;
             return res.end(JSON.stringify({ error: 'Invalid password' }));
           }
-          return res.end(JSON.stringify({
-            success: true,
-            user: {
+          const user = {
               id: 'parent-' + student.id,
               full_name: student.parent_name || 'Parent',
               email: student.parent_email,
               role: 'parent',
               student_id: student.id
-            }
+          };
+          const token = jwt.sign(user, JWT_SECRET, { expiresIn: '24h' });
+          return res.end(JSON.stringify({
+            success: true,
+            user,
+            token
           }));
         }
 
@@ -676,19 +688,21 @@ export function createApiHandler() {
             return res.end(JSON.stringify({ error: 'Bus supervisor account not found or inactive' }));
           }
           const supervisor = rows[0];
-          const hashed = hashPassword(password);
-          if (supervisor.portal_password !== hashed) {
+          if (!bcrypt.compareSync(password, supervisor.portal_password)) {
             res.statusCode = 401;
             return res.end(JSON.stringify({ error: 'Invalid password' }));
           }
-          return res.end(JSON.stringify({
-            success: true,
-            user: {
+          const user = {
               id: supervisor.id,
               full_name: supervisor.full_name,
               email: supervisor.email,
               role: 'bus'
-            }
+          };
+          const token = jwt.sign(user, JWT_SECRET, { expiresIn: '24h' });
+          return res.end(JSON.stringify({
+            success: true,
+            user,
+            token
           }));
         }
 
@@ -703,8 +717,7 @@ export function createApiHandler() {
             return res.end(JSON.stringify({ error: 'Staff account not found or inactive' }));
           }
           const staff = rows[0];
-          const hashed = hashPassword(password);
-          if (staff.portal_password !== hashed) {
+          if (!bcrypt.compareSync(password, staff.portal_password)) {
             res.statusCode = 401;
             return res.end(JSON.stringify({ error: 'Invalid password' }));
           }
@@ -712,14 +725,17 @@ export function createApiHandler() {
           let staffRole = staff.role || 'staff';
           if (staffRole === 'store_keeper') staffRole = 'store';
 
-          return res.end(JSON.stringify({
-            success: true,
-            user: {
+          const user = {
               id: staff.id,
               full_name: staff.full_name,
               email: staff.email,
               role: staffRole
-            }
+          };
+          const token = jwt.sign(user, JWT_SECRET, { expiresIn: '24h' });
+          return res.end(JSON.stringify({
+            success: true,
+            user,
+            token
           }));
         }
 
@@ -735,6 +751,20 @@ export function createApiHandler() {
     if (!req.url.startsWith('/neon-db/entities/')) return next();
 
     res.setHeader('Content-Type', 'application/json');
+
+    // JWT Authentication Middleware
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      res.statusCode = 401;
+      return res.end(JSON.stringify({ error: 'Unauthorized: Missing or invalid token' }));
+    }
+    const token = authHeader.split(' ')[1];
+    try {
+      req.user = jwt.verify(token, JWT_SECRET);
+    } catch (err) {
+      res.statusCode = 401;
+      return res.end(JSON.stringify({ error: 'Unauthorized: Invalid or expired token' }));
+    }
 
     try {
       const urlParts = req.url.split('?');

@@ -196,6 +196,9 @@ export default function StaffPortal() {
       localStorage.setItem("portal_user_id", data.user.id);
       localStorage.setItem("portal_user_name", data.user.full_name);
       localStorage.setItem("portal_is_auth", "true");
+      if (data.token) {
+        localStorage.setItem("portal_jwt_token", data.token);
+      }
 
       setSelectedDept(null);
       
@@ -217,6 +220,7 @@ export default function StaffPortal() {
     localStorage.removeItem("portal_user_id");
     localStorage.removeItem("portal_user_name");
     localStorage.removeItem("portal_is_auth");
+    localStorage.removeItem("portal_jwt_token");
     window.location.href = "/";
   };
 
