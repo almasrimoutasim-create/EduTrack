@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { entities } from "@/api/dbClient";
+import { fileClient } from "@/api/fileClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Image, Video, X, Loader2, Send } from "lucide-react";
@@ -33,7 +34,7 @@ export default function CreatePostCard({ user, studentProfile, onPostCreated }) 
     setUploading(true);
     let media_url = null;
     if (mediaFile) {
-      const res = await base44.integrations.Core.UploadFile({ file: mediaFile });
+      const res = await fileClient.uploadFile({ file: mediaFile });
       media_url = res.file_url;
     }
     const role = user?.role === "admin" ? "admin" : studentProfile ? "student" : "teacher";

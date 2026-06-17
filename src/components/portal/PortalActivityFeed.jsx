@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { entities } from "@/api/dbClient";
+import { fileClient } from "@/api/fileClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { useState, useRef } from "react";
@@ -39,7 +40,7 @@ export default function PortalActivityFeed({ me }) {
     let media_url = "";
     let media_type = "none";
     if (mediaFile) {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file: mediaFile });
+      const { file_url } = await fileClient.uploadFile({ file: mediaFile });
       media_url = file_url;
       media_type = mediaFile.type.startsWith("video") ? "video" : "image";
     }

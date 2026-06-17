@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { entities } from "@/api/dbClient";
+import { fileClient } from "@/api/fileClient";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -32,7 +33,7 @@ export default function BulkImportDialog({ open, onOpenChange }) {
 
     try {
       // Upload the file
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      const { file_url } = await fileClient.uploadFile({ file });
 
       // Define the expected schema for student records
       const schema = {
@@ -52,12 +53,12 @@ export default function BulkImportDialog({ open, onOpenChange }) {
       };
 
       // Extract data from file
-      const { status, output } = await base44.integrations.Core.ExtractDataFromUploadedFile({
+      const { status, output } = await fileClient.extractDataFromUploadedFile({
         file_url,
         json_schema: schema,
       });
 
-      if (status !== "success" || !output) {
+      if (status !== "success" && status !== "completed" || !output) {
         throw new Error("Failed to extract data from file");
       }
 

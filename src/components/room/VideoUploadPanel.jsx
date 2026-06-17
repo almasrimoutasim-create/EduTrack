@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { entities } from "@/api/dbClient";
+import { fileClient } from "@/api/fileClient";
 import { Card } from "@/components/ui/card";
 import { Upload, Video, Trash2, Loader2 } from "lucide-react";
 
@@ -13,7 +14,7 @@ export default function VideoUploadPanel({ roomId, videos = [], onVideoAdded, on
     const file = e.target.files[0];
     if (!file) return;
     setUploading(true);
-    const { file_url } = await base44.integrations.Core.UploadFile({ file });
+    const { file_url } = await fileClient.uploadFile({ file });
     await entities.RoomVideo.create({ room_id: roomId, video_url: file_url, title: file.name, type: "uploaded" });
     onVideoAdded();
     setUploading(false);

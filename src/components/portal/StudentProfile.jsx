@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { entities } from "@/api/dbClient";
+import { fileClient } from "@/api/fileClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -106,7 +107,7 @@ export default function StudentProfile({ student, me, onBack }) {
   const uploadPhoto = async (file, field) => {
     if (!file) return;
     setSaving(true);
-    const { file_url } = await base44.integrations.Core.UploadFile({ file });
+    const { file_url } = await fileClient.uploadFile({ file });
     const updated = await entities.Student.update(student.id, { [field]: file_url });
     setLocalStudent((prev) => ({ ...prev, [field]: file_url }));
     qc.invalidateQueries(["all-students"]);

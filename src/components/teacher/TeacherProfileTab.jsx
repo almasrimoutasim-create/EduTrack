@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { entities } from "@/api/dbClient";
+import { fileClient } from "@/api/fileClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -76,7 +77,7 @@ export default function TeacherProfileTab({ teacher, onTeacherUpdate }) {
   const handlePhotoUpload = async (e) => {
     const file = e.target.files[0]; if (!file) return;
     setUploadingPhoto(true);
-    const { file_url } = await base44.integrations.Core.UploadFile({ file });
+    const { file_url } = await fileClient.uploadFile({ file });
     await entities.Teacher.update(teacher.id, { photo_url: file_url });
     onTeacherUpdate?.({ ...teacher, photo_url: file_url });
     setUploadingPhoto(false);

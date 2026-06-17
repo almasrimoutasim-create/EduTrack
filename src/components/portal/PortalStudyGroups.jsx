@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { entities } from "@/api/dbClient";
+import { fileClient } from "@/api/fileClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -105,7 +106,7 @@ function GroupFeed({ group, me, onBack }) {
     setUploading(true);
     let media_url = "", media_type = "none", file_name = "";
     if (mediaFile) {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file: mediaFile });
+      const { file_url } = await fileClient.uploadFile({ file: mediaFile });
       media_url = file_url;
       file_name = fileName;
       if (mediaFile.type.startsWith("image")) media_type = "image";
