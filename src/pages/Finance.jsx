@@ -12,6 +12,7 @@ import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import PageHeader from "@/components/shared/PageHeader";
+import StaffPayroll from "@/pages/StaffPayroll";
 import StatCard from "@/components/shared/StatCard";
 import {
   LayoutDashboard, GraduationCap, Calendar, DollarSign, CreditCard,
@@ -634,6 +635,7 @@ export default function Finance() {
   const [baseSal, setBaseSal] = useState("");
   const [allowances, setAllowances] = useState("0");
   const [deductions, setDeductions] = useState("0");
+  const [advances, setAdvances] = useState("0");
   const [salMonth, setSalMonth] = useState("يناير");
   const [salYear, setSalYear] = useState("2026");
   const [salMethod, setSalMethod] = useState("bank");
@@ -643,8 +645,9 @@ export default function Finance() {
     const base = parseFloat(baseSal || '0');
     const allow = parseFloat(allowances || '0');
     const ded = parseFloat(deductions || '0');
-    return Math.max(0, base + allow - ded);
-  }, [baseSal, allowances, deductions]);
+    const adv = parseFloat(advances || '0');
+    return Math.max(0, base + allow - ded - adv);
+  }, [baseSal, allowances, deductions, advances]);
 
   const createExpenseMutation = useMutation({
     /** @param {any} data */
@@ -671,6 +674,7 @@ export default function Finance() {
       setBaseSal("");
       setAllowances("0");
       setDeductions("0");
+      setAdvances("0");
       setSelectedEmpId("");
       setSalNotes("");
     },
@@ -701,6 +705,7 @@ export default function Finance() {
       base_salary: parseFloat(baseSal),
       allowances: parseFloat(allowances || '0'),
       deductions: parseFloat(deductions || '0'),
+      advances: parseFloat(advances || '0'),
       net_salary: computedNetSalary,
       month: salMonth,
       year: parseInt(salYear),
@@ -1948,6 +1953,12 @@ export default function Finance() {
             </div>
           )}
 
+          {expenseSubTab === "payroll" && (
+            <div className="bg-white rounded-3xl border border-stone-200/80 p-6 shadow-sm mb-6">
+              <StaffPayroll isEmbedded={true} />
+            </div>
+          )}
+
           {expenseSubTab === "salaries" && (
             <div className="space-y-6">
               <div className="flex justify-end">
@@ -1955,7 +1966,7 @@ export default function Finance() {
                   onClick={() => setSalaryDialogOpen(true)}
                   className="bg-stone-900 text-white font-bold text-xs px-4 py-2.5 rounded-xl hover:bg-black cursor-pointer flex items-center gap-1"
                 >
-                  <Plus size={14} /> كشف راتب جديد
+                  <Plus size={14} /> مسير راتب جديد
                 </button>
               </div>
 
@@ -1966,9 +1977,10 @@ export default function Finance() {
                       <th className="pb-3">الموظف</th>
                       <th className="pb-3">النوع</th>
                       <th className="pb-3">الشهر/السنة</th>
-                      <th className="pb-3">الراتب الأساسي</th>
+                      <th className="pb-3">الأساسي</th>
                       <th className="pb-3">البدلات (+)</th>
-                      <th className="pb-3">الخصومات (-)</th>
+                      <th className="pb-3">استقطاع (-)</th>
+                      <th className="pb-3">سلفية (-)</th>
                       <th className="pb-3">صافي الراتب</th>
                       <th className="pb-3">حالة الصرف</th>
                       <th className="pb-3 text-left">إجراءات</th>
@@ -1983,6 +1995,7 @@ export default function Finance() {
                         <td className="py-4 num-en">${parseFloat(s.base_salary).toFixed(2)}</td>
                         <td className="py-4 num-en text-emerald-600">${parseFloat(s.allowances || 0).toFixed(2)}</td>
                         <td className="py-4 num-en text-rose-600">${parseFloat(s.deductions || 0).toFixed(2)}</td>
+                        <td className="py-4 num-en text-amber-600">${parseFloat(s.advances || 0).toFixed(2)}</td>
                         <td className="py-4 num-en font-black text-stone-900">${parseFloat(s.net_salary).toFixed(2)}</td>
                         <td className="py-4">
                           <Badge className={s.status === 'paid' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}>
@@ -2070,7 +2083,7 @@ export default function Finance() {
           <Dialog open={salaryDialogOpen} onOpenChange={setSalaryDialogOpen}>
             <DialogContent className="max-w-md text-right">
               <DialogHeader>
-                <DialogTitle className="font-serif text-lg">كشف راتب موظف</DialogTitle>
+                <DialogTitle className="font-serif text-lg">مسير راتب موظف</DialogTitle>
                 <DialogDescription>إنشاء قيد راتب للمستحقات الشهرية</DialogDescription>
               </DialogHeader>
               <form onSubmit={handleCreateSalary} className="space-y-4 pt-3">
@@ -2094,7 +2107,7 @@ export default function Finance() {
                   </select>
                 </div>
 
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-4 gap-3">
                   <div className="space-y-1.5">
                     <Label>الأساسي</Label>
                     <Input type="number" value={baseSal} onChange={e => setBaseSal(e.target.value)} required />
@@ -2104,8 +2117,12 @@ export default function Finance() {
                     <Input type="number" value={allowances} onChange={e => setAllowances(e.target.value)} />
                   </div>
                   <div className="space-y-1.5">
-                    <Label>الخصومات (-)</Label>
+                    <Label>خصومات (-)</Label>
                     <Input type="number" value={deductions} onChange={e => setDeductions(e.target.value)} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>سلف مستردة (-)</Label>
+                    <Input type="number" value={advances} onChange={e => setAdvances(e.target.value)} />
                   </div>
                 </div>
 

@@ -191,6 +191,16 @@ if (process.env.DATABASE_URL) {
     console.error('[neon] failed to verify/create expenses table:', err.message);
   });
 
+
+  // Auto-create salary_records table
+  sql`
+    ALTER TABLE salary_records ADD COLUMN IF NOT EXISTS advances NUMERIC DEFAULT 0;
+  `.then(() => {
+    console.log('[neon] salary_records table altered successfully with advances column');
+  }).catch(err => {
+    console.error('[neon] failed to alter salary_records table:', err.message);
+  });
+
   // Auto-create salary_records table
   sql`
     CREATE TABLE IF NOT EXISTS salary_records (
@@ -200,6 +210,7 @@ if (process.env.DATABASE_URL) {
       base_salary NUMERIC NOT NULL,
       allowances NUMERIC DEFAULT 0,
       deductions NUMERIC DEFAULT 0,
+      advances NUMERIC DEFAULT 0,
       net_salary NUMERIC NOT NULL,
       month TEXT NOT NULL,
       year INTEGER NOT NULL,

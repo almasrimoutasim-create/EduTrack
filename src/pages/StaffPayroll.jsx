@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { entities } from "@/api/dbClient";
 import { 
   DollarSign, 
@@ -25,12 +25,13 @@ import { toast } from "sonner";
 const btnOutline = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border-2 border-stone-200 bg-white text-stone-800 hover:bg-stone-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
 const btnPrimary = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed";
 
-export default function StaffPayroll() {
+export default function StaffPayroll({ isEmbedded = false }) {
   const { language } = useLanguage();
   const isRTL = language === "ar";
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+  const MONTHS_AR = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
 
   // حوار التعديل اليدوي
   const [editingMember, setEditingMember] = useState(null);
@@ -50,6 +51,12 @@ export default function StaffPayroll() {
     queryKey: ["teachers"], 
     queryFn: () => entities.Teacher.list("-created_at", 200),
     staleTime: 1000 * 60 * 5
+  });
+
+  // جلب رواتب الشهر المحددة للمزامنة
+  const { data: salaryRecords = [] } = useQuery({ 
+    queryKey: ["salary-records"], 
+    queryFn: () => entities.SalaryRecord.list("-created_at", 1000),
   });
 
   const isLoading = isLoadingStaff || isLoadingTeachers;
@@ -120,16 +127,25 @@ export default function StaffPayroll() {
 
       const net = basic + allowances - deductions;
 
+      const monthStr = MONTHS_AR[selectedMonth - 1];
+      const existingRecord = salaryRecords.find(r => 
+        r.employee_name === (member.full_name || member.name) && 
+        r.month === monthStr && 
+        r.year === new Date().getFullYear()
+      );
+
       return {
         ...member,
         basic,
         allowances,
         deductions,
         loanDeduction,
-        net
+        net,
+        isPaid: !!existingRecord,
+        existingRecord
       };
     });
-  }, [combinedList, customPayrollData, approvedLoans]);
+  }, [combinedList, customPayrollData, approvedLoans, salaryRecords, selectedMonth]);
 
   // إحصائيات الرواتب
   const stats = useMemo(() => {
@@ -179,20 +195,71 @@ export default function StaffPayroll() {
     setEditingMember(null);
   };
 
-  const handleApprovePayroll = (employeeName) => {
-    toast.success(
-      isRTL 
-        ? `تم اعتماد مسير الراتب للموظف ${employeeName} للشهر الحالي بنجاح.` 
-        : `Payroll for ${employeeName} approved for this month successfully.`
-    );
+  const createSalaryMutation = useMutation({
+    mutationFn: (data) => entities.SalaryRecord.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries(["salary-records"]);
+    }
+  });
+
+  const handleApprovePayroll = (member) => {
+    if (member.isPaid) return;
+    const employeeName = member.full_name || member.name;
+    const payload = {
+      employee_name: employeeName,
+      employee_type: member.isTeacher ? 'teacher' : 'staff',
+      base_salary: member.basic,
+      allowances: member.allowances,
+      deductions: member.deductions - member.loanDeduction, // pure deductions
+      advances: member.loanDeduction,
+      net_salary: member.net,
+      month: MONTHS_AR[selectedMonth - 1],
+      year: new Date().getFullYear(),
+      payment_method: 'bank_transfer',
+      status: 'paid'
+    };
+
+    createSalaryMutation.mutate(payload, {
+      onSuccess: () => {
+        toast.success(
+          isRTL 
+            ? `تم اعتماد مسير الراتب للموظف ${employeeName} للشهر الحالي بنجاح.` 
+            : `Payroll for ${employeeName} approved for this month successfully.`
+        );
+      }
+    });
   };
 
   const handleApproveAll = () => {
-    toast.success(
-      isRTL 
-        ? `تم اعتماد مسيرات الرواتب لكافة الموظفين (${payrollList.length}) بنجاح.` 
-        : `Approved payroll sheets for all employees (${payrollList.length}) successfully.`
-    );
+    const unapproved = payrollList.filter(m => !m.isPaid);
+    if (unapproved.length === 0) {
+      toast.info(isRTL ? "تم صرف رواتب جميع الموظفين مسبقاً." : "All payrolls are already paid.");
+      return;
+    }
+    
+    // Create sequentially or parallel
+    Promise.all(unapproved.map(member => {
+      return entities.SalaryRecord.create({
+        employee_name: member.full_name || member.name,
+        employee_type: member.isTeacher ? 'teacher' : 'staff',
+        base_salary: member.basic,
+        allowances: member.allowances,
+        deductions: member.deductions - member.loanDeduction,
+        advances: member.loanDeduction,
+        net_salary: member.net,
+        month: MONTHS_AR[selectedMonth - 1],
+        year: new Date().getFullYear(),
+        payment_method: 'bank_transfer',
+        status: 'paid'
+      });
+    })).then(() => {
+      queryClient.invalidateQueries(["salary-records"]);
+      toast.success(
+        isRTL 
+          ? `تم اعتماد مسيرات الرواتب لكافة الموظفين (${unapproved.length}) بنجاح.` 
+          : `Approved payroll sheets for all employees (${unapproved.length}) successfully.`
+      );
+    });
   };
 
   const getRoleDisplay = (role) => {
@@ -211,16 +278,27 @@ export default function StaffPayroll() {
   };
 
   return (
-    <div className="space-y-6 pb-20" dir={isRTL ? "rtl" : "ltr"}>
-      <PageHeader 
-        title={isRTL ? "مسير الرواتب والكشوفات" : "Staff Payroll Sheets"} 
-        subtitle={isRTL ? "توزيع واحتساب الرواتب الشهرية والبدلات والاستقطاعات التفاعلية مع دعم السلف المعتمدة" : "Manage staff monthly salaries, allowances, deductions and approved loans"}
-      >
-        <button onClick={handleApproveAll} className={`${btnPrimary} h-11 px-5`}>
-          <CheckCircle2 size={18} />
-          <span>{isRTL ? "اعتماد مسير الجميع" : "Approve All Sheets"}</span>
-        </button>
-      </PageHeader>
+    <div className={`space-y-6 ${isEmbedded ? '' : 'pb-20'}`} dir={isRTL ? "rtl" : "ltr"}>
+      {!isEmbedded && (
+        <PageHeader 
+          title={isRTL ? "مسير الرواتب والكشوفات" : "Staff Payroll Sheets"} 
+          subtitle={isRTL ? "توزيع واحتساب الرواتب الشهرية والبدلات والاستقطاعات التفاعلية مع دعم السلف المعتمدة" : "Manage staff monthly salaries, allowances, deductions and approved loans"}
+        >
+          <button onClick={handleApproveAll} className={`${btnPrimary} h-11 px-5`}>
+            <CheckCircle2 size={18} />
+            <span>{isRTL ? "اعتماد مسير الجميع" : "Approve All Sheets"}</span>
+          </button>
+        </PageHeader>
+      )}
+
+      {isEmbedded && (
+        <div className="flex justify-end mb-4">
+          <button onClick={handleApproveAll} className={`${btnPrimary} h-11 px-5`}>
+            <CheckCircle2 size={18} />
+            <span>{isRTL ? "اعتماد مسير الجميع" : "Approve All Sheets"}</span>
+          </button>
+        </div>
+      )}
 
       {/* بطاقات الإحصائيات المالية للرواتب */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -363,17 +441,26 @@ export default function StaffPayroll() {
                       <div className="flex justify-end gap-2">
                         <button 
                           onClick={() => handleStartEdit(member)}
-                          className="inline-flex items-center justify-center rounded-xl border border-stone-200 bg-white text-stone-700 h-9 w-9 hover:bg-stone-50 transition-colors cursor-pointer"
+                          className="inline-flex items-center justify-center rounded-xl border border-stone-200 bg-white text-stone-700 h-9 w-9 hover:bg-stone-50 transition-colors cursor-pointer disabled:opacity-50"
                           title={isRTL ? "تعديل يدوي" : "Edit payroll manually"}
+                          disabled={member.isPaid}
                         >
                           <Edit2 size={14} />
                         </button>
-                        <button 
-                          onClick={() => handleApprovePayroll(member.full_name || member.name)}
-                          className="inline-flex items-center justify-center rounded-xl bg-stone-900 text-white font-bold text-xs h-9 px-3.5 hover:bg-stone-800 transition-colors cursor-pointer"
-                        >
-                          {isRTL ? "اعتماد" : "Approve"}
-                        </button>
+                        {member.isPaid ? (
+                          <div className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-50 text-emerald-700 font-bold text-xs h-9 px-3.5 border border-emerald-200">
+                            <CheckCircle2 size={14} />
+                            {isRTL ? "مصروف" : "Paid"}
+                          </div>
+                        ) : (
+                          <button 
+                            onClick={() => handleApprovePayroll(member)}
+                            className="inline-flex items-center justify-center rounded-xl bg-stone-900 text-white font-bold text-xs h-9 px-3.5 hover:bg-stone-800 transition-colors cursor-pointer disabled:opacity-50"
+                            disabled={createSalaryMutation.isPending}
+                          >
+                            {createSalaryMutation.isPending ? "..." : (isRTL ? "اعتماد" : "Approve")}
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
