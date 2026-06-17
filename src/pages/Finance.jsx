@@ -1893,7 +1893,8 @@ export default function Finance() {
             {/* Sub-tabs */}
             <div className="flex border border-stone-200 bg-stone-50 p-1 rounded-xl gap-1.5 text-xs font-bold">
               <button onClick={() => setExpenseSubTab("general")} className={`px-4 py-2 rounded-lg cursor-pointer ${expenseSubTab === "general" ? "bg-white text-stone-900 shadow-sm" : "text-stone-500"}`}>المصروفات العامة</button>
-              <button onClick={() => setExpenseSubTab("salaries")} className={`px-4 py-2 rounded-lg cursor-pointer ${expenseSubTab === "salaries" ? "bg-white text-stone-900 shadow-sm" : "text-stone-500"}`}>الرواتب والأجور</button>
+              <button onClick={() => setExpenseSubTab("payroll")} className={`px-4 py-2 rounded-lg cursor-pointer ${expenseSubTab === "payroll" ? "bg-white text-stone-900 shadow-sm" : "text-stone-500"}`}>مسير الرواتب (HR)</button>
+              <button onClick={() => setExpenseSubTab("salaries")} className={`px-4 py-2 rounded-lg cursor-pointer ${expenseSubTab === "salaries" ? "bg-white text-stone-900 shadow-sm" : "text-stone-500"}`}>سجلات الصرف المعتمدة</button>
             </div>
           </div>
 
