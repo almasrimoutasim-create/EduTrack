@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { entities } from "@/api/dbClient";
 import { 
@@ -23,23 +23,71 @@ export default function WeeklyAttendanceSummary() {
   const { data: attendanceData = [] } = useQuery({ 
     queryKey: ["weekly-attendance"], 
     // @ts-ignore
-    queryFn: () => entities.Attendance.list("-created_at", {}, 50),
+    queryFn: () => entities.Attendance.list("-created_at", {}, 5000),
     staleTime: 1000 * 60 * 5
   });
+
+  // Compute weekly breakdown from real db data
+  const weeklyBreakdown = useMemo(() => {
+    const days = [
+      { id: 0, ar: "الأحد", en: "Sun" },
+      { id: 1, ar: "الاثنين", en: "Mon" },
+      { id: 2, ar: "الثلاثاء", en: "Tue" },
+      { id: 3, ar: "الأربعاء", en: "Wed" },
+      { id: 4, ar: "الخميس", en: "Thu" },
+    ];
+    
+    return days.map(d => {
+      const recordsForDay = attendanceData.filter(r => {
+        if (!r.date) return false;
+        const recordDate = new Date(r.date);
+        return recordDate.getDay() === d.id;
+      });
+      
+      const total = recordsForDay.length;
+      const present = recordsForDay.filter(r => r.status === "present" || r.status === "late").length;
+      
+      const rate = total > 0 ? Math.round((present / total) * 100) : 0;
+      
+      let status = "review";
+      if (rate >= 90) status = "excellent";
+      else if (rate >= 80) status = "good";
+      
+      return {
+        day: isRTL ? d.ar : d.en,
+        rate,
+        status,
+        presentCount: present,
+        absentCount: total - present,
+        totalCount: total
+      };
+    });
+  }, [attendanceData, isRTL]);
+
+  const absenceDistribution = useMemo(() => {
+    const absences = attendanceData.filter(r => r.status === "absent" || r.status === "late");
+    const total = absences.length || 1; 
+    const late = absences.filter(r => r.status === "late").length;
+    const excused = absences.filter(r => r.status === "absent" && (r.notes || "").includes("عذر")).length;
+    const unexcused = absences.filter(r => r.status === "absent" && !(r.notes || "").includes("عذر")).length;
+    
+    return [
+      { label: isRTL ? "غياب مبرر" : "Excused", value: Math.round((excused / total) * 100), color: "bg-blue-500" },
+      { label: isRTL ? "بدون عذر" : "Unexcused", value: Math.round((unexcused / total) * 100), color: "bg-rose-500" },
+      { label: isRTL ? "تأخر صباحي" : "Late Arrival", value: Math.round((late / total) * 100), color: "bg-amber-500" },
+    ];
+  }, [attendanceData, isRTL]);
+
+  const overallRate = useMemo(() => {
+    if (attendanceData.length === 0) return 0;
+    const present = attendanceData.filter(r => r.status === "present" || r.status === "late").length;
+    return Math.round((present / attendanceData.length) * 100);
+  }, [attendanceData]);
 
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: { opacity: 1, transition: { staggerChildren: 0.1 } }
   };
-
-  // Mock weekly breakdown
-  const weeklyBreakdown = [
-    { day: isRTL ? "الأحد" : "Sun", rate: 98, status: "excellent" },
-    { day: isRTL ? "الاثنين" : "Mon", rate: 95, status: "excellent" },
-    { day: isRTL ? "الثلاثاء" : "Tue", rate: 88, status: "good" },
-    { day: isRTL ? "الأربعاء" : "Wed", rate: 92, status: "excellent" },
-    { day: isRTL ? "الخميس" : "Thu", rate: 75, status: "review" },
-  ];
 
   return (
     <div className="space-y-10 pb-24" dir={isRTL ? "rtl" : "ltr"}>
@@ -71,8 +119,8 @@ export default function WeeklyAttendanceSummary() {
               <div className="flex items-center gap-4">
                 <div className="text-right">
                   <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">{isRTL ? "مقارنة بالأسبوع الماضي" : "Vs Last Week"}</p>
-                  <p className="text-emerald-500 font-black flex items-center gap-1 justify-end">
-                    <ArrowUpRight size={14} /> +٢.٤٪
+                  <p className="text-emerald-500 font-black flex items-center gap-1 justify-end text-xl">
+                     {overallRate}٪
                   </p>
                 </div>
                 <div className="h-14 w-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
@@ -108,11 +156,7 @@ export default function WeeklyAttendanceSummary() {
             <div className="relative z-10">
               <h4 className="text-xl font-serif font-bold mb-8">{isRTL ? "توزيع الغياب" : "Absence Distribution"}</h4>
               <div className="space-y-6">
-                {[
-                  { label: isRTL ? "غياب مبرر" : "Excused", value: 65, color: "bg-blue-500" },
-                  { label: isRTL ? "بدون عذر" : "Unexcused", value: 25, color: "bg-rose-500" },
-                  { label: isRTL ? "تأخر صباحي" : "Late Arrival", value: 10, color: "bg-amber-500" },
-                ].map((item, i) => (
+                {absenceDistribution.map((item, i) => (
                   <div key={i}>
                     <div className="flex justify-between items-center mb-2 text-[10px] font-bold uppercase tracking-widest opacity-60">
                       <span>{item.label}</span>
@@ -181,8 +225,8 @@ export default function WeeklyAttendanceSummary() {
                 {weeklyBreakdown.map((day, i) => (
                   <tr key={i} className="hover:bg-stone-50/30 transition-colors group">
                     <td className="px-8 py-5 text-sm font-bold text-stone-900">{day.day}</td>
-                    <td className="px-8 py-5 text-sm font-bold text-emerald-600"> 442</td>
-                    <td className="px-8 py-5 text-sm font-bold text-rose-500"> 8</td>
+                    <td className="px-8 py-5 text-sm font-bold text-emerald-600"> {day.presentCount}</td>
+                    <td className="px-8 py-5 text-sm font-bold text-rose-500"> {day.absentCount}</td>
                     <td className="px-8 py-5 text-sm font-black text-stone-900">{day.rate}٪</td>
                     <td className="px-8 py-5">
                       <Badge className={`${day.status === 'excellent' ? 'bg-emerald-500' : 'bg-amber-500'} text-white border-none rounded-lg text-[8px] font-black px-2 py-0.5 uppercase`}>

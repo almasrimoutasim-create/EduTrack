@@ -72,24 +72,21 @@ export default function AttendanceSummary() {
 
   // Process data for students
   const studentLogs = students.map(student => {
-    // Find check-in and check-out records in actual DB attendance records
     const checkInRecord = records.find(r => r.student_id === student.id && (r.type === "gate_in" || r.type === "daily" || !r.type));
     const checkOutRecord = records.find(r => r.student_id === student.id && r.type === "gate_out");
 
-    // Default mock times if no records to make the dashboard look rich and alive, but respect actual db data
     const hasCheckIn = !!checkInRecord;
     const hasCheckOut = !!checkOutRecord;
 
-    const checkInTime = hasCheckIn ? checkInRecord.time : (student.id.charCodeAt(0) % 2 === 0 ? "07:15" : "07:45");
-    const checkOutTime = hasCheckOut ? checkOutRecord.time : (student.id.charCodeAt(0) % 2 === 0 ? "13:45" : "14:00");
-    const isLate = checkInTime > "08:00";
+    const checkInTime = hasCheckIn ? checkInRecord.time : "--:--";
+    const checkOutTime = hasCheckOut ? checkOutRecord.time : "--:--";
+    const isLate = checkInTime > "08:00" && checkInTime !== "--:--";
     
-    // Status resolution
     let status = "absent";
-    if (hasCheckIn || student.id.charCodeAt(0) % 7 !== 0) {
+    if (hasCheckIn) {
       status = "present";
       if (isLate) status = "late";
-      if (hasCheckOut || student.id.charCodeAt(0) % 3 === 0) status = "left";
+      if (hasCheckOut) status = "left";
     }
 
     return {
@@ -97,31 +94,39 @@ export default function AttendanceSummary() {
       name: student.full_name || student.name || (isRTL ? "طالب" : "Student"),
       role: "student",
       grade: student.grade || "10",
-      checkIn: status !== "absent" ? checkInTime : "--:--",
-      checkOut: status === "left" ? checkOutTime : "--:--",
-      status: status, // "present" | "late" | "absent" | "left"
-      device: student.id.charCodeAt(0) % 2 === 0 ? (isRTL ? "بوابة ذكية (RFID)" : "RFID Gate") : (isRTL ? "تحضير المعلم" : "Teacher Rollcall"),
+      checkIn: checkInTime,
+      checkOut: checkOutTime,
+      status: status,
+      device: isRTL ? "بوابة النظام" : "System Gate",
     };
   });
 
   // Process data for staff members
-  const staffLogs = (staffMembers.length > 0 ? staffMembers : [
-    { id: "ST-101", full_name: "د. أحمد مسعود", role: "HR", email: "a.masoud@edutrack.com" },
-    { id: "ST-102", full_name: "أ. منى الهاشمي", role: "Registrar", email: "m.hashemi@edutrack.com" },
-    { id: "ST-103", full_name: "أ. ياسر الحربي", role: "Accountant", email: "y.harbi@edutrack.com" },
-    { id: "ST-104", full_name: "أ. ليلى السويدي", role: "Librarian", email: "l.suwaidi@edutrack.com" },
-    { id: "ST-105", full_name: "أ. خالد النعيمي", role: "IT Administrator", email: "k.nuaimi@edutrack.com" },
-  ]).map(staff => {
-    const hash = staff.id.charCodeAt(staff.id.length - 1);
-    const status = hash % 5 === 0 ? "absent" : hash % 3 === 0 ? "left" : hash % 4 === 0 ? "late" : "present";
+  const staffLogs = staffMembers.map(staff => {
+    const checkInRecord = records.find(r => r.student_id === staff.id && (r.type === "gate_in" || r.type === "daily" || !r.type));
+    const checkOutRecord = records.find(r => r.student_id === staff.id && r.type === "gate_out");
+
+    const hasCheckIn = !!checkInRecord;
+    const hasCheckOut = !!checkOutRecord;
+
+    const checkInTime = hasCheckIn ? checkInRecord.time : "--:--";
+    const checkOutTime = hasCheckOut ? checkOutRecord.time : "--:--";
+    const isLate = checkInTime > "08:00" && checkInTime !== "--:--";
+    
+    let status = "absent";
+    if (hasCheckIn) {
+      status = "present";
+      if (isLate) status = "late";
+      if (hasCheckOut) status = "left";
+    }
     
     return {
       id: staff.id,
       name: staff.full_name || staff.name,
       role: staff.role || (isRTL ? "إداري" : "Staff"),
       grade: isRTL ? "الإدارة" : "Administration",
-      checkIn: status !== "absent" ? (status === "late" ? "08:15" : "07:10") : "--:--",
-      checkOut: status === "left" ? "15:30" : "--:--",
+      checkIn: checkInTime,
+      checkOut: checkOutTime,
       status: status,
       device: isRTL ? "بصمة الإصبع" : "Biometric Fingerprint",
     };
@@ -324,33 +329,33 @@ export default function AttendanceSummary() {
             </div>
 
             <div className="space-y-4 max-h-[17rem] overflow-y-auto pr-1">
-              {[
-                { name: isRTL ? "خالد أحمد" : "Khaled Ahmed", time: "14:02", action: "gate_out", loc: isRTL ? "البوابة الرئيسية" : "Main Gate", role: "student" },
-                { name: isRTL ? "سارة الهاشمي" : "Sara Alhashemi", time: "13:58", action: "gate_out", loc: isRTL ? "بوابة الحافلات" : "Bus Gate", role: "student" },
-                { name: isRTL ? "منى الهاشمي" : "Mona Alhashemi", time: "13:30", action: "gate_out", loc: isRTL ? "البوابة الإدارية" : "Admin Gate", role: "staff" },
-                { name: isRTL ? "عبدالله المنصوري" : "Abdullah Almansoori", time: "08:15", action: "gate_in", loc: isRTL ? "البوابة الرئيسية" : "Main Gate", role: "student" },
-              ].map((act, i) => (
+              {records.slice(0, 10).map((act, i) => (
                 <div key={i} className="flex items-start justify-between text-xs border-b border-stone-50 pb-3 last:border-0 last:pb-0">
                   <div className="flex items-center gap-2">
-                    <div className={`p-1.5 rounded-lg ${act.action === 'gate_in' ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'}`}>
-                      {act.action === 'gate_in' ? <LogIn size={14} /> : <LogOut size={14} />}
+                    <div className={`p-1.5 rounded-lg ${act.type === 'gate_in' || !act.type ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'}`}>
+                      {act.type === 'gate_in' || !act.type ? <LogIn size={14} /> : <LogOut size={14} />}
                     </div>
                     <div>
-                      <p className="font-bold text-stone-900">{act.name}</p>
+                      <p className="font-bold text-stone-900">{act.student_name || act.student_id}</p>
                       <p className="text-[9px] text-stone-400 flex items-center gap-1">
-                        <MapPin size={8} /> {act.loc}
+                        <MapPin size={8} /> {act.type === "gate_out" ? (isRTL ? "خروج" : "Check Out") : (isRTL ? "دخول" : "Check In")}
                       </p>
                     </div>
                   </div>
                   <span className="text-[10px] text-stone-400 font-bold num-en">{act.time}</span>
                 </div>
               ))}
+              {records.length === 0 && (
+                <div className="text-center text-xs text-stone-400 mt-4">
+                  {isRTL ? "لا توجد حركات حديثة" : "No recent activity"}
+                </div>
+              )}
             </div>
           </div>
           
           <div className="pt-4 mt-4 border-t border-stone-100 flex items-center justify-between text-[11px] text-stone-400 font-bold">
             <span>{isRTL ? "إجمالي حركات اليوم:" : "Total daily events:"}</span>
-            <span className="text-stone-900 num-en"> 1,424</span>
+            <span className="text-stone-900 num-en"> {records.length}</span>
           </div>
         </Card>
 

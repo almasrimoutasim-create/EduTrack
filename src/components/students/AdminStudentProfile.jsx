@@ -469,36 +469,7 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
     queryFn: () => entities.Fine.filter({ student_id: student.id }, "-created_date")
   });
 
-  // Mock fallbacks for missing data to ensure high-fidelity presentation
-  const mockGrades = [
-    { id: "1", subject: isRTL ? "الرياضيات" : "Mathematics", score: 95, grade_value: "A+", semester: isRTL ? "الفصل الأول" : "Semester 1", notes: isRTL ? "أداء متميز وتفكير نقدي رائع" : "Excellent performance and critical thinking" },
-    { id: "2", subject: isRTL ? "اللغة العربية" : "Arabic Language", score: 98, grade_value: "A+", semester: isRTL ? "الفصل الأول" : "Semester 1", notes: isRTL ? "ممتاز جداً في البلاغة والتعبير" : "Stellar performance in eloquence and writing" },
-    { id: "3", subject: isRTL ? "العلوم والفيزياء" : "Science & Physics", score: 91, grade_value: "A", semester: isRTL ? "الفصل الأول" : "Semester 1", notes: isRTL ? "مشاركة فاعلة في المختبر" : "Active participation in the laboratory" },
-    { id: "4", subject: isRTL ? "اللغة الإنجليزية" : "English Language", score: 88, grade_value: "B+", semester: isRTL ? "الفصل الأول" : "Semester 1", notes: isRTL ? "قدرة ممتازة على التحدث والكتابة" : "Great communication and writing skills" },
-    { id: "5", subject: isRTL ? "الدراسات الإسلامية" : "Islamic Studies", score: 97, grade_value: "A+", semester: isRTL ? "الفصل الأول" : "Semester 1", notes: isRTL ? "سلوك ممتاز وحفظ متقن" : "Excellent behavior and perfect memorization" },
-  ];
-
-  const mockAwards = [
-    { id: "1", title: isRTL ? "جائزة التميز العلمي" : "Academic Excellence Award", date: "2026-03-15", points: 150, awarded_by: "أ. محمد علي", description: isRTL ? "للحصول على الدرجة الكاملة في الرياضيات والعلوم" : "For achieving full scores in math and sciences" },
-    { id: "2", title: isRTL ? "لقب الطالب المثالي" : "Ideal Student Title", date: "2026-04-20", points: 200, awarded_by: isRTL ? "إدارة المدرسة" : "School Administration", description: isRTL ? "للالتزام التام بالسلوك الحسن والمبادئ القيادية" : "For outstanding moral character and leadership skills" },
-  ];
-
-  const mockTransactions = [
-    { id: "t1", date: "2026-05-18", type: isRTL ? "شحن بطاقة ذكية" : "Smart Card Top-up", amount: 50, method: isRTL ? "بوابة الدفع الإلكتروني" : "Online Payment Portal", status: "completed" },
-    { id: "t2", date: "2026-05-15", type: isRTL ? "قسط الرسوم المدرسية - الدفعة الأولى" : "Tuition Fee Installment - Term 1", amount: 2500, method: isRTL ? "تحويل بنكي" : "Bank Transfer", status: "completed" },
-    { id: "t3", date: "2026-05-10", type: isRTL ? "شحن بطاقة ذكية" : "Smart Card Top-up", amount: 20, method: isRTL ? "نقدي من المكتب المالي" : "Cash at Finance Office", status: "completed" },
-  ];
-
-  const mockPurchases = [
-    { id: "p1", item_name: isRTL ? "وجبة غداء صحية متكاملة" : "Complete Healthy Lunch Meal", quantity: 1, total_price: 15.00, created_at: "2026-05-20T12:30:00Z" },
-    { id: "p2", item_name: isRTL ? "عصير برتقال طبيعي" : "Natural Orange Juice", quantity: 1, total_price: 5.50, created_at: "2026-05-20T09:45:00Z" },
-    { id: "p3", item_name: isRTL ? "دفتر رسم وعلبة ألوان" : "Sketchbook & Color Box", quantity: 1, total_price: 18.00, created_at: "2026-05-18T10:15:00Z" },
-  ];
-
-  const mockBorrowedBooks = [
-    { id: "b1", title: isRTL ? "تاريخ الفيزياء والعلوم المعاصرة" : "History of Physics & Modern Science", author: "Dr. Stephen Hawking", category: isRTL ? "علوم طبيعية" : "Natural Sciences", borrow_date: "2026-05-05", due_date: "2026-05-25", status: "borrowed" },
-    { id: "b2", title: isRTL ? "البلاد العربية في العهد العثماني" : "The Arab Lands in Ottoman Era", author: isRTL ? "د. ألبرت حوراني" : "Albert Hourani", category: isRTL ? "تاريخ وجغرافيا" : "History & Geography", borrow_date: "2026-04-10", due_date: "2026-04-24", status: "returned" },
-  ];
+  const mockBorrowedBooks = [];
 
   const getRecordTypeLabel = (record) => {
     if (record.description) return record.description;
@@ -538,8 +509,7 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
     }
   };
 
-  const studentTransactions = dbFinancialRecords.length > 0 || feePayments.length > 0 || walletTx.length > 0
-    ? [
+  const studentTransactions = [
         ...feePayments.map(p => ({
           id: p.id,
           date: (p.payment_date || p.created_at || "").split("T")[0] || "",
@@ -568,8 +538,7 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
           method: getPaymentMethodLabel(r.payment_method),
           status: r.status || "completed"
         }))
-      ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    : mockTransactions;
+      ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   const handleSaveSuccess = async (newRecord) => {
     if (newRecord?.recipient_type === "student") {
@@ -626,9 +595,9 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
     }
   };
 
-  const gradesData = dbGrades.length > 0 ? dbGrades : mockGrades;
-  const awardsData = dbAwards.length > 0 ? dbAwards : mockAwards;
-  const purchasesData = dbPurchases.length > 0 ? dbPurchases : mockPurchases;
+  const gradesData = dbGrades;
+  const awardsData = dbAwards;
+  const purchasesData = dbPurchases;
 
   const handleCopy = (text, fieldName) => {
     navigator.clipboard.writeText(text || "");
