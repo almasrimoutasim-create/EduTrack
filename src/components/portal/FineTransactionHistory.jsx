@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -63,7 +63,7 @@ export default function FineTransactionHistory({ student, privacyMode }) {
   const { data: fines = [] } = useQuery({
     queryKey: ["parent-fine-history", student?.id],
     enabled: !!student?.id,
-    queryFn: () => base44.entities.Fine.filter({ student_id: student.id }, "-created_date"),
+    queryFn: () => entities.Fine.filter({ student_id: student.id }, "-created_date"),
   });
 
   const paidFines = fines.filter(f => f.status === "paid");

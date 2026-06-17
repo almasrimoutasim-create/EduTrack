@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -25,7 +25,7 @@ export default function RoomAttendanceDialog({ room, open, onClose }) {
   // Fetch today's attendance for this room
   const { data: attendanceList = [] } = useQuery({
     queryKey: ["room-attendance", room?.id, today],
-    queryFn: () => base44.entities.Attendance.filter({
+    queryFn: () => entities.Attendance.filter({
       subject_name: room?.room_code,
       date: today,
       type: "class",
@@ -44,7 +44,7 @@ export default function RoomAttendanceDialog({ room, open, onClose }) {
     setScanning(true);
 
     // Look up student by card ID
-    const students = await base44.entities.Student.filter({ student_id: cardId });
+    const students = await entities.Student.filter({ student_id: cardId });
     // Also try matching student_id as card number
     let student = students[0];
 
@@ -68,7 +68,7 @@ export default function RoomAttendanceDialog({ room, open, onClose }) {
     }
 
     // Mark as present
-    await base44.entities.Attendance.create({
+    await entities.Attendance.create({
       student_id: student.id,
       student_name: student.full_name,
       student_card_id: cardId,
@@ -89,7 +89,7 @@ export default function RoomAttendanceDialog({ room, open, onClose }) {
   };
 
   const handleMarkManual = async (studentId, studentName, cardId, status) => {
-    await base44.entities.Attendance.create({
+    await entities.Attendance.create({
       student_id: studentId,
       student_name: studentName,
       student_card_id: cardId || "",

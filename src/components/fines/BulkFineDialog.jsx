@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -62,7 +62,7 @@ export default function BulkFineDialog({ students, onDone }) {
 
     try {
       for (const fine of fines) {
-        await base44.entities.Fine.create(fine);
+        await entities.Fine.create(fine);
       }
       qc.invalidateQueries({ queryKey: ["fines"] });
       setSaving(false);

@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { useQueryClient } from "@tanstack/react-query";
 
 const platforms = [
@@ -55,9 +55,9 @@ export default function StudyRoomFormDialog({ open, onClose, room }) {
     setSaving(true);
     try {
       if (isEdit) {
-        await base44.entities.StudyRoom.update(room.id, form);
+        await entities.StudyRoom.update(room.id, form);
       } else {
-        await base44.entities.StudyRoom.create(form);
+        await entities.StudyRoom.create(form);
       }
       qc.invalidateQueries({ queryKey: ["study-rooms"] });
       onClose();

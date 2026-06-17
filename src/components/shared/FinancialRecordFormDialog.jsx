@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { DatePicker, MonthPicker } from "@/components/ui/date-picker";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLanguage } from "@/lib/LanguageContext";
 
@@ -67,9 +67,9 @@ export default function FinancialRecordFormDialog({ open, onClose, record, prefi
       };
 
       if (isEdit) {
-        res = await base44.entities.FinancialRecord.update(record.id, payload);
+        res = await entities.FinancialRecord.update(record.id, payload);
       } else {
-        res = await base44.entities.FinancialRecord.create(payload);
+        res = await entities.FinancialRecord.create(payload);
       }
       qc.invalidateQueries({ queryKey: ["finance-purchases"] });
       qc.invalidateQueries({ queryKey: ["financial-records"] });

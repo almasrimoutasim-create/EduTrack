@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +20,7 @@ export default function LiveClassesTab({ teacher }) {
 
   const { data: rooms = [] } = useQuery({
     queryKey: ["teacher-rooms", teacher.id],
-    queryFn: () => base44.entities.StudyRoom.filter({ created_by_id: teacher.id }, "-created_date"),
+    queryFn: () => entities.StudyRoom.filter({ created_by_id: teacher.id }, "-created_date"),
   });
 
   const generateRoomCode = () => {
@@ -40,7 +40,7 @@ export default function LiveClassesTab({ teacher }) {
   const save = async () => {
     setSaving(true);
     const roomCode = generateRoomCode();
-    const newRoom = await base44.entities.StudyRoom.create({
+    const newRoom = await entities.StudyRoom.create({
       title: form.room_name,
       subject_name: form.subject_name,
       grade: form.grade,
@@ -56,7 +56,7 @@ export default function LiveClassesTab({ teacher }) {
     });
 
     // Notify all students in this class
-    const students = await base44.entities.Student.filter({ grade: form.grade }, "");
+    const students = await entities.Student.filter({ grade: form.grade }, "");
     const notifications = students.map(student => ({
       user_id: student.id,
       user_email: student.user_email,
@@ -68,7 +68,7 @@ export default function LiveClassesTab({ teacher }) {
     }));
     
     if (notifications.length > 0) {
-      await base44.entities.PortalNotification.bulkCreate(notifications);
+      await entities.PortalNotification.bulkCreate(notifications);
     }
 
     qc.invalidateQueries(["teacher-rooms", teacher.id]);
@@ -86,7 +86,7 @@ export default function LiveClassesTab({ teacher }) {
 
   const deleteRoom = async (id) => {
     if (confirm("Are you sure you want to delete this class?")) {
-      await base44.entities.StudyRoom.delete(id);
+      await entities.StudyRoom.delete(id);
       qc.invalidateQueries(["teacher-rooms", teacher.id]);
     }
   };

@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import VisualSchedule from "@/components/schedule/VisualSchedule";
 import { Calendar } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -8,13 +8,13 @@ export default function PortalSchedule({ student }) {
   // Fetch classes for student's grade
   const { data: allClasses = [], isLoading: loadingClasses } = useQuery({
     queryKey: ["student-schedule", student.grade],
-    queryFn: () => base44.entities.ClassSchedule.filter({ grade: student.grade }),
+    queryFn: () => entities.ClassSchedule.filter({ grade: student.grade }),
   });
 
   // Fetch tasks for student's grade
   const { data: tasks = [], isLoading: loadingTasks } = useQuery({
     queryKey: ["student-tasks", student.grade],
-    queryFn: () => base44.entities.TeacherTask.filter({ grade: student.grade }),
+    queryFn: () => entities.TeacherTask.filter({ grade: student.grade }),
   });
 
   if (loadingClasses || loadingTasks) return (

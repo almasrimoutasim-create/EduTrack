@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { useSearchParams } from "react-router-dom";
 import { 
   ShoppingBag, 
@@ -74,7 +74,7 @@ export default function Store() {
   const { data: studentProfile } = useQuery({
     queryKey: ["student-profile", studentId],
     enabled: role === "student",
-    queryFn: () => base44.entities.Student.get(studentId)
+    queryFn: () => entities.Student.get(studentId)
   });
 
   // Parent specific logic
@@ -85,7 +85,7 @@ export default function Store() {
   const { data: children = [] } = useQuery({ 
     queryKey: ["parent-children", parentEmail], 
     enabled: role === "parent",
-    queryFn: () => base44.entities.Student["filter"]({ parent_email: parentEmail }) 
+    queryFn: () => entities.Student["filter"]({ parent_email: parentEmail }) 
   });
 
   const [selectedStudentId, setSelectedStudentId] = useState(null);
@@ -102,7 +102,7 @@ export default function Store() {
 
   const { data: walletData } = useQuery({
     queryKey: ['student-wallet', activeStudent?.id],
-    queryFn: () => base44.entities.StudentWallet.filter({ student_id: activeStudent?.id }),
+    queryFn: () => entities.StudentWallet.filter({ student_id: activeStudent?.id }),
     enabled: !!activeStudent?.id,
     staleTime: 1000 * 60 * 2,
   });
@@ -111,12 +111,12 @@ export default function Store() {
 
   const { data: storeItems = [], isLoading } = useQuery({ 
     queryKey: ["store-items"], 
-    queryFn: () => base44.entities.StoreItem.list("-created_date", 50) 
+    queryFn: () => entities.StoreItem.list("-created_date", 50) 
   });
 
   const { data: purchases = [] } = useQuery({ 
     queryKey: ["store-purchases"], 
-    queryFn: () => base44.entities.Purchase.list("-created_date", 20) 
+    queryFn: () => entities.Purchase.list("-created_date", 20) 
   });
 
   const filteredItems = storeItems.filter(item => 
@@ -134,7 +134,7 @@ export default function Store() {
 
   const handleDelete = async (item) => {
     try {
-      await base44.entities.StoreItem.delete(item.id);
+      await entities.StoreItem.delete(item.id);
       toast.success(isRTL ? "تم حذف المنتج" : "Product deleted");
     } catch (err) {
       toast.error(isRTL ? "فشل الحذف" : "Failed to delete");
@@ -187,7 +187,7 @@ export default function Store() {
     try {
       // 1. If student/parent using wallet, deduct balance
       if (activeStudent && chosenMethod === "wallet") {
-        await base44.entities.WalletTransaction.create({
+        await entities.WalletTransaction.create({
           student_id: activeStudent.id,
           type: 'purchase',
           amount: cartTotal,
@@ -207,10 +207,10 @@ export default function Store() {
         const storeItem = storeItems.find(item => item.id === c.item_id);
         if (storeItem) {
           const newStock = Math.max(0, (storeItem.stock || 0) - c.quantity);
-          await base44.entities.StoreItem.update(c.item_id, { stock: newStock });
+          await entities.StoreItem.update(c.item_id, { stock: newStock });
         }
 
-        await base44.entities.Purchase.create({
+        await entities.Purchase.create({
           student_id: activeStudent ? (activeStudent.id || activeStudent.student_id) : "admin",
           student_name: activeStudent ? (activeStudent.full_name || activeStudent.name) : "Admin",
           item_id: c.item_id,
@@ -222,7 +222,7 @@ export default function Store() {
       }
 
       // 3. Create financial record (school income)
-      await base44.entities.FinancialRecord.create({
+      await entities.FinancialRecord.create({
         record_type: "income",
         recipient_type: activeStudent ? "student" : "school",
         recipient_name: activeStudent ? (activeStudent.full_name || activeStudent.name) : "School Store",

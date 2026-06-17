@@ -1,6 +1,6 @@
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { 
   Users, 
   Calendar, 
@@ -31,7 +31,7 @@ export default function TeacherDashboard() {
 
   const { data: students = [] } = useQuery({ 
     queryKey: ["teacher-students"], 
-    queryFn: () => base44.entities.Student.list() 
+    queryFn: () => entities.Student.list() 
   });
 
   const containerVariants = {

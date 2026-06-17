@@ -1,6 +1,6 @@
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { useParams, useNavigate } from "react-router-dom";
 import { 
   QrCode, 
@@ -37,7 +37,7 @@ export default function StudentCard() {
 
   const { data: student = {}, isLoading } = useQuery({ 
     queryKey: ["student-detail", id], 
-    queryFn: () => base44.entities.Student.get(id || "S-101") 
+    queryFn: () => entities.Student.get(id || "S-101") 
   });
 
   return (

@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { 
   Users, 
   BookOpen, 
@@ -78,22 +78,22 @@ export default function TeacherPortal() {
 
   const { data: classesQuery = [] } = useQuery({ 
     queryKey: ["teacher-classes", teacherId], 
-    queryFn: () => base44.entities.Subject.filter({ teacher_id: teacherId }) 
+    queryFn: () => entities.Subject.filter({ teacher_id: teacherId }) 
   });
 
   const { data: students = [], isLoading: isLoadingStudents } = useQuery({ 
     queryKey: ["teacher-students"], 
-    queryFn: () => base44.entities.Student.list() 
+    queryFn: () => entities.Student.list() 
   });
 
   const { data: teacherSchedules = [] } = useQuery({
     queryKey: ["teacher-schedules", teacherId],
-    queryFn: () => base44.entities.ClassSchedule.filter({ teacher_id: teacherId })
+    queryFn: () => entities.ClassSchedule.filter({ teacher_id: teacherId })
   });
 
   const { data: teacherTasks = [] } = useQuery({
     queryKey: ["teacher-tasks", teacherId],
-    queryFn: () => base44.entities.TeacherTask.filter({ teacher_id: teacherId })
+    queryFn: () => entities.TeacherTask.filter({ teacher_id: teacherId })
   });
 
   const classes = React.useMemo(() => {
@@ -178,7 +178,7 @@ export default function TeacherPortal() {
 
   const { data: officialAnnouncements = [] } = useQuery({
     queryKey: ["official-announcements-teacher"],
-    queryFn: () => base44.entities.OfficialAnnouncement.list("-created_at")
+    queryFn: () => entities.OfficialAnnouncement.list("-created_at")
   });
 
   const teacherAnnouncements = React.useMemo(() => {
@@ -238,7 +238,7 @@ export default function TeacherPortal() {
   // Average GPA calculation from student grades in database
   const { data: allGrades = [] } = useQuery({
     queryKey: ["teacher-all-students-grades"],
-    queryFn: () => base44.entities.StudentGrade.list()
+    queryFn: () => entities.StudentGrade.list()
   });
 
   const averageGPA = React.useMemo(() => {
@@ -926,7 +926,7 @@ function AttendanceTabContent({ isRTL, classes, students, portalUser }) {
 
       for (const student of classStudents) {
         const status = attendanceRecords[student.id] || "present";
-        await base44.entities.Attendance.create({
+        await entities.Attendance.create({
           student_id: student.id,
           student_name: student.full_name || student.name,
           student_card_id: student.student_id || student.id,
@@ -1125,7 +1125,7 @@ function BadgesTabContent({ isRTL, classes, students, portalUser }) {
 
     setIsAwarding(true);
     try {
-      await base44.entities.StudentAward.create({
+      await entities.StudentAward.create({
         student_id: studentObj.student_id, // uses student_id string (like '0006')
         student_name: studentObj.full_name || studentObj.name,
         award_type: "medal",
@@ -1354,7 +1354,7 @@ function GradesTabContent({ isRTL, classes, students, portalUser }) {
         else if (percentage >= 50) label = "D";
         else label = "F";
 
-        await base44.entities.StudentGrade.create({
+        await entities.StudentGrade.create({
           student_id: student.student_id || student.id,
           student_name: student.full_name || student.name,
           subject_name: `${selectedClass.name} - ${assessmentName}`,

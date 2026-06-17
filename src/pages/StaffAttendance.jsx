@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { 
   ClipboardCheck, 
   Search, 
@@ -37,7 +37,7 @@ export default function StaffAttendance() {
   // جلب قائمة الموظفين
   const { data: staffMembers = [], isLoading: isLoadingStaff } = useQuery({ 
     queryKey: ["staff-members"], 
-    queryFn: () => base44.entities.StaffMember.list("-created_at", 200),
+    queryFn: () => entities.StaffMember.list("-created_at", 200),
     staleTime: 1000 * 60 * 5
   });
 
@@ -46,7 +46,7 @@ export default function StaffAttendance() {
     queryKey: ["staff-attendance", selectedDate],
     // نستخدم type: "staff" للتمييز عن الطلاب
     // @ts-ignore
-    queryFn: () => base44.entities.Attendance.list("-created_at", { date: selectedDate, type: "staff" }, 200),
+    queryFn: () => entities.Attendance.list("-created_at", { date: selectedDate, type: "staff" }, 200),
     staleTime: 1000 * 60 * 2
   });
 
@@ -55,9 +55,9 @@ export default function StaffAttendance() {
     mutationFn: async ({ staffId, staffName, status }) => {
       const existing = attendanceRecords.find(r => r.student_id === staffId); // نخزن معرف الموظف في حقل student_id للسرعة والـ Schema
       if (existing) {
-        return base44.entities.Attendance.update(existing.id, { status, time: format(new Date(), "HH:mm") });
+        return entities.Attendance.update(existing.id, { status, time: format(new Date(), "HH:mm") });
       } else {
-        return base44.entities.Attendance.create({
+        return entities.Attendance.create({
           student_id: staffId,
           student_name: staffName,
           date: selectedDate,

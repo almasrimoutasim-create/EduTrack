@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { 
   ShieldAlert, 
   Search, 
@@ -53,7 +53,7 @@ export default function AuditLog() {
 
   const { data: logs = [], isLoading, refetch, isFetching } = useQuery({ 
     queryKey: ["audit-logs"], 
-    queryFn: () => base44.entities.AuditLog.list("-timestamp", 500),
+    queryFn: () => entities.AuditLog.list("-timestamp", 500),
     staleTime: 1000 * 30
   });
 

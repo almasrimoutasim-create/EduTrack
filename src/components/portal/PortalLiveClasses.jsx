@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Video, LogOut, QrCode } from "lucide-react";
@@ -14,7 +14,7 @@ export default function PortalLiveClasses({ student }) {
 
   const { data: schedules = [] } = useQuery({
     queryKey: ["student-schedule", student?.grade],
-    queryFn: () => base44.entities.ClassSchedule.filter({ grade: student.grade }),
+    queryFn: () => entities.ClassSchedule.filter({ grade: student.grade }),
     enabled: !!student?.grade,
   });
 

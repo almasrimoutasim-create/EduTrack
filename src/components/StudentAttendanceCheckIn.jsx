@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Card } from "@/components/ui/card";
 import QRCodeScanner from "@/components/QRCodeScanner";
@@ -30,7 +30,7 @@ export default function StudentAttendanceCheckIn({ studentId, studentName }) {
 
   const fetchRecentCheckins = async () => {
     try {
-      const records = await base44.entities.Attendance.filter(
+      const records = await entities.Attendance.filter(
         { student_id: studentId },
         "-created_date",
         5
@@ -55,7 +55,7 @@ export default function StudentAttendanceCheckIn({ studentId, studentName }) {
       const dateStr = format(now, "yyyy-MM-dd");
 
       // Create attendance record
-      await base44.entities.Attendance.create({
+      await entities.Attendance.create({
         student_id: studentId,
         student_name: studentName,
         student_card_id: scannedValue,

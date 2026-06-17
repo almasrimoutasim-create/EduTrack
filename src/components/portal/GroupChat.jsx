@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { Input } from "@/components/ui/input";
 import { Send } from "lucide-react";
 
@@ -12,7 +12,7 @@ export default function GroupChat({ group, me }) {
 
   const { data: messages = [] } = useQuery({
     queryKey: ["group-chat", group.id],
-    queryFn: () => base44.entities.PortalGroupMessage.filter({ group_id: group.id }, "-created_date", 100),
+    queryFn: () => entities.PortalGroupMessage.filter({ group_id: group.id }, "-created_date", 100),
     refetchInterval: 3000,
   });
 
@@ -27,7 +27,7 @@ export default function GroupChat({ group, me }) {
   const sendMessage = async () => {
     if (!message.trim()) return;
     setSending(true);
-    await base44.entities.PortalGroupMessage.create({
+    await entities.PortalGroupMessage.create({
       group_id: group.id,
       sender_id: me.id,
       sender_name: me.full_name,

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -20,19 +20,19 @@ export default function PortalGroups({ me }) {
 
   const { data: groups = [] } = useQuery({
     queryKey: ["portal-groups"],
-    queryFn: () => base44.entities.PortalGroup.list(),
+    queryFn: () => entities.PortalGroup.list(),
   });
 
   const { data: groupMessages = [] } = useQuery({
     queryKey: ["group-messages", openGroup?.id],
-    queryFn: () => base44.entities.PortalGroupMessage.filter({ group_id: openGroup?.id }),
+    queryFn: () => entities.PortalGroupMessage.filter({ group_id: openGroup?.id }),
     enabled: !!openGroup,
     refetchInterval: 3000,
   });
 
   const { data: typingIndicators = [] } = useQuery({
     queryKey: ["typing-indicators"],
-    queryFn: () => base44.entities.TypingIndicator.list(),
+    queryFn: () => entities.TypingIndicator.list(),
     refetchInterval: 2000,
     enabled: !!openGroup,
   });
@@ -71,8 +71,8 @@ export default function PortalGroups({ me }) {
     if (!openGroup) return;
     const existing = typingIndicators.find(t => t.typer_id === me.id && t.conversation_key === openGroup.id);
     const payload = { conversation_key: openGroup.id, typer_id: me.id, typer_name: me.full_name, is_typing: isTyping, last_typed: new Date().toISOString() };
-    if (existing) await base44.entities.TypingIndicator.update(existing.id, payload);
-    else await base44.entities.TypingIndicator.create(payload);
+    if (existing) await entities.TypingIndicator.update(existing.id, payload);
+    else await entities.TypingIndicator.create(payload);
   };
 
   const handleInputChange = (e) => {
@@ -88,8 +88,8 @@ export default function PortalGroups({ me }) {
       const pending = pendingMembers(group);
       if (pending.includes(me.id)) return;
       const newPending = [...pending, me.id].join(",");
-      await base44.entities.PortalGroup.update(group.id, { pending_member_ids: newPending });
-      await base44.entities.PortalNotification.create({
+      await entities.PortalGroup.update(group.id, { pending_member_ids: newPending });
+      await entities.PortalNotification.create({
         recipient_id: group.created_by_id,
         message: `${me.full_name} requested to join your group "${group.name}"`,
         type: "group_invite",
@@ -100,7 +100,7 @@ export default function PortalGroups({ me }) {
     } else {
       const members = (group.member_ids || "").split(",").filter(Boolean);
       members.push(me.id);
-      await base44.entities.PortalGroup.update(group.id, { member_ids: members.join(",") });
+      await entities.PortalGroup.update(group.id, { member_ids: members.join(",") });
       qc.invalidateQueries(["portal-groups"]);
     }
   };
@@ -114,7 +114,7 @@ export default function PortalGroups({ me }) {
       members.push(memberId);
       update.member_ids = members.join(",");
     }
-    await base44.entities.PortalGroup.update(group.id, update);
+    await entities.PortalGroup.update(group.id, update);
     qc.invalidateQueries(["portal-groups"]);
     if (openGroup?.id === group.id) {
       setOpenGroup(prev => ({ ...prev, ...update }));
@@ -124,7 +124,7 @@ export default function PortalGroups({ me }) {
 
   const createGroup = async () => {
     if (!newName.trim()) return;
-    await base44.entities.PortalGroup.create({
+    await entities.PortalGroup.create({
       name: newName.trim(),
       description: newDesc.trim(),
       created_by_id: me.id,
@@ -140,7 +140,7 @@ export default function PortalGroups({ me }) {
   const sendMessage = async () => {
     if (!msgInput.trim() || !openGroup) return;
     updateTyping(false);
-    await base44.entities.PortalGroupMessage.create({
+    await entities.PortalGroupMessage.create({
       group_id: openGroup.id,
       sender_id: me.id,
       sender_name: me.full_name,

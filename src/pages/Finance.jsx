@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { useAuth } from "@/lib/AuthContext";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -33,7 +33,7 @@ export default function Finance() {
 
   const studentsQuery = useQuery({
     queryKey: ['students'],
-    queryFn: () => base44.entities.Student.list(),
+    queryFn: () => entities.Student.list(),
     staleTime: 1000 * 60 * 5,
   });
   /** @type {any[]} */
@@ -41,7 +41,7 @@ export default function Finance() {
 
   const teachersQuery = useQuery({
     queryKey: ['teachers'],
-    queryFn: () => base44.entities.Teacher.list(),
+    queryFn: () => entities.Teacher.list(),
     staleTime: 1000 * 60 * 10,
   });
   /** @type {any[]} */
@@ -49,7 +49,7 @@ export default function Finance() {
 
   const staffMembersQuery = useQuery({
     queryKey: ['staff-members'],
-    queryFn: () => base44.entities.StaffMember.list(),
+    queryFn: () => entities.StaffMember.list(),
     staleTime: 1000 * 60 * 10,
   });
   /** @type {any[]} */
@@ -57,7 +57,7 @@ export default function Finance() {
 
   const feeStructuresQuery = useQuery({
     queryKey: ['fee-structures'],
-    queryFn: () => base44.entities.FeeStructure.list(),
+    queryFn: () => entities.FeeStructure.list(),
     staleTime: 1000 * 60 * 10,
   });
   /** @type {any[]} */
@@ -65,7 +65,7 @@ export default function Finance() {
 
   const studentFeesQuery = useQuery({
     queryKey: ['student-fees-all'],
-    queryFn: () => base44.entities.StudentFee.list(),
+    queryFn: () => entities.StudentFee.list(),
     staleTime: 1000 * 60 * 3,
   });
   /** @type {any[]} */
@@ -73,7 +73,7 @@ export default function Finance() {
 
   const feePaymentsQuery = useQuery({
     queryKey: ['fee-payments-all'],
-    queryFn: () => base44.entities.FeePayment.list(),
+    queryFn: () => entities.FeePayment.list(),
     staleTime: 1000 * 60 * 3,
   });
   /** @type {any[]} */
@@ -81,7 +81,7 @@ export default function Finance() {
 
   const activityFeesQuery = useQuery({
     queryKey: ['activity-fees'],
-    queryFn: () => base44.entities.ActivityFee.list(),
+    queryFn: () => entities.ActivityFee.list(),
     staleTime: 1000 * 60 * 5,
   });
   /** @type {any[]} */
@@ -89,7 +89,7 @@ export default function Finance() {
 
   const studentActivityFeesQuery = useQuery({
     queryKey: ['student-activity-fees-all'],
-    queryFn: () => base44.entities.StudentActivityFee.list(),
+    queryFn: () => entities.StudentActivityFee.list(),
     staleTime: 1000 * 60 * 3,
   });
   /** @type {any[]} */
@@ -97,7 +97,7 @@ export default function Finance() {
 
   const walletTxQuery = useQuery({
     queryKey: ['wallet-tx-all'],
-    queryFn: () => base44.entities.WalletTransaction.list(),
+    queryFn: () => entities.WalletTransaction.list(),
     staleTime: 1000 * 60 * 3,
   });
   /** @type {any[]} */
@@ -105,7 +105,7 @@ export default function Finance() {
 
   const purchasesQuery = useQuery({
     queryKey: ['store-purchases'],
-    queryFn: () => base44.entities.Purchase.list(),
+    queryFn: () => entities.Purchase.list(),
     staleTime: 1000 * 60 * 3,
   });
   /** @type {any[]} */
@@ -113,7 +113,7 @@ export default function Finance() {
 
   const hallRentalsQuery = useQuery({
     queryKey: ['hall-rentals'],
-    queryFn: () => base44.entities.HallRental.list(),
+    queryFn: () => entities.HallRental.list(),
     staleTime: 1000 * 60 * 3,
   });
   /** @type {any[]} */
@@ -121,7 +121,7 @@ export default function Finance() {
 
   const donationsQuery = useQuery({
     queryKey: ['donations'],
-    queryFn: () => base44.entities.Donation.list(),
+    queryFn: () => entities.Donation.list(),
     staleTime: 1000 * 60 * 3,
   });
   /** @type {any[]} */
@@ -129,7 +129,7 @@ export default function Finance() {
 
   const otherRevenueQuery = useQuery({
     queryKey: ['other-revenue'],
-    queryFn: () => base44.entities.OtherRevenue.list(),
+    queryFn: () => entities.OtherRevenue.list(),
     staleTime: 1000 * 60 * 3,
   });
   /** @type {any[]} */
@@ -137,7 +137,7 @@ export default function Finance() {
 
   const expensesQuery = useQuery({
     queryKey: ['expenses'],
-    queryFn: () => base44.entities.Expense.list(),
+    queryFn: () => entities.Expense.list(),
     staleTime: 1000 * 60 * 3,
   });
   /** @type {any[]} */
@@ -145,7 +145,7 @@ export default function Finance() {
 
   const salariesQuery = useQuery({
     queryKey: ['salary-records'],
-    queryFn: () => base44.entities.SalaryRecord.list(),
+    queryFn: () => entities.SalaryRecord.list(),
     staleTime: 1000 * 60 * 3,
   });
   /** @type {any[]} */
@@ -153,7 +153,7 @@ export default function Finance() {
 
   const purchaseOrdersQuery = useQuery({
     queryKey: ['purchase-orders'],
-    queryFn: () => base44.entities.PurchaseOrder.list(),
+    queryFn: () => entities.PurchaseOrder.list(),
     staleTime: 1000 * 60 * 3,
   });
   /** @type {any[]} */
@@ -306,7 +306,7 @@ export default function Finance() {
   // Mutations for Tuition Fees
   const createFeeMutation = useMutation({
     /** @param {any} data */
-    mutationFn: async (data) => base44.entities.StudentFee.create(data),
+    mutationFn: async (data) => entities.StudentFee.create(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['student-fees-all'] });
       toast.success('تمت إضافة الرسوم بنجاح');
@@ -323,7 +323,7 @@ export default function Finance() {
 
   const recordPaymentMutation = useMutation({
     /** @param {any} data */
-    mutationFn: async (data) => base44.entities.FeePayment.create(data),
+    mutationFn: async (data) => entities.FeePayment.create(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['fee-payments-all'] });
       qc.invalidateQueries({ queryKey: ['student-fees-all'] });
@@ -413,7 +413,7 @@ export default function Finance() {
 
   const createStructureMutation = useMutation({
     /** @param {any} data */
-    mutationFn: async (data) => base44.entities.FeeStructure.create(data),
+    mutationFn: async (data) => entities.FeeStructure.create(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['fee-structures'] });
       toast.success('تمت إضافة التسعيرة بنجاح');
@@ -426,7 +426,7 @@ export default function Finance() {
 
   const editStructureMutation = useMutation({
     /** @param {any} data */
-    mutationFn: async ({ id, ...data }) => base44.entities.FeeStructure.update(id, data),
+    mutationFn: async ({ id, ...data }) => entities.FeeStructure.update(id, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['fee-structures'] });
       toast.success('تم تعديل التسعيرة بنجاح');
@@ -437,7 +437,7 @@ export default function Finance() {
 
   const toggleStructureMutation = useMutation({
     /** @param {any} data */
-    mutationFn: async ({ id, is_active }) => base44.entities.FeeStructure.update(id, { is_active }),
+    mutationFn: async ({ id, is_active }) => entities.FeeStructure.update(id, { is_active }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['fee-structures'] }),
   });
 
@@ -448,7 +448,7 @@ export default function Finance() {
     for (const s of targets) {
       const exists = studentFees.find(f => f.student_id === s.id && f.fee_structure_id === struct.id);
       if (!exists) {
-        await base44.entities.StudentFee.create({
+        await entities.StudentFee.create({
           student_id: s.id,
           fee_structure_id: struct.id,
           fee_name: struct.fee_name,
@@ -479,11 +479,11 @@ export default function Finance() {
     /** @param {any} data */
     mutationFn: async (data) => {
       const { autoAssign: doAssign, ...actData } = data;
-      const newAct = await base44.entities.ActivityFee.create(actData);
+      const newAct = await entities.ActivityFee.create(actData);
       if (doAssign && actData.grade_level) {
         const targets = students.filter(s => s.grade === actData.grade_level);
         for (const s of targets) {
-          await base44.entities.StudentActivityFee.create({
+          await entities.StudentActivityFee.create({
             student_id: s.id,
             activity_fee_id: newAct.id,
             status: 'pending',
@@ -534,7 +534,7 @@ export default function Finance() {
 
   const createRentalMutation = useMutation({
     /** @param {any} data */
-    mutationFn: async (data) => base44.entities.HallRental.create(data),
+    mutationFn: async (data) => entities.HallRental.create(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['hall-rentals'] });
       toast.success('تم تسجيل الإيجار بنجاح');
@@ -547,7 +547,7 @@ export default function Finance() {
 
   const updateRentalMutation = useMutation({
     /** @param {any} data */
-    mutationFn: async ({ id, ...data }) => base44.entities.HallRental.update(id, data),
+    mutationFn: async ({ id, ...data }) => entities.HallRental.update(id, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['hall-rentals'] });
       toast.success('تم تحديث حالة الإيجار');
@@ -563,7 +563,7 @@ export default function Finance() {
 
   const createDonationMutation = useMutation({
     /** @param {any} data */
-    mutationFn: async (data) => base44.entities.Donation.create(data),
+    mutationFn: async (data) => entities.Donation.create(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['donations'] });
       toast.success('تم تسجيل التبرع بنجاح');
@@ -577,7 +577,7 @@ export default function Finance() {
 
   const sendAckMutation = useMutation({
     /** @param {any} id */
-    mutationFn: async (id) => base44.entities.Donation.update(id, { acknowledgment_sent: true }),
+    mutationFn: async (id) => entities.Donation.update(id, { acknowledgment_sent: true }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['donations'] });
       toast.success('تم تسجيل إرسال الشكر');
@@ -592,7 +592,7 @@ export default function Finance() {
 
   const createOtherRevMutation = useMutation({
     /** @param {any} data */
-    mutationFn: async (data) => base44.entities.OtherRevenue.create(data),
+    mutationFn: async (data) => entities.OtherRevenue.create(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['other-revenue'] });
       toast.success('تم تسجيل الإيراد بنجاح');
@@ -651,7 +651,7 @@ export default function Finance() {
 
   const createExpenseMutation = useMutation({
     /** @param {any} data */
-    mutationFn: async (data) => base44.entities.Expense.create(data),
+    mutationFn: async (data) => entities.Expense.create(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['expenses'] });
       toast.success('تم تسجيل المصروف بنجاح');
@@ -666,7 +666,7 @@ export default function Finance() {
 
   const createSalaryMutation = useMutation({
     /** @param {any} data */
-    mutationFn: async (data) => base44.entities.SalaryRecord.create(data),
+    mutationFn: async (data) => entities.SalaryRecord.create(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['salary-records'] });
       toast.success('تمت إضافة كشف الراتب بنجاح');
@@ -683,7 +683,7 @@ export default function Finance() {
 
   const paySalaryMutation = useMutation({
     /** @param {any} id */
-    mutationFn: async (id) => base44.entities.SalaryRecord.update(id, { status: 'paid', payment_date: new Date().toISOString().split('T')[0] }),
+    mutationFn: async (id) => entities.SalaryRecord.update(id, { status: 'paid', payment_date: new Date().toISOString().split('T')[0] }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['salary-records'] });
       toast.success('تم صرف الراتب بنجاح');
@@ -737,7 +737,7 @@ export default function Finance() {
 
   const createPOMutation = useMutation({
     /** @param {any} data */
-    mutationFn: async (data) => base44.entities.PurchaseOrder.create(data),
+    mutationFn: async (data) => entities.PurchaseOrder.create(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['purchase-orders'] });
       toast.success('تم إنشاء طلب الشراء بنجاح');
@@ -751,7 +751,7 @@ export default function Finance() {
 
   const approvePOMutation = useMutation({
     /** @param {any} id */
-    mutationFn: async (id) => base44.entities.PurchaseOrder.update(id, { status: 'approved', approved_by: user.id, approved_at: new Date().toISOString() }),
+    mutationFn: async (id) => entities.PurchaseOrder.update(id, { status: 'approved', approved_by: user.id, approved_at: new Date().toISOString() }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['purchase-orders'] });
       toast.success('تمت الموافقة على الطلب');
@@ -760,7 +760,7 @@ export default function Finance() {
 
   const cancelPOMutation = useMutation({
     /** @param {any} id */
-    mutationFn: async (id) => base44.entities.PurchaseOrder.update(id, { status: 'cancelled' }),
+    mutationFn: async (id) => entities.PurchaseOrder.update(id, { status: 'cancelled' }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['purchase-orders'] });
       toast.success('تم إلغاء الطلب');
@@ -770,7 +770,7 @@ export default function Finance() {
   const purchaseAsMutation = useMutation({
     /** @param {any} po */
     mutationFn: async (po) => {
-      const exp = await base44.entities.Expense.create({
+      const exp = await entities.Expense.create({
         category: po.category,
         description: po.item_description,
         amount: po.total_amount,
@@ -780,7 +780,7 @@ export default function Finance() {
         academic_year: '2025-2026',
         created_by: user.id,
       });
-      await base44.entities.PurchaseOrder.update(po.id, { status: 'purchased', expense_id: exp.id });
+      await entities.PurchaseOrder.update(po.id, { status: 'purchased', expense_id: exp.id });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['purchase-orders'] });
@@ -792,7 +792,7 @@ export default function Finance() {
 
   const receivePOMutation = useMutation({
     /** @param {any} id */
-    mutationFn: async (id) => base44.entities.PurchaseOrder.update(id, { status: 'received' }),
+    mutationFn: async (id) => entities.PurchaseOrder.update(id, { status: 'received' }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['purchase-orders'] });
       toast.success('تم تأكيد الاستلام');

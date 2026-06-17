@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle } from "lucide-react";
@@ -13,7 +13,7 @@ const STATUS_STYLES = {
 export default function StudentFinesTab({ studentId }) {
   const { data: fines = [], isLoading } = useQuery({
     queryKey: ["fines", studentId],
-    queryFn: () => base44.entities.Fine.filter({ student_id: studentId }, "-date"),
+    queryFn: () => entities.Fine.filter({ student_id: studentId }, "-date"),
     enabled: !!studentId,
   });
 

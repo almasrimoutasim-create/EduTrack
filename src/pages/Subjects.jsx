@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { 
   BookOpen, 
   Plus, 
@@ -46,7 +46,7 @@ export default function Subjects() {
 
   const { data: subjects = [], isLoading } = useQuery({ 
     queryKey: ["subjects"], 
-    queryFn: () => base44.entities.Subject.list() 
+    queryFn: () => entities.Subject.list() 
   });
 
   const handleAdd = () => {
@@ -61,7 +61,7 @@ export default function Subjects() {
 
   const handleDelete = async (subject) => {
     try {
-      await base44.entities.Subject.delete(subject.id);
+      await entities.Subject.delete(subject.id);
       qc.invalidateQueries({ queryKey: ["subjects"] });
       toast.success(isRTL ? "تم حذف المادة" : "Subject deleted");
     } catch (err) {
@@ -72,7 +72,7 @@ export default function Subjects() {
   const handleToggleStatus = async (subject) => {
     const newStatus = subject.status === "inactive" ? "active" : "inactive";
     try {
-      await base44.entities.Subject.update(subject.id, { 
+      await entities.Subject.update(subject.id, { 
         ...subject, 
         status: newStatus 
       });

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { AlertCircle, Loader2, LogIn } from "lucide-react";
@@ -21,7 +21,7 @@ export default function JoinRoomDialog({ isOpen, onClose, onJoinSuccess, student
 
     try {
       // Find room by code
-      const rooms = await base44.entities.StudyRoom.list();
+      const rooms = await entities.StudyRoom.list();
       const room = rooms.find(r => r.code && r.code.toUpperCase() === code.toUpperCase());
 
       if (!room) {

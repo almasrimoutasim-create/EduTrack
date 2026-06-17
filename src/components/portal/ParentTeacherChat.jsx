@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { 
@@ -31,17 +31,17 @@ export default function ParentTeacherChat({ me }) {
   // Queries
   const { data: allStudents = [] } = useQuery({
     queryKey: ["all-students-chat"],
-    queryFn: () => base44.entities.Student.list()
+    queryFn: () => entities.Student.list()
   });
 
   const { data: allTeachers = [] } = useQuery({
     queryKey: ["all-teachers-chat"],
-    queryFn: () => base44.entities.Teacher.list()
+    queryFn: () => entities.Teacher.list()
   });
 
   const { data: allMessages = [], refetch: refetchMessages } = useQuery({
     queryKey: ["private-messages-chat", me.id],
-    queryFn: () => base44.entities.PrivateMessage.list(),
+    queryFn: () => entities.PrivateMessage.list(),
     refetchInterval: 3000 // Real-time poll every 3 seconds
   });
 
@@ -55,7 +55,7 @@ export default function ParentTeacherChat({ me }) {
     if (!activeContact) return;
     const unread = allMessages.filter(m => m.sender_id === activeContact.id && m.receiver_id === me.id && !m.is_read);
     if (unread.length > 0) {
-      Promise.all(unread.map(m => base44.entities.PrivateMessage.update(m.id, { is_read: true })))
+      Promise.all(unread.map(m => entities.PrivateMessage.update(m.id, { is_read: true })))
         .then(() => {
           refetchMessages();
           qc.invalidateQueries({ queryKey: ["private-messages-chat"] });
@@ -160,10 +160,10 @@ export default function ParentTeacherChat({ me }) {
         is_read: false
       };
 
-      await base44.entities.PrivateMessage.create(payload);
+      await entities.PrivateMessage.create(payload);
       
       // Send notification
-      await base44.entities.PortalNotification.create({
+      await entities.PortalNotification.create({
         user_id: activeContact.id,
         title: "رسالة جديدة",
         message: `${me.full_name} أرسل لك رسالة جديدة`,

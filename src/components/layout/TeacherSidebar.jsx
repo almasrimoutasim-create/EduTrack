@@ -7,7 +7,7 @@ import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useAuth } from "@/lib/AuthContext";
@@ -23,7 +23,7 @@ export default function TeacherSidebar() {
 
   const { data: allMessages = [] } = useQuery({
     queryKey: ["private-messages-sidebar-teacher", teacherId],
-    queryFn: () => base44.entities.PrivateMessage.list(),
+    queryFn: () => entities.PrivateMessage.list(),
     refetchInterval: 5000
   });
 
@@ -31,7 +31,7 @@ export default function TeacherSidebar() {
 
   const { data: officialAnnouncements = [] } = useQuery({
     queryKey: ["official-announcements-sidebar-teacher"],
-    queryFn: () => base44.entities.OfficialAnnouncement.list("-created_at")
+    queryFn: () => entities.OfficialAnnouncement.list("-created_at")
   });
   
   const teacherAnnouncements = officialAnnouncements.filter(

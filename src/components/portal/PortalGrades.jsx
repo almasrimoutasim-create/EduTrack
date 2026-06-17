@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { BookOpen, Download } from "lucide-react";
 import GradeTrendChart from "@/components/portal/GradeTrendChart";
@@ -7,7 +7,7 @@ import GradeTrendChart from "@/components/portal/GradeTrendChart";
 export default function PortalGrades({ student }) {
   const { data: grades = [], isLoading } = useQuery({
     queryKey: ["student-grades", student.student_id],
-    queryFn: () => base44.entities.StudentGrade.filter({ student_id: student.student_id }),
+    queryFn: () => entities.StudentGrade.filter({ student_id: student.student_id }),
   });
 
   const pct = (g) => Math.round((g.score / (g.max_score || 100)) * 100);

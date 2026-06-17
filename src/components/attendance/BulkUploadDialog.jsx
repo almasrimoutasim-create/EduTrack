@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -88,7 +88,7 @@ export default function BulkUploadDialog({ open, onClose }) {
     let success = 0, failed = 0;
     for (const rec of parsed) {
       try {
-        await base44.entities.Attendance.create(rec);
+        await entities.Attendance.create(rec);
         success++;
       } catch {
         failed++;

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -18,10 +18,10 @@ export default function StudentPerformancePDF({ teacher }) {
 
     // Fetch all data in parallel
     const [students, grades, attendance, activityPosts] = await Promise.all([
-      base44.entities.Student.filter({ student_id: studentId.trim() }),
-      base44.entities.StudentGrade.filter({ student_id: studentId.trim() }),
-      base44.entities.Attendance.filter({ student_id: studentId.trim() }),
-      base44.entities.ActivityPost.filter({ author_email: "" }), // all posts for activity count
+      entities.Student.filter({ student_id: studentId.trim() }),
+      entities.StudentGrade.filter({ student_id: studentId.trim() }),
+      entities.Attendance.filter({ student_id: studentId.trim() }),
+      entities.ActivityPost.filter({ author_email: "" }), // all posts for activity count
     ]);
 
     if (students.length === 0) { setError("Student not found."); setGenerating(false); return; }

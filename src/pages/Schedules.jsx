@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { 
   Calendar, 
   Plus, 
@@ -140,26 +140,26 @@ export default function Schedules() {
   // Fetch subjects
   const { data: subjects = [] } = useQuery({
     queryKey: ["subjects"],
-    queryFn: () => base44.entities.Subject.list()
+    queryFn: () => entities.Subject.list()
   });
 
   // Fetch all class schedules
   const { data: schedules = [], isLoading } = useQuery({
     queryKey: ["class-schedules"],
-    queryFn: () => base44.entities.ClassSchedule.list("-created_at", 1000)
+    queryFn: () => entities.ClassSchedule.list("-created_at", 1000)
   });
 
   // Fetch library books to link to schedules
   const { data: books = [] } = useQuery({
     queryKey: ["library-books"],
-    queryFn: () => base44.entities.LibraryBook.list("-created_at", 1000)
+    queryFn: () => entities.LibraryBook.list("-created_at", 1000)
   });
 
   // Create schedule mutation
   const createScheduleMutation = useMutation({
     mutationFn: async (newSchedule) => {
       // @ts-ignore
-      return base44.entities.ClassSchedule.create(newSchedule);
+      return entities.ClassSchedule.create(newSchedule);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["class-schedules"] });
@@ -177,7 +177,7 @@ export default function Schedules() {
     // @ts-ignore
     mutationFn: async ({ id, updatedData }) => {
       // @ts-ignore
-      return base44.entities.ClassSchedule.update(id, updatedData);
+      return entities.ClassSchedule.update(id, updatedData);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["class-schedules"] });
@@ -195,7 +195,7 @@ export default function Schedules() {
   const deleteScheduleMutation = useMutation({
     mutationFn: async (id) => {
       // @ts-ignore
-      return base44.entities.ClassSchedule.delete(id);
+      return entities.ClassSchedule.delete(id);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["class-schedules"] });

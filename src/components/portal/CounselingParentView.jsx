@@ -1,6 +1,6 @@
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { 
@@ -13,7 +13,7 @@ export default function CounselingParentView({ studentId }) {
   // 1. Fetch Student Cases
   const { data: cases = [], isLoading: casesLoading } = useQuery({
     queryKey: ["parent-counseling-cases", studentId],
-    queryFn: () => base44.entities.CounselingCase.filter({ student_id: studentId }),
+    queryFn: () => entities.CounselingCase.filter({ student_id: studentId }),
     staleTime: 1000 * 60 * 5,
     enabled: !!studentId
   });
@@ -21,7 +21,7 @@ export default function CounselingParentView({ studentId }) {
   // 2. Fetch all Assessments to find average scores for these cases
   const { data: assessments = [] } = useQuery({
     queryKey: ["parent-counseling-assessments", studentId],
-    queryFn: () => base44.entities.CaseAssessment.list("-created_at", 200),
+    queryFn: () => entities.CaseAssessment.list("-created_at", 200),
     staleTime: 1000 * 60 * 5,
     enabled: !!studentId
   });
@@ -29,7 +29,7 @@ export default function CounselingParentView({ studentId }) {
   // 3. Fetch all Intervention Plans to find recommendations
   const { data: plans = [] } = useQuery({
     queryKey: ["parent-counseling-plans", studentId],
-    queryFn: () => base44.entities.InterventionPlan.list("-created_at", 200),
+    queryFn: () => entities.InterventionPlan.list("-created_at", 200),
     staleTime: 1000 * 60 * 5,
     enabled: !!studentId
   });

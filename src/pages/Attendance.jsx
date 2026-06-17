@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { 
   ClipboardCheck, 
   Search, 
@@ -32,14 +32,14 @@ export default function Attendance() {
 
   const { data: students = [] } = useQuery({ 
     queryKey: ["students"], 
-    queryFn: () => base44.entities.Student.list("-created_at", 500),
+    queryFn: () => entities.Student.list("-created_at", 500),
     staleTime: 1000 * 60 * 10
   });
 
   const { data: attendanceRecords = [], isLoading } = useQuery({
     queryKey: ["attendance", selectedDate],
     // @ts-ignore
-    queryFn: () => base44.entities.Attendance.list("-created_at", { date: selectedDate }, 100),
+    queryFn: () => entities.Attendance.list("-created_at", { date: selectedDate }, 100),
     staleTime: 1000 * 60 * 2
   });
 
@@ -48,9 +48,9 @@ export default function Attendance() {
     mutationFn: async ({ studentId, studentName, status }) => {
       const existing = attendanceRecords.find(r => r.student_id === studentId);
       if (existing) {
-        return base44.entities.Attendance.update(existing.id, { status, time: format(new Date(), "HH:mm") });
+        return entities.Attendance.update(existing.id, { status, time: format(new Date(), "HH:mm") });
       } else {
-        return base44.entities.Attendance.create({
+        return entities.Attendance.create({
           student_id: studentId,
           student_name: studentName,
           date: selectedDate,

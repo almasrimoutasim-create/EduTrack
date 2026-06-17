@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -69,7 +69,7 @@ function GroupFeed({ group, me, onBack }) {
 
   const { data: allStudents = [] } = useQuery({
     queryKey: ["all-students"],
-    queryFn: () => base44.entities.Student.list(),
+    queryFn: () => entities.Student.list(),
   });
 
   const memberIds = [...new Set([...(group.member_ids || "").split(",").filter(Boolean), group.creator_id])];
@@ -78,13 +78,13 @@ function GroupFeed({ group, me, onBack }) {
   const removeMember = async (studentId) => {
     if (studentId === group.creator_id) return; // can't remove creator
     const newIds = (group.member_ids || "").split(",").filter(Boolean).filter(id => id !== studentId);
-    await base44.entities.StudyGroup.update(group.id, { member_ids: newIds.join(",") });
+    await entities.StudyGroup.update(group.id, { member_ids: newIds.join(",") });
     qc.invalidateQueries(["study-groups"]);
   };
 
   const { data: posts = [] } = useQuery({
     queryKey: ["study-group-posts", group.id],
-    queryFn: () => base44.entities.StudyGroupPost.filter({ group_id: group.id }, "-created_date", 50),
+    queryFn: () => entities.StudyGroupPost.filter({ group_id: group.id }, "-created_date", 50),
     refetchInterval: 10000,
   });
 
@@ -112,7 +112,7 @@ function GroupFeed({ group, me, onBack }) {
       else if (mediaFile.type.startsWith("video")) media_type = "video";
       else media_type = "file";
     }
-    await base44.entities.StudyGroupPost.create({
+    await entities.StudyGroupPost.create({
       group_id: group.id,
       author_id: me.id,
       author_name: me.full_name,
@@ -128,7 +128,7 @@ function GroupFeed({ group, me, onBack }) {
   };
 
   const deletePost = async (post) => {
-    await base44.entities.StudyGroupPost.delete(post.id);
+    await entities.StudyGroupPost.delete(post.id);
     qc.invalidateQueries(["study-group-posts", group.id]);
   };
 
@@ -293,7 +293,7 @@ export default function PortalStudyGroups({ me }) {
 
   const { data: groups = [] } = useQuery({
     queryKey: ["study-groups"],
-    queryFn: () => base44.entities.StudyGroup.list("-created_date", 100),
+    queryFn: () => entities.StudyGroup.list("-created_date", 100),
   });
 
   const myGroups = groups.filter(g => isMember(g, me.id));
@@ -305,7 +305,7 @@ export default function PortalStudyGroups({ me }) {
   const createGroup = async () => {
     if (!form.name.trim()) return;
     setCreating(true);
-    await base44.entities.StudyGroup.create({
+    await entities.StudyGroup.create({
       name: form.name.trim(),
       subject: form.subject.trim(),
       description: form.description.trim(),
@@ -324,7 +324,7 @@ export default function PortalStudyGroups({ me }) {
     const members = (group.member_ids || "").split(",").filter(Boolean);
     if (!members.includes(me.id)) {
       members.push(me.id);
-      await base44.entities.StudyGroup.update(group.id, { member_ids: members.join(",") });
+      await entities.StudyGroup.update(group.id, { member_ids: members.join(",") });
       qc.invalidateQueries(["study-groups"]);
     }
     setActiveGroup({ ...group, member_ids: members.join(",") });

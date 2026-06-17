@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import {
   Video, VideoOff, Mic, MicOff, Hand, MessageSquare,
   Send, Users, PhoneOff, Settings, Info, Copy,
@@ -80,13 +80,13 @@ export default function VirtualClassroom() {
   // Fetch actual database students
   const { data: dbStudents = [] } = useQuery({
     queryKey: ["classroom-students"],
-    queryFn: () => base44.entities.Student.list("-created_at")
+    queryFn: () => entities.Student.list("-created_at")
   });
 
   // Query actual active session participants in real-time
   const { data: activeParticipants = [], refetch: refetchParticipants } = useQuery({
     queryKey: ["active-session-participants", sessionId],
-    queryFn: () => base44.entities.SessionParticipant.filter({ session_id: sessionId }),
+    queryFn: () => entities.SessionParticipant.filter({ session_id: sessionId }),
     refetchInterval: 2500, // Poll every 2.5 seconds
     enabled: !isDemo
   });
@@ -94,7 +94,7 @@ export default function VirtualClassroom() {
   // Query database chat messages using the verified database column names
   const { data: dbMessages = [] } = useQuery({
     queryKey: ["room-messages", sessionId],
-    queryFn: () => base44.entities.RoomMessage.filter({ room_id: sessionId }),
+    queryFn: () => entities.RoomMessage.filter({ room_id: sessionId }),
     refetchInterval: 1500, // Poll every 1.5 seconds
     enabled: !isDemo
   });
@@ -103,15 +103,15 @@ export default function VirtualClassroom() {
   const { data: teacherSubjects = [] } = useQuery({
     queryKey: ["teacher-subjects", userId],
     queryFn: () => isTeacher
-      ? base44.entities.Subject.filter({ teacher_id: userId })
-      : base44.entities.Subject.list(),
+      ? entities.Subject.filter({ teacher_id: userId })
+      : entities.Subject.list(),
     enabled: isDemo
   });
 
   // Fetch all virtual sessions in database
   const { data: virtualSessions = [], refetch: refetchSessions } = useQuery({
     queryKey: ["virtual-sessions"],
-    queryFn: () => base44.entities.VirtualSession.list("-created_at"),
+    queryFn: () => entities.VirtualSession.list("-created_at"),
     enabled: isDemo
   });
 
@@ -130,7 +130,7 @@ export default function VirtualClassroom() {
     queryFn: async () => {
       try {
         if (!isValidUUID(id)) throw new Error("Mock fallback");
-        return await base44.entities.VirtualSession.get(id);
+        return await entities.VirtualSession.get(id);
       } catch (e) {
         // Fallback mock details if DB fetching fails
         return {
@@ -210,14 +210,14 @@ export default function VirtualClassroom() {
     const registerParticipant = async () => {
       try {
         // Prevent duplicates: mark any stale active participant session for this user in this room as left
-        const existing = await base44.entities.SessionParticipant.filter({
+        const existing = await entities.SessionParticipant.filter({
           session_id: sessionId,
           user_id: userId
         });
         const activeSessions = existing.filter(p => !p.left_at);
         for (const p of activeSessions) {
           try {
-            await base44.entities.SessionParticipant.update(p.id, {
+            await entities.SessionParticipant.update(p.id, {
               left_at: new Date().toISOString()
             });
           } catch (e) {
@@ -225,7 +225,7 @@ export default function VirtualClassroom() {
           }
         }
 
-        const res = await base44.entities.SessionParticipant.create({
+        const res = await entities.SessionParticipant.create({
           session_id: sessionId,
           user_id: userId,
           user_name: userName,
@@ -251,7 +251,7 @@ export default function VirtualClassroom() {
     return () => {
       active = false;
       if (participantId) {
-        base44.entities.SessionParticipant.update(participantId, {
+        entities.SessionParticipant.update(participantId, {
           left_at: new Date().toISOString()
         }).catch(err => console.error("Error setting left_at on unmount", err));
       }
@@ -355,7 +355,7 @@ export default function VirtualClassroom() {
   // Helper to send a signaling message via RoomMessage entity
   const sendSignal = async (type, targetId, data) => {
     try {
-      await base44.entities.RoomMessage.create({
+      await entities.RoomMessage.create({
         room_id: sessionId,
         sender_name: userName,
         sender_id: userId,
@@ -637,7 +637,7 @@ export default function VirtualClassroom() {
     setMicActive(newState);
     if (myParticipantId) {
       try {
-        await base44.entities.SessionParticipant.update(myParticipantId, { mic_active: newState });
+        await entities.SessionParticipant.update(myParticipantId, { mic_active: newState });
         refetchParticipants();
       } catch (err) {
         console.error("Failed to sync mic toggle", err);
@@ -650,7 +650,7 @@ export default function VirtualClassroom() {
     setVideoActive(newState);
     if (myParticipantId) {
       try {
-        await base44.entities.SessionParticipant.update(myParticipantId, { video_active: newState });
+        await entities.SessionParticipant.update(myParticipantId, { video_active: newState });
         refetchParticipants();
       } catch (err) {
         console.error("Failed to sync video toggle", err);
@@ -663,7 +663,7 @@ export default function VirtualClassroom() {
     setHandRaised(newState);
     if (myParticipantId) {
       try {
-        await base44.entities.SessionParticipant.update(myParticipantId, { hand_raised: newState });
+        await entities.SessionParticipant.update(myParticipantId, { hand_raised: newState });
         refetchParticipants();
       } catch (err) {
         console.error("Failed to sync hand toggle", err);
@@ -676,7 +676,7 @@ export default function VirtualClassroom() {
     const textToSend = chatMessage;
     setChatMessage("");
     try {
-      await base44.entities.RoomMessage.create({
+      await entities.RoomMessage.create({
         room_id: sessionId,
         sender_name: userName,
         sender_id: userId,
@@ -700,7 +700,7 @@ export default function VirtualClassroom() {
     const scheduledDateTime = new Date(`${newSession.scheduled_at}T${newSession.scheduled_time}`).toISOString();
 
     try {
-      await base44.entities.VirtualSession.create({
+      await entities.VirtualSession.create({
         title: newSession.title,
         teacher_id: userId,
         teacher_name: userName,
@@ -722,7 +722,7 @@ export default function VirtualClassroom() {
 
   const handleStartSession = async (sessionItem) => {
     try {
-      await base44.entities.VirtualSession.update(sessionItem.id, {
+      await entities.VirtualSession.update(sessionItem.id, {
         status: "active",
         started_at: new Date().toISOString()
       });
@@ -738,7 +738,7 @@ export default function VirtualClassroom() {
     if (isTeacher) {
       if (confirm(isRTL ? "هل أنت متأكد من إنهاء الفصل الدراسي للجميع؟" : "Are you sure you want to end the session for everyone?")) {
         try {
-          await base44.entities.VirtualSession.update(id, {
+          await entities.VirtualSession.update(id, {
             status: "ended",
             ended_at: new Date().toISOString()
           });
@@ -835,7 +835,7 @@ export default function VirtualClassroom() {
                       const selectedSub = teacherSubjects.find(s => s.id === newSession.subject_id);
                       const roomName = `room-${Math.random().toString(36).substr(2, 9)}`;
                       try {
-                        const res = await base44.entities.VirtualSession.create({
+                        const res = await entities.VirtualSession.create({
                           title: newSession.title,
                           teacher_id: userId,
                           teacher_name: userName,

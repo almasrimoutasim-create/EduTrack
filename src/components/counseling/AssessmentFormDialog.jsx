@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { useAuth } from "@/lib/AuthContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -34,7 +34,7 @@ export default function AssessmentFormDialog({ open, onOpenChange, caseId, onSuc
     mutationFn: async () => {
       if (!user?.id) throw new Error("User ID is missing");
       const avg = ((academicScore + behavioralScore + socialScore + psychologicalScore) / 4.0).toFixed(2);
-      return base44.entities.CaseAssessment.create({
+      return entities.CaseAssessment.create({
         case_id: caseId,
         academic_score: String(academicScore),
         behavioral_score: String(behavioralScore),

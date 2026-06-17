@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -29,17 +29,17 @@ export default function RateTeachersTab({ me }) {
 
   const { data: teachers = [] } = useQuery({
     queryKey: ["all-teachers-rate"],
-    queryFn: () => base44.entities.Teacher.list(),
+    queryFn: () => entities.Teacher.list(),
   });
 
   const { data: myRatings = [] } = useQuery({
     queryKey: ["my-teacher-ratings", me.id],
-    queryFn: () => base44.entities.TeacherRating.filter({ rater_id: me.id }),
+    queryFn: () => entities.TeacherRating.filter({ rater_id: me.id }),
   });
 
   const { data: allRatings = [] } = useQuery({
     queryKey: ["all-teacher-ratings-summary"],
-    queryFn: () => base44.entities.TeacherRating.list(),
+    queryFn: () => entities.TeacherRating.list(),
   });
 
   const alreadyRated = (teacherId) => myRatings.some(r => r.teacher_id === teacherId);
@@ -53,7 +53,7 @@ export default function RateTeachersTab({ me }) {
   const submit = async () => {
     if (!selected) return;
     setSaving(true);
-    await base44.entities.TeacherRating.create({
+    await entities.TeacherRating.create({
       teacher_id: selected.id,
       teacher_name: selected.full_name,
       rater_id: me.id,

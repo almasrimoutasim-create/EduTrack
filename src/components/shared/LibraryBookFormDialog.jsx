@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useLanguage } from "@/lib/LanguageContext";
 import { FileUp, Loader2, Book } from "lucide-react";
@@ -64,7 +64,7 @@ export default function LibraryBookFormDialog({ open, onClose, book }) {
   // Fetch subjects from the database to link to
   const { data: subjects = [] } = useQuery({
     queryKey: ["subjects"],
-    queryFn: () => base44.entities.Subject.list()
+    queryFn: () => entities.Subject.list()
   });
 
   useEffect(() => {
@@ -182,9 +182,9 @@ export default function LibraryBookFormDialog({ open, onClose, book }) {
       });
 
       if (isEdit) {
-        await base44.entities.LibraryBook.update(book.id, cleanedForm);
+        await entities.LibraryBook.update(book.id, cleanedForm);
       } else {
-        await base44.entities.LibraryBook.create({
+        await entities.LibraryBook.create({
           ...cleanedForm,
           status: "available"
         });

@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 const types = [
@@ -29,7 +29,7 @@ export default function StudyMaterialFormDialog({ open, onClose, material }) {
 
   const { data: subjects = [] } = useQuery({
     queryKey: ["subjects-list"],
-    queryFn: () => base44.entities.Subject.list()
+    queryFn: () => entities.Subject.list()
   });
 
   useEffect(() => {
@@ -47,9 +47,9 @@ export default function StudyMaterialFormDialog({ open, onClose, material }) {
     setSaving(true);
     try {
       if (isEdit) {
-        await base44.entities.StudyMaterial.update(material.id, form);
+        await entities.StudyMaterial.update(material.id, form);
       } else {
-        await base44.entities.StudyMaterial.create(form);
+        await entities.StudyMaterial.create(form);
       }
       qc.invalidateQueries({ queryKey: ["materials"] });
       onClose();

@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { Card } from "@/components/ui/card";
 import { Trophy, Zap, Medal } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
@@ -17,17 +17,17 @@ export default function LeaderboardWidget() {
 
   const { data: awards = [] } = useQuery({
     queryKey: ["all-awards-leaderboard"],
-    queryFn: () => base44.entities.StudentAward.list(),
+    queryFn: () => entities.StudentAward.list(),
   });
 
   const { data: posts = [] } = useQuery({
     queryKey: ["all-posts-leaderboard"],
-    queryFn: () => base44.entities.ActivityPost.list(),
+    queryFn: () => entities.ActivityPost.list(),
   });
 
   const { data: students = [] } = useQuery({
     queryKey: ["students-leaderboard"],
-    queryFn: () => base44.entities.Student.filter({ status: "active" }),
+    queryFn: () => entities.Student.filter({ status: "active" }),
   });
 
   const scoreMap = {};

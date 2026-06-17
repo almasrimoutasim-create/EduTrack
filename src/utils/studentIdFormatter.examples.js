@@ -90,7 +90,7 @@ console.log(displayStudentId("0001"));    // "0001"
 // StudentForm Component Usage (auto-generates ID)
 // const [students] = useQuery({
 //   queryKey: ["students"],
-//   queryFn: () => base44.entities.Student.list()
+//   queryFn: () => entities.Student.list()
 // });
 // // Auto-generates next ID: 0001, 0002, 0003, etc.
 
@@ -102,7 +102,7 @@ console.log('\n=== Example 6: Database Insert ===');
 
 async function createNewStudent(formData) {
   // Get all existing students
-  const existingStudents = await base44.entities.Student.list();
+  const existingStudents = await entities.Student.list();
   
   // Calculate next ID
   const studentId = getNextStudentId(existingStudents);
@@ -115,7 +115,7 @@ async function createNewStudent(formData) {
   };
   
   // Save to database
-  const savedStudent = await base44.entities.Student.create(studentData);
+  const savedStudent = await entities.Student.create(studentData);
   console.log(`Student created with ID: ${savedStudent.student_id}`);
   
   return savedStudent;
@@ -171,7 +171,7 @@ async function findStudentById(searchId) {
   const formattedId = formatStudentId(searchId);
   
   // Search in database
-  const results = await base44.entities.Student.filter({
+  const results = await entities.Student.filter({
     student_id: formattedId
   });
   

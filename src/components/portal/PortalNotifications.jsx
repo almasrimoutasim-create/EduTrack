@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { Bell, Users, MessageCircle, UserCheck, Trophy, AlertTriangle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -20,13 +20,13 @@ export default function PortalNotifications({ me }) {
 
   const { data: notifs = [] } = useQuery({
     queryKey: ["portal-notifs", me.id],
-    queryFn: () => base44.entities.PortalNotification.filter({ recipient_id: me.id }),
+    queryFn: () => entities.PortalNotification.filter({ recipient_id: me.id }),
     refetchInterval: 10000,
   });
 
   const { data: fines = [] } = useQuery({
     queryKey: ["student-fines", me.id],
-    queryFn: () => base44.entities.Fine.filter({ student_id: me.id }),
+    queryFn: () => entities.Fine.filter({ student_id: me.id }),
     enabled: !!me?.id,
   });
 
@@ -34,7 +34,7 @@ export default function PortalNotifications({ me }) {
   useEffect(() => {
     const unread = notifs.filter(n => !n.is_read);
     if (unread.length === 0) return;
-    Promise.all(unread.map(n => base44.entities.PortalNotification.update(n.id, { is_read: true }))).then(() => {
+    Promise.all(unread.map(n => entities.PortalNotification.update(n.id, { is_read: true }))).then(() => {
       qc.invalidateQueries(["portal-notifs"]);
     });
   }, [notifs.length]);

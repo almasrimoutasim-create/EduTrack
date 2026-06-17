@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -12,13 +12,13 @@ export default function ParentActivityLog({ student, privacyMode }) {
   // Fetch attendance records
   const { data: attendance = [] } = useQuery({
     queryKey: ["parent-attendance", student.id],
-    queryFn: () => base44.entities.Attendance.filter({ student_id: student.id }, "-date"),
+    queryFn: () => entities.Attendance.filter({ student_id: student.id }, "-date"),
   });
 
   // Fetch paid fines
   const { data: fines = [] } = useQuery({
     queryKey: ["parent-fines-history", student.id],
-    queryFn: () => base44.entities.Fine.filter({ student_id: student.id }, "-created_date"),
+    queryFn: () => entities.Fine.filter({ student_id: student.id }, "-created_date"),
   });
 
   const paidFines = fines.filter(f => f.status === "paid");

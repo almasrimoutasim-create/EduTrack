@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { 
   GraduationCap, 
   Search, 
@@ -42,7 +42,7 @@ export default function Teachers() {
 
   const { data: teachers = [], isLoading } = useQuery({ 
     queryKey: ["teachers"], 
-    queryFn: () => base44.entities.Teacher.list("-created_at", 100),
+    queryFn: () => entities.Teacher.list("-created_at", 100),
     staleTime: 1000 * 60 * 10
   });
 
@@ -58,7 +58,7 @@ export default function Teachers() {
 
   const handleDelete = async (teacher) => {
     try {
-      await base44.entities.Teacher.delete(teacher.id);
+      await entities.Teacher.delete(teacher.id);
       toast.success(isRTL ? "تم حذف المعلم" : "Teacher deleted");
     } catch (err) {
       toast.error(isRTL ? "فشل الحذف" : "Failed to delete");

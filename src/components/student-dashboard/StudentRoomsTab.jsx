@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -65,7 +65,7 @@ export default function StudentRoomsTab({ studentGrade }) {
 
   const { data: rooms = [] } = useQuery({
     queryKey: ["study-rooms"],
-    queryFn: () => base44.entities.StudyRoom.list("-created_date"),
+    queryFn: () => entities.StudyRoom.list("-created_date"),
   });
 
   const available = rooms.filter(r =>

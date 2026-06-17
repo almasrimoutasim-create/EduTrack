@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -27,7 +27,7 @@ export default function AdminChats() {
   // Queries
   const { data: allMessages = [], isLoading } = useQuery({
     queryKey: ["admin-private-messages"],
-    queryFn: () => base44.entities.PrivateMessage.list(),
+    queryFn: () => entities.PrivateMessage.list(),
     refetchInterval: 5000 // Refresh every 5 seconds for real-time monitoring
   });
 

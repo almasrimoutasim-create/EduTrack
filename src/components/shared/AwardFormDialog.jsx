@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { DatePicker } from "@/components/ui/date-picker";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { useQueryClient } from "@tanstack/react-query";
 import { useQuery } from "@tanstack/react-query";
 
@@ -42,7 +42,7 @@ export default function AwardFormDialog({ open, onClose, award }) {
 
   const { data: students = [] } = useQuery({
     queryKey: ["students-for-award"],
-    queryFn: () => base44.entities.Student.list("-created_date", 200),
+    queryFn: () => entities.Student.list("-created_date", 200),
     enabled: open,
   });
 
@@ -67,9 +67,9 @@ export default function AwardFormDialog({ open, onClose, award }) {
     setSaving(true);
     try {
       if (isEdit) {
-        await base44.entities.StudentAward.update(award.id, form);
+        await entities.StudentAward.update(award.id, form);
       } else {
-        await base44.entities.StudentAward.create(form);
+        await entities.StudentAward.create(form);
       }
       qc.invalidateQueries({ queryKey: ["awards-list"] });
       onClose();

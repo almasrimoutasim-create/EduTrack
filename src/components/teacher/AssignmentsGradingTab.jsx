@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 // Mock Initial Data
@@ -357,7 +357,7 @@ export default function AssignmentsGradingTab({ isRTL = true, subjects = [] }) {
 
       // Post an official announcement to notify students about the new assignment
       try {
-        base44.entities.OfficialAnnouncement.create({
+        entities.OfficialAnnouncement.create({
           title: isRTL ? `واجب جديد: ${newAsm.title}` : `New Assignment: ${newAsm.title}`,
           content: isRTL 
             ? `قام المعلم بنشر واجب جديد لمادة (${newAsm.subject})، آخر موعد للتسليم هو ${newAsm.dueDate}.` 

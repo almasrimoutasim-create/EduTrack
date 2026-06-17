@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Bell, CheckCheck, AlertTriangle, Clock } from "lucide-react";
@@ -11,20 +11,20 @@ export default function TeacherNotificationsTab({ teacher }) {
   const { data: notifications = [], isLoading } = useQuery({
     queryKey: ["teacher-notifications", teacher.id],
     queryFn: () =>
-      base44.entities.PortalNotification.filter({ recipient_id: teacher.id }, "-created_date", 50),
+      entities.PortalNotification.filter({ recipient_id: teacher.id }, "-created_date", 50),
     refetchInterval: 30000,
   });
 
   const unread = notifications.filter(n => !n.is_read);
 
   const markAllRead = async () => {
-    await Promise.all(unread.map(n => base44.entities.PortalNotification.update(n.id, { is_read: true })));
+    await Promise.all(unread.map(n => entities.PortalNotification.update(n.id, { is_read: true })));
     qc.invalidateQueries(["teacher-notifications", teacher.id]);
   };
 
   const markRead = async (n) => {
     if (n.is_read) return;
-    await base44.entities.PortalNotification.update(n.id, { is_read: true });
+    await entities.PortalNotification.update(n.id, { is_read: true });
     qc.invalidateQueries(["teacher-notifications", teacher.id]);
   };
 

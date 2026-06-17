@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { 
   Calendar, 
   XCircle, 
@@ -45,19 +45,19 @@ export default function AttendanceSummary() {
   // Fetch Students
   const { data: students = [] } = useQuery({ 
     queryKey: ["students-list-summary"], 
-    queryFn: () => base44.entities.Student.list() 
+    queryFn: () => entities.Student.list() 
   });
 
   // Fetch Staff Members
   const { data: staffMembers = [] } = useQuery({ 
     queryKey: ["staff-list-summary"], 
-    queryFn: () => base44.entities.StaffMember.list() 
+    queryFn: () => entities.StaffMember.list() 
   });
 
   // Fetch Attendance records
   const { data: records = [], refetch, isRefetching } = useQuery({ 
     queryKey: ["attendance-summary-data"], 
-    queryFn: () => base44.entities.Attendance.list("-created_at", 150) 
+    queryFn: () => entities.Attendance.list("-created_at", 150) 
   });
 
   const containerVariants = {

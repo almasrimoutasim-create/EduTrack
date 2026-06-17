@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ArrowLeft, Send, MessageCircle, Check, CheckCheck } from "lucide-react";
@@ -27,29 +27,29 @@ export default function PortalChat({ me }) {
 
   const { data: allStudents = [] } = useQuery({
     queryKey: ["all-students"],
-    queryFn: () => base44.entities.Student.list(),
+    queryFn: () => entities.Student.list(),
   });
   const { data: allTeachers = [] } = useQuery({
     queryKey: ["all-teachers"],
-    queryFn: () => base44.entities.Teacher.list(),
+    queryFn: () => entities.Teacher.list(),
   });
   const { data: requests = [] } = useQuery({
     queryKey: ["friend-requests", me.id],
-    queryFn: () => base44.entities.FriendRequest.list(),
+    queryFn: () => entities.FriendRequest.list(),
   });
   const { data: allMessages = [] } = useQuery({
     queryKey: ["private-messages", me.id],
-    queryFn: () => base44.entities.PrivateMessage.list(),
+    queryFn: () => entities.PrivateMessage.list(),
     refetchInterval: 3000,
   });
   const { data: readReceipts = [] } = useQuery({
     queryKey: ["read-receipts"],
-    queryFn: () => base44.entities.MessageReadReceipt.list(),
+    queryFn: () => entities.MessageReadReceipt.list(),
     refetchInterval: 3000,
   });
   const { data: typingIndicators = [] } = useQuery({
     queryKey: ["typing-indicators"],
-    queryFn: () => base44.entities.TypingIndicator.list(),
+    queryFn: () => entities.TypingIndicator.list(),
     refetchInterval: 2000,
     enabled: !!activeFriend,
   });
@@ -75,7 +75,7 @@ export default function PortalChat({ me }) {
     unread.forEach(async (msg) => {
       const alreadyRead = readReceipts.some(r => r.message_id === msg.id && r.reader_id === me.id);
       if (!alreadyRead) {
-        await base44.entities.MessageReadReceipt.create({
+        await entities.MessageReadReceipt.create({
           message_id: msg.id,
           reader_id: me.id,
           conversation_key: convKey,
@@ -103,9 +103,9 @@ export default function PortalChat({ me }) {
     const existing = typingIndicators.find(t => t.typer_id === me.id && t.conversation_key === convKey);
     const payload = { conversation_key: convKey, typer_id: me.id, typer_name: me.full_name, is_typing: isTyping, last_typed: new Date().toISOString() };
     if (existing) {
-      await base44.entities.TypingIndicator.update(existing.id, payload);
+      await entities.TypingIndicator.update(existing.id, payload);
     } else {
-      await base44.entities.TypingIndicator.create(payload);
+      await entities.TypingIndicator.create(payload);
     }
   };
 
@@ -120,7 +120,7 @@ export default function PortalChat({ me }) {
   const sendMessage = async () => {
     if (!msgInput.trim() || !activeFriend) return;
     updateTyping(false);
-    await base44.entities.PrivateMessage.create({
+    await entities.PrivateMessage.create({
       conversation_key: convKey,
       sender_id: me.id,
       sender_name: me.full_name,
@@ -129,7 +129,7 @@ export default function PortalChat({ me }) {
       message: msgInput.trim(),
     });
     // Only create notification if not already in this conversation (can't check here easily, always create — receiver ignores if they have chat open)
-    await base44.entities.PortalNotification.create({
+    await entities.PortalNotification.create({
       recipient_id: activeFriend.id,
       message: `${me.full_name} sent you a message`,
       type: "message",

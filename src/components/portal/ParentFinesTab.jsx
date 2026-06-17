@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -75,7 +75,7 @@ export default function ParentFinesTab({ student, privacyMode }) {
   const { data: fines = [] } = useQuery({
     queryKey: ["parent-fines", student?.id],
     enabled: !!student?.id,
-    queryFn: () => base44.entities.Fine.filter({ student_id: student.id }, "-created_date"),
+    queryFn: () => entities.Fine.filter({ student_id: student.id }, "-created_date"),
   });
 
   const pending = fines.filter(f => f.status === "pending");
@@ -96,11 +96,11 @@ export default function ParentFinesTab({ student, privacyMode }) {
       }
 
       setPaying(fine.id);
-      await base44.entities.Fine.update(fine.id, { status: "paid" });
-      await base44.entities.Student.update(student.id, { card_balance: studentBalance - fineAmount });
+      await entities.Fine.update(fine.id, { status: "paid" });
+      await entities.Student.update(student.id, { card_balance: studentBalance - fineAmount });
       
       // Track payment in financial records
-      await base44.entities.FinancialRecord.create({
+      await entities.FinancialRecord.create({
         type: "income",
         record_type: "fine_payment",
         recipient_type: "student",
@@ -124,10 +124,10 @@ export default function ParentFinesTab({ student, privacyMode }) {
     setPaying(paymentDialog.id);
     const fineAmount = parseFloat(paymentDialog.amount) || 0;
     try {
-      await base44.entities.Fine.update(paymentDialog.id, { status: "paid" });
+      await entities.Fine.update(paymentDialog.id, { status: "paid" });
       
       // Track payment in financial records
-      await base44.entities.FinancialRecord.create({
+      await entities.FinancialRecord.create({
         type: "income",
         record_type: "fine_payment",
         recipient_type: "student",

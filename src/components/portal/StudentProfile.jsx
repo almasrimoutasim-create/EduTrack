@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -49,32 +49,32 @@ export default function StudentProfile({ student, me, onBack }) {
 
   const { data: awards = [] } = useQuery({
     queryKey: ["student-awards", student.id],
-    queryFn: () => base44.entities.StudentAward.filter({ student_id: student.id })
+    queryFn: () => entities.StudentAward.filter({ student_id: student.id })
   });
   const { data: grades = [] } = useQuery({
     queryKey: ["student-grades-profile", student.id],
-    queryFn: () => base44.entities.StudentGrade.filter({ student_id: student.id })
+    queryFn: () => entities.StudentGrade.filter({ student_id: student.id })
   });
   const { data: allPosts = [] } = useQuery({
     queryKey: ["activity-posts"],
-    queryFn: () => base44.entities.ActivityPost.list("-created_date", 100),
+    queryFn: () => entities.ActivityPost.list("-created_date", 100),
     refetchInterval: 20000
   });
   const { data: comments = [] } = useQuery({
     queryKey: ["activity-comments"],
-    queryFn: () => base44.entities.ActivityComment.list()
+    queryFn: () => entities.ActivityComment.list()
   });
   const { data: allStudents = [] } = useQuery({
     queryKey: ["all-students"],
-    queryFn: () => base44.entities.Student.list()
+    queryFn: () => entities.Student.list()
   });
   const { data: allGroups = [] } = useQuery({
     queryKey: ["portal-groups"],
-    queryFn: () => base44.entities.PortalGroup.list()
+    queryFn: () => entities.PortalGroup.list()
   });
   const { data: requests = [] } = useQuery({
     queryKey: ["friend-requests", me?.id],
-    queryFn: () => base44.entities.FriendRequest.list(),
+    queryFn: () => entities.FriendRequest.list(),
     enabled: !!me
   });
 
@@ -107,7 +107,7 @@ export default function StudentProfile({ student, me, onBack }) {
     if (!file) return;
     setSaving(true);
     const { file_url } = await base44.integrations.Core.UploadFile({ file });
-    const updated = await base44.entities.Student.update(student.id, { [field]: file_url });
+    const updated = await entities.Student.update(student.id, { [field]: file_url });
     setLocalStudent((prev) => ({ ...prev, [field]: file_url }));
     qc.invalidateQueries(["all-students"]);
     setSaving(false);
@@ -115,7 +115,7 @@ export default function StudentProfile({ student, me, onBack }) {
 
   const saveBio = async () => {
     setSaving(true);
-    await base44.entities.Student.update(student.id, { bio: bioValue });
+    await entities.Student.update(student.id, { bio: bioValue });
     setLocalStudent((prev) => ({ ...prev, bio: bioValue }));
     setEditingBio(false);
     setSaving(false);
@@ -126,7 +126,7 @@ export default function StudentProfile({ student, me, onBack }) {
     const liked = (post.liked_by || "").split(",").filter(Boolean);
     const alreadyLiked = liked.includes(me.id);
     const newLiked = alreadyLiked ? liked.filter((id) => id !== me.id) : [...liked, me.id];
-    await base44.entities.ActivityPost.update(post.id, { likes: newLiked.length, liked_by: newLiked.join(",") });
+    await entities.ActivityPost.update(post.id, { likes: newLiked.length, liked_by: newLiked.join(",") });
     qc.invalidateQueries(["activity-posts"]);
   };
 
@@ -134,7 +134,7 @@ export default function StudentProfile({ student, me, onBack }) {
     if (!me) return;
     const text = commentInputs[postId]?.trim();
     if (!text) return;
-    await base44.entities.ActivityComment.create({
+    await entities.ActivityComment.create({
       post_id: postId, author_name: me.full_name,
       author_email: me.student_id, author_role: "student", content: text
     });

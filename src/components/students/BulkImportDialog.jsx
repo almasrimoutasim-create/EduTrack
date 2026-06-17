@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -75,7 +75,7 @@ export default function BulkImportDialog({ open, onOpenChange }) {
         }
 
         try {
-          await base44.entities.Student.create({
+          await entities.Student.create({
             full_name: record.full_name,
             student_id: record.student_id,
             grade: record.grade,

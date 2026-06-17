@@ -1,6 +1,6 @@
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { 
   Bell, 
   MessageCircle, 
@@ -38,7 +38,7 @@ export default function ActivityFeed() {
   const { data: activities = [], isLoading } = useQuery({ 
     queryKey: ["all-activity"], 
     // @ts-ignore
-    queryFn: () => base44.entities.ActivityPost.list("-created_at", {}, 50) 
+    queryFn: () => entities.ActivityPost.list("-created_at", {}, 50) 
   });
 
   const getActivityIcon = (type) => {

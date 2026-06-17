@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { Bell, MessageSquare, X } from "lucide-react";
 import { format } from "date-fns";
 
@@ -10,14 +10,14 @@ export default function ClassStartNotification({ student }) {
 
   const { data: schedule = [] } = useQuery({
     queryKey: ["student-schedule", student?.grade],
-    queryFn: () => base44.entities.ClassSchedule.filter({ grade: student.grade }),
+    queryFn: () => entities.ClassSchedule.filter({ grade: student.grade }),
     enabled: !!student?.grade,
     refetchInterval: 60000, // Check every minute
   });
 
   const { data: rooms = [] } = useQuery({
     queryKey: ["live-rooms"],
-    queryFn: () => base44.entities.StudyRoom.filter({ status: "live" }),
+    queryFn: () => entities.StudyRoom.filter({ status: "live" }),
     refetchInterval: 30000,
   });
 

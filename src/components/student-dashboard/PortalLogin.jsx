@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,7 +18,7 @@ export default function PortalLogin({ onLogin }) {
     setLoading(true);
     setError("");
 
-    const results = await base44.entities.Student.filter({ student_id: studentId.trim() });
+    const results = await entities.Student.filter({ student_id: studentId.trim() });
     const student = results[0];
 
     if (!student) {

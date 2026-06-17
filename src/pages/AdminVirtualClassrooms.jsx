@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { useNavigate } from "react-router-dom";
 import { useLanguage } from "@/lib/LanguageContext";
 import { motion, AnimatePresence } from "framer-motion";
@@ -30,21 +30,21 @@ export default function AdminVirtualClassrooms() {
     dataUpdatedAt
   } = useQuery({
     queryKey: ["admin-virtual-sessions"],
-    queryFn: () => base44.entities.VirtualSession.list("-created_at"),
+    queryFn: () => entities.VirtualSession.list("-created_at"),
     refetchInterval: 10000 // Auto-refresh every 10 seconds
   });
 
   // 2. Fetch all session participants from DB
   const { data: allParticipants = [], refetch: refetchParticipants } = useQuery({
     queryKey: ["admin-all-participants"],
-    queryFn: () => base44.entities.SessionParticipant.list("-joined_at"),
+    queryFn: () => entities.SessionParticipant.list("-joined_at"),
     refetchInterval: 8000 // Auto-refresh every 8 seconds
   });
 
   // 3. Fetch all subjects to map subject_id -> grade (class name)
   const { data: allSubjects = [] } = useQuery({
     queryKey: ["admin-all-subjects"],
-    queryFn: () => base44.entities.Subject.list("name"),
+    queryFn: () => entities.Subject.list("name"),
     staleTime: 1000 * 60 * 5 // Cache for 5 min (subjects rarely change)
   });
 

@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { useState, useRef } from "react";
@@ -17,13 +17,13 @@ export default function PortalActivityFeed({ me }) {
 
   const { data: posts = [] } = useQuery({
     queryKey: ["activity-posts"],
-    queryFn: () => base44.entities.ActivityPost.list("-created_date", 50),
+    queryFn: () => entities.ActivityPost.list("-created_date", 50),
     refetchInterval: 15000,
   });
 
   const { data: comments = [] } = useQuery({
     queryKey: ["activity-comments"],
-    queryFn: () => base44.entities.ActivityComment.list(),
+    queryFn: () => entities.ActivityComment.list(),
   });
 
   const handleFileSelect = (e) => {
@@ -43,7 +43,7 @@ export default function PortalActivityFeed({ me }) {
       media_url = file_url;
       media_type = mediaFile.type.startsWith("video") ? "video" : "image";
     }
-    await base44.entities.ActivityPost.create({
+    await entities.ActivityPost.create({
       author_name: me.full_name,
       author_email: me.student_id,
       author_role: "student",
@@ -63,7 +63,7 @@ export default function PortalActivityFeed({ me }) {
     const liked = (post.liked_by || "").split(",").filter(Boolean);
     const alreadyLiked = liked.includes(me.id);
     const newLiked = alreadyLiked ? liked.filter(id => id !== me.id) : [...liked, me.id];
-    await base44.entities.ActivityPost.update(post.id, {
+    await entities.ActivityPost.update(post.id, {
       likes: newLiked.length,
       liked_by: newLiked.join(","),
     });
@@ -73,7 +73,7 @@ export default function PortalActivityFeed({ me }) {
   const sendComment = async (postId) => {
     const text = commentInputs[postId]?.trim();
     if (!text) return;
-    await base44.entities.ActivityComment.create({
+    await entities.ActivityComment.create({
       post_id: postId,
       author_name: me.full_name,
       author_email: me.student_id,
@@ -85,7 +85,7 @@ export default function PortalActivityFeed({ me }) {
   };
 
   const deletePost = async (post) => {
-    await base44.entities.ActivityPost.delete(post.id);
+    await entities.ActivityPost.delete(post.id);
     qc.invalidateQueries(["activity-posts"]);
   };
 

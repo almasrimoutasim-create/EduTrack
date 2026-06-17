@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { 
   Users, 
   Search, 
@@ -34,7 +34,7 @@ export default function StudyRooms() {
 
   const { data: studyRooms = [], isLoading } = useQuery({ 
     queryKey: ["study-rooms"], 
-    queryFn: () => base44.entities.StudyRoom.list("-created_date", 20) 
+    queryFn: () => entities.StudyRoom.list("-created_date", 20) 
   });
 
   const handleAdd = () => {
@@ -44,7 +44,7 @@ export default function StudyRooms() {
 
   const handleDelete = async (room) => {
     try {
-      await base44.entities.StudyRoom.delete(room.id);
+      await entities.StudyRoom.delete(room.id);
       toast.success(isRTL ? "تم حذف القاعة" : "Room deleted");
     } catch (err) {
       toast.error(isRTL ? "فشل الحذف" : "Failed to delete");

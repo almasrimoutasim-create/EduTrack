@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { toast } from "sonner";
 import { 
   Sparkles, 
@@ -72,7 +72,7 @@ export default function StudentPortal() {
         minute: "2-digit" 
       });
 
-      await base44.entities.Attendance.create({
+      await entities.Attendance.create({
         student_id: student.id,
         student_name: student.full_name || student.name,
         student_card_id: student.student_id || student.id,
@@ -115,55 +115,55 @@ export default function StudentPortal() {
   
   const { data: student = {} } = useQuery({ 
     queryKey: ["student-profile", studentId], 
-    queryFn: () => base44.entities.Student.get(studentId) 
+    queryFn: () => entities.Student.get(studentId) 
   });
 
   const { data: storePurchases = [] } = useQuery({
     queryKey: ["store-purchases", studentId],
-    queryFn: () => base44.entities.Purchase.filter({ student_id: studentId })
+    queryFn: () => entities.Purchase.filter({ student_id: studentId })
   });
 
   const { data: attendanceLogs = [] } = useQuery({
     queryKey: ["student-attendance", studentId],
-    queryFn: () => base44.entities.Attendance.filter({ student_id: studentId }, "-date")
+    queryFn: () => entities.Attendance.filter({ student_id: studentId }, "-date")
   });
 
   const { data: allStudyMaterials = [] } = useQuery({
     queryKey: ["student-all-study-materials"],
-    queryFn: () => base44.entities.StudyMaterial.list("-created_date", 200)
+    queryFn: () => entities.StudyMaterial.list("-created_date", 200)
   });
 
   const { data: materials = [] } = useQuery({
     queryKey: ["student-materials"],
-    queryFn: () => base44.entities.StudyMaterial.list("-created_date", 4)
+    queryFn: () => entities.StudyMaterial.list("-created_date", 4)
   });
 
   const { data: studentGrades = [] } = useQuery({
     queryKey: ["student-portal-grades", student?.student_id || studentId],
-    queryFn: () => base44.entities.StudentGrade.filter({ student_id: student?.student_id || studentId }),
+    queryFn: () => entities.StudentGrade.filter({ student_id: student?.student_id || studentId }),
     enabled: !!(student?.student_id || studentId)
   });
 
   const { data: studentSubjects = [] } = useQuery({
     queryKey: ["student-subjects", student?.grade],
-    queryFn: () => base44.entities.Subject.filter({ grade: student?.grade }),
+    queryFn: () => entities.Subject.filter({ grade: student?.grade }),
     enabled: !!student?.grade
   });
 
   const { data: studentAwards = [] } = useQuery({
     queryKey: ["student-awards", student?.student_id],
-    queryFn: () => base44.entities.StudentAward.filter({ student_id: student?.student_id }, "-date"),
+    queryFn: () => entities.StudentAward.filter({ student_id: student?.student_id }, "-date"),
     enabled: !!student?.student_id
   });
 
   const { data: allLibraryBooks = [] } = useQuery({
     queryKey: ["student-library-books"],
-    queryFn: () => base44.entities.LibraryBook.list("-created_at", 100)
+    queryFn: () => entities.LibraryBook.list("-created_at", 100)
   });
 
   const { data: classStudents = [] } = useQuery({
     queryKey: ["class-students", student?.grade],
-    queryFn: () => base44.entities.Student.filter({ grade: student?.grade }),
+    queryFn: () => entities.Student.filter({ grade: student?.grade }),
     enabled: !!student?.grade
   });
 
@@ -312,21 +312,21 @@ export default function StudentPortal() {
 
   const { data: studentSchedules = [] } = useQuery({
     queryKey: ["student-schedules", student?.grade],
-    queryFn: () => base44.entities.ClassSchedule.filter({ grade: student?.grade }),
+    queryFn: () => entities.ClassSchedule.filter({ grade: student?.grade }),
     enabled: !!student?.grade,
     staleTime: 1000 * 60 * 10
   });
 
   const { data: studentTasks = [] } = useQuery({
     queryKey: ["student-tasks", student?.grade],
-    queryFn: () => base44.entities.TeacherTask.filter({ grade: student?.grade }),
+    queryFn: () => entities.TeacherTask.filter({ grade: student?.grade }),
     enabled: !!student?.grade,
     staleTime: 1000 * 60 * 10
   });
 
   const { data: officialAnnouncements = [] } = useQuery({
     queryKey: ["official-announcements-student"],
-    queryFn: () => base44.entities.OfficialAnnouncement.list("-created_at", 50),
+    queryFn: () => entities.OfficialAnnouncement.list("-created_at", 50),
     staleTime: 1000 * 60 * 10
   });
 

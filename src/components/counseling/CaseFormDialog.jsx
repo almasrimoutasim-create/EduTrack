@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { useAuth } from "@/lib/AuthContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -20,7 +20,7 @@ export default function CaseFormDialog({ open, onOpenChange, onSuccess }) {
 
   const { data: students = [], isLoading: isLoadingStudents } = useQuery({
     queryKey: ["students-list-counseling"],
-    queryFn: () => base44.entities.Student.list("-created_at", 500),
+    queryFn: () => entities.Student.list("-created_at", 500),
     staleTime: 1000 * 60 * 5,
     enabled: open
   });
@@ -48,7 +48,7 @@ export default function CaseFormDialog({ open, onOpenChange, onSuccess }) {
       if (!title.trim()) throw new Error("Please enter a title");
       if (!referralReason.trim()) throw new Error("Please enter referral reason");
       
-      return base44.entities.CounselingCase.create({
+      return entities.CounselingCase.create({
         student_id: studentId,
         title,
         problem_type: problemType,

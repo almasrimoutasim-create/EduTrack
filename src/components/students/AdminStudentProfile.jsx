@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { 
   ArrowLeft, 
   ArrowRight, 
@@ -91,7 +91,7 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
     try {
       if (editingFineId) {
         // Update existing fine
-        await base44.entities.Fine.update(editingFineId, {
+        await entities.Fine.update(editingFineId, {
           category: fineCategory,
           reason: fineReason,
           amount: parseFloat(fineAmount),
@@ -103,7 +103,7 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
         setEditingFineId(null);
       } else {
         // Create new fine
-        await base44.entities.Fine.create({
+        await entities.Fine.create({
           student_id: student.id,
           amount: parseFloat(fineAmount),
           reason: fineReason,
@@ -144,7 +144,7 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
     }
 
     try {
-      await base44.entities.Fine.delete(fineId);
+      await entities.Fine.delete(fineId);
       toast.success(isRTL ? "تم حذف المستحق بنجاح!" : "Due deleted successfully!");
       setFinesPage(1);
       refetchFines();
@@ -164,10 +164,10 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
 
     try {
       // 1. Update status
-      await base44.entities.Fine.update(fine.id, { status: "paid" });
+      await entities.Fine.update(fine.id, { status: "paid" });
 
       // 2. Track payment in financial records
-      await base44.entities.FinancialRecord.create({
+      await entities.FinancialRecord.create({
         type: "income",
         record_type: "fine_payment",
         recipient_type: "student",
@@ -400,7 +400,7 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
   // Sync / refetch student from database for live updates
   const { data: student = initialStudent } = useQuery({
     queryKey: ["student-profile", initialStudent?.id],
-    queryFn: () => base44.entities.Student.get(initialStudent.id),
+    queryFn: () => entities.Student.get(initialStudent.id),
     initialData: initialStudent,
     enabled: !!initialStudent?.id
   });
@@ -408,21 +408,21 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
   // Fetch grades
   const { data: dbGrades = [] } = useQuery({
     queryKey: ["student-grades", student?.student_id],
-    queryFn: () => base44.entities.StudentGrade.filter({ student_id: student?.student_id }),
+    queryFn: () => entities.StudentGrade.filter({ student_id: student?.student_id }),
     enabled: !!student?.student_id
   });
 
   // Fetch awards
   const { data: dbAwards = [] } = useQuery({
     queryKey: ["student-awards", student?.student_id],
-    queryFn: () => base44.entities.StudentAward.filter({ student_id: student?.student_id }),
+    queryFn: () => entities.StudentAward.filter({ student_id: student?.student_id }),
     enabled: !!student?.student_id
   });
 
   // Fetch store purchases
   const { data: dbPurchases = [] } = useQuery({
     queryKey: ["student-purchases", student?.student_id],
-    queryFn: () => base44.entities.Purchase.filter({ student_id: student?.student_id }),
+    queryFn: () => entities.Purchase.filter({ student_id: student?.student_id }),
     enabled: !!student?.student_id
   });
 
@@ -433,8 +433,8 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
     // @ts-ignore
     queryFn: async () => {
       // recipient_id can store UUID or student_id, query both to be 100% robust
-      const list1 = await base44.entities.FinancialRecord.filter({ recipient_id: student.id });
-      const list2 = await base44.entities.FinancialRecord.filter({ recipient_id: student.student_id });
+      const list1 = await entities.FinancialRecord.filter({ recipient_id: student.id });
+      const list2 = await entities.FinancialRecord.filter({ recipient_id: student.student_id });
       const merged = [...list1, ...list2];
       const unique = Array.from(new Map(merged.map(item => [item.id, item])).values());
       return unique;
@@ -445,28 +445,28 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
   const { data: studentFees = [] } = useQuery({
     queryKey: ["admin-student-fees", student?.id],
     enabled: !!student?.id,
-    queryFn: () => base44.entities.StudentFee.filter({ student_id: student.id })
+    queryFn: () => entities.StudentFee.filter({ student_id: student.id })
   });
 
   // Fetch real fee payments from fee_payments table
   const { data: feePayments = [] } = useQuery({
     queryKey: ["admin-student-fee-payments", student?.id],
     enabled: !!student?.id,
-    queryFn: () => base44.entities.FeePayment.filter({ student_id: student.id })
+    queryFn: () => entities.FeePayment.filter({ student_id: student.id })
   });
 
   // Fetch real wallet transactions from wallet_transactions table
   const { data: walletTx = [] } = useQuery({
     queryKey: ["admin-student-wallet-tx", student?.id],
     enabled: !!student?.id,
-    queryFn: () => base44.entities.WalletTransaction.filter({ student_id: student.id })
+    queryFn: () => entities.WalletTransaction.filter({ student_id: student.id })
   });
 
   // Fetch other outstanding dues / fines
   const { data: studentFines = [], refetch: refetchFines } = useQuery({
     queryKey: ["admin-student-fines", student?.id],
     enabled: !!student?.id,
-    queryFn: () => base44.entities.Fine.filter({ student_id: student.id }, "-created_date")
+    queryFn: () => entities.Fine.filter({ student_id: student.id }, "-created_date")
   });
 
   // Mock fallbacks for missing data to ensure high-fidelity presentation
@@ -583,9 +583,9 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
         if (isTopUp) {
           const currentBalance = parseFloat(student.card_balance) || 0;
           const newBalance = currentBalance + studentAmount;
-          await base44.entities.Student.update(student.id, { card_balance: newBalance });
+          await entities.Student.update(student.id, { card_balance: newBalance });
           // Create WalletTransaction to ensure synced UI
-          await base44.entities.WalletTransaction.create({
+          await entities.WalletTransaction.create({
             student_id: student.id,
             type: "topup",
             amount: studentAmount,
@@ -596,13 +596,13 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
         } else {
           const currentPaid = parseFloat(student.tuition_paid) || 0;
           const newPaid = currentPaid + studentAmount;
-          await base44.entities.Student.update(student.id, { tuition_paid: newPaid });
+          await entities.Student.update(student.id, { tuition_paid: newPaid });
 
           // If there are fees assigned in student_fees table, record the payment there too!
           const pendingFees = studentFees.filter(f => f.status !== "paid");
           if (pendingFees.length > 0) {
             const targetFee = pendingFees[0];
-            await base44.entities.FeePayment.create({
+            await entities.FeePayment.create({
               student_fee_id: targetFee.id,
               student_id: student.id,
               amount: Math.min(studentAmount, parseFloat(targetFee.remaining || targetFee.amount)),

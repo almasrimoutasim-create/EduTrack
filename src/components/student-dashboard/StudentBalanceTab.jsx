@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CreditCard, ShoppingBag, ArrowUpCircle, Wallet, ArrowDownRight, ArrowUpRight } from "lucide-react";
@@ -11,7 +11,7 @@ export default function StudentBalanceTab({ student }) {
   // 1. Fetch Wallet Balance from student_wallet
   const { data: walletArr = [], isLoading: loadingWallet } = useQuery({
     queryKey: ['student-wallet', studentId],
-    queryFn: () => base44.entities.StudentWallet.filter({ student_id: studentId }),
+    queryFn: () => entities.StudentWallet.filter({ student_id: studentId }),
     enabled: !!studentId,
     staleTime: 1000 * 60 * 2,
   });
@@ -19,7 +19,7 @@ export default function StudentBalanceTab({ student }) {
   // 2. Fetch Wallet Transactions from wallet_transactions
   const { data: transactions = [], isLoading: loadingTransactions } = useQuery({
     queryKey: ['wallet-transactions', studentId],
-    queryFn: () => base44.entities.WalletTransaction.filter({ student_id: studentId }),
+    queryFn: () => entities.WalletTransaction.filter({ student_id: studentId }),
     enabled: !!studentId,
     staleTime: 1000 * 60 * 2,
   });

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { 
   ShieldCheck, 
   Search, 
@@ -31,7 +31,7 @@ export default function PortalAccessAdmin() {
 
   const { data: users = [], isLoading } = useQuery({ 
     queryKey: ["portal-users"], 
-    queryFn: () => base44.entities.StaffMember.list("-created_date", 50) 
+    queryFn: () => entities.StaffMember.list("-created_date", 50) 
   });
 
   const containerVariants = {

@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ChevronLeft, ChevronRight, Calendar, BookOpen, ClipboardList } from "lucide-react";
@@ -30,12 +30,12 @@ export default function DashboardCalendar() {
 
   const { data: schedules = [] } = useQuery({
     queryKey: ["all-schedules-cal"],
-    queryFn: () => base44.entities.ClassSchedule.list(),
+    queryFn: () => entities.ClassSchedule.list(),
   });
 
   const { data: tasks = [] } = useQuery({
     queryKey: ["all-tasks-cal"],
-    queryFn: () => base44.entities.TeacherTask.list(),
+    queryFn: () => entities.TeacherTask.list(),
   });
 
   const monthStart = startOfMonth(current);

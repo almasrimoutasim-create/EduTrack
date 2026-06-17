@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Send, MessageSquare } from "lucide-react";
@@ -15,7 +15,7 @@ export default function CommunityChat({ currentUser }) {
 
   useEffect(() => {
     loadMessages();
-    const unsub = base44.entities.ActivityChat.subscribe(event => {
+    const unsub = entities.ActivityChat.subscribe(event => {
       if (event.type === "create") setMessages(prev => [...prev, event.data]);
       else if (event.type === "delete") setMessages(prev => prev.filter(m => m.id !== event.id));
     });
@@ -27,7 +27,7 @@ export default function CommunityChat({ currentUser }) {
   }, [messages]);
 
   const loadMessages = async () => {
-    const data = await base44.entities.ActivityChat.list("-created_date", 100);
+    const data = await entities.ActivityChat.list("-created_date", 100);
     setMessages(data.reverse());
   };
 
@@ -35,7 +35,7 @@ export default function CommunityChat({ currentUser }) {
     if (!text.trim()) return;
     setSending(true);
     const role = currentUser?.role === "admin" ? "admin" : "student";
-    await base44.entities.ActivityChat.create({
+    await entities.ActivityChat.create({
       sender_name: currentUser?.full_name || "Unknown",
       sender_email: currentUser?.email,
       sender_role: role,

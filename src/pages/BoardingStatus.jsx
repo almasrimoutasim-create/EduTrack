@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { 
   Bus, 
   Search, 
@@ -31,7 +31,7 @@ export default function BoardingStatus() {
 
   const { data: students = [], isLoading } = useQuery({ 
     queryKey: ["boarding-students"], 
-    queryFn: () => base44.entities.Student.list("-created_date", 50) 
+    queryFn: () => entities.Student.list("-created_date", 50) 
   });
 
   const containerVariants = {

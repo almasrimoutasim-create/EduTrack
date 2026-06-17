@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { 
   Award, 
   Trophy, 
@@ -38,7 +38,7 @@ export default function Awards() {
 
   const { data: awards = [], isLoading } = useQuery({ 
     queryKey: ["awards-list"], 
-    queryFn: () => base44.entities.StudentAward.list("-date", 20) 
+    queryFn: () => entities.StudentAward.list("-date", 20) 
   });
 
   const handleAdd = () => {
@@ -48,7 +48,7 @@ export default function Awards() {
 
   const handleDelete = async (award) => {
     try {
-      await base44.entities.StudentAward.delete(award.id);
+      await entities.StudentAward.delete(award.id);
       toast.success(isRTL ? "تم حذف الجائزة" : "Award deleted");
     } catch (err) {
       toast.error(isRTL ? "فشل الحذف" : "Failed to delete");

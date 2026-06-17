@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -34,22 +34,22 @@ export default function TeacherProfileTab({ teacher, onTeacherUpdate }) {
 
   const { data: ratings = [] } = useQuery({
     queryKey: ["teacher-ratings", teacher.id],
-    queryFn: () => base44.entities.TeacherRating.filter({ teacher_id: teacher.id }, "-created_date"),
+    queryFn: () => entities.TeacherRating.filter({ teacher_id: teacher.id }, "-created_date"),
   });
 
   const { data: grades = [] } = useQuery({
     queryKey: ["teacher-grades-count", teacher.id],
-    queryFn: () => base44.entities.StudentGrade.filter({ teacher_name: teacher.full_name }),
+    queryFn: () => entities.StudentGrade.filter({ teacher_name: teacher.full_name }),
   });
 
   const { data: reports = [] } = useQuery({
     queryKey: ["teacher-reports-count", teacher.id],
-    queryFn: () => base44.entities.StudentReport.filter({ teacher_id: teacher.id }),
+    queryFn: () => entities.StudentReport.filter({ teacher_id: teacher.id }),
   });
 
   const { data: activities = [] } = useQuery({
     queryKey: ["teacher-activity-posts"],
-    queryFn: () => base44.entities.ActivityPost.filter({ author_email: teacher.email || teacher.employee_id }, "-created_date", 10),
+    queryFn: () => entities.ActivityPost.filter({ author_email: teacher.email || teacher.employee_id }, "-created_date", 10),
   });
 
   const avgRating = ratings.length > 0
@@ -59,7 +59,7 @@ export default function TeacherProfileTab({ teacher, onTeacherUpdate }) {
   const submitRating = async () => {
     if (!rateForm.rater_name) return;
     setSaving(true);
-    await base44.entities.TeacherRating.create({ ...rateForm, teacher_id: teacher.id, teacher_name: teacher.full_name });
+    await entities.TeacherRating.create({ ...rateForm, teacher_id: teacher.id, teacher_name: teacher.full_name });
     qc.invalidateQueries(["teacher-ratings", teacher.id]);
     toast.success("Rating submitted!");
     setSaving(false); setShowRateDialog(false);
@@ -67,7 +67,7 @@ export default function TeacherProfileTab({ teacher, onTeacherUpdate }) {
   };
 
   const saveBio = async () => {
-    await base44.entities.Teacher.update(teacher.id, { bio });
+    await entities.Teacher.update(teacher.id, { bio });
     onTeacherUpdate?.({ ...teacher, bio });
     setEditingBio(false);
     toast.success("Bio updated");
@@ -77,7 +77,7 @@ export default function TeacherProfileTab({ teacher, onTeacherUpdate }) {
     const file = e.target.files[0]; if (!file) return;
     setUploadingPhoto(true);
     const { file_url } = await base44.integrations.Core.UploadFile({ file });
-    await base44.entities.Teacher.update(teacher.id, { photo_url: file_url });
+    await entities.Teacher.update(teacher.id, { photo_url: file_url });
     onTeacherUpdate?.({ ...teacher, photo_url: file_url });
     setUploadingPhoto(false);
     toast.success("Photo updated");

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { useAuth } from "@/lib/AuthContext";
 import PageHeader from "@/components/shared/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -53,14 +53,14 @@ export default function CounselingCaseDetail() {
   // 1. Fetch Case Data
   const { data: caseData, isLoading: caseLoading } = useQuery({
     queryKey: ["counseling-case", id],
-    queryFn: () => base44.entities.CounselingCase.get(id),
+    queryFn: () => entities.CounselingCase.get(id),
     staleTime: 1000 * 60 * 2
   });
 
   // 2. Fetch Student Data (based on student_id in caseData)
   const { data: student } = useQuery({
     queryKey: ["counseling-student", caseData?.student_id],
-    queryFn: () => base44.entities.Student.get(caseData.student_id),
+    queryFn: () => entities.Student.get(caseData.student_id),
     staleTime: 1000 * 60 * 10,
     enabled: !!caseData?.student_id
   });
@@ -68,28 +68,28 @@ export default function CounselingCaseDetail() {
   // 3. Fetch Case Assessments
   const { data: assessments = [], isLoading: assessmentsLoading } = useQuery({
     queryKey: ["case-assessments", id],
-    queryFn: () => base44.entities.CaseAssessment.filter({ case_id: id }),
+    queryFn: () => entities.CaseAssessment.filter({ case_id: id }),
     staleTime: 1000 * 60 * 2
   });
 
   // 4. Fetch Follow Ups
   const { data: followUps = [], isLoading: followUpsLoading } = useQuery({
     queryKey: ["case-followups", id],
-    queryFn: () => base44.entities.FollowUp.filter({ case_id: id }),
+    queryFn: () => entities.FollowUp.filter({ case_id: id }),
     staleTime: 1000 * 60 * 2
   });
 
   // 5. Fetch Intervention Plans
   const { data: plans = [], isLoading: plansLoading } = useQuery({
     queryKey: ["intervention-plans", id],
-    queryFn: () => base44.entities.InterventionPlan.filter({ case_id: id }),
+    queryFn: () => entities.InterventionPlan.filter({ case_id: id }),
     staleTime: 1000 * 60 * 2
   });
 
   // Close Case Mutation
   const closeCaseMutation = useMutation({
     mutationFn: async () => {
-      return base44.entities.CounselingCase.update(id, {
+      return entities.CounselingCase.update(id, {
         status: "closed",
         closed_at: new Date().toISOString(),
         closed_by: user.id
@@ -112,7 +112,7 @@ export default function CounselingCaseDetail() {
       if (!planResponsible.trim()) throw new Error("يرجى إدخال الشخص المسؤول");
       if (!planStartDate || !planEndDate) throw new Error("يرجى إدخال التواريخ");
 
-      return base44.entities.InterventionPlan.create({
+      return entities.InterventionPlan.create({
         case_id: id,
         goal_text: planGoal,
         responsible_person: planResponsible,
@@ -143,7 +143,7 @@ export default function CounselingCaseDetail() {
     mutationFn: async () => {
       if (!followUpNote.trim()) throw new Error("يرجى كتابة ملاحظة المتابعة");
 
-      return base44.entities.FollowUp.create({
+      return entities.FollowUp.create({
         case_id: id,
         note: followUpNote,
         progress_status: followUpStatus,

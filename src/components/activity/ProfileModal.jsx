@@ -1,4 +1,4 @@
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { useQuery } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
@@ -7,7 +7,7 @@ import { GraduationCap, User, Bus, Calendar } from "lucide-react";
 export default function ProfileModal({ email, open, onClose }) {
   const { data: students = [] } = useQuery({
     queryKey: ["profile-student", email],
-    queryFn: () => base44.entities.Student.filter({ user_email: email }),
+    queryFn: () => entities.Student.filter({ user_email: email }),
     enabled: open && !!email
   });
 

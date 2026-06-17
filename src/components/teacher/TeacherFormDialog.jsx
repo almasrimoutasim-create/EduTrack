@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 
 export default function TeacherFormDialog({ open, onClose, teacher }) {
@@ -14,7 +14,7 @@ export default function TeacherFormDialog({ open, onClose, teacher }) {
 
   const { data: subjects = [] } = useQuery({
     queryKey: ["subjects"],
-    queryFn: () => base44.entities.Subject.list()
+    queryFn: () => entities.Subject.list()
   });
 
   const [form, setForm] = useState({
@@ -67,9 +67,9 @@ export default function TeacherFormDialog({ open, onClose, teacher }) {
       }
 
       if (isEdit) {
-        await base44.entities.Teacher.update(teacher.id, payload);
+        await entities.Teacher.update(teacher.id, payload);
       } else {
-        await base44.entities.Teacher.create(payload);
+        await entities.Teacher.create(payload);
       }
       qc.invalidateQueries({ queryKey: ["teachers"] });
       onClose();

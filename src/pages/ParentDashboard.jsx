@@ -1,6 +1,6 @@
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { 
   Bell, 
   BookOpen, 
@@ -30,7 +30,7 @@ export default function ParentDashboard() {
 
   const { data: children = [] } = useQuery({ 
     queryKey: ["parent-children"], 
-    queryFn: () => base44.entities.Student.list() 
+    queryFn: () => entities.Student.list() 
   });
 
   const containerVariants = {

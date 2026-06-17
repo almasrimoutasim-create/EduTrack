@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { 
   Megaphone, 
   Trash2, 
@@ -41,7 +41,7 @@ export default function OfficialAnnouncements() {
   // Fetch announcements
   const { data: announcements = [], isLoading } = useQuery({
     queryKey: ["official-announcements"],
-    queryFn: () => base44.entities.OfficialAnnouncement.list("-created_at")
+    queryFn: () => entities.OfficialAnnouncement.list("-created_at")
   });
 
   const handleSubmit = async (e) => {
@@ -53,7 +53,7 @@ export default function OfficialAnnouncements() {
 
     setIsSubmitting(true);
     try {
-      await base44.entities.OfficialAnnouncement.create({
+      await entities.OfficialAnnouncement.create({
         title,
         content,
         priority,
@@ -79,7 +79,7 @@ export default function OfficialAnnouncements() {
     if (!confirm(isRTL ? "هل أنت متأكد من حذف هذا التعميم؟" : "Are you sure you want to delete this announcement?")) return;
 
     try {
-      await base44.entities.OfficialAnnouncement.delete(id);
+      await entities.OfficialAnnouncement.delete(id);
       toast.success(isRTL ? "تم حذف التعميم بنجاح" : "Announcement deleted successfully");
       qc.invalidateQueries({ queryKey: ["official-announcements"] });
     } catch (err) {

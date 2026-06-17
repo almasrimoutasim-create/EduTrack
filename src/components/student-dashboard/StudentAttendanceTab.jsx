@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { Card } from "@/components/ui/card";
 import { ClipboardCheck } from "lucide-react";
 
@@ -15,7 +15,7 @@ const TYPE_LABELS = { gate_in: "Gate In", gate_out: "Gate Out", bus_in: "Bus In"
 export default function StudentAttendanceTab({ studentId }) {
   const { data: records = [], isLoading } = useQuery({
     queryKey: ["attendance", studentId],
-    queryFn: () => base44.entities.Attendance.filter({ student_id: studentId }, "-date"),
+    queryFn: () => entities.Attendance.filter({ student_id: studentId }, "-date"),
     enabled: !!studentId,
   });
 

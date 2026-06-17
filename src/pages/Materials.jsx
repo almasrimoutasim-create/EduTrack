@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { 
   FileText, 
   Search, 
@@ -42,12 +42,12 @@ export default function Materials() {
 
   const { data: materials = [], isLoading } = useQuery({ 
     queryKey: ["materials"], 
-    queryFn: () => base44.entities.StudyMaterial.list("-created_date", 50) 
+    queryFn: () => entities.StudyMaterial.list("-created_date", 50) 
   });
 
   const { data: subjects = [] } = useQuery({
     queryKey: ["subjects-list"],
-    queryFn: () => base44.entities.Subject.list()
+    queryFn: () => entities.Subject.list()
   });
 
   const filteredMaterials = materials.filter(m => {

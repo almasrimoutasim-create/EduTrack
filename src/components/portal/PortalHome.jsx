@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { ClipboardCheck, CreditCard, AlertTriangle } from "lucide-react";
 import { AwardBadge } from "@/components/portal/StudentProfile";
@@ -7,19 +7,19 @@ import { AwardBadge } from "@/components/portal/StudentProfile";
 export default function PortalHome({ student }) {
   const { data: awards = [] } = useQuery({
     queryKey: ["student-awards", student.id],
-    queryFn: () => base44.entities.StudentAward.filter({ student_id: student.id }),
+    queryFn: () => entities.StudentAward.filter({ student_id: student.id }),
   });
   const { data: attendance = [] } = useQuery({
     queryKey: ["portal-attendance", student.id],
-    queryFn: () => base44.entities.Attendance.filter({ student_id: student.id }),
+    queryFn: () => entities.Attendance.filter({ student_id: student.id }),
   });
   const { data: fines = [] } = useQuery({
     queryKey: ["portal-fines", student.id],
-    queryFn: () => base44.entities.Fine.filter({ student_id: student.id }),
+    queryFn: () => entities.Fine.filter({ student_id: student.id }),
   });
   const { data: purchases = [] } = useQuery({
     queryKey: ["portal-purchases", student.id],
-    queryFn: () => base44.entities.Purchase.filter({ student_id: student.id }),
+    queryFn: () => entities.Purchase.filter({ student_id: student.id }),
   });
 
   const pendingFines = fines.filter(f => f.status === "pending");

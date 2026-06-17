@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Search, UserPlus, Check, X } from "lucide-react";
@@ -13,15 +13,15 @@ export default function PortalFriends({ me, onViewProfile }) {
 
   const { data: allStudents = [] } = useQuery({
     queryKey: ["all-students"],
-    queryFn: () => base44.entities.Student.list(),
+    queryFn: () => entities.Student.list(),
   });
   const { data: allTeachers = [] } = useQuery({
     queryKey: ["all-teachers"],
-    queryFn: () => base44.entities.Teacher.list(),
+    queryFn: () => entities.Teacher.list(),
   });
   const { data: requests = [] } = useQuery({
     queryKey: ["friend-requests", me.id],
-    queryFn: () => base44.entities.FriendRequest.list(),
+    queryFn: () => entities.FriendRequest.list(),
   });
 
   const myRequests = requests.filter(r => r.from_id === me.id || r.to_id === me.id);
@@ -40,7 +40,7 @@ export default function PortalFriends({ me, onViewProfile }) {
     : [];
 
   const sendRequest = async (person) => {
-    await base44.entities.FriendRequest.create({
+    await entities.FriendRequest.create({
       from_id: me.id,
       from_name: me.full_name,
       from_photo: me.photo_url || "",
@@ -48,7 +48,7 @@ export default function PortalFriends({ me, onViewProfile }) {
       to_id: person.id,
       to_name: person.full_name,
     });
-    await base44.entities.PortalNotification.create({
+    await entities.PortalNotification.create({
       recipient_id: person.id,
       message: `${me.full_name} sent you a friend request`,
       type: "friend_request",
@@ -58,9 +58,9 @@ export default function PortalFriends({ me, onViewProfile }) {
   };
 
   const respond = async (req, status) => {
-    await base44.entities.FriendRequest.update(req.id, { status });
+    await entities.FriendRequest.update(req.id, { status });
     if (status === "accepted") {
-      await base44.entities.PortalNotification.create({
+      await entities.PortalNotification.create({
         recipient_id: req.from_id,
         message: `${me.full_name} accepted your friend request`,
         type: "friend_accepted",

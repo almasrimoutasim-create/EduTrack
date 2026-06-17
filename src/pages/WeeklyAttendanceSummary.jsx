@@ -1,6 +1,6 @@
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { 
   BarChart3,
   ArrowUpRight,
@@ -23,7 +23,7 @@ export default function WeeklyAttendanceSummary() {
   const { data: attendanceData = [] } = useQuery({ 
     queryKey: ["weekly-attendance"], 
     // @ts-ignore
-    queryFn: () => base44.entities.Attendance.list("-created_at", {}, 50),
+    queryFn: () => entities.Attendance.list("-created_at", {}, 50),
     staleTime: 1000 * 60 * 5
   });
 

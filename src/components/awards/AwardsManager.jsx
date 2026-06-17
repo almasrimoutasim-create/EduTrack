@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -32,11 +32,11 @@ export default function AwardsManager() {
 
   const { data: students = [] } = useQuery({
     queryKey: ["all-students"],
-    queryFn: () => base44.entities.Student.list(),
+    queryFn: () => entities.Student.list(),
   });
   const { data: awards = [] } = useQuery({
     queryKey: ["all-awards"],
-    queryFn: () => base44.entities.StudentAward.list(),
+    queryFn: () => entities.StudentAward.list(),
   });
 
   const upd = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -44,13 +44,13 @@ export default function AwardsManager() {
   const save = async () => {
     if (!selectedStudent || !form.title) return;
     setSaving(true);
-    await base44.entities.StudentAward.create({
+    await entities.StudentAward.create({
       ...form,
       student_id: selectedStudent.id,
       student_name: selectedStudent.full_name,
     });
     // Notify student
-    await base44.entities.PortalNotification.create({
+    await entities.PortalNotification.create({
       recipient_id: selectedStudent.id,
       message: `🏆 You received a new award: "${form.title}"`,
       type: "award",
@@ -63,7 +63,7 @@ export default function AwardsManager() {
   };
 
   const deleteAward = async (id) => {
-    await base44.entities.StudentAward.delete(id);
+    await entities.StudentAward.delete(id);
     qc.invalidateQueries(["all-awards"]);
   };
 

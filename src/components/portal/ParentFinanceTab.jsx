@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -38,14 +38,14 @@ export default function ParentFinanceTab({ student, user, language }) {
   // Queries
   const { data: studentFees = [], isLoading: loadingFees } = useQuery({
     queryKey: ['student-fees-parent', student.id],
-    queryFn: () => base44.entities.StudentFee.filter({ student_id: student.id }),
+    queryFn: () => entities.StudentFee.filter({ student_id: student.id }),
     staleTime: 1000 * 60 * 3,
     enabled: !!student.id
   });
 
   const { data: activityFees = [], isLoading: loadingActivities } = useQuery({
     queryKey: ['student-activity-fees', student.id],
-    queryFn: () => base44.entities.StudentActivityFee.filter({ 
+    queryFn: () => entities.StudentActivityFee.filter({ 
       student_id: student.id, 
       status: 'pending' 
     }),
@@ -55,28 +55,28 @@ export default function ParentFinanceTab({ student, user, language }) {
 
   const { data: activityList = [] } = useQuery({
     queryKey: ["activity-list-all"],
-    queryFn: () => base44.entities.ActivityFee.list("-created_at", 200),
+    queryFn: () => entities.ActivityFee.list("-created_at", 200),
     staleTime: 1000 * 60 * 5,
     enabled: !!student.id
   });
 
   const { data: walletArr = [], isLoading: loadingWallet } = useQuery({
     queryKey: ['student-wallet', student.id],
-    queryFn: () => base44.entities.StudentWallet.filter({ student_id: student.id }),
+    queryFn: () => entities.StudentWallet.filter({ student_id: student.id }),
     staleTime: 1000 * 60 * 2,
     enabled: !!student.id
   });
 
   const { data: feePayments = [] } = useQuery({
     queryKey: ['fee-payments-parent', student.id],
-    queryFn: () => base44.entities.FeePayment.filter({ student_id: student.id }),
+    queryFn: () => entities.FeePayment.filter({ student_id: student.id }),
     staleTime: 1000 * 60 * 3,
     enabled: !!student.id
   });
 
   const { data: walletTx = [] } = useQuery({
     queryKey: ['wallet-transactions', student.id],
-    queryFn: () => base44.entities.WalletTransaction.filter({ student_id: student.id }),
+    queryFn: () => entities.WalletTransaction.filter({ student_id: student.id }),
     staleTime: 1000 * 60 * 2,
     enabled: !!student.id
   });
@@ -126,7 +126,7 @@ export default function ParentFinanceTab({ student, user, language }) {
   const handlePaymentSuccess = async (paymentIntent) => {
     try {
       if (paymentType === "fee" && selectedFee) {
-        await base44.entities.FeePayment.create({
+        await entities.FeePayment.create({
           student_fee_id: selectedFee.id,
           student_id: student.id,
           amount: parseFloat(selectedFee.remaining),
@@ -142,7 +142,7 @@ export default function ParentFinanceTab({ student, user, language }) {
       
       else if (paymentType === "activity" && selectedActivity) {
         // Update student activity fee status
-        await base44.entities.StudentActivityFee.update(selectedActivity.id, {
+        await entities.StudentActivityFee.update(selectedActivity.id, {
           status: "paid",
           paid_at: new Date().toISOString(),
           stripe_payment_intent_id: paymentIntent.id
@@ -153,7 +153,7 @@ export default function ParentFinanceTab({ student, user, language }) {
       
       else if (paymentType === "topup") {
         const topupVal = parseFloat(topupPreset || topupAmount);
-        await base44.entities.WalletTransaction.create({
+        await entities.WalletTransaction.create({
           student_id: student.id,
           type: "topup",
           amount: topupVal,

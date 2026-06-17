@@ -1,6 +1,6 @@
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { 
   Users, 
   GraduationCap, 
@@ -32,27 +32,27 @@ export default function Dashboard() {
   
   const { data: students = [] } = useQuery({ 
     queryKey: ["students"], 
-    queryFn: () => base44.entities.Student.list("-created_at", 500),
+    queryFn: () => entities.Student.list("-created_at", 500),
     staleTime: 1000 * 60 * 10 // rare changes
   });
   const { data: teachers = [] } = useQuery({ 
     queryKey: ["teachers"], 
-    queryFn: () => base44.entities.Teacher.list("-created_at", 100),
+    queryFn: () => entities.Teacher.list("-created_at", 100),
     staleTime: 1000 * 60 * 10 // rare changes
   });
   const { data: attendance = [] } = useQuery({ 
     queryKey: ["attendance-recent"], 
-    queryFn: () => base44.entities.Attendance.list("-created_date", 8),
+    queryFn: () => entities.Attendance.list("-created_date", 8),
     staleTime: 1000 * 60 * 2 // frequently changes
   });
   const { data: allAttendance = [] } = useQuery({ 
     queryKey: ["attendance-trends"], 
-    queryFn: () => base44.entities.Attendance.list("-date", 200),
+    queryFn: () => entities.Attendance.list("-date", 200),
     staleTime: 1000 * 60 * 2 // frequently changes
   });
   const { data: materials = [] } = useQuery({ 
     queryKey: ["materials"], 
-    queryFn: () => base44.entities.StudyMaterial.list("-created_date", 100),
+    queryFn: () => entities.StudyMaterial.list("-created_date", 100),
     staleTime: 1000 * 60 * 10 // rare changes
   });
 

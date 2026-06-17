@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { useAuth } from "@/lib/AuthContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import { t } from "@/lib/translations";
@@ -42,7 +42,7 @@ export default function CounselingCases() {
   // Load students for mapping IDs to names
   const { data: students = [] } = useQuery({
     queryKey: ["students-mapping-list"],
-    queryFn: () => base44.entities.Student.list("-created_at", 500),
+    queryFn: () => entities.Student.list("-created_at", 500),
     staleTime: 1000 * 60 * 10
   });
 
@@ -60,9 +60,9 @@ export default function CounselingCases() {
     queryKey: ["counseling-cases", user.id, user.role],
     queryFn: () => filters 
       // @ts-ignore
-      ? base44.entities.CounselingCase.filter(filters)
+      ? entities.CounselingCase.filter(filters)
       // @ts-ignore
-      : base44.entities.CounselingCase.list(),
+      : entities.CounselingCase.list(),
     staleTime: 1000 * 60 * 3
   });
 

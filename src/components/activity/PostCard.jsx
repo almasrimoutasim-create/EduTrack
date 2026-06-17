@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Heart, MessageCircle, Send, Trash2, ChevronDown, ChevronUp } from "lucide-react";
@@ -22,7 +22,7 @@ export default function PostCard({ post, currentUser, comments, onRefresh, onAut
     } else {
       updated = [...likedBy, currentUser?.email].join(",");
     }
-    await base44.entities.ActivityPost.update(post.id, { liked_by: updated, likes: updated.split(",").filter(Boolean).length });
+    await entities.ActivityPost.update(post.id, { liked_by: updated, likes: updated.split(",").filter(Boolean).length });
     onRefresh();
   };
 
@@ -30,7 +30,7 @@ export default function PostCard({ post, currentUser, comments, onRefresh, onAut
     if (!commentText.trim()) return;
     setSubmitting(true);
     const role = currentUser?.role === "admin" ? "admin" : "student";
-    await base44.entities.ActivityComment.create({
+    await entities.ActivityComment.create({
       post_id: post.id,
       author_name: currentUser?.full_name || "Unknown",
       author_email: currentUser?.email,
@@ -43,7 +43,7 @@ export default function PostCard({ post, currentUser, comments, onRefresh, onAut
   };
 
   const handleDeletePost = async () => {
-    await base44.entities.ActivityPost.delete(post.id);
+    await entities.ActivityPost.delete(post.id);
     onRefresh();
   };
 

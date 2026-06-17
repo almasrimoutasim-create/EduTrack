@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { base44 } from "@/api/base44Client";
+import { entities } from "@/api/dbClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Image, Video, X, Loader2, Send } from "lucide-react";
@@ -37,7 +37,7 @@ export default function CreatePostCard({ user, studentProfile, onPostCreated }) 
       media_url = res.file_url;
     }
     const role = user?.role === "admin" ? "admin" : studentProfile ? "student" : "teacher";
-    await base44.entities.ActivityPost.create({
+    await entities.ActivityPost.create({
       author_name: user?.full_name || "Unknown",
       author_email: user?.email,
       author_role: role,
