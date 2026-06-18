@@ -2,8 +2,8 @@ import React, { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { entities } from "@/api/dbClient";
 import { 
-  ArrowLeft, 
-  ArrowRight, 
+  ArrowLeft,
+  ArrowRight,
   Printer, 
   Pencil, 
   CreditCard, 
@@ -688,16 +688,10 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
       {/* Screen Interface Wrapper (Hidden on print automatically) */}
       <div className="no-print space-y-6">
         
-        {/* Top Header Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-stone-200/80 pb-5">
+        {/* Top Header Bar — Sticky so the back button is always accessible */}
+        <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-sm -mx-1 px-1 pb-4 pt-2 border-b border-stone-200/80">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="space-y-1">
-            <button 
-              onClick={onClose}
-              className="group inline-flex items-center gap-2 text-stone-500 hover:text-stone-850 text-sm font-semibold transition-colors mb-1 cursor-pointer"
-            >
-              {isRTL ? <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" /> : <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />}
-              <span>{isRTL ? "رجوع لدليل الطلاب" : "Back to Directory"}</span>
-            </button>
             <h2 className="font-display text-2xl md:text-3xl font-black text-stone-900 tracking-tight">
               {isRTL ? "الملف الشامل للطالب" : "Student Unified Dossier"}
             </h2>
@@ -720,7 +714,24 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
                 <span>{isRTL ? "تعديل بيانات الطالب" : "Edit Student Data"}</span>
               </button>
             )}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log("Back to Directory button clicked, triggering onClose()");
+                onClose();
+              }}
+              className="group h-11 px-5 inline-flex items-center justify-center gap-2 rounded-xl border-2 border-stone-300 hover:border-stone-400 bg-white text-stone-700 hover:text-stone-900 transition-all cursor-pointer shadow-sm font-bold text-sm"
+            >
+              {isRTL
+                ? <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+                : <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
+              }
+              <span>{isRTL ? "رجوع لدليل الطلاب" : "Back to Directory"}</span>
+            </button>
           </div>
+        </div>
         </div>
 
         {/* Core Layout Grid */}

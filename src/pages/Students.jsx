@@ -142,8 +142,8 @@ export default function Students() {
   const { data: students = [], isLoading, refetch } = useQuery({ 
     queryKey: ["students", refreshKey], 
     queryFn: () => entities.Student.list("-created_at", 500),
-    staleTime: 0,
-    gcTime: 0
+    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+    gcTime: 1000 * 60 * 15 // Keep in garbage collection for 15 minutes
   });
 
   const sectionOptions = useMemo(() => {
@@ -360,26 +360,38 @@ export default function Students() {
     <div className="pb-20" dir={isRTL ? "rtl" : "ltr"}>
       <AnimatePresence mode="wait">
         {view === "profile" ? (
-          <AdminStudentProfile
+          <motion.div
             key="profile"
-            student={dialogStudent}
-            onClose={() => { setDialogStudent(null); setView("list"); }}
-            onEdit={handleEditFromProfile}
-          />
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+          >
+            <AdminStudentProfile
+              student={dialogStudent}
+              onClose={() => { setDialogStudent(null); setView("list"); }}
+              onEdit={handleEditFromProfile}
+            />
+          </motion.div>
         ) : view === "add" || view === "edit" ? (
-          <StudentForm
+          <motion.div
             key="form"
-            student={dialogStudent}
-            onClose={() => {
-              if (dialogStudent) {
-                // If we were editing a student, return to their profile
-                setView("profile");
-              } else {
-                // If we were adding a new student, return to list
-                setView("list");
-              }
-            }}
-          />
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+          >
+            <StudentForm
+              student={dialogStudent}
+              onClose={() => {
+                if (dialogStudent) {
+                  // If we were editing a student, return to their profile
+                  setView("profile");
+                } else {
+                  // If we were adding a new student, return to list
+                  setView("list");
+                }
+              }}
+            />
+          </motion.div>
         ) : (
           <motion.div 
             key="list"
