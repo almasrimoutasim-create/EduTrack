@@ -358,17 +358,16 @@ export default function Students() {
 
   return (
     <div className="pb-20" dir={isRTL ? "rtl" : "ltr"}>
-      <AnimatePresence mode="wait">
+      <div className="view-container">
         {view === "profile" ? (
           <motion.div
             key="profile"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
           >
             <AdminStudentProfile
               student={dialogStudent}
-              onClose={() => { setDialogStudent(null); setView("list"); }}
+              onClose={() => setView("list")}
               onEdit={handleEditFromProfile}
             />
           </motion.div>
@@ -377,7 +376,6 @@ export default function Students() {
             key="form"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
           >
             <StudentForm
               student={dialogStudent}
@@ -397,7 +395,6 @@ export default function Students() {
             key="list"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
             className="space-y-6"
           >
             <PageHeader 
@@ -821,7 +818,7 @@ export default function Students() {
             )}
           </motion.div>
         )}
-      </AnimatePresence>
+      </div>
 
       {/* PRINT DIALOG */}
       <Dialog open={printDialogOpen} onOpenChange={setPrintDialogOpen}>
