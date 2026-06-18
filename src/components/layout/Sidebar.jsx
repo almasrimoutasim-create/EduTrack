@@ -342,6 +342,12 @@ export default function Sidebar() {
             items: [
               { label: isRTL ? "مراقبة الحصص المباشرة" : "Monitor Live Sessions", path: "/admin-virtual-classrooms", icon: Video }
             ]
+          },
+          {
+            label: isRTL ? "إعدادات النظام" : "System Settings",
+            items: [
+              { label: isRTL ? "الإعدادات العامة" : "General Settings", path: "/settings", icon: Settings }
+            ]
           }
         ];
     }

@@ -21,8 +21,9 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import { useLanguage } from "@/lib/LanguageContext";
 import { t } from "@/lib/translations";
+import { useAuth } from "@/lib/AuthContext";
+import { useLanguage } from "@/lib/LanguageContext";
 import PageHeader from "@/components/shared/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -52,7 +53,11 @@ const btnPrimary = "inline-flex items-center justify-center gap-2 whitespace-now
 
 export default function Students() {
   const { language } = useLanguage();
+  const { appPublicSettings } = useAuth();
   const isRTL = language === "ar";
+  const schoolNameAr = appPublicSettings?.public_settings?.school_name_ar || "مدارس إديوتراك النموذجية الخاصة";
+  const schoolLogo = appPublicSettings?.public_settings?.school_logo || null;
+
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedGrade, setSelectedGrade] = useState("all");
@@ -232,8 +237,9 @@ export default function Students() {
         <body>
           <div class="header">
             <div>
+              ${schoolLogo ? `<img src="${schoolLogo}" alt="Logo" style="height: 50px; margin-bottom: 10px;" />` : ''}
               <h1>سجل الطلاب — ${gradeLabel}</h1>
-              <p class="meta">النظام الأكاديمي EduTrack | السنة الدراسية 2025-2026</p>
+              <p class="meta">النظام الأكاديمي ${schoolNameAr} | السنة الدراسية 2025-2026</p>
             </div>
             <div style="text-align:left">
               <p class="meta">تاريخ الإصدار: ${new Date().toLocaleDateString('ar-EG')}</p>
@@ -295,7 +301,7 @@ export default function Students() {
           </table>
 
           <div class="footer">
-            EduTrack — نظام إدارة المدرسة © ${new Date().getFullYear()} | 
+            ${schoolNameAr} — نظام إدارة المدرسة © ${new Date().getFullYear()} | 
             تم إنشاء هذا التقرير تلقائياً بتاريخ ${new Date().toLocaleString('ar-EG')}
           </div>
 

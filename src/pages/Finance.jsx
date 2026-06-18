@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 
 export default function Finance() {
-  const { user } = useAuth();
+  const { user, appPublicSettings } = useAuth();
   const qc = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get("tab") || "dashboard";
@@ -230,6 +230,11 @@ export default function Finance() {
   // ── دالة الطباعة الموحدة ──────────────────────────────────────────────────
 
   const printReport = (title, subtitle, headers, rows, totalsRow = null) => {
+    const isRTL = true;
+    const schoolNameAr = appPublicSettings?.public_settings?.school_name_ar || "مدارس إديوتراك النموذجية الخاصة";
+    const schoolNameEn = appPublicSettings?.public_settings?.school_name_en || "EduTrack Model School";
+    const schoolLogo = appPublicSettings?.public_settings?.school_logo || null;
+
     const w = window.open("", "_blank");
     if (!w) return toast.error("يرجى السماح بالنوافذ المنبثقة لطباعة التقارير");
     w.document.write(`<html><head><title>${title}</title><style>
@@ -245,8 +250,12 @@ export default function Finance() {
       .footer{margin-top:40px;font-size:11px;color:#a8a29e;text-align:center;border-top:1px solid #f5f5f4;padding-top:16px}
     </style></head><body>
       <div class="hdr">
-        <div><h1>${title}</h1><p class="meta">${subtitle}</p></div>
-        <div style="text-align:left"><p class="meta">تاريخ الإصدار: ${new Date().toLocaleDateString('ar-EG')}</p><p class="meta">EduTrack المالي</p></div>
+        <div>
+          ${schoolLogo ? `<img src="${schoolLogo}" alt="Logo" style="height: 50px; margin-bottom: 10px;" />` : ''}
+          <h1>${title}</h1>
+          <p class="meta">${subtitle}</p>
+        </div>
+        <div style="text-align:left"><p class="meta">تاريخ الإصدار: ${new Date().toLocaleDateString('ar-EG')}</p><p class="meta">${schoolNameAr} - القسم المالي</p></div>
       </div>
       <table>
         <thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>
@@ -255,7 +264,7 @@ export default function Finance() {
           ${totalsRow ? `<tr class="tot">${totalsRow.map(c => `<td>${c}</td>`).join('')}</tr>` : ''}
         </tbody>
       </table>
-      <div class="footer">EduTrack © ${new Date().getFullYear()}</div>
+      <div class="footer">${schoolNameAr} © ${new Date().getFullYear()}</div>
       <script>window.onload=()=>{window.print();window.close()}</script>
     </body></html>`);
     w.document.close();

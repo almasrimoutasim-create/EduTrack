@@ -1,4 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
+import { entities } from '@/api/dbClient';
 
 const AuthContext = createContext(null);
 
@@ -38,8 +39,30 @@ export const AuthProvider = ({ children }) => {
 
       setIsLoadingAuth(false);
       setAuthChecked(true);
-      // لا نحتاج public-settings من Base44 — المشروع يعتمد على Neon فقط
-      setAppPublicSettings({ id: 'edutrack', public_settings: {} });
+      // جلب الإعدادات من قاعدة البيانات إن وجدت
+      try {
+        const settingsList = await entities.SystemSetting.list("-created_at", 1);
+        const dbSettings = settingsList && settingsList.length > 0 ? settingsList[0] : {};
+        
+        setAppPublicSettings({ 
+          id: 'edutrack', 
+          public_settings: {
+            school_name_ar: dbSettings.school_name_ar || 'مدارس إديوتراك النموذجية الخاصة',
+            school_name_en: dbSettings.school_name_en || 'EduTrack Model School',
+            school_logo: dbSettings.school_logo || ''
+          } 
+        });
+      } catch (err) {
+        console.warn("Could not load system settings from DB, using defaults", err);
+        setAppPublicSettings({ 
+          id: 'edutrack', 
+          public_settings: {
+            school_name_ar: 'مدارس إديوتراك النموذجية الخاصة',
+            school_name_en: 'EduTrack Model School',
+            school_logo: ''
+          } 
+        });
+      }
     } catch (error) {
       console.error('Unexpected error in checkAppState:', error);
       setAuthError({

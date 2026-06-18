@@ -59,6 +59,7 @@ import StaffEvaluations from './pages/StaffEvaluations';
 import HRReports from './pages/HRReports';
 import Departments from './pages/Departments';
 import CareerLadder from './pages/CareerLadder';
+import Settings from './pages/Settings';
 
 // Store Modules
 import StoreInventory from './pages/StoreInventory';
@@ -96,6 +97,7 @@ const AuthenticatedApp = () => {
       <Route element={<AppLayout />}>
         <Route path="/" element={<Dashboard />} />
         <Route path="/admin-dashboard" element={<Dashboard />} />
+        <Route path="/settings" element={<Settings />} />
         <Route path="/portal-access" element={<PortalAccessAdmin />} />
         <Route path="/students" element={<Students />} />
         <Route path="/teachers" element={<Teachers />} />

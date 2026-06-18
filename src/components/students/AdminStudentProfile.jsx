@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/lib/LanguageContext";
+import { useAuth } from "@/lib/AuthContext";
 import { t } from "@/lib/translations";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -36,7 +37,12 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
   const { language } = useLanguage();
   const isRTL = language === "ar";
   const _qc = useQueryClient();
+  const { appPublicSettings } = useAuth();
   const portalRole = localStorage.getItem("portal_role") || "admin";
+  
+  const schoolNameAr = appPublicSettings?.public_settings?.school_name_ar || "مدارس إديوتراك النموذجية الخاصة";
+  const schoolNameEn = appPublicSettings?.public_settings?.school_name_en || "EduTrack Model School";
+  const schoolLogo = appPublicSettings?.public_settings?.school_logo || null;
 
   const [activeTab, setActiveTab] = useState("overview"); // "overview" | "academics" | "finance" | "activity"
   const [showStudentPass, setShowStudentPass] = useState(false);
@@ -326,7 +332,8 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
       <body>
         <div class="header">
           <div>
-            <div class="title">${isRTL ? "مدارس إديوتراك النموذجية" : "EduTrack Model School"}</div>
+            ${schoolLogo ? `<img src="${schoolLogo}" alt="Logo" style="height: 50px; margin-bottom: 10px;" />` : ''}
+            <div class="title">${isRTL ? schoolNameAr : schoolNameEn}</div>
             <div style="font-size: 12px; color: #64748b; font-weight: bold; margin-top: 5px;">${isRTL ? "إدارة الشؤون المالية والطلابية" : "Finance & Student Affairs Department"}</div>
           </div>
           <div style="text-align: ${isRTL ? "left" : "right"};">
@@ -1677,9 +1684,14 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
         
         {/* Print Header */}
         <div className="flex justify-between items-center border-b-4 border-slate-900 pb-5 mb-6">
-          <div className="space-y-1">
-            <h1 className="font-display font-extrabold text-xl text-slate-900">{isRTL ? "مدارس إديوتراك النموذجية الخاصة" : "EduTrack Model School"}</h1>
-            <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">{isRTL ? "بوابة الإدارة المدرسية العامة" : "School Administration Department"}</p>
+          <div className="flex items-center gap-4">
+            {schoolLogo && (
+              <img src={schoolLogo} alt="School Logo" className="h-16 object-contain" />
+            )}
+            <div className="space-y-1">
+              <h1 className="font-display font-extrabold text-xl text-slate-900">{isRTL ? schoolNameAr : schoolNameEn}</h1>
+              <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">{isRTL ? "بوابة الإدارة المدرسية العامة" : "School Administration Department"}</p>
+            </div>
           </div>
           <div className="text-end space-y-1">
             <h2 className="font-display font-black text-lg text-slate-800">{isRTL ? "ملف طالب رسمي شامل" : "Official Comprehensive Student Dossier"}</h2>
