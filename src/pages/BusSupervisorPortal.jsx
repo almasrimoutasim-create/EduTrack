@@ -104,18 +104,11 @@ export default function BusSupervisorPortal() {
   const [arrivedStops, setArrivedStops] = useState(["start"]);
 
   // Incidents Reporting States & Data
-  const [incidents, setIncidents] = useState([
-    { id: 1, title: isRTL ? "ازدحام مروري" : "Traffic Delay", severity: "medium", time: "٠٩:٥٠ ص", details: isRTL ? "تأخر الحافلة بسبب أعمال الطرق في الشارع الرئيسي" : "Bus delayed due to road works on main street", status: "resolved" }
-  ]);
   const [newIncidentTitle, setNewIncidentTitle] = useState("");
   const [newIncidentSeverity, setNewIncidentSeverity] = useState("medium");
   const [newIncidentDetails, setNewIncidentDetails] = useState("");
 
   // Messaging & Chat Simulation States
-  const [messages, setMessages] = useState([
-    { id: 1, sender: "admin", text: isRTL ? "الرجاء تأكيد ركوب جميع طلاب الصف الأول قبل التحرك" : "Please confirm boarding for all Grade 1 students before departure", time: "09:40 AM" },
-    { id: 2, sender: "parent", text: isRTL ? "هل الحافلة قريبة من محطة الحي المالي؟" : "Is the bus near the financial district stop?", time: "09:55 AM" }
-  ]);
   const [newMessageText, setNewMessageText] = useState("");
 
   const todayStr = new Date().toISOString().split("T")[0];
@@ -140,6 +133,37 @@ export default function BusSupervisorPortal() {
     queryKey: ["today-bus-attendance", todayStr],
     queryFn: () => entities.Attendance.list("-created_at", { date: todayStr }, 500)
   });
+
+  const { data: incidentLogs = [], refetch: refetchIncidents } = useQuery({
+    queryKey: ["bus-incidents"],
+    queryFn: () => entities.AuditLog.list("-created_at", { action: "BUS_INCIDENT" }, 50)
+  });
+
+  const incidents = incidentLogs.map(log => {
+    let detailsObj = {};
+    try { detailsObj = JSON.parse(log.details); } catch(e) {}
+    return {
+      id: log.id,
+      title: detailsObj.title || log.entity_id,
+      severity: detailsObj.severity || 'medium',
+      time: new Date(log.timestamp).toLocaleTimeString(isRTL ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' }),
+      details: detailsObj.details || '',
+      status: detailsObj.status || 'pending'
+    };
+  });
+
+  const { data: chatMessagesRaw = [], refetch: refetchMessages } = useQuery({
+    queryKey: ["bus-chat"],
+    queryFn: () => entities.AuditLog.list("-created_at", { action: "BUS_CHAT" }, 100)
+  });
+
+  const messages = chatMessagesRaw.map(log => ({
+    id: log.id,
+    sender: log.user_name === (localStorage.getItem("portal_user_name") || "Bus Supervisor") ? "supervisor" : log.user_name,
+    text: log.details,
+    timestamp: log.timestamp,
+    time: new Date(log.timestamp).toLocaleTimeString(isRTL ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' })
+  })).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
   // Filters & Counts
   const busStudents = allStudents.filter(s => s.bus_registered);
@@ -287,9 +311,21 @@ export default function BusSupervisorPortal() {
     }
   };
 
-  const submitSafetyReport = () => {
-    toast.success(isRTL ? "تم تقديم تقرير السلامة اليومي بنجاح" : "Daily safety report submitted successfully");
-    setSafetyModalOpen(false);
+  const submitSafetyReport = async () => {
+    try {
+      await entities.AuditLog.create({
+        timestamp: new Date().toISOString(),
+        user_name: localStorage.getItem("portal_user_name") || "Bus Supervisor",
+        action: "SAFETY_REPORT",
+        entity_type: "Bus",
+        entity_id: activeDriver?.bus_number || "Unknown",
+        details: JSON.stringify(safetyChecks)
+      });
+      toast.success(isRTL ? "تم تقديم تقرير السلامة اليومي بنجاح" : "Daily safety report submitted successfully");
+      setSafetyModalOpen(false);
+    } catch (err) {
+      toast.error(isRTL ? "فشل تقديم التقرير" : "Failed to submit report");
+    }
   };
 
   const submitSupport = async () => {
@@ -347,41 +383,47 @@ export default function BusSupervisorPortal() {
     }
   };
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (!newMessageText.trim()) return;
-    const newMsg = {
-      id: Date.now(),
-      sender: "supervisor",
-      text: newMessageText,
-      time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
-    };
-    setMessages(prev => [...prev, newMsg]);
-    setNewMessageText("");
-    
-    setTimeout(() => {
-      setMessages(prev => [...prev, {
-        id: Date.now() + 1,
-        sender: "admin",
-        text: isRTL ? "تم استلام رسالتك، شكراً لك." : "Message received, thank you.",
-        time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
-      }]);
-    }, 1000);
+    try {
+      await entities.AuditLog.create({
+        timestamp: new Date().toISOString(),
+        user_name: localStorage.getItem("portal_user_name") || "Bus Supervisor",
+        action: "BUS_CHAT",
+        entity_type: "Bus",
+        entity_id: activeDriver?.bus_number || "Unknown",
+        details: newMessageText
+      });
+      setNewMessageText("");
+      refetchMessages();
+    } catch (err) {
+      toast.error(isRTL ? "فشل إرسال الرسالة" : "Failed to send message");
+    }
   };
 
-  const handleCreateIncident = () => {
+  const handleCreateIncident = async () => {
     if (!newIncidentTitle.trim()) return;
-    const newInc = {
-      id: Date.now(),
-      title: newIncidentTitle,
-      severity: newIncidentSeverity,
-      time: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }),
-      details: newIncidentDetails,
-      status: "pending"
-    };
-    setIncidents(prev => [newInc, ...prev]);
-    toast.success(isRTL ? "تم تسجيل الحادث بنجاح وجاري المتابعة" : "Incident logged successfully and pending review");
-    setNewIncidentTitle("");
-    setNewIncidentDetails("");
+    try {
+      await entities.AuditLog.create({
+        timestamp: new Date().toISOString(),
+        user_name: localStorage.getItem("portal_user_name") || "Bus Supervisor",
+        action: "BUS_INCIDENT",
+        entity_type: "Bus",
+        entity_id: activeDriver?.bus_number || "Unknown",
+        details: JSON.stringify({
+          title: newIncidentTitle,
+          severity: newIncidentSeverity,
+          details: newIncidentDetails,
+          status: "pending"
+        })
+      });
+      toast.success(isRTL ? "تم تسجيل الحادث بنجاح وجاري المتابعة" : "Incident logged successfully and pending review");
+      setNewIncidentTitle("");
+      setNewIncidentDetails("");
+      refetchIncidents();
+    } catch (err) {
+      toast.error(isRTL ? "فشل تسجيل الحادث" : "Failed to log incident");
+    }
   };
 
   const handleToggleStop = (stopId) => {
@@ -1122,14 +1164,14 @@ export default function BusSupervisorPortal() {
               </div>
               <div className="flex justify-between items-center p-3.5 bg-stone-50 rounded-2xl">
                 <span className="text-[10px] text-stone-400 font-bold uppercase tracking-widest">{isRTL ? "هاتف الاتصال" : "Phone Number"}</span>
-                <span className="text-xs font-bold text-stone-800">{selectedStudentForContact.parent_phone || "+966 50 123 4567"}</span>
+                <span className="text-xs font-bold text-stone-800">{selectedStudentForContact.parent_phone || (isRTL ? "غير مسجل" : "Not Registered")}</span>
               </div>
             </div>
 
             <div className="flex gap-4 pt-2">
               <a 
-                href={`tel:${selectedStudentForContact.parent_phone || '+966501234567'}`}
-                className="flex-1 h-14 bg-amber-500 hover:bg-amber-600 text-stone-900 font-bold rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20"
+                href={`tel:${selectedStudentForContact.parent_phone || ''}`}
+                className="flex-1 h-14 bg-amber-500 hover:bg-amber-600 text-stone-900 font-bold rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 disabled:opacity-50"
               >
                 <Phone size={18} />
                 {isRTL ? "اتصال هاتفي" : "Dial Phone"}
