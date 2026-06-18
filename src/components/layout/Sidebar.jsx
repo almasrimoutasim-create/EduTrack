@@ -290,7 +290,15 @@ export default function Sidebar() {
               { label: isRTL ? "أمين المستودع (المتجر)" : "Storekeeper (Store)", path: "/store", icon: ShoppingCart },
               { label: isRTL ? "المحاسب (المالية)" : "Accountant (Finance)", path: "/finance", icon: DollarSign },
               { label: isRTL ? "المسجل (دليل الطلاب)" : "Registrar (Student Directory)", path: "/student-directory", icon: FileText },
-              { label: isRTL ? "مشرف الحافلة" : "Bus Supervisor", path: "/bus-supervisor", icon: Bus },
+              { 
+                label: isRTL ? "مشرف الحافلة" : "Bus Supervisor", 
+                path: "/bus-supervisor", 
+                icon: Bus,
+                subItems: [
+                  { label: isRTL ? "بوابة المشرف" : "Supervisor Portal", path: "/bus-supervisor", icon: LayoutDashboard },
+                  { label: isRTL ? "إدارة مسارات الحافلات" : "Bus Routes Management", path: "/bus-routes", icon: Layers }
+                ]
+              },
               { 
                 label: isRTL ? "حارس الأمن" : "Security Guard", 
                 path: "/staff-portal", 

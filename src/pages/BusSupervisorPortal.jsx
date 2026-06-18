@@ -165,8 +165,15 @@ export default function BusSupervisorPortal() {
     time: new Date(log.timestamp).toLocaleTimeString(isRTL ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' })
   })).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
+  const portalUserStr = localStorage.getItem("portal_user");
+  const portalUser = portalUserStr ? JSON.parse(portalUserStr) : null;
+  const currentSupervisor = supervisors.find(s => s.email === portalUser?.email);
+  const supervisorRoute = currentSupervisor?.bus_route;
+
   // Filters & Counts
-  const busStudents = allStudents.filter(s => s.bus_registered);
+  const busStudents = allStudents.filter(s => 
+    s.bus_registered && (!supervisorRoute || s.bus_route === supervisorRoute)
+  );
   
   const getStudentStatus = (studentId) => {
     const record = todayAttendance.find(a => a.student_id === studentId);
@@ -201,6 +208,7 @@ export default function BusSupervisorPortal() {
         student_name: student.full_name || student.name,
         date: todayStr,
         status: "present",
+        type: "bus_in",
         notes: isRTL ? "صعد الحافلة المدرسية" : "Boarded school bus"
       });
 
@@ -212,7 +220,7 @@ export default function BusSupervisorPortal() {
             ? `صعد ابنكم/ابنتكم ${student.full_name || student.name} الحافلة في تمام الساعة ${new Date().toLocaleTimeString('ar-EG', {hour: '2-digit', minute:'2-digit'})}`
             : `${student.full_name || student.name} has boarded the school bus at ${new Date().toLocaleTimeString('en-US', {hour: '2-digit', minute:'2-digit'})}`,
           type: "info",
-          read: false
+          is_read: false
         });
       }
       toast.success(isRTL ? `تم تسجيل صعود ${student.full_name || student.name}` : `Recorded check-in for ${student.full_name || student.name}`);
@@ -230,6 +238,7 @@ export default function BusSupervisorPortal() {
         student_name: student.full_name || student.name,
         date: todayStr,
         status: "absent",
+        type: "bus_out",
         notes: isRTL ? "نزل أو لم يصعد الحافلة المدرسية" : "Left or did not board school bus"
       });
 
@@ -241,7 +250,7 @@ export default function BusSupervisorPortal() {
             ? `نزل/لم يصعد ابنكم/ابنتكم ${student.full_name || student.name} الحافلة في تمام الساعة ${new Date().toLocaleTimeString('ar-EG', {hour: '2-digit', minute:'2-digit'})}`
             : `${student.full_name || student.name} left or did not board the school bus at ${new Date().toLocaleTimeString('en-US', {hour: '2-digit', minute:'2-digit'})}`,
           type: "warning",
-          read: false
+          is_read: false
         });
       }
       toast.success(isRTL ? `تم تسجيل عدم الصعود لـ ${student.full_name || student.name}` : `Recorded departure for ${student.full_name || student.name}`);
@@ -275,7 +284,7 @@ export default function BusSupervisorPortal() {
           ? `طوارئ في الحافلة ${activeDriver?.bus_number || ''}: ${emergencyType === 'breakdown' ? 'عطل فني' : emergencyType === 'traffic' ? 'ازدحام شديد' : emergencyType === 'medical' ? 'حالة صحية طارئة' : 'حادث سير'}. تفاصيل: ${emergencyNotes}`
           : `Emergency on Bus ${activeDriver?.bus_number || ''}: ${emergencyType}. Details: ${emergencyNotes}`,
         type: "error",
-        read: false
+        is_read: false
       });
       
       toast.success(isRTL ? "تم إرسال بلاغ الطوارئ للجهة المختصة" : "Emergency alert dispatched successfully");
@@ -298,7 +307,7 @@ export default function BusSupervisorPortal() {
           title: isRTL ? "تنبيه من مشرف الحافلة" : "Alert from Bus Supervisor",
           message: broadcastText,
           type: "info",
-          read: false
+          is_read: false
         });
       }
       
@@ -353,7 +362,7 @@ export default function BusSupervisorPortal() {
           ? `طلب دعم فني من ${supervisorName}: ${supportText}`
           : `Technical support requested by ${supervisorName}: ${supportText}`,
         type: "warning",
-        read: false
+        is_read: false
       });
 
       // 3. Create a staff request record in localStorage (for Staff Portal / صفحة الدعم الفني)
@@ -463,7 +472,7 @@ export default function BusSupervisorPortal() {
                     </Badge>
                   </div>
                   <p className="text-stone-400 font-bold tracking-widest text-sm uppercase">
-                    {activeDriver?.bus_route || (isRTL ? "مسار غير محدد" : "No route assigned")}
+                    {supervisorRoute || activeDriver?.bus_route || (isRTL ? "مسار غير محدد" : "No route assigned")}
                   </p>
                 </div>
               </div>
@@ -515,43 +524,64 @@ export default function BusSupervisorPortal() {
               
               {activeTab === "students" && (
                 <div className="space-y-6">
-                  <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                    <h3 className="text-2xl font-serif font-bold text-stone-900">{isRTL ? "قائمة ركوب الطلاب" : "Student Boarding"}</h3>
-                    
-                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full">
-                      {[
-                        { id: "all", label: isRTL ? "الكل" : "All", count: busStudents.length },
-                        { id: "boarded", label: isRTL ? "صعدوا" : "Boarded", count: boardedCount },
-                        { id: "pending", label: isRTL ? "بانتظارهم" : "Pending", count: pendingCount },
-                        { id: "absent", label: isRTL ? "غياب" : "Absent", count: absentCount }
-                      ].map((tab) => (
-                        <button
-                          key={tab.id}
-                          onClick={() => setStudentFilter(tab.id)}
-                          className={`rounded-2xl h-10 px-4 font-bold text-xs gap-1.5 cursor-pointer flex items-center shrink-0 border transition-all ${
-                            studentFilter === tab.id 
-                              ? 'bg-stone-900 text-white shadow-md border-transparent' 
-                              : 'bg-white border-stone-200 text-stone-500 hover:bg-stone-50'
-                          }`}
-                        >
-                          {tab.label}
-                          <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-black ${
-                            studentFilter === tab.id ? 'bg-white text-stone-900' : 'bg-stone-100 text-stone-500'
-                          }`}>
-                            {tab.count}
-                          </span>
-                        </button>
-                      ))}
+                  <div className="flex flex-col gap-6 bg-white p-6 rounded-[32px] border border-stone-100 shadow-sm">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-stone-100">
+                      <div className="space-y-1">
+                        <h3 className="text-2xl font-serif font-black text-stone-900">{isRTL ? "قائمة ركوب الطلاب" : "Student Boarding"}</h3>
+                        <p className="text-stone-450 text-xs font-semibold">{isRTL ? "تتبع حالة صعود ونزول الطلاب من الحافلة اليوم." : "Track student boarding and departure status for today."}</p>
+                      </div>
                     </div>
+                    
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                      {/* Filter Tabs Container with hidden scrollbar */}
+                      <div 
+                        className="flex items-center gap-2 overflow-x-auto pb-1 lg:pb-0 max-w-full"
+                        style={{
+                          scrollbarWidth: 'none',
+                          msOverflowStyle: 'none',
+                          WebkitOverflowScrolling: 'touch'
+                        }}
+                      >
+                        <style dangerouslySetInnerHTML={{__html: `
+                          .hide-scrollbar::-webkit-scrollbar { display: none; }
+                        `}} />
+                        <div className="flex items-center gap-1.5 hide-scrollbar overflow-x-auto">
+                          {[
+                            { id: "all", label: isRTL ? "الكل" : "All", count: busStudents.length },
+                            { id: "boarded", label: isRTL ? "صعدوا" : "Boarded", count: boardedCount },
+                            { id: "pending", label: isRTL ? "بانتظارهم" : "Pending", count: pendingCount },
+                            { id: "absent", label: isRTL ? "غياب" : "Absent", count: absentCount }
+                          ].map((tab) => (
+                            <button
+                              key={tab.id}
+                              onClick={() => setStudentFilter(tab.id)}
+                              className={`rounded-2xl h-11 px-4 font-bold text-xs gap-1.5 cursor-pointer flex items-center shrink-0 border transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] ${
+                                studentFilter === tab.id 
+                                  ? 'bg-stone-900 text-white shadow-md border-transparent' 
+                                  : 'bg-white border-stone-200 text-stone-600 hover:bg-stone-50 hover:text-stone-900'
+                              }`}
+                            >
+                              {tab.label}
+                              <span className={`rounded-full px-2 py-0.5 text-[10px] font-black transition-colors ${
+                                studentFilter === tab.id ? 'bg-white text-stone-900' : 'bg-stone-100 text-stone-500'
+                              }`}>
+                                {tab.count}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
 
-                    <div className="relative w-full md:w-auto shrink-0">
-                      <Search className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 text-stone-300`} size={16} />
-                      <Input 
-                        placeholder={isRTL ? "بحث عن طالب..." : "Search student..."} 
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className={`h-10 ${isRTL ? 'pr-10' : 'pl-10'} rounded-xl border-stone-100 bg-white w-full md:w-48`}
-                      />
+                      {/* Search Bar with interactive style */}
+                      <div className="relative group w-full lg:w-64 shrink-0">
+                        <Search className={`absolute ${isRTL ? 'right-3.5' : 'left-3.5'} top-1/2 -translate-y-1/2 text-stone-400 group-focus-within:text-stone-900 transition-colors`} size={16} />
+                        <Input 
+                          placeholder={isRTL ? "بحث عن طالب..." : "Search student..."} 
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          className={`h-11 ${isRTL ? 'pr-11 pl-4' : 'pl-11 pr-4'} rounded-2xl border-stone-200 bg-white w-full text-xs font-semibold focus-visible:ring-2 focus-visible:ring-stone-900/10 focus-visible:border-stone-900 shadow-sm transition-all`}
+                        />
+                      </div>
                     </div>
                   </div>
 

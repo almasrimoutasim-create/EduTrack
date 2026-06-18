@@ -28,6 +28,7 @@ import StudentPortal from './pages/StudentPortal';
 import TeacherPortal from './pages/TeacherPortal';
 import ParentPortal from './pages/ParentPortal';
 import BusSupervisorPortal from './pages/BusSupervisorPortal';
+import BusRouteManagement from './pages/BusRouteManagement';
 import RoomView from './pages/RoomView';
 import ActivityFeed from './pages/ActivityFeed';
 import Awards from './pages/Awards';
@@ -146,6 +147,7 @@ const AuthenticatedApp = () => {
         <Route path="/counseling" element={<CounselingDashboard />} />
         <Route path="/counseling/cases" element={<CounselingCases />} />
         <Route path="/counseling/:id" element={<CounselingCaseDetail />} />
+        <Route path="/bus-routes" element={<BusRouteManagement />} />
       </Route>
       <Route path="/student-portal" element={<StudentPortal />} />
       <Route path="/teacher-portal" element={<TeacherPortal />} />
