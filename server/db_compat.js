@@ -1,6 +1,9 @@
 import pg from 'pg';
 const { Pool } = pg;
 
+// Prevent timezone shifting by returning DATE types as raw string (YYYY-MM-DD)
+pg.types.setTypeParser(1082, (val) => val);
+
 export function neon(connectionString) {
   if (!connectionString) {
     return null;

@@ -159,6 +159,8 @@ export default function StudentForm({ student, onClose }) {
 
       if (isEdit) {
         await entities.Student.update(student.id, payload);
+        qc.invalidateQueries({ queryKey: ["student-profile", student.id] });
+        qc.invalidateQueries({ queryKey: ["student-detail", student.id] });
       } else {
         await entities.Student.create(payload);
       }
