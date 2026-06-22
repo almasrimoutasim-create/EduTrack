@@ -38,6 +38,7 @@ export default function StudentDashboard() {
   const [showFormModal, setShowFormModal] = useState(false);
   const [answers, setAnswers] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isViewOnly, setIsViewOnly] = useState(false);
 
   const loadAssignments = () => {
     const saved = localStorage.getItem("edu_assignments");
@@ -77,20 +78,21 @@ export default function StudentDashboard() {
     const submissions = savedSubmissions ? JSON.parse(savedSubmissions) : {};
     const asmSubs = submissions[asm.id] || [];
     const studentId = localStorage.getItem("portal_user_id") || "STU-882";
-    const alreadySubmitted = asmSubs.some(s => s.studentId === studentId);
-
-    if (alreadySubmitted) {
-      toast.info(isRTL ? "لقد قمت بتسليم هذا الواجب بالفعل!" : "You have already submitted this assignment!");
-      return;
-    }
+    const existingSub = asmSubs.find(s => s.studentId === studentId);
 
     setSelectedAsm(asm);
-    // Initialize answers structure
-    const initialAnswers = {};
-    asm.questions.forEach(q => {
-      initialAnswers[q.id] = q.type === "checkbox" ? [] : "";
-    });
-    setAnswers(initialAnswers);
+    if (existingSub) {
+      setAnswers(existingSub.answers || {});
+      setIsViewOnly(true);
+    } else {
+      // Initialize answers structure
+      const initialAnswers = {};
+      asm.questions.forEach(q => {
+        initialAnswers[q.id] = q.type === "checkbox" ? [] : "";
+      });
+      setAnswers(initialAnswers);
+      setIsViewOnly(false);
+    }
     setShowFormModal(true);
   };
 
@@ -335,14 +337,13 @@ export default function StudentDashboard() {
                       </div>
                       <button 
                         onClick={() => handleStartTask(task)}
-                        disabled={isDone}
                         className={`rounded-xl h-10 px-6 font-bold transition-all border-none relative z-10 cursor-pointer ${
                           isDone 
-                            ? "bg-emerald-50 text-emerald-600 cursor-default"
+                            ? "bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
                             : "bg-stone-50 text-stone-900 hover:bg-stone-900 hover:text-white"
                         }`}
                       >
-                        {isDone ? (isRTL ? "مكتمل" : "Completed") : (isRTL ? "ابدأ الآن" : "Start Task")}
+                        {isDone ? (isRTL ? "عرض الواجب" : "View") : (isRTL ? "ابدأ الآن" : "Start Task")}
                       </button>
                     </Card>
                   </motion.div>
@@ -424,14 +425,15 @@ export default function StudentDashboard() {
                     {q.type === "mcq" && (
                       <div className="grid grid-cols-1 gap-2 pt-2">
                         {q.options.map((opt, oIdx) => (
-                          <label key={oIdx} className="flex items-center gap-3 cursor-pointer p-2 hover:bg-white rounded-lg transition-colors border border-transparent hover:border-stone-100">
+                          <label key={oIdx} className={`flex items-center gap-3 p-2 rounded-lg transition-colors border border-transparent ${isViewOnly ? 'opacity-70' : 'cursor-pointer hover:bg-white hover:border-stone-100'}`}>
                             <input 
                               type="radio" 
                               name={q.id}
                               value={opt}
                               checked={answers[q.id] === opt}
-                              onChange={e => setAnswers(prev => ({ ...prev, [q.id]: e.target.value }))}
-                              className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-stone-300"
+                              onChange={e => !isViewOnly && setAnswers(prev => ({ ...prev, [q.id]: e.target.value }))}
+                              disabled={isViewOnly}
+                              className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-stone-300 disabled:opacity-50"
                             />
                             <span className="text-xs font-semibold text-stone-700">{opt}</span>
                           </label>
@@ -443,12 +445,13 @@ export default function StudentDashboard() {
                     {q.type === "checkbox" && (
                       <div className="grid grid-cols-1 gap-2 pt-2">
                         {q.options.map((opt, oIdx) => (
-                          <label key={oIdx} className="flex items-center gap-3 cursor-pointer p-2 hover:bg-white rounded-lg transition-colors border border-transparent hover:border-stone-100">
+                          <label key={oIdx} className={`flex items-center gap-3 p-2 rounded-lg transition-colors border border-transparent ${isViewOnly ? 'opacity-70' : 'cursor-pointer hover:bg-white hover:border-stone-100'}`}>
                             <input 
                               type="checkbox"
                               checked={(answers[q.id] || []).includes(opt)}
-                              onChange={e => handleCheckboxChange(q.id, opt, e.target.checked)}
-                              className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-stone-300 rounded"
+                              onChange={e => !isViewOnly && handleCheckboxChange(q.id, opt, e.target.checked)}
+                              disabled={isViewOnly}
+                              className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-stone-300 rounded disabled:opacity-50"
                             />
                             <span className="text-xs font-semibold text-stone-700">{opt}</span>
                           </label>
@@ -460,8 +463,9 @@ export default function StudentDashboard() {
                     {q.type === "short" && (
                       <Input 
                         value={answers[q.id] || ""}
-                        onChange={e => setAnswers(prev => ({ ...prev, [q.id]: e.target.value }))}
-                        className="h-10 rounded-xl border-stone-250 font-semibold focus-visible:ring-indigo-200 bg-white"
+                        onChange={e => !isViewOnly && setAnswers(prev => ({ ...prev, [q.id]: e.target.value }))}
+                        disabled={isViewOnly}
+                        className="h-10 rounded-xl border-stone-250 font-semibold focus-visible:ring-indigo-200 bg-white disabled:opacity-70"
                         placeholder={isRTL ? "اكتب إجابتك القصيرة هنا..." : "Enter your short answer here..."}
                       />
                     )}
@@ -470,9 +474,10 @@ export default function StudentDashboard() {
                     {q.type === "paragraph" && (
                       <Textarea 
                         value={answers[q.id] || ""}
-                        onChange={e => setAnswers(prev => ({ ...prev, [q.id]: e.target.value }))}
+                        onChange={e => !isViewOnly && setAnswers(prev => ({ ...prev, [q.id]: e.target.value }))}
+                        disabled={isViewOnly}
                         rows={3}
-                        className="rounded-xl border-stone-250 font-semibold focus-visible:ring-indigo-200 bg-white"
+                        className="rounded-xl border-stone-250 font-semibold focus-visible:ring-indigo-200 bg-white disabled:opacity-70"
                         placeholder={isRTL ? "اكتب إجابتك بالتفصيل هنا..." : "Write your essay answer in detail here..."}
                       />
                     )}
@@ -480,14 +485,16 @@ export default function StudentDashboard() {
                 ))}
               </div>
 
-              <button 
-                onClick={handleSubmitAnswers}
-                disabled={isSubmitting}
-                className="w-full inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-sm font-semibold transition-all bg-indigo-600 text-white hover:bg-indigo-700 h-12 cursor-pointer shadow-lg shadow-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <CheckCircle2 size={16} />
-                <span>{isRTL ? "إرسال وتسليم الواجب" : "Submit Assignment"}</span>
-              </button>
+              {!isViewOnly && (
+                <button 
+                  onClick={handleSubmitAnswers}
+                  disabled={isSubmitting}
+                  className="w-full inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-sm font-semibold transition-all bg-indigo-600 text-white hover:bg-indigo-700 h-12 cursor-pointer shadow-lg shadow-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <CheckCircle2 size={16} />
+                  <span>{isRTL ? "إرسال وتسليم الواجب" : "Submit Assignment"}</span>
+                </button>
+              )}
             </div>
           )}
         </DialogContent>
