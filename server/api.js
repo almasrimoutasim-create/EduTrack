@@ -1092,7 +1092,7 @@ export function setupWebSocket(server) {
         if (roomSockets) {
           for (const socketId of roomSockets) {
             const clientSocket = io.sockets.sockets.get(socketId);
-            if (clientSocket && clientSocket.userId === targetUserId) {
+            if (clientSocket && String(clientSocket.userId) === String(targetUserId)) {
               clientSocket.emit('signal', data);
             }
           }

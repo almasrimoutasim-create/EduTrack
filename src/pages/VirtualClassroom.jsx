@@ -398,7 +398,7 @@ export default function VirtualClassroom() {
   // ─────────────────────────────────────────────────────────────────────────
   const handleIncomingSignal = async (type, peerId, data) => {
     const pc = getOrCreatePC(peerId);
-    const isPolite = userId < peerId;
+    const isPolite = String(userId) < String(peerId);
 
     if (type === "OFFER") {
       const offerCollision = makingOfferRef.current[peerId] || pc.signalingState !== "stable";
