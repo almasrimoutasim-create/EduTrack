@@ -39,6 +39,8 @@ export default function VirtualClassroom() {
   const [chatMessage, setChatMessage] = useState("");
   const [pinnedParticipantId, setPinnedParticipantId] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [remoteScreenSharing, setRemoteScreenSharing] = useState({});
+  const [remoteScreenStreams, setRemoteScreenStreams] = useState({});
 
   // WebRTC & HTML5 Video/Audio Media
   const [localStream, setLocalStream] = useState(null);
@@ -310,16 +312,16 @@ export default function VirtualClassroom() {
         try {
           currentScreenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
           setScreenStream(currentScreenStream);
-          // Replace video track in all active peer connections
-          const screenTrack = currentScreenStream.getVideoTracks()[0];
+          // Add screen track as a new track to all active peer connections instead of replacing
           Object.values(pcsRef.current).forEach(pc => {
-            const sender = pc.getSenders().find(s => s.track && s.track.kind === "video");
-            if (sender) {
-              sender.replaceTrack(screenTrack);
-            }
+            currentScreenStream.getTracks().forEach(track => {
+              pc.addTrack(track, currentScreenStream);
+            });
           });
 
-          screenTrack.onended = () => {
+          sendSignal("SCREEN_SHARE", "all", { active: true });
+
+          currentScreenStream.getVideoTracks()[0].onended = () => {
             setScreenSharing(false);
           };
         } catch (err) {
@@ -327,20 +329,21 @@ export default function VirtualClassroom() {
           setScreenSharing(false);
         }
       } else {
-        if (localStream) {
-          // Restore camera track in all active peer connections
-          const cameraTrack = localStream.getVideoTracks()[0];
-          Object.values(pcsRef.current).forEach(pc => {
-            const sender = pc.getSenders().find(s => s.track && s.track.kind === "video");
-            if (sender && cameraTrack) {
-              sender.replaceTrack(cameraTrack);
-            }
-          });
-        }
         if (screenStream) {
+          // Remove the screen tracks from all active peer connections
+          Object.values(pcsRef.current).forEach(pc => {
+            const senders = pc.getSenders();
+            screenStream.getTracks().forEach(track => {
+              const sender = senders.find(s => s.track === track);
+              if (sender) {
+                pc.removeTrack(sender);
+              }
+            });
+          });
           screenStream.getTracks().forEach(track => track.stop());
           setScreenStream(null);
         }
+        sendSignal("SCREEN_SHARE", "all", { active: false });
       }
     };
     toggleScreen();
@@ -405,10 +408,16 @@ export default function VirtualClassroom() {
 
     pc.ontrack = (event) => {
       const stream = event.streams[0] || new MediaStream([event.track]);
-      setRemoteStreams(prev => ({
-        ...prev,
-        [peerId]: stream
-      }));
+      
+      setRemoteStreams(prev => {
+        const existing = prev[peerId];
+        if (existing && existing.id !== stream.id) {
+           // It's a second stream! Likely the screen share
+           setRemoteScreenStreams(prevS => ({ ...prevS, [peerId]: stream }));
+           return prev; // keep the original camera stream
+        }
+        return { ...prev, [peerId]: stream };
+      });
     };
 
     pcsRef.current[peerId] = pc;
@@ -502,6 +511,19 @@ export default function VirtualClassroom() {
       setPresentationMode(data.mode);
     } else if (type === "PRESENTATION_DATA") {
       setPresentationData(data);
+    } else if (type === "SCREEN_SHARE") {
+      if (data.active) {
+        setPinnedParticipantId(peerId);
+        setRemoteScreenSharing(prev => ({ ...prev, [peerId]: true }));
+      } else {
+        setPinnedParticipantId(prev => prev === peerId ? null : prev);
+        setRemoteScreenSharing(prev => ({ ...prev, [peerId]: false }));
+        setRemoteScreenStreams(prev => {
+           const next = { ...prev };
+           delete next[peerId];
+           return next;
+        });
+      }
     }
   };
 
@@ -1165,7 +1187,28 @@ export default function VirtualClassroom() {
                     <div className="text-stone-500 font-bold text-xs">{isRTL ? "الكاميرا مغلقة" : "Camera Off"}</div>
                   )
                 ) : (
-                  remoteStreams[pinnedParticipantId] && participants.find(p => p.id === pinnedParticipantId)?.video ? (
+                  remoteScreenStreams[pinnedParticipantId] ? (
+                    <video
+                      ref={el => {
+                        if (el && remoteScreenStreams[pinnedParticipantId]) {
+                          if (el.srcObject !== remoteScreenStreams[pinnedParticipantId]) {
+                            el.srcObject = remoteScreenStreams[pinnedParticipantId];
+                          }
+                          el.volume = remoteVolume;
+                          el.play().catch(() => {
+                            const playOnClick = () => {
+                              el.play().catch(e => console.error("Error playing remote pinned stream on click:", e));
+                              window.removeEventListener("click", playOnClick);
+                            };
+                            window.addEventListener("click", playOnClick);
+                          });
+                        }
+                      }}
+                      autoPlay
+                      playsInline
+                      className="w-full h-full object-contain"
+                    />
+                  ) : remoteStreams[pinnedParticipantId] && participants.find(p => p.id === pinnedParticipantId)?.video ? (
                     <video
                       ref={el => {
                         if (el && remoteStreams[pinnedParticipantId]) {
