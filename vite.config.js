@@ -1,7 +1,7 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import path from 'path'
-import { createApiHandler } from "./server/api.js"
+import { createApiHandler, setupWebSocket } from "./server/api.js"
 
 const hasNeon = process.env.DATABASE_URL;
 
@@ -57,11 +57,9 @@ export default defineConfig({
     hasNeon ? {
       name: 'neon-api-middleware',
       configureServer(server) {
-        import('./server/api.js').then(({ createApiHandler, setupWebSocket }) => {
-          server.middlewares.use(createApiHandler());
-          setupWebSocket(server.httpServer);
-          console.log('[neon] API routes enabled at /neon-db/* and WS at /api/classroom-ws');
-        });
+        server.middlewares.use(createApiHandler());
+        setupWebSocket(server.httpServer);
+        console.log('[neon] API routes enabled at /neon-db/* and WS at /api/classroom-ws');
       }
     } : null
   ].filter(Boolean)

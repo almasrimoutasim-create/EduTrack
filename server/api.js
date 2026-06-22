@@ -1080,7 +1080,7 @@ export function setupWebSocket(server) {
 
   server.on('upgrade', (req, socket, head) => {
     // Only handle websocket upgrades for classroom signaling/drawing
-    if (req.url.startsWith('/api/classroom-ws') || req.url === '/') {
+    if (req.url.startsWith('/api/classroom-ws')) {
       wss.handleUpgrade(req, socket, head, (ws) => {
         wss.emit('connection', ws, req);
       });
