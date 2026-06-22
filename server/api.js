@@ -2,7 +2,7 @@ import { neon } from './db_compat.js';
 import dotenv from 'dotenv';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { WebSocketServer } from 'ws';
+import { Server as SocketIOServer } from 'socket.io';
 dotenv.config();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'edutrack_secure_jwt_secret_2026_fallback';
@@ -1047,49 +1047,64 @@ export function setupApiRoutes(server) {
 }
 
 export function setupWebSocket(server) {
-  const wss = new WebSocketServer({ noServer: true });
-
-  // Room-based broadcasting
-  wss.on('connection', (ws, req) => {
-    console.log('[WS] New connection established');
-    ws.on('message', (msg) => {
-      try {
-        const parsed = JSON.parse(msg);
-        const { type, roomId, targetUserId, payload } = parsed;
-        
-        // Save roomId to socket for routing
-        if (roomId) ws.roomId = roomId;
-        if (parsed.userId) ws.userId = parsed.userId;
-
-        console.log(`[WS] Received type: ${type} for room: ${roomId}`);
-
-        if (type === 'signal' || type === 'draw' || type === 'clear-canvas') {
-          let broadcastCount = 0;
-          // Broadcast to everyone else in the same room
-          wss.clients.forEach((client) => {
-            if (client !== ws && client.readyState === 1 && client.roomId === roomId) {
-              // targetUserId is used for directed WebRTC signaling (if provided)
-              if (targetUserId && client.userId !== targetUserId) {
-                return; // Skip if not the target user
-              }
-              client.send(msg.toString()); // Relaying message
-              broadcastCount++;
-            }
-          });
-          console.log(`[WS] Broadcasted ${type} to ${broadcastCount} clients in room ${roomId}`);
-        }
-      } catch (err) {
-        console.error('[WS] Error processing message:', err);
-      }
-    });
+  const io = new SocketIOServer(server, {
+    cors: {
+      origin: "*",
+      methods: ["GET", "POST"]
+    }
   });
 
-  server.on('upgrade', (req, socket, head) => {
-    // Only handle websocket upgrades for classroom signaling/drawing
-    if (req.url.startsWith('/api/classroom-ws')) {
-      wss.handleUpgrade(req, socket, head, (ws) => {
-        wss.emit('connection', ws, req);
-      });
+  io.on('connection', (socket) => {
+    console.log('[Socket.io] New connection established:', socket.id);
+    
+    // حفظ الـ userId للاستخدام في الـ WebRTC المُوجّه
+    const { userId } = socket.handshake.query;
+    if (userId) {
+      socket.userId = userId;
     }
+
+    socket.on('join-room', (roomId) => {
+      socket.join(roomId);
+      console.log(`[Socket.io] Socket ${socket.id} joined drawing room ${roomId}`);
+    });
+
+    socket.on('join-webrtc-room', (roomId) => {
+      socket.join(roomId);
+      // إخبار الآخرين بانضمام مستخدم جديد
+      socket.broadcast.to(roomId).emit('user-joined', { socketId: socket.id, userId });
+      console.log(`[Socket.io] Socket ${socket.id} joined webrtc room ${roomId}`);
+    });
+
+    socket.on('draw-event', (data) => {
+      const { roomId } = data;
+      if (roomId) {
+        socket.broadcast.to(roomId).emit('draw-event', data);
+      }
+    });
+
+    socket.on('signal', (data) => {
+      const { roomId, targetUserId } = data;
+      if (!roomId) return;
+      
+      if (targetUserId) {
+        // إرسال الإشارة لمستخدم محدد
+        const roomSockets = io.sockets.adapter.rooms.get(roomId);
+        if (roomSockets) {
+          for (const socketId of roomSockets) {
+            const clientSocket = io.sockets.sockets.get(socketId);
+            if (clientSocket && clientSocket.userId === targetUserId) {
+              clientSocket.emit('signal', data);
+            }
+          }
+        }
+      } else {
+        // بث الإشارة للجميع ما عدا المرسل
+        socket.broadcast.to(roomId).emit('signal', data);
+      }
+    });
+
+    socket.on('disconnect', () => {
+      console.log('[Socket.io] Disconnected:', socket.id);
+    });
   });
 }

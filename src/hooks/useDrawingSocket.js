@@ -1,104 +1,62 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { io } from 'socket.io-client';
+
+const WS_URL = import.meta.env.VITE_WS_URL || '';
 
 /**
- * هوك مخصص لربط اللوح الذكي بسيرفر WebSocket
- * يوفر اتصال فوري وسريع بين المستخدمين بدلاً من قاعدة البيانات
+ * هوك مخصص لربط اللوح الذكي باستخدام socket.io-client
  */
 export function useDrawingSocket(roomId, userId) {
-  const wsRef = useRef(null);
+  const socketRef = useRef(null);
   const [isConnected, setIsConnected] = useState(false);
   const onDrawEventRef = useRef(null);
 
-  // Reconnection variables
-  const reconnectTimeoutRef = useRef(null);
-  const maxRetries = 5;
-  const retryCount = useRef(0);
-
-  const connect = useCallback(() => {
+  useEffect(() => {
     if (!roomId) return;
-    if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    // في الإنتاج، نفس النطاق (window.location.host). في التطوير، نستخدم نفس النطاق لأن Vite يعالج الـ proxy
-    const wsUrl = `${protocol}//${window.location.host}/api/classroom-ws`;
-    
-    const ws = new WebSocket(wsUrl);
-    wsRef.current = ws;
+    // تهيئة الاتصال بخادم Socket.io
+    socketRef.current = io(WS_URL, {
+      transports: ['websocket'],
+      query: { roomId, userId }
+    });
 
-    ws.onopen = () => {
-      console.log('[Drawing WebSocket] Connected');
+    socketRef.current.on('connect', () => {
+      console.log('[Drawing Socket.io] Connected');
       setIsConnected(true);
-      retryCount.current = 0;
-      
-      // إرسال رسالة أولية لتعريف المستخدم للغرفة
-      ws.send(JSON.stringify({
-        type: 'join',
-        roomId,
-        userId
-      }));
-    };
+      socketRef.current.emit('join-room', roomId);
+    });
 
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        // التحقق من نوع الحدث واستدعاء الدالة المرجعية إذا كانت متوفرة
-        if (data.type === 'draw' || data.type === 'clear-canvas') {
-          if (onDrawEventRef.current) {
-            onDrawEventRef.current(data);
-          }
-        }
-      } catch (err) {
-        console.error('[Drawing WebSocket] Error parsing message', err);
-      }
-    };
-
-    ws.onclose = () => {
-      console.log('[Drawing WebSocket] Disconnected');
+    socketRef.current.on('disconnect', () => {
+      console.log('[Drawing Socket.io] Disconnected');
       setIsConnected(false);
-      
-      // محاولة إعادة الاتصال التلقائي
-      if (retryCount.current < maxRetries) {
-        reconnectTimeoutRef.current = setTimeout(() => {
-          retryCount.current += 1;
-          connect();
-        }, 2000 * retryCount.current);
-      }
-    };
+    });
 
-    ws.onerror = (err) => {
-      console.error('[Drawing WebSocket] Error', err);
-      ws.close();
+    // استقبال حدث الرسم من المستخدمين الآخرين
+    socketRef.current.on('draw-event', (data) => {
+      if (onDrawEventRef.current) {
+        onDrawEventRef.current(data);
+      }
+    });
+
+    // تنظيف وإغلاق الاتصال عند تدمير المكون
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+      }
     };
   }, [roomId, userId]);
 
-  useEffect(() => {
-    connect();
-    return () => {
-      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
-      if (wsRef.current) {
-        wsRef.current.close();
-      }
-    };
-  }, [connect]);
-
+  // دالة لإرسال إحداثيات الرسم لباقي المتصلين (متوافقة مع الفرونت-إند)
   const sendDrawEvent = useCallback((drawData) => {
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({
-        type: 'draw',
-        roomId,
-        userId,
-        payload: drawData
-      }));
+    if (socketRef.current && socketRef.current.connected) {
+      socketRef.current.emit('draw-event', { type: 'draw', payload: drawData, roomId, userId });
     }
   }, [roomId, userId]);
 
+  // دالة لإرسال أمر مسح السبورة
   const clearCanvas = useCallback(() => {
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({
-        type: 'clear-canvas',
-        roomId,
-        userId
-      }));
+    if (socketRef.current && socketRef.current.connected) {
+      socketRef.current.emit('draw-event', { type: 'clear-canvas', roomId, userId });
     }
   }, [roomId, userId]);
 
