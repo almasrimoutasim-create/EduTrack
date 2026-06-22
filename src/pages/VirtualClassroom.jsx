@@ -73,6 +73,8 @@ export default function VirtualClassroom() {
   // Track refs for all remote video elements to apply volume changes
   const remoteVideoRefs = useRef({});   // peerId -> HTMLVideoElement
   const offersInitiated = useRef(new Set()); // track which peers we've offered to
+  const makingOfferRef = useRef({});    // peerId -> boolean
+  const ignoreOfferRef = useRef({});    // peerId -> boolean
 
   // ── Presentation / Whiteboard ─────────────────────────────────────────────
   const canvasRef = useRef(null);
@@ -329,6 +331,7 @@ export default function VirtualClassroom() {
     if (pcsRef.current[peerId]) return pcsRef.current[peerId];
 
     const pc = new RTCPeerConnection({ iceServers: iceConfig?.iceServers || [] });
+    pcsRef.current[peerId] = pc;
 
     // Add local camera tracks immediately if available
     if (localStream) {
@@ -336,16 +339,15 @@ export default function VirtualClassroom() {
     }
 
     pc.onnegotiationneeded = async () => {
-      // The peer with the HIGHER userId always creates the initial offer
-      if (userId < peerId) return;
       try {
-        if (pc.signalingState === "stable") {
-          const offer = await pc.createOffer();
-          await pc.setLocalDescription(offer);
-          sendSignal("OFFER", peerId, offer);
-        }
+        makingOfferRef.current[peerId] = true;
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        sendSignal("OFFER", peerId, offer);
       } catch (err) {
         console.error("Negotiation error:", err);
+      } finally {
+        makingOfferRef.current[peerId] = false;
       }
     };
 
@@ -358,8 +360,6 @@ export default function VirtualClassroom() {
     };
 
     // ontrack fires for every incoming track.
-    // Always update remoteStreams — this captures both camera and screen-share tracks
-    // (replaceTrack keeps the same stream but updates the track inside it).
     pc.ontrack = (event) => {
       const stream = event.streams[0];
       if (!stream) return;
@@ -370,7 +370,6 @@ export default function VirtualClassroom() {
       if (el) el.volume = remoteVolume;
     };
 
-    pcsRef.current[peerId] = pc;
     return pc;
   };
 
@@ -399,8 +398,16 @@ export default function VirtualClassroom() {
   // ─────────────────────────────────────────────────────────────────────────
   const handleIncomingSignal = async (type, peerId, data) => {
     const pc = getOrCreatePC(peerId);
+    const isPolite = userId < peerId;
 
     if (type === "OFFER") {
+      const offerCollision = makingOfferRef.current[peerId] || pc.signalingState !== "stable";
+      ignoreOfferRef.current[peerId] = !isPolite && offerCollision;
+      
+      if (ignoreOfferRef.current[peerId]) {
+        return;
+      }
+
       await pc.setRemoteDescription(new RTCSessionDescription(data));
       if (iceQueuesRef.current[peerId]) {
         for (const c of iceQueuesRef.current[peerId]) {
@@ -422,11 +429,13 @@ export default function VirtualClassroom() {
       }
 
     } else if (type === "ICE") {
-      if (pc.remoteDescription?.type) {
-        await pc.addIceCandidate(new RTCIceCandidate(data)).catch(() => {});
-      } else {
-        if (!iceQueuesRef.current[peerId]) iceQueuesRef.current[peerId] = [];
-        iceQueuesRef.current[peerId].push(data);
+      try {
+        await pc.addIceCandidate(new RTCIceCandidate(data));
+      } catch (err) {
+        if (!ignoreOfferRef.current[peerId]) {
+          if (!iceQueuesRef.current[peerId]) iceQueuesRef.current[peerId] = [];
+          iceQueuesRef.current[peerId].push(data);
+        }
       }
 
     } else if (type === "DRAW_PATH") {
@@ -526,30 +535,16 @@ export default function VirtualClassroom() {
   }, [isDemo, wsSignaling, wsDrawing]);
 
   // ─────────────────────────────────────────────────────────────────────────
-  //  Initiate offers when participant list changes
-  // Only send an offer once per peer (avoid duplicate offers on re-renders)
+  //  Initiate connections when participant list changes
   // ─────────────────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (isDemo || !localStream || !wsSignaling.isConnected) return;
+    if (isDemo || !wsSignaling.isConnected) return;
     participants.forEach((p) => {
-      if (p.id === userId) return;
-      // Only the peer with the HIGHER userId sends the offer
-      if (userId <= p.id) return;
-      // Avoid sending duplicate offers
-      const offerKey = `${userId}->${p.id}`;
-      if (offersInitiated.current.has(offerKey)) return;
-      const pc = getOrCreatePC(p.id);
-      if (pc.signalingState !== "stable") return;
-      offersInitiated.current.add(offerKey);
-      pc.createOffer()
-        .then((offer) => pc.setLocalDescription(offer).then(() => sendSignal("OFFER", p.id, offer)))
-        .catch((err) => {
-          // Allow retry next time
-          offersInitiated.current.delete(offerKey);
-          console.error("Offer error:", err);
-        });
+      if (p.id !== userId) {
+        getOrCreatePC(p.id);
+      }
     });
-  }, [participants, localStream, isDemo, wsSignaling.isConnected]);
+  }, [participants, isDemo, wsSignaling.isConnected]);
 
   // ─────────────────────────────────────────────────────────────────────────
   //  Whiteboard
