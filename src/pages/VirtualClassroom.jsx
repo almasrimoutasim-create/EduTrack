@@ -79,6 +79,13 @@ export default function VirtualClassroom() {
   // ── Presentation / Whiteboard ─────────────────────────────────────────────
   const canvasRef = useRef(null);
   const lastPointRef = useRef(null);
+  const messagesEndRef = useRef(null);
+  const activeStreamRef = useRef(null);
+
+  useEffect(() => {
+    activeStreamRef.current = screenSharing && screenStream ? screenStream : localStream;
+  }, [screenSharing, screenStream, localStream]);
+
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawColor, setDrawColor] = useState("#2dd4bf");
   const [lineWidth, setLineWidth] = useState(3);
@@ -333,9 +340,10 @@ export default function VirtualClassroom() {
     const pc = new RTCPeerConnection({ iceServers: iceConfig?.iceServers || [] });
     pcsRef.current[peerId] = pc;
 
-    // Add local camera tracks immediately if available
-    if (localStream) {
-      localStream.getTracks().forEach((track) => pc.addTrack(track, localStream));
+    // Add currently active tracks (camera or screen share) immediately if available
+    const currentActiveStream = activeStreamRef.current;
+    if (currentActiveStream) {
+      currentActiveStream.getTracks().forEach((track) => pc.addTrack(track, currentActiveStream));
     }
 
     pc.onnegotiationneeded = async () => {
@@ -876,40 +884,47 @@ export default function VirtualClassroom() {
     return !text.startsWith("SIGNAL:") && msg.type !== "signal";
   });
 
+  useEffect(() => {
+    if (activeTab === "chat") {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [chatMessages, activeTab]);
+
   return (
-    <div className="min-h-screen bg-stone-950 text-white flex flex-col font-sans select-none overflow-hidden" dir={isRTL ? "rtl" : "ltr"}>
+    <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col font-sans select-none overflow-hidden" dir={isRTL ? "rtl" : "ltr"}>
       {/* ── HEADER ── */}
-      <header className="h-16 px-6 bg-stone-900 border-b border-stone-800 flex items-center justify-between z-10 shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-400">
-            <Sparkles size={18} className="animate-pulse" />
+      <header className="h-16 px-6 bg-stone-900/60 backdrop-blur-xl border-b border-white/5 flex items-center justify-between z-10 shrink-0 shadow-lg">
+        <div className="flex items-center gap-4">
+          <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-teal-500/20 to-emerald-500/20 border border-teal-500/30 flex items-center justify-center text-teal-400 shadow-[0_0_15px_rgba(20,184,166,0.2)]">
+            <Sparkles size={20} className="animate-pulse" />
           </div>
           <div>
-            <h1 className="text-sm font-extrabold truncate max-w-[200px] sm:max-w-md">
+            <h1 className="text-sm font-black text-white/90 truncate max-w-[200px] sm:max-w-md drop-shadow-sm">
               {session?.title || (isRTL ? "حصة دراسية افتراضية" : "Virtual Session")}
             </h1>
-            <p className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">
-              {session?.subject_name} • {session?.teacher_name}
+            <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mt-0.5">
+              {session?.subject_name} • <span className="text-stone-300">{session?.teacher_name}</span>
             </p>
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <Badge className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 animate-pulse">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 inline-block" />
+          <Badge className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-2 shadow-[0_0_10px_rgba(16,185,129,0.1)]">
+            <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping absolute opacity-75" />
+            <span className="h-2 w-2 rounded-full bg-emerald-400 relative" />
             {isRTL ? "مباشر" : "LIVE"}
           </Badge>
           {isAdmin && (
-            <Badge className="bg-violet-500/15 text-violet-300 border border-violet-500/30 px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5">
-              <ShieldAlert size={11} />
-              {isRTL ? "مراقب — مدير النظام" : "Observer — Admin"}
+            <Badge className="bg-violet-500/15 text-violet-300 border border-violet-500/30 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5">
+              <ShieldAlert size={12} />
+              {isRTL ? "مراقب" : "Observer"}
             </Badge>
           )}
           <button
             onClick={() => { navigator.clipboard.writeText(window.location.href); toast.success(isRTL ? "تم نسخ الرابط!" : "Link copied!"); }}
-            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 bg-stone-800 hover:bg-stone-700 text-stone-300 rounded-lg text-xs font-bold transition-all"
+            className="hidden sm:inline-flex items-center gap-2 px-4 py-2 bg-stone-800/80 hover:bg-stone-700 text-stone-200 rounded-xl text-[11px] font-black transition-all border border-white/5 shadow-sm hover:shadow-md"
           >
-            <Copy size={12} />
-            {isRTL ? "مشاركة الرابط" : "Share Link"}
+            <Copy size={14} />
+            {isRTL ? "نسخ الرابط" : "Copy Link"}
           </button>
         </div>
       </header>
@@ -1076,19 +1091,19 @@ export default function VirtualClassroom() {
           </div>
 
           {/* ── CONTROL TOOLBAR ── */}
-          <div className="h-20 bg-stone-900/80 backdrop-blur-lg border border-white/5 rounded-3xl mt-4 px-4 md:px-6 flex items-center justify-between shadow-2xl relative z-10">
-            <div className="flex items-center gap-2">
-              <button onClick={toggleMic} className={`h-11 w-11 rounded-2xl flex items-center justify-center border transition-all ${micActive ? "bg-stone-850 text-stone-200 border-white/5 hover:bg-stone-800" : "bg-rose-500 text-white border-rose-400 shadow-lg shadow-rose-500/20"}`}>
-                {micActive ? <Mic size={18} /> : <MicOff size={18} />}
+          <div className="h-20 bg-stone-900/80 backdrop-blur-xl border border-white/10 rounded-3xl mt-4 px-6 flex items-center justify-between shadow-[0_8px_30px_rgb(0,0,0,0.4)] relative z-10 transition-all hover:border-white/20">
+            <div className="flex items-center gap-3">
+              <button onClick={toggleMic} className={`h-12 w-12 rounded-2xl flex items-center justify-center border transition-all duration-300 hover:scale-105 active:scale-95 ${micActive ? "bg-stone-800 text-stone-200 border-white/10 hover:bg-stone-700" : "bg-rose-500 text-white border-rose-400 shadow-[0_0_15px_rgba(244,63,94,0.4)]"}`}>
+                {micActive ? <Mic size={20} /> : <MicOff size={20} />}
               </button>
-              <button onClick={toggleVideo} className={`h-11 w-11 rounded-2xl flex items-center justify-center border transition-all ${videoActive ? "bg-stone-850 text-stone-200 border-white/5 hover:bg-stone-800" : "bg-rose-500 text-white border-rose-400 shadow-lg shadow-rose-500/20"}`}>
-                {videoActive ? <Video size={18} /> : <VideoOff size={18} />}
+              <button onClick={toggleVideo} className={`h-12 w-12 rounded-2xl flex items-center justify-center border transition-all duration-300 hover:scale-105 active:scale-95 ${videoActive ? "bg-stone-800 text-stone-200 border-white/10 hover:bg-stone-700" : "bg-rose-500 text-white border-rose-400 shadow-[0_0_15px_rgba(244,63,94,0.4)]"}`}>
+                {videoActive ? <Video size={20} /> : <VideoOff size={20} />}
               </button>
               {/* Screen share — teachers/admins only */}
               {(isTeacher || isAdmin) && (
                 <button onClick={() => setScreenSharing(!screenSharing)}
-                  className={`h-11 w-11 rounded-2xl flex items-center justify-center border transition-all ${screenSharing ? "bg-teal-500 text-stone-950 border-teal-400 shadow-lg shadow-teal-500/20" : "bg-stone-850 text-stone-200 border-white/5 hover:bg-stone-800"}`}>
-                  {screenSharing ? <StopCircle size={18} /> : <ScreenShare size={18} />}
+                  className={`h-12 w-12 rounded-2xl flex items-center justify-center border transition-all duration-300 hover:scale-105 active:scale-95 ${screenSharing ? "bg-teal-500 text-stone-950 border-teal-400 shadow-[0_0_15px_rgba(20,184,166,0.4)]" : "bg-stone-800 text-stone-200 border-white/10 hover:bg-stone-700"}`}>
+                  {screenSharing ? <StopCircle size={20} /> : <ScreenShare size={20} />}
                 </button>
               )}
             </div>
@@ -1096,21 +1111,21 @@ export default function VirtualClassroom() {
             <div className="flex items-center gap-4">
               {!isTeacher && !isAdmin && (
                 <button onClick={toggleHand}
-                  className={`h-11 px-4 rounded-2xl flex items-center justify-center gap-2 border transition-all ${handRaised ? "bg-yellow-500 text-stone-950 border-yellow-400 shadow-lg shadow-yellow-500/20" : "bg-stone-850 text-stone-200 border-white/5 hover:bg-stone-800"}`}>
-                  <Hand size={18} />
-                  <span className="hidden sm:inline text-xs font-bold">{isRTL ? "رفع اليد" : "Raise Hand"}</span>
+                  className={`h-12 px-5 rounded-2xl flex items-center justify-center gap-2.5 border transition-all duration-300 hover:scale-105 active:scale-95 ${handRaised ? "bg-amber-500 text-stone-950 border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.4)]" : "bg-stone-800 text-stone-200 border-white/10 hover:bg-stone-700"}`}>
+                  <Hand size={20} className={handRaised ? "animate-bounce" : ""} />
+                  <span className="hidden sm:inline text-xs font-black">{isRTL ? "رفع اليد" : "Raise Hand"}</span>
                 </button>
               )}
               {/* Volume slider */}
-              <div className="flex items-center gap-2 bg-stone-850 px-3 py-2 rounded-2xl border border-white/5 h-11">
+              <div className="hidden md:flex items-center gap-3 bg-stone-800/80 px-4 py-3 rounded-2xl border border-white/5 h-12">
                 <span className="text-xs text-stone-400">🔊</span>
-                <input type="range" min="0" max="1" step="0.05" value={remoteVolume} onChange={(e) => setRemoteVolume(parseFloat(e.target.value))} className="w-20 accent-teal-400 cursor-pointer h-1 bg-stone-700 rounded-lg appearance-none" />
-                <span className="text-[10px] font-mono text-stone-400 w-8 text-right">{Math.round(remoteVolume * 100)}%</span>
+                <input type="range" min="0" max="1" step="0.05" value={remoteVolume} onChange={(e) => setRemoteVolume(parseFloat(e.target.value))} className="w-24 accent-teal-400 cursor-pointer h-1.5 bg-stone-700 rounded-lg appearance-none" />
+                <span className="text-[10px] font-mono text-stone-400 w-8 text-right font-bold">{Math.round(remoteVolume * 100)}%</span>
               </div>
             </div>
 
-            <button onClick={handleEndClass} className="h-11 px-6 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white flex items-center justify-center gap-2 transition-all font-bold text-xs">
-              <PhoneOff size={16} />
+            <button onClick={handleEndClass} className="h-12 px-6 rounded-2xl bg-rose-600 hover:bg-rose-500 text-white flex items-center justify-center gap-2.5 transition-all duration-300 hover:scale-105 active:scale-95 font-black text-xs shadow-[0_0_15px_rgba(225,29,72,0.3)]">
+              <PhoneOff size={18} />
               <span>{isTeacher ? (isRTL ? "إنهاء للجميع" : "End for All") : (isRTL ? "مغادرة" : "Leave")}</span>
             </button>
           </div>
@@ -1248,16 +1263,16 @@ export default function VirtualClassroom() {
         </div>
 
         {/* ── SIDEBAR (Chat / Participants / Notes) ── */}
-        <aside className={`transition-all duration-300 relative ${sidebarOpen ? "w-full md:w-96" : "w-0 overflow-hidden border-none"} bg-stone-900 border-t md:border-t-0 md:border-r border-stone-850 flex flex-col z-10`}>
-          <div className="h-14 border-b border-stone-850 p-1 flex">
+        <aside className={`transition-all duration-300 relative ${sidebarOpen ? "w-full md:w-96" : "w-0 overflow-hidden border-none"} bg-stone-900/40 backdrop-blur-md border-t md:border-t-0 md:border-r md:border-l border-white/5 flex flex-col z-10`}>
+          <div className="h-16 border-b border-white/5 p-2 flex gap-1">
             {[
               { id: "chat", label: isRTL ? "الدردشة" : "Chat", icon: MessageSquare },
               { id: "participants", label: isRTL ? "الحاضرين" : "Users", icon: Users },
               { id: "notes", label: isRTL ? "الملاحظات" : "Notes", icon: FileText },
             ].map((tab) => (
               <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${activeTab === tab.id ? "bg-stone-800 text-white" : "text-stone-400 hover:text-white"}`}>
-                <tab.icon size={14} />
+                className={`flex-1 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all duration-300 ${activeTab === tab.id ? "bg-stone-800 text-white shadow-sm" : "text-stone-400 hover:text-white hover:bg-stone-800/50"}`}>
+                <tab.icon size={16} />
                 <span>{tab.label}</span>
               </button>
             ))}
@@ -1283,16 +1298,17 @@ export default function VirtualClassroom() {
                             <span className="text-[10px] font-bold text-stone-400">{msg.sender_name}</span>
                             <span className="text-[8px] text-stone-500">{time}</span>
                           </div>
-                          <div className={`px-4 py-2.5 rounded-2xl text-xs max-w-[85%] ${isMe ? "bg-teal-600 text-white rounded-br-none" : "bg-stone-800 text-stone-200 rounded-bl-none"}`}>
+                          <div className={`px-4 py-2.5 rounded-2xl text-[11px] font-medium max-w-[85%] leading-relaxed shadow-sm ${isMe ? "bg-teal-600/90 backdrop-blur-sm text-white rounded-br-none" : "bg-stone-800 border border-white/5 text-stone-200 rounded-bl-none"}`}>
                             {msg.content || msg.message_text}
                           </div>
                         </div>
                       );
                     })}
+                    <div ref={messagesEndRef} />
                   </div>
-                  <div className="flex gap-2 bg-stone-850 p-1.5 rounded-2xl border border-white/5 mt-auto">
-                    <Input value={chatMessage} onChange={(e) => setChatMessage(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSendMessage()} placeholder={isRTL ? "اكتب رسالة..." : "Type a message..."} className="border-none bg-transparent text-xs focus-visible:ring-0 text-white" />
-                    <button onClick={handleSendMessage} className="h-9 w-9 rounded-xl bg-teal-500 text-stone-950 flex items-center justify-center shrink-0 hover:bg-teal-400 transition-colors"><Send size={14} /></button>
+                  <div className="flex gap-2 bg-stone-850 p-1.5 rounded-2xl border border-white/5 mt-auto shadow-inner">
+                    <Input value={chatMessage} onChange={(e) => setChatMessage(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSendMessage()} placeholder={isRTL ? "اكتب رسالة..." : "Type a message..."} className="border-none bg-transparent text-xs focus-visible:ring-0 text-white w-full placeholder:text-stone-500" />
+                    <button onClick={handleSendMessage} className="h-10 w-10 rounded-xl bg-teal-500 text-stone-950 flex items-center justify-center shrink-0 hover:bg-teal-400 transition-all hover:scale-105 active:scale-95 shadow-md"><Send size={16} /></button>
                   </div>
                 </motion.div>
               )}
@@ -1327,7 +1343,7 @@ export default function VirtualClassroom() {
                     <Info size={12} />
                     {isRTL ? "الملاحظات المشتركة للصف الدراسي" : "Shared notes panel"}
                   </p>
-                  <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={isRTL ? "ابدأ كتابة الملاحظات..." : "Start writing lesson notes..."} className="flex-1 w-full bg-stone-850/40 rounded-2xl p-4 border border-white/5 text-xs text-stone-200 focus:outline-none focus:border-stone-700 resize-none font-mono" />
+                  <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={isRTL ? "ابدأ كتابة الملاحظات..." : "Start writing lesson notes..."} className="flex-1 w-full bg-stone-800/50 rounded-2xl p-4 border border-white/5 text-xs text-stone-200 focus:outline-none focus:border-stone-600 resize-none font-mono shadow-inner" />
                 </motion.div>
               )}
             </AnimatePresence>
