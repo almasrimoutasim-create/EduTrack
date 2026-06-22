@@ -2,6 +2,7 @@ import { neon } from './db_compat.js';
 import dotenv from 'dotenv';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { WebSocketServer } from 'ws';
 dotenv.config();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'edutrack_secure_jwt_secret_2026_fallback';
@@ -509,6 +510,23 @@ async function dbQuery(queryStr, params = []) {
 
 export function createApiHandler() {
   return async (req, res, next) => {
+    // WebRTC STUN/TURN config
+    if (req.url === '/neon-db/ice-config' || req.url === '/api/ice-config') {
+      res.setHeader('Content-Type', 'application/json');
+      return res.end(JSON.stringify({
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' },
+          // Free reliable TURN via Cloudflare (no registration needed)
+          {
+            urls: 'turn:turn.cloudflare.com:3478',
+            username: 'free',
+            credential: 'free'
+          }
+        ]
+      }));
+    }
+
     // Intercept file upload endpoint
     if (req.url === '/neon-db/upload' && req.method === 'POST') {
       res.setHeader('Content-Type', 'application/json');
@@ -1026,4 +1044,46 @@ export function createApiHandler() {
 
 export function setupApiRoutes(server) {
   server.middlewares.use(createApiHandler());
+}
+
+export function setupWebSocket(server) {
+  const wss = new WebSocketServer({ noServer: true });
+
+  // Room-based broadcasting
+  wss.on('connection', (ws, req) => {
+    ws.on('message', (msg) => {
+      try {
+        const parsed = JSON.parse(msg);
+        const { type, roomId, targetUserId, payload } = parsed;
+        
+        // Save roomId to socket for routing
+        if (roomId) ws.roomId = roomId;
+        if (parsed.userId) ws.userId = parsed.userId;
+
+        if (type === 'signal' || type === 'draw' || type === 'clear-canvas') {
+          // Broadcast to everyone else in the same room
+          wss.clients.forEach((client) => {
+            if (client !== ws && client.readyState === 1 && client.roomId === roomId) {
+              // targetUserId is used for directed WebRTC signaling (if provided)
+              if (targetUserId && client.userId !== targetUserId) {
+                return; // Skip if not the target user
+              }
+              client.send(msg.toString()); // Relaying message
+            }
+          });
+        }
+      } catch (err) {
+        console.error('[WS] Error processing message:', err);
+      }
+    });
+  });
+
+  server.on('upgrade', (req, socket, head) => {
+    // Only handle websocket upgrades for classroom signaling/drawing
+    if (req.url.startsWith('/api/classroom-ws') || req.url === '/') {
+      wss.handleUpgrade(req, socket, head, (ws) => {
+        wss.emit('connection', ws, req);
+      });
+    }
+  });
 }

@@ -15,42 +15,12 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { useDrawingSocket } from "@/hooks/useDrawingSocket";
+import { useWebRTCSignaling } from "@/hooks/useWebRTCSignaling";
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  ICE Server Configuration
-//  Uses Google STUN + OpenRelay free TURN servers (no registration required)
-//  OpenRelay: https://www.metered.ca/tools/openrelay/
+//  ICE Server Configuration will now be fetched from the backend API
 // ─────────────────────────────────────────────────────────────────────────────
-const ICE_SERVERS = [
-  // STUN servers (free, no registration)
-  { urls: "stun:stun.l.google.com:19302" },
-  { urls: "stun:stun1.l.google.com:19302" },
-  { urls: "stun:stun2.l.google.com:19302" },
-  { urls: "stun:stun3.l.google.com:19302" },
-  { urls: "stun:stun4.l.google.com:19302" },
-  { urls: "stun:openrelay.metered.ca:80" },
-  // TURN servers via OpenRelay (completely free, no registration)
-  {
-    urls: "turn:openrelay.metered.ca:80",
-    username: "openrelayproject",
-    credential: "openrelayproject",
-  },
-  {
-    urls: "turn:openrelay.metered.ca:443",
-    username: "openrelayproject",
-    credential: "openrelayproject",
-  },
-  {
-    urls: "turn:openrelay.metered.ca:443?transport=tcp",
-    username: "openrelayproject",
-    credential: "openrelayproject",
-  },
-  {
-    urls: "turn:openrelay.metered.ca:80?transport=tcp",
-    username: "openrelayproject",
-    credential: "openrelayproject",
-  },
-];
 
 export default function VirtualClassroom() {
   const { id } = useParams();
@@ -80,6 +50,16 @@ export default function VirtualClassroom() {
   const [remoteScreenSharing, setRemoteScreenSharing] = useState({});
   // Maps userId -> MediaStream for the SCREEN track received
   const [remoteScreenStreams, setRemoteScreenStreams] = useState({});
+
+  // ── WebSockets ────────────────────────────────────────────────────────────
+  const wsDrawing = useDrawingSocket(id, userId);
+  const wsSignaling = useWebRTCSignaling(id, userId);
+
+  const { data: iceConfig } = useQuery({
+    queryKey: ['ice-config'],
+    queryFn: () => fetch('/api/ice-config').then(r => r.json()),
+    staleTime: 3600000 // 1 hour
+  });
 
   // ── WebRTC ────────────────────────────────────────────────────────────────
   const [localStream, setLocalStream] = useState(null);
@@ -338,26 +318,17 @@ export default function VirtualClassroom() {
   //  Signaling helpers
   // ─────────────────────────────────────────────────────────────────────────
   const sendSignal = async (type, targetId, data) => {
-    try {
-      await entities.RoomMessage.create({
-        room_id: sessionId,
-        sender_name: userName,
-        sender_id: userId,
-        content: `SIGNAL:${type}:${userId}:${targetId}:${JSON.stringify(data)}`,
-        type: "signal",
-      });
-    } catch (err) {
-      console.error("Signal send failed:", err);
-    }
+    if (!wsSignaling.isConnected) return;
+    wsSignaling.sendSignal(targetId, { type, data });
   };
 
   // ─────────────────────────────────────────────────────────────────────────
-  //  RTCPeerConnection factory  (uses free TURN + STUN)
+  //  RTCPeerConnection factory  (uses fetched TURN + STUN)
   // ─────────────────────────────────────────────────────────────────────────
   const getOrCreatePC = (peerId) => {
     if (pcsRef.current[peerId]) return pcsRef.current[peerId];
 
-    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+    const pc = new RTCPeerConnection({ iceServers: iceConfig?.iceServers || [] });
 
     // Add local camera tracks immediately if available
     if (localStream) {
@@ -520,28 +491,39 @@ export default function VirtualClassroom() {
   };
 
   // ─────────────────────────────────────────────────────────────────────────
-  //  Process incoming DB signals
+  //  Process incoming WS signals and Drawing events
   // ─────────────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (isDemo) return;
-    dbMessages.forEach((msg) => {
-      const text = msg.content || "";
-      if (!text.startsWith("SIGNAL:") || processedSignals.current.has(msg.id)) return;
-      processedSignals.current.add(msg.id);
-      const parts = text.split(":");
-      const type = parts[1];
-      const sender = parts[2];
-      const receiver = parts[3];
-      if (sender === userId) return;
-      if (receiver !== "all" && receiver !== userId) return;
-      try {
-        const data = JSON.parse(parts.slice(4).join(":"));
-        handleIncomingSignal(type, sender, data);
-      } catch (err) {
-        console.error("Signal parse error:", err);
+
+    wsSignaling.onSignal((senderId, payload) => {
+      const { type, data } = payload;
+      handleIncomingSignal(type, senderId, data);
+    });
+
+    wsDrawing.onDrawEvent((data) => {
+      if (data.type === 'draw') {
+        const payload = data.payload;
+        const canvas = canvasRef.current;
+        if (canvas) {
+          const ctx = canvas.getContext("2d");
+          ctx.beginPath();
+          ctx.globalCompositeOperation = payload.isEraser ? "destination-out" : "source-over";
+          ctx.strokeStyle = payload.color || "#2dd4bf";
+          ctx.lineWidth = payload.width || 3;
+          ctx.lineCap = "round";
+          ctx.lineJoin = "round";
+          ctx.moveTo(payload.prevX * canvas.width, payload.prevY * canvas.height);
+          ctx.lineTo(payload.currX * canvas.width, payload.currY * canvas.height);
+          ctx.stroke();
+        }
+      } else if (data.type === 'clear-canvas') {
+        const canvas = canvasRef.current;
+        if (canvas) canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
       }
     });
-  }, [dbMessages, isDemo, userId]);
+
+  }, [isDemo, wsSignaling, wsDrawing]);
 
   // ─────────────────────────────────────────────────────────────────────────
   //  Initiate offers when participant list changes
@@ -603,7 +585,7 @@ export default function VirtualClassroom() {
     ctx.lineTo(currX, currY);
     ctx.stroke();
 
-    sendSignal("DRAW_PATH", "all", {
+    wsDrawing.sendDrawEvent({
       prevX: prevX / canvas.width,
       prevY: prevY / canvas.height,
       currX: currX / canvas.width,
@@ -622,7 +604,7 @@ export default function VirtualClassroom() {
     const canvas = canvasRef.current;
     if (!canvas) return;
     canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
-    sendSignal("CLEAR_CANVAS", "all", {});
+    wsDrawing.clearCanvas();
   };
 
   // Canvas resize observer

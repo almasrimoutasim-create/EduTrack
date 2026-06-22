@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { createApiHandler } from './server/api.js';
+import { createApiHandler, setupWebSocket } from './server/api.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -41,7 +41,10 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
-app.listen(PORT, '0.0.0.0', () => {
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`[EduTrack] Server running on port ${PORT}`);
   console.log(`[EduTrack] API available at /neon-db/*`);
 });
+
+// Attach WebSocket server for virtual classroom
+setupWebSocket(server);

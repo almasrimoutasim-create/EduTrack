@@ -57,8 +57,11 @@ export default defineConfig({
     hasNeon ? {
       name: 'neon-api-middleware',
       configureServer(server) {
-        server.middlewares.use(createApiHandler());
-        console.log('[neon] API routes enabled at /neon-db/*');
+        import('./server/api.js').then(({ createApiHandler, setupWebSocket }) => {
+          server.middlewares.use(createApiHandler());
+          setupWebSocket(server.httpServer);
+          console.log('[neon] API routes enabled at /neon-db/* and WS at /api/classroom-ws');
+        });
       }
     } : null
   ].filter(Boolean)
