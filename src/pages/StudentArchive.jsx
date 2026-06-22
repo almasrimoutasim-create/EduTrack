@@ -95,7 +95,7 @@ export default function StudentArchive() {
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="p-8 text-center text-stone-400 font-medium">
+                  <td colSpan={5} className="p-8 text-center text-stone-400 font-medium">
                     {isRTL ? "لا توجد سجلات مؤرشفة." : "No archived records."}
                   </td>
                 </tr>

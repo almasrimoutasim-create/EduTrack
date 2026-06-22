@@ -78,7 +78,7 @@ export default function StaffContracts() {
     if (!c.end_date) return false;
     const end = new Date(c.end_date);
     const today = new Date();
-    const diffTime = Math.abs(end - today);
+    const diffTime = Math.abs(end.getTime() - today.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
     return c.status === "active" && diffDays <= 30;
   }).length;
@@ -188,7 +188,7 @@ export default function StaffContracts() {
             <tbody>
               {filteredContracts.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="p-8 text-center text-stone-400 font-medium">
+                  <td colSpan={6} className="p-8 text-center text-stone-400 font-medium">
                     {isRTL ? "لا توجد عقود تطابق البحث." : "No contracts match your search."}
                   </td>
                 </tr>

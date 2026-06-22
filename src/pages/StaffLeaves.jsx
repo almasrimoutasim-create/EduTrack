@@ -163,7 +163,7 @@ export default function StaffLeaves() {
             <tbody>
               {filteredLeaves.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="p-8 text-center text-stone-400 font-medium">
+                  <td colSpan={6} className="p-8 text-center text-stone-400 font-medium">
                     {isRTL ? "لا توجد طلبات تطابق الفلتر الحالي." : "No requests match the current filter."}
                   </td>
                 </tr>

@@ -39,8 +39,8 @@ export default function CareerLadder() {
     try {
       await entities.CareerLadder.create({
         ...formData,
-        level: parseInt(formData.level),
-        min_years: parseInt(formData.min_years),
+        level: parseInt(String(formData.level)),
+        min_years: parseInt(String(formData.min_years)),
         created_at: new Date().toISOString()
       });
       toast.success(isRTL ? "تم إضافة الدرجة الوظيفية بنجاح" : "Ladder step added successfully");

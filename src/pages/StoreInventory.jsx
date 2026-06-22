@@ -138,7 +138,7 @@ export default function StoreInventory() {
             <tbody>
               {filteredItems.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="p-8 text-center text-stone-400 font-medium">
+                  <td colSpan={6} className="p-8 text-center text-stone-400 font-medium">
                     {isRTL ? "لا توجد منتجات تطابق البحث." : "No products match your search."}
                   </td>
                 </tr>

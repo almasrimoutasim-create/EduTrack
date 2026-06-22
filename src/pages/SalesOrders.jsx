@@ -106,7 +106,7 @@ export default function SalesOrders() {
             <tbody>
               {filteredPurchases.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="p-8 text-center text-stone-400 font-medium">
+                  <td colSpan={6} className="p-8 text-center text-stone-400 font-medium">
                     {isRTL ? "لا توجد عمليات تطابق البحث." : "No transactions match your search."}
                   </td>
                 </tr>

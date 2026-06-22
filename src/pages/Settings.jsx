@@ -39,11 +39,11 @@ export default function Settings() {
   }, [existingSettings]);
 
   const saveMutation = useMutation({
-    mutationFn: async (data) => {
+    mutationFn: async () => {
       if (existingSettings?.id) {
-        return await entities.SystemSetting.update(existingSettings.id, data);
+        return await entities.SystemSetting.update(existingSettings.id, formData);
       } else {
-        return await entities.SystemSetting.create(data);
+        return await entities.SystemSetting.create(formData);
       }
     },
     onSuccess: async () => {
@@ -59,7 +59,7 @@ export default function Settings() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    saveMutation.mutate(formData);
+    saveMutation.mutate();
   };
 
   const btnPrimary = "inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-primary text-white hover:bg-primary/95 transition-all shadow-md hover:shadow-lg font-bold text-sm cursor-pointer";
@@ -173,8 +173,10 @@ export default function Settings() {
                   alt="School Logo" 
                   className="max-h-full max-w-full object-contain p-2"
                   onError={(e) => {
-                    e.target.style.display = 'none';
-                    e.target.nextSibling.style.display = 'block';
+                    e.currentTarget.style.display = 'none';
+                    if (e.currentTarget.nextElementSibling) {
+                      /** @type {HTMLElement} */ (e.currentTarget.nextElementSibling).style.display = 'block';
+                    }
                   }}
                 />
               ) : (

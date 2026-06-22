@@ -133,7 +133,7 @@ export default function StaffEvaluations() {
                 <span className="text-amber-700 font-bold mb-1 num-en">/ 5.0</span>
               </div>
               <div className="mt-4">
-                <Progress value={(calculateAverageRating() / 5) * 100} className="h-2 bg-amber-200/50 [&>div]:bg-amber-500" />
+                <Progress value={(Number(calculateAverageRating()) / 5) * 100} className="h-2 bg-amber-200/50 [&>div]:bg-amber-500" />
               </div>
             </div>
           </div>
@@ -193,7 +193,7 @@ export default function StaffEvaluations() {
             <tbody>
               {filteredEvals.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="p-8 text-center text-stone-400 font-medium">
+                  <td colSpan={5} className="p-8 text-center text-stone-400 font-medium">
                     {isRTL ? "لا توجد تقييمات مسجلة." : "No evaluations recorded."}
                   </td>
                 </tr>

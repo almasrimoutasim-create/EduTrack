@@ -77,7 +77,7 @@ export default function AcademicFiles() {
             <tbody>
               {filteredStudents.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="p-8 text-center text-stone-400 font-medium">
+                  <td colSpan={5} className="p-8 text-center text-stone-400 font-medium">
                     {isRTL ? "لا يوجد طلاب يطابقون البحث." : "No students match your search."}
                   </td>
                 </tr>
