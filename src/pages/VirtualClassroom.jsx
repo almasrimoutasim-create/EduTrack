@@ -90,6 +90,9 @@ export default function VirtualClassroom() {
   const processedSignals = useRef(new Set());
   const iceQueuesRef = useRef({});      // peerId -> ICECandidate[]
   const [remoteVolume, setRemoteVolume] = useState(1.0);
+  // Track refs for all remote video elements to apply volume changes
+  const remoteVideoRefs = useRef({});   // peerId -> HTMLVideoElement
+  const offersInitiated = useRef(new Set()); // track which peers we've offered to
 
   // ── Presentation / Whiteboard ─────────────────────────────────────────────
   const canvasRef = useRef(null);
@@ -356,7 +359,7 @@ export default function VirtualClassroom() {
 
     const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
 
-    // Add local camera tracks
+    // Add local camera tracks immediately if available
     if (localStream) {
       localStream.getTracks().forEach((track) => pc.addTrack(track, localStream));
     }
@@ -383,26 +386,31 @@ export default function VirtualClassroom() {
       console.log(`[WebRTC] ICE state with ${peerId}: ${pc.iceConnectionState}`);
     };
 
-    // ontrack fires for EVERY new track from the remote peer.
-    // Because we use replaceTrack for screen sharing, the same stream
-    // gets updated automatically — we just need to register the stream once.
+    // ontrack fires for every incoming track.
+    // Always update remoteStreams — this captures both camera and screen-share tracks
+    // (replaceTrack keeps the same stream but updates the track inside it).
     pc.ontrack = (event) => {
       const stream = event.streams[0];
       if (!stream) return;
-      // Update remoteStreams unconditionally — replaceTrack updates
-      // the track inside the SAME stream, so stream.id stays constant.
-      setRemoteStreams((prev) => {
-        // Only update if stream reference actually changed
-        if (prev[peerId]?.id === stream.id) return prev;
-        return { ...prev, [peerId]: stream };
-      });
+      // Always update to ensure video element gets the latest stream reference
+      setRemoteStreams((prev) => ({ ...prev, [peerId]: stream }));
+      // Apply current volume to newly connected remote video element
+      const el = remoteVideoRefs.current[peerId];
+      if (el) el.volume = remoteVolume;
     };
 
     pcsRef.current[peerId] = pc;
     return pc;
   };
 
-  // Add local tracks to existing PCs when localStream is set late
+  // Sync volume to all remote video elements when remoteVolume changes
+  useEffect(() => {
+    Object.values(remoteVideoRefs.current).forEach((el) => {
+      if (el) el.volume = remoteVolume;
+    });
+  }, [remoteVolume]);
+
+  // Add local tracks to existing PCs when localStream is set late (async camera init)
   useEffect(() => {
     if (!localStream) return;
     Object.entries(pcsRef.current).forEach(([peerId, pc]) => {
@@ -477,9 +485,28 @@ export default function VirtualClassroom() {
 
     } else if (type === "SCREEN_SHARE") {
       if (data.active) {
-        // Auto-pin the screen sharer on student side
+        // Auto-pin the screen sharer and show their stream as screen-share
         setPinnedParticipantId(peerId);
         setRemoteScreenSharing((prev) => ({ ...prev, [peerId]: true }));
+        // The current remoteStreams[peerId] now contains the screen track
+        // (via replaceTrack), so mark it as screen stream too
+        setRemoteScreenStreams((prev) => ({
+          ...prev,
+          [peerId]: pcsRef.current[peerId]
+            ? (() => {
+                const receivers = pcsRef.current[peerId].getReceivers();
+                const videoReceiver = receivers.find((r) => r.track?.kind === "video");
+                if (videoReceiver?.track) {
+                  const s = new MediaStream([videoReceiver.track]);
+                  // also grab audio if available
+                  const audioReceiver = receivers.find((r) => r.track?.kind === "audio");
+                  if (audioReceiver?.track) s.addTrack(audioReceiver.track);
+                  return s;
+                }
+                return prev[peerId] || null;
+              })()
+            : prev[peerId] || null,
+        }));
       } else {
         setPinnedParticipantId((prev) => (prev === peerId ? null : prev));
         setRemoteScreenSharing((prev) => ({ ...prev, [peerId]: false }));
@@ -518,19 +545,27 @@ export default function VirtualClassroom() {
 
   // ─────────────────────────────────────────────────────────────────────────
   //  Initiate offers when participant list changes
+  // Only send an offer once per peer (avoid duplicate offers on re-renders)
   // ─────────────────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (isDemo) return;
+    if (isDemo || !localStream) return;
     participants.forEach((p) => {
       if (p.id === userId) return;
-      if (userId > p.id) {
-        const pc = getOrCreatePC(p.id);
-        if (pc.signalingState === "stable") {
-          pc.createOffer()
-            .then((offer) => pc.setLocalDescription(offer).then(() => sendSignal("OFFER", p.id, offer)))
-            .catch(() => {});
-        }
-      }
+      // Only the peer with the HIGHER userId sends the offer
+      if (userId <= p.id) return;
+      // Avoid sending duplicate offers
+      const offerKey = `${userId}->${p.id}`;
+      if (offersInitiated.current.has(offerKey)) return;
+      const pc = getOrCreatePC(p.id);
+      if (pc.signalingState !== "stable") return;
+      offersInitiated.current.add(offerKey);
+      pc.createOffer()
+        .then((offer) => pc.setLocalDescription(offer).then(() => sendSignal("OFFER", p.id, offer)))
+        .catch((err) => {
+          // Allow retry next time
+          offersInitiated.current.delete(offerKey);
+          console.error("Offer error:", err);
+        });
     });
   }, [participants, localStream, isDemo]);
 
@@ -958,30 +993,45 @@ export default function VirtualClassroom() {
                     <div className="text-stone-500 font-bold text-xs">{isRTL ? "الكاميرا مغلقة" : "Camera Off"}</div>
                   )
                 ) : (
-                  /* Remote: show screen stream if available, else camera stream */
-                  remoteScreenStreams[pinnedParticipantId] ? (
+                  /* Remote: always show remoteStreams (replaceTrack keeps same stream for screen share too) */
+                  remoteStreams[pinnedParticipantId] ? (
                     <video
-                      ref={(el) => { if (el && remoteScreenStreams[pinnedParticipantId] && el.srcObject !== remoteScreenStreams[pinnedParticipantId]) { el.srcObject = remoteScreenStreams[pinnedParticipantId]; el.volume = remoteVolume; el.play().catch(() => {}); } }}
-                      autoPlay playsInline
-                      className="w-full h-full object-contain"
-                    />
-                  ) : remoteStreams[pinnedParticipantId] && participants.find((p) => p.id === pinnedParticipantId)?.video ? (
-                    <video
-                      ref={(el) => { if (el && remoteStreams[pinnedParticipantId] && el.srcObject !== remoteStreams[pinnedParticipantId]) { el.srcObject = remoteStreams[pinnedParticipantId]; el.volume = remoteVolume; el.play().catch(() => {}); } }}
+                      ref={(el) => {
+                        remoteVideoRefs.current[`pinned-${pinnedParticipantId}`] = el;
+                        if (el && remoteStreams[pinnedParticipantId]) {
+                          if (el.srcObject !== remoteStreams[pinnedParticipantId]) {
+                            el.srcObject = remoteStreams[pinnedParticipantId];
+                          }
+                          el.volume = remoteVolume;
+                          el.play().catch(() => {});
+                        }
+                      }}
                       autoPlay playsInline
                       className="w-full h-full object-contain"
                     />
                   ) : (
+                    /* No stream yet — show participant avatar */
                     <div className="relative w-full h-full flex flex-col items-center justify-center bg-stone-950">
                       <div className="absolute inset-0 bg-gradient-to-br from-teal-500/10 to-stone-950" />
-                      <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=600" alt="Teacher" className="max-h-[60%] max-w-[60%] rounded-2xl border-4 border-teal-500/30 object-cover shadow-2xl z-10" />
-                      <div className="mt-4 text-center z-10">
-                        <p className="text-sm font-bold text-stone-200">{participants.find((p) => p.id === pinnedParticipantId)?.name}</p>
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-500/10 text-teal-400 text-xs font-bold mt-2 border border-teal-500/20">
-                          <span className="h-2 w-2 rounded-full bg-teal-400 animate-ping" />
-                          {isRTL ? "متصل" : "Connected"}
-                        </span>
-                      </div>
+                      {(() => {
+                        const pinnedP = participants.find((p) => p.id === pinnedParticipantId);
+                        return (
+                          <>
+                            <div className={`h-24 w-24 rounded-full flex items-center justify-center text-4xl font-black text-white shadow-2xl z-10 mb-4 ${
+                              pinnedP?.role === "teacher"
+                                ? "bg-gradient-to-br from-teal-500 to-emerald-600"
+                                : "bg-gradient-to-br from-indigo-500 to-violet-600"
+                            }`}>
+                              {pinnedP?.name?.charAt(0)?.toUpperCase() || "?"}
+                            </div>
+                            <p className="text-sm font-bold text-stone-200 z-10">{pinnedP?.name}</p>
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-500/10 text-teal-400 text-xs font-bold mt-2 border border-teal-500/20 z-10">
+                              <span className="h-2 w-2 rounded-full bg-amber-400 animate-ping" />
+                              {isRTL ? "جاري الاتصال..." : "Connecting..."}
+                            </span>
+                          </>
+                        );
+                      })()}
                     </div>
                   )
                 )}
@@ -1098,17 +1148,19 @@ export default function VirtualClassroom() {
               className="absolute top-2 left-2 z-20 bg-black/60 hover:bg-black/80 text-white p-1.5 rounded-lg border border-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
               {pinnedParticipantId === userId ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
             </button>
-            {videoActive ? (
+            {videoActive && localStream ? (
               <div className="w-full h-full bg-stone-800 flex items-center justify-center relative">
-                {localStream ? (
-                  <video ref={(el) => { if (el && localStream && el.srcObject !== localStream) { el.srcObject = localStream; el.play().catch(() => {}); } }}
-                    autoPlay playsInline muted className="w-full h-full object-cover" />
-                ) : (
-                  <>
-                    <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-teal-500/10 animate-pulse" />
-                    <span className="text-3xl">{isTeacher ? "👨‍🏫" : "🧑‍🎓"}</span>
-                  </>
-                )}
+                <video
+                  ref={(el) => {
+                    localVideoRef.current = el;
+                    if (el && localStream && el.srcObject !== localStream) {
+                      el.srcObject = localStream;
+                      el.play().catch(() => {});
+                    }
+                  }}
+                  autoPlay playsInline muted
+                  className="w-full h-full object-cover"
+                />
                 {screenSharing && (
                   <div className="absolute inset-0 bg-stone-900/90 flex flex-col items-center justify-center p-2 text-center">
                     <ScreenShare size={20} className="text-teal-400 mb-1 animate-bounce" />
@@ -1117,9 +1169,14 @@ export default function VirtualClassroom() {
                 )}
               </div>
             ) : (
-              <div className="w-full h-full bg-stone-900 flex flex-col items-center justify-center p-2">
-                <div className="h-8 w-8 rounded-full bg-stone-800 flex items-center justify-center text-xs font-bold mb-1">{userName[0]}</div>
-                <span className="text-[9px] text-stone-500 font-bold">{isRTL ? "الكاميرا مغلقة" : "Camera Off"}</span>
+              <div className="w-full h-full bg-gradient-to-br from-stone-900 to-stone-850 flex flex-col items-center justify-center p-2">
+                {!localStream && <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-teal-500/10 animate-pulse rounded-2xl" />}
+                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-teal-500 to-emerald-600 flex items-center justify-center text-sm font-black text-white shadow-lg z-10 mb-1">
+                  {userName?.charAt(0)?.toUpperCase() || "U"}
+                </div>
+                <span className="text-[9px] text-stone-400 font-bold z-10">
+                  {!localStream ? (isRTL ? "جاري تفعيل الكاميرا..." : "Starting camera...") : (isRTL ? "الكاميرا مغلقة" : "Camera Off")}
+                </span>
               </div>
             )}
             <div className="absolute bottom-1.5 left-1.5 right-1.5 flex items-center justify-between z-10">
@@ -1139,33 +1196,55 @@ export default function VirtualClassroom() {
                 {pinnedParticipantId === p.id ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
               </button>
 
-              {/* Always show camera stream in sidebar (not screen share) */}
-              {remoteStreams[p.id] && (
+              {/* Remote camera/screen stream */}
+              {remoteStreams[p.id] ? (
                 <video
-                  ref={(el) => { if (el && remoteStreams[p.id] && el.srcObject !== remoteStreams[p.id]) { el.srcObject = remoteStreams[p.id]; el.volume = remoteVolume; el.play().catch(() => {}); } }}
+                  ref={(el) => {
+                    remoteVideoRefs.current[p.id] = el;
+                    if (el && remoteStreams[p.id]) {
+                      if (el.srcObject !== remoteStreams[p.id]) {
+                        el.srcObject = remoteStreams[p.id];
+                      }
+                      el.volume = remoteVolume;
+                      el.play().catch(() => {});
+                    }
+                  }}
                   autoPlay playsInline
-                  className={`w-full h-full object-cover ${p.video ? "block" : "opacity-0 absolute pointer-events-none"}`}
+                  className={`w-full h-full object-cover transition-opacity duration-300 ${
+                    p.video ? "opacity-100" : "opacity-0 absolute pointer-events-none"
+                  }`}
                 />
-              )}
+              ) : null}
 
-              {(!p.video || !remoteStreams[p.id]) && (
-                <div className="absolute inset-0 bg-stone-900 flex flex-col items-center justify-center p-2">
-                  {p.role === "teacher" && p.video ? (
-                    <div className="relative w-full h-full flex flex-col items-center justify-center bg-stone-900">
-                      <div className="absolute inset-0 bg-gradient-to-br from-teal-500/10 to-stone-900/90" />
-                      <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=300" alt={p.name} className="w-12 h-12 rounded-full border border-teal-500/50 object-cover shadow-lg z-10" />
-                      <div className="mt-1 text-center z-10">
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-teal-500/10 text-teal-400 text-[8px] font-bold mt-1 border border-teal-500/20">
-                          <span className="h-1 w-1 rounded-full bg-teal-400 animate-ping" />{isRTL ? "متصل" : "Live"}
-                        </span>
-                      </div>
-                    </div>
-                  ) : (
+              {/* Fallback when no stream or camera is off */}
+              {(!remoteStreams[p.id] || !p.video) && (
+                <div className="absolute inset-0 bg-gradient-to-br from-stone-900 to-stone-850 flex flex-col items-center justify-center p-2">
+                  {!remoteStreams[p.id] ? (
+                    // Connecting state — animated avatar
                     <>
-                      <div className="h-8 w-8 rounded-full bg-stone-800 flex items-center justify-center text-xs font-bold mb-1">{p.name[0]}</div>
-                      <span className="text-[9px] text-stone-500 font-bold">
-                        {!remoteStreams[p.id] ? (isRTL ? "جاري الاتصال..." : "Connecting...") : (isRTL ? "الكاميرا مغلقة" : "Camera Off")}
-                      </span>
+                      <div className="relative mb-2">
+                        <div className={`h-10 w-10 rounded-full flex items-center justify-center text-sm font-black text-white shadow-lg ${
+                          p.role === "teacher"
+                            ? "bg-gradient-to-br from-teal-500 to-emerald-600"
+                            : "bg-gradient-to-br from-indigo-500 to-violet-600"
+                        }`}>
+                          {p.name?.charAt(0)?.toUpperCase() || "?"}
+                        </div>
+                        <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-amber-400 border-2 border-stone-900 animate-pulse" />
+                      </div>
+                      <span className="text-[9px] text-stone-400 font-bold">{isRTL ? "جاري الاتصال..." : "Connecting..."}</span>
+                    </>
+                  ) : (
+                    // Camera off state
+                    <>
+                      <div className={`h-10 w-10 rounded-full flex items-center justify-center text-sm font-black text-white shadow-lg mb-1 ${
+                        p.role === "teacher"
+                          ? "bg-gradient-to-br from-teal-500 to-emerald-600"
+                          : "bg-gradient-to-br from-indigo-500 to-violet-600"
+                      }`}>
+                        {p.name?.charAt(0)?.toUpperCase() || "?"}
+                      </div>
+                      <span className="text-[9px] text-stone-500 font-bold">{isRTL ? "الكاميرا مغلقة" : "Camera Off"}</span>
                     </>
                   )}
                 </div>
