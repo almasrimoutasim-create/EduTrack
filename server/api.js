@@ -1009,7 +1009,7 @@ export function createApiHandler() {
         const sets = keys.map((k, i) => `${sanitizeColumn(k)} = $${i + 1}`);
         const values = keys.map(k => body[k]);
         values.push(entityId);
-        const q = `UPDATE ${table} SET ${sets.join(', ')}, updated_at = NOW() WHERE id = $${values.length} RETURNING *`;
+        const q = `UPDATE ${table} SET ${sets.join(', ')} WHERE id = $${values.length} RETURNING *`;
         console.log(`[neon] Updating ${table} ID ${entityId}:`, keys.join(', '));
         const rows = await dbQuery(q, values);
         if (rows.length === 0) {
@@ -1051,6 +1051,7 @@ export function setupWebSocket(server) {
 
   // Room-based broadcasting
   wss.on('connection', (ws, req) => {
+    console.log('[WS] New connection established');
     ws.on('message', (msg) => {
       try {
         const parsed = JSON.parse(msg);
@@ -1060,7 +1061,10 @@ export function setupWebSocket(server) {
         if (roomId) ws.roomId = roomId;
         if (parsed.userId) ws.userId = parsed.userId;
 
+        console.log(`[WS] Received type: ${type} for room: ${roomId}`);
+
         if (type === 'signal' || type === 'draw' || type === 'clear-canvas') {
+          let broadcastCount = 0;
           // Broadcast to everyone else in the same room
           wss.clients.forEach((client) => {
             if (client !== ws && client.readyState === 1 && client.roomId === roomId) {
@@ -1069,8 +1073,10 @@ export function setupWebSocket(server) {
                 return; // Skip if not the target user
               }
               client.send(msg.toString()); // Relaying message
+              broadcastCount++;
             }
           });
+          console.log(`[WS] Broadcasted ${type} to ${broadcastCount} clients in room ${roomId}`);
         }
       } catch (err) {
         console.error('[WS] Error processing message:', err);

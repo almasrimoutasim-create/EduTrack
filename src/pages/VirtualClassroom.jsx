@@ -530,7 +530,7 @@ export default function VirtualClassroom() {
   // Only send an offer once per peer (avoid duplicate offers on re-renders)
   // ─────────────────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (isDemo || !localStream) return;
+    if (isDemo || !localStream || !wsSignaling.isConnected) return;
     participants.forEach((p) => {
       if (p.id === userId) return;
       // Only the peer with the HIGHER userId sends the offer
@@ -549,7 +549,7 @@ export default function VirtualClassroom() {
           console.error("Offer error:", err);
         });
     });
-  }, [participants, localStream, isDemo]);
+  }, [participants, localStream, isDemo, wsSignaling.isConnected]);
 
   // ─────────────────────────────────────────────────────────────────────────
   //  Whiteboard
