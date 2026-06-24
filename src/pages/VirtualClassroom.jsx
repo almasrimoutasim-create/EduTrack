@@ -30,8 +30,9 @@ export default function VirtualClassroom() {
   const qc = useQueryClient();
 
   // ── Auth ──────────────────────────────────────────────────────────────────
+  const fallbackId = useRef(`temp-${Math.random().toString(36).substr(2, 9)}`).current;
   const role = localStorage.getItem("portal_role") || "student";
-  const userId = localStorage.getItem("portal_user_id") || "S-temp";
+  const userId = localStorage.getItem("portal_user_id") || fallbackId;
   const userName = localStorage.getItem("portal_user_name") || (role === "teacher" ? "أ. أحمد" : "طالب زائر");
   const isTeacher = role === "teacher";
   const isAdmin = role === "admin";
@@ -181,9 +182,9 @@ export default function VirtualClassroom() {
         id: p.user_id,
         name: p.user_name,
         role: p.role,
-        mic: p.user_id === userId ? micActive : (p.mic_active ?? true),
-        video: p.user_id === userId ? videoActive : (p.video_active ?? true),
-        hand: p.user_id === userId ? handRaised : (p.hand_raised ?? false),
+        mic: p.user_id === userId ? micActive : (p.mic_active === undefined ? true : Boolean(p.mic_active)),
+        video: p.user_id === userId ? videoActive : (p.video_active === undefined ? true : Boolean(p.video_active)),
+        hand: p.user_id === userId ? handRaised : (p.hand_raised === undefined ? false : Boolean(p.hand_raised)),
         avatar: p.role === "teacher" ? "👨‍🏫" : "🧑‍🎓",
       }));
       if (!mapped.some((p) => p.id === userId)) {
@@ -285,6 +286,8 @@ export default function VirtualClassroom() {
             const sender = pc.getSenders().find((s) => s.track && s.track.kind === "video");
             if (sender) {
               await sender.replaceTrack(screenVideoTrack);
+            } else {
+              pc.addTrack(screenVideoTrack, currentScreenStream);
             }
           });
           await Promise.all(replaceJobs);
@@ -310,6 +313,12 @@ export default function VirtualClassroom() {
             });
             await Promise.all(restoreJobs);
           }
+        } else {
+          // If there is no camera, remove the screen track completely
+          Object.values(pcsRef.current).forEach((pc) => {
+            const sender = pc.getSenders().find((s) => s.track && s.track.kind === "video");
+            if (sender) pc.removeTrack(sender);
+          });
         }
         if (screenStream) {
           screenStream.getTracks().forEach((t) => t.stop());
