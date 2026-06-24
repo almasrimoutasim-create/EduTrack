@@ -1471,7 +1471,7 @@ export default function StudentPortal() {
               const daysOfWeekEN = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
               const todayDayEN = daysOfWeekEN[new Date().getDay()];
               const todaySchedules = studentSchedules.filter(s => s.day_of_week === todayDayEN)
-                .sort((a, b) => a.start_time.localeCompare(b.start_time));
+                .sort((a, b) => (a.start_time || "").localeCompare(b.start_time || ""));
 
               if (todaySchedules.length === 0) {
                 return (
@@ -1485,8 +1485,8 @@ export default function StudentPortal() {
               return todaySchedules.map((session, i) => {
                 const now = new Date();
                 const currentMins = now.getHours() * 60 + now.getMinutes();
-                const [sh, sm] = session.start_time.split(":").map(Number);
-                const [eh, em] = session.end_time.split(":").map(Number);
+                const [sh, sm] = (session.start_time || "00:00").split(":").map(Number);
+                const [eh, em] = (session.end_time || "00:00").split(":").map(Number);
                 const startMins = sh * 60 + sm;
                 const endMins = eh * 60 + em;
                 const isActive = currentMins >= startMins && currentMins <= endMins;
