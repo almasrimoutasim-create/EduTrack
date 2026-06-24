@@ -27,6 +27,19 @@ app.use(cors({
 // Mount Neon DB API routes FIRST (before static or body parsers)
 app.use(createApiHandler());
 
+// Serve STUN configuration for WebRTC
+app.get('/api/ice-config', (_req, res) => {
+  res.json({
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'stun:stun2.l.google.com:19302' },
+      { urls: 'stun:stun3.l.google.com:19302' },
+      { urls: 'stun:stun4.l.google.com:19302' }
+    ]
+  });
+});
+
 // Serve built frontend static files
 app.use(express.static(path.join(__dirname, 'dist')));
 app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));

@@ -64,6 +64,7 @@ export default function VirtualClassroom() {
 
   // ── WebRTC ────────────────────────────────────────────────────────────────
   const [localStream, setLocalStream] = useState(null);
+  const localStreamRef = useRef(null);
   const [screenStream, setScreenStream] = useState(null);
   const [remoteStreams, setRemoteStreams] = useState({});  // camera streams
   const localVideoRef = useRef(null);
@@ -246,6 +247,7 @@ export default function VirtualClassroom() {
       try {
         stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         setLocalStream(stream);
+        localStreamRef.current = stream;
         if (localVideoRef.current) localVideoRef.current.srcObject = stream;
         stream.getVideoTracks().forEach((t) => (t.enabled = videoActive));
         stream.getAudioTracks().forEach((t) => (t.enabled = micActive));
@@ -349,12 +351,6 @@ export default function VirtualClassroom() {
     const pc = new RTCPeerConnection({ iceServers: iceConfig?.iceServers || [] });
     pcsRef.current[peerId] = pc;
 
-    // Add currently active tracks (camera or screen share) immediately if available
-    const currentActiveStream = activeStreamRef.current;
-    if (currentActiveStream) {
-      currentActiveStream.getTracks().forEach((track) => pc.addTrack(track, currentActiveStream));
-    }
-
     pc.onnegotiationneeded = async () => {
       try {
         makingOfferRef.current[peerId] = true;
@@ -386,6 +382,12 @@ export default function VirtualClassroom() {
       const el = remoteVideoRefs.current[peerId];
       if (el) el.volume = remoteVolume;
     };
+
+    // Add currently active tracks (camera or screen share) immediately if available
+    const currentActiveStream = activeStreamRef.current || localStreamRef.current;
+    if (currentActiveStream) {
+      currentActiveStream.getTracks().forEach((track) => pc.addTrack(track, currentActiveStream));
+    }
 
     return pc;
   };
@@ -525,6 +527,21 @@ export default function VirtualClassroom() {
     wsSignaling.onSignal((senderId, payload) => {
       const { type, data } = payload;
       handleIncomingSignal(type, senderId, data);
+    });
+
+    wsSignaling.onUserJoined((newUserId) => {
+      if (String(userId) <= String(newUserId)) return;
+      const offerKey = `${userId}->${newUserId}`;
+      if (offersInitiated.current.has(offerKey)) return;
+      const pc = getOrCreatePC(newUserId);
+      if (pc.signalingState !== 'stable') return;
+      offersInitiated.current.add(offerKey);
+      pc.createOffer()
+        .then((offer) => pc.setLocalDescription(offer).then(() => sendSignal('OFFER', newUserId, offer)))
+        .catch((err) => {
+          console.error("Manual offer failed:", err);
+          offersInitiated.current.delete(offerKey);
+        });
     });
 
     wsDrawing.onDrawEvent((data) => {
