@@ -1058,9 +1058,12 @@ export function setupWebSocket(server) {
     console.log('[Socket.io] New connection established:', socket.id);
     
     // حفظ الـ userId للاستخدام في الـ WebRTC المُوجّه
-    const { userId } = socket.handshake.query;
+    const { userId, roomId } = socket.handshake.query;
     if (userId) {
       socket.userId = userId;
+    }
+    if (roomId) {
+      socket.roomId = roomId;
     }
 
     socket.on('join-room', (roomId) => {
@@ -1070,6 +1073,7 @@ export function setupWebSocket(server) {
 
     socket.on('join-webrtc-room', (roomId) => {
       socket.join(roomId);
+      socket.roomId = roomId;
       // إخبار الآخرين بانضمام مستخدم جديد
       socket.broadcast.to(roomId).emit('user-joined', { socketId: socket.id, userId });
       console.log(`[Socket.io] Socket ${socket.id} joined webrtc room ${roomId}`);
@@ -1103,8 +1107,20 @@ export function setupWebSocket(server) {
       }
     });
 
-    socket.on('disconnect', () => {
+    socket.on('disconnect', async () => {
       console.log('[Socket.io] Disconnected:', socket.id);
+      if (socket.userId && socket.roomId && sql) {
+        try {
+          await sql`
+            UPDATE session_participants 
+            SET left_at = NOW() 
+            WHERE user_id = ${socket.userId} AND session_id = ${socket.roomId} AND left_at IS NULL
+          `;
+          console.log(`[Socket.io] Marked user ${socket.userId} as left in room ${socket.roomId}`);
+        } catch (err) {
+          console.error('[Socket.io] Error updating left_at on disconnect:', err.message);
+        }
+      }
     });
   });
 }
