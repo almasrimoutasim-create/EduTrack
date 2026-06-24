@@ -5,12 +5,13 @@ const WS_URL = import.meta.env.VITE_WS_URL || '';
 
 /**
  * هوك مخصص لإدارة إشارات WebRTC (Signaling) باستخدام socket.io-client
- * تم تصميمه ليتوافق مع إدارة WebRTC الموجودة داخل VirtualClassroom.jsx
+ * يدعم استقبال إشعار انضمام مستخدم جديد للغرفة فوراً (user-joined)
  */
 export function useWebRTCSignaling(roomId, userId) {
   const socketRef = useRef(null);
   const [isConnected, setIsConnected] = useState(false);
   const onSignalEventRef = useRef(null);
+  const onUserJoinedRef = useRef(null);
 
   useEffect(() => {
     if (!roomId || !userId) return;
@@ -34,6 +35,14 @@ export function useWebRTCSignaling(roomId, userId) {
     socketRef.current.on('signal', (data) => {
       if (onSignalEventRef.current) {
         onSignalEventRef.current(data.senderId, data.payload);
+      }
+    });
+
+    // عندما ينضم مستخدم جديد للغرفة — يُطلق callback لبدء الاتصال فوراً
+    socketRef.current.on('user-joined', (data) => {
+      console.log('[WebRTC Signaling] User joined:', data.userId);
+      if (onUserJoinedRef.current && data.userId && data.userId !== userId) {
+        onUserJoinedRef.current(data.userId);
       }
     });
 
@@ -62,9 +71,15 @@ export function useWebRTCSignaling(roomId, userId) {
     onSignalEventRef.current = callback;
   }, []);
 
+  // تسجيل callback لحدث انضمام مستخدم جديد
+  const onUserJoined = useCallback((callback) => {
+    onUserJoinedRef.current = callback;
+  }, []);
+
   return {
     isConnected,
     sendSignal,
-    onSignal
+    onSignal,
+    onUserJoined
   };
 }

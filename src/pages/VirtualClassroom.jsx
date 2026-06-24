@@ -18,9 +18,9 @@ import { toast } from "sonner";
 import { useDrawingSocket } from "@/hooks/useDrawingSocket";
 import { useWebRTCSignaling } from "@/hooks/useWebRTCSignaling";
 
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 //  ICE Server Configuration will now be fetched from the backend API
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export default function VirtualClassroom() {
   const { id } = useParams();
@@ -29,15 +29,14 @@ export default function VirtualClassroom() {
   const isRTL = language === "ar";
   const qc = useQueryClient();
 
-  // ── Auth ──────────────────────────────────────────────────────────────────
-  const fallbackId = useRef(`temp-${Math.random().toString(36).substr(2, 9)}`).current;
+  // â”€â”€ Auth â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const role = localStorage.getItem("portal_role") || "student";
-  const userId = localStorage.getItem("portal_user_id") || fallbackId;
-  const userName = localStorage.getItem("portal_user_name") || (role === "teacher" ? "أ. أحمد" : "طالب زائر");
+  const userId = localStorage.getItem("portal_user_id") || "S-temp";
+  const userName = localStorage.getItem("portal_user_name") || (role === "teacher" ? "ط£. ط£ط­ظ…ط¯" : "ط·ط§ظ„ط¨ ط²ط§ط¦ط±");
   const isTeacher = role === "teacher";
   const isAdmin = role === "admin";
 
-  // ── UI State ──────────────────────────────────────────────────────────────
+  // â”€â”€ UI State â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [micActive, setMicActive] = useState(true);
   const [videoActive, setVideoActive] = useState(true);
   const [screenSharing, setScreenSharing] = useState(false);
@@ -52,7 +51,7 @@ export default function VirtualClassroom() {
   // Maps userId -> MediaStream for the SCREEN track received
   const [remoteScreenStreams, setRemoteScreenStreams] = useState({});
 
-  // ── WebSockets ────────────────────────────────────────────────────────────
+  // â”€â”€ WebSockets â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const wsDrawing = useDrawingSocket(id, userId);
   const wsSignaling = useWebRTCSignaling(id, userId);
 
@@ -62,8 +61,9 @@ export default function VirtualClassroom() {
     staleTime: 3600000 // 1 hour
   });
 
-  // ── WebRTC ────────────────────────────────────────────────────────────────
+  // â”€â”€ WebRTC â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [localStream, setLocalStream] = useState(null);
+  const localStreamRef = useRef(null);  // ref to avoid stale closure in getOrCreatePC
   const [screenStream, setScreenStream] = useState(null);
   const [remoteStreams, setRemoteStreams] = useState({});  // camera streams
   const localVideoRef = useRef(null);
@@ -74,19 +74,10 @@ export default function VirtualClassroom() {
   // Track refs for all remote video elements to apply volume changes
   const remoteVideoRefs = useRef({});   // peerId -> HTMLVideoElement
   const offersInitiated = useRef(new Set()); // track which peers we've offered to
-  const makingOfferRef = useRef({});    // peerId -> boolean
-  const ignoreOfferRef = useRef({});    // peerId -> boolean
 
-  // ── Presentation / Whiteboard ─────────────────────────────────────────────
+  // â”€â”€ Presentation / Whiteboard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const canvasRef = useRef(null);
   const lastPointRef = useRef(null);
-  const messagesEndRef = useRef(null);
-  const activeStreamRef = useRef(null);
-
-  useEffect(() => {
-    activeStreamRef.current = screenSharing && screenStream ? screenStream : localStream;
-  }, [screenSharing, screenStream, localStream]);
-
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawColor, setDrawColor] = useState("#2dd4bf");
   const [lineWidth, setLineWidth] = useState(3);
@@ -98,7 +89,7 @@ export default function VirtualClassroom() {
     videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
   });
 
-  // ── DB / Session ──────────────────────────────────────────────────────────
+  // â”€â”€ DB / Session â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [participants, setParticipants] = useState([]);
   const [myParticipantId, setMyParticipantId] = useState(null);
 
@@ -148,9 +139,9 @@ export default function VirtualClassroom() {
       } catch {
         return {
           id,
-          title: isRTL ? "مقدمة في الجبر والكسور" : "Introduction to Algebra",
-          subject_name: isRTL ? "الرياضيات" : "Mathematics",
-          teacher_name: isRTL ? "أ. أحمد الغامدي" : "Mr. Ahmad Al-Ghamdi",
+          title: isRTL ? "ظ…ظ‚ط¯ظ…ط© ظپظٹ ط§ظ„ط¬ط¨ط± ظˆط§ظ„ظƒط³ظˆط±" : "Introduction to Algebra",
+          subject_name: isRTL ? "ط§ظ„ط±ظٹط§ط¶ظٹط§طھ" : "Mathematics",
+          teacher_name: isRTL ? "ط£. ط£ط­ظ…ط¯ ط§ظ„ط؛ط§ظ…ط¯ظٹ" : "Mr. Ahmad Al-Ghamdi",
           room_name: `math-room-${id}`,
           status: "active",
         };
@@ -166,9 +157,9 @@ export default function VirtualClassroom() {
     scheduled_time: "",
   });
 
-  // ─────────────────────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   //  Participants list from DB
-  // ─────────────────────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   useEffect(() => {
     if (isDemo) return;
     if (activeParticipants.length > 0) {
@@ -182,23 +173,23 @@ export default function VirtualClassroom() {
         id: p.user_id,
         name: p.user_name,
         role: p.role,
-        mic: p.user_id === userId ? micActive : (p.mic_active === undefined ? true : Boolean(p.mic_active)),
-        video: p.user_id === userId ? videoActive : (p.video_active === undefined ? true : Boolean(p.video_active)),
-        hand: p.user_id === userId ? handRaised : (p.hand_raised === undefined ? false : Boolean(p.hand_raised)),
-        avatar: p.role === "teacher" ? "👨‍🏫" : "🧑‍🎓",
+        mic: p.user_id === userId ? micActive : (p.mic_active ?? true),
+        video: p.user_id === userId ? videoActive : (p.video_active ?? true),
+        hand: p.user_id === userId ? handRaised : (p.hand_raised ?? false),
+        avatar: p.role === "teacher" ? "ًں‘¨â€چًںڈ«" : "ًں§‘â€چًںژ“",
       }));
       if (!mapped.some((p) => p.id === userId)) {
-        mapped.push({ id: userId, name: userName, role, mic: micActive, video: videoActive, hand: handRaised, avatar: isTeacher ? "👨‍🏫" : "🧑‍🎓" });
+        mapped.push({ id: userId, name: userName, role, mic: micActive, video: videoActive, hand: handRaised, avatar: isTeacher ? "ًں‘¨â€چًںڈ«" : "ًں§‘â€چًںژ“" });
       }
       setParticipants(mapped);
     } else {
-      setParticipants([{ id: userId, name: userName, role, mic: micActive, video: videoActive, hand: handRaised, avatar: isTeacher ? "👨‍🏫" : "🧑‍🎓" }]);
+      setParticipants([{ id: userId, name: userName, role, mic: micActive, video: videoActive, hand: handRaised, avatar: isTeacher ? "ًں‘¨â€چًںڈ«" : "ًں§‘â€چًںژ“" }]);
     }
   }, [activeParticipants, userId, userName, role, micActive, videoActive, handRaised, isDemo]);
 
-  // ─────────────────────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   //  DB participant registration
-  // ─────────────────────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   useEffect(() => {
     if (isDemo) return;
     let active = true;
@@ -236,9 +227,9 @@ export default function VirtualClassroom() {
     };
   }, [sessionId, userId, userName, role, isDemo]);
 
-  // ─────────────────────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   //  Local media stream
-  // ─────────────────────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   useEffect(() => {
     if (isDemo) return;
     let stream = null;
@@ -246,12 +237,13 @@ export default function VirtualClassroom() {
       try {
         stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         setLocalStream(stream);
+        localStreamRef.current = stream; // update ref immediately for use in getOrCreatePC
         if (localVideoRef.current) localVideoRef.current.srcObject = stream;
         stream.getVideoTracks().forEach((t) => (t.enabled = videoActive));
         stream.getAudioTracks().forEach((t) => (t.enabled = micActive));
       } catch (err) {
         console.error("Media access error:", err);
-        toast.error(isRTL ? "تعذّر الوصول للكاميرا/الميكروفون. تحقق من الأذونات." : "Cannot access camera/microphone. Check permissions.");
+        toast.error(isRTL ? "طھط¹ط°ظ‘ط± ط§ظ„ظˆطµظˆظ„ ظ„ظ„ظƒط§ظ…ظٹط±ط§/ط§ظ„ظ…ظٹظƒط±ظˆظپظˆظ†. طھط­ظ‚ظ‚ ظ…ظ† ط§ظ„ط£ط°ظˆظ†ط§طھ." : "Cannot access camera/microphone. Check permissions.");
       }
     };
     init();
@@ -262,9 +254,9 @@ export default function VirtualClassroom() {
   useEffect(() => { if (localStream) localStream.getAudioTracks().forEach((t) => (t.enabled = micActive)); }, [micActive, localStream]);
   useEffect(() => { if (localStream) localStream.getVideoTracks().forEach((t) => (t.enabled = videoActive)); }, [videoActive, localStream]);
 
-  // ─────────────────────────────────────────────────────────────────────────
-  //  Screen sharing — uses replaceTrack (no renegotiation needed)
-  // ─────────────────────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  //  Screen sharing â€” uses replaceTrack (no renegotiation needed)
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   useEffect(() => {
     if (isDemo) return;
     let currentScreenStream = null;
@@ -281,13 +273,11 @@ export default function VirtualClassroom() {
           const screenVideoTrack = currentScreenStream.getVideoTracks()[0];
 
           // Replace the video track on every active peer connection
-          // replaceTrack() works WITHOUT renegotiation — the receiver sees it instantly
+          // replaceTrack() works WITHOUT renegotiation â€” the receiver sees it instantly
           const replaceJobs = Object.values(pcsRef.current).map(async (pc) => {
             const sender = pc.getSenders().find((s) => s.track && s.track.kind === "video");
             if (sender) {
               await sender.replaceTrack(screenVideoTrack);
-            } else {
-              pc.addTrack(screenVideoTrack, currentScreenStream);
             }
           });
           await Promise.all(replaceJobs);
@@ -313,12 +303,6 @@ export default function VirtualClassroom() {
             });
             await Promise.all(restoreJobs);
           }
-        } else {
-          // If there is no camera, remove the screen track completely
-          Object.values(pcsRef.current).forEach((pc) => {
-            const sender = pc.getSenders().find((s) => s.track && s.track.kind === "video");
-            if (sender) pc.removeTrack(sender);
-          });
         }
         if (screenStream) {
           screenStream.getTracks().forEach((t) => t.stop());
@@ -332,39 +316,39 @@ export default function VirtualClassroom() {
     return () => { if (currentScreenStream) currentScreenStream.getTracks().forEach((t) => t.stop()); };
   }, [screenSharing, isDemo]);
 
-  // ─────────────────────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   //  Signaling helpers
-  // ─────────────────────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const sendSignal = async (type, targetId, data) => {
     if (!wsSignaling.isConnected) return;
     wsSignaling.sendSignal(targetId, { type, data });
   };
 
-  // ─────────────────────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   //  RTCPeerConnection factory  (uses fetched TURN + STUN)
-  // ─────────────────────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const getOrCreatePC = (peerId) => {
     if (pcsRef.current[peerId]) return pcsRef.current[peerId];
 
     const pc = new RTCPeerConnection({ iceServers: iceConfig?.iceServers || [] });
-    pcsRef.current[peerId] = pc;
 
-    // Add currently active tracks (camera or screen share) immediately if available
-    const currentActiveStream = activeStreamRef.current;
-    if (currentActiveStream) {
-      currentActiveStream.getTracks().forEach((track) => pc.addTrack(track, currentActiveStream));
+    // Use ref to avoid stale closure — ensures tracks are added even if React state hasn't propagated
+    const currentStream = localStreamRef.current;
+    if (currentStream) {
+      currentStream.getTracks().forEach((track) => pc.addTrack(track, currentStream));
     }
 
     pc.onnegotiationneeded = async () => {
+      // The peer with the HIGHER userId always creates the initial offer
+      if (userId < peerId) return;
       try {
-        makingOfferRef.current[peerId] = true;
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        sendSignal("OFFER", peerId, offer);
+        if (pc.signalingState === "stable") {
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+          sendSignal("OFFER", peerId, offer);
+        }
       } catch (err) {
         console.error("Negotiation error:", err);
-      } finally {
-        makingOfferRef.current[peerId] = false;
       }
     };
 
@@ -377,6 +361,8 @@ export default function VirtualClassroom() {
     };
 
     // ontrack fires for every incoming track.
+    // Always update remoteStreams â€” this captures both camera and screen-share tracks
+    // (replaceTrack keeps the same stream but updates the track inside it).
     pc.ontrack = (event) => {
       const stream = event.streams[0];
       if (!stream) return;
@@ -387,6 +373,7 @@ export default function VirtualClassroom() {
       if (el) el.volume = remoteVolume;
     };
 
+    pcsRef.current[peerId] = pc;
     return pc;
   };
 
@@ -410,21 +397,13 @@ export default function VirtualClassroom() {
     });
   }, [localStream]);
 
-  // ─────────────────────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   //  Incoming signal handler
-  // ─────────────────────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const handleIncomingSignal = async (type, peerId, data) => {
     const pc = getOrCreatePC(peerId);
-    const isPolite = String(userId) < String(peerId);
 
     if (type === "OFFER") {
-      const offerCollision = makingOfferRef.current[peerId] || pc.signalingState !== "stable";
-      ignoreOfferRef.current[peerId] = !isPolite && offerCollision;
-      
-      if (ignoreOfferRef.current[peerId]) {
-        return;
-      }
-
       await pc.setRemoteDescription(new RTCSessionDescription(data));
       if (iceQueuesRef.current[peerId]) {
         for (const c of iceQueuesRef.current[peerId]) {
@@ -446,13 +425,11 @@ export default function VirtualClassroom() {
       }
 
     } else if (type === "ICE") {
-      try {
-        await pc.addIceCandidate(new RTCIceCandidate(data));
-      } catch (err) {
-        if (!ignoreOfferRef.current[peerId]) {
-          if (!iceQueuesRef.current[peerId]) iceQueuesRef.current[peerId] = [];
-          iceQueuesRef.current[peerId].push(data);
-        }
+      if (pc.remoteDescription?.type) {
+        await pc.addIceCandidate(new RTCIceCandidate(data)).catch(() => {});
+      } else {
+        if (!iceQueuesRef.current[peerId]) iceQueuesRef.current[peerId] = [];
+        iceQueuesRef.current[peerId].push(data);
       }
 
     } else if (type === "DRAW_PATH") {
@@ -516,15 +493,34 @@ export default function VirtualClassroom() {
     }
   };
 
-  // ─────────────────────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   //  Process incoming WS signals and Drawing events
-  // ─────────────────────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   useEffect(() => {
     if (isDemo) return;
 
     wsSignaling.onSignal((senderId, payload) => {
       const { type, data } = payload;
       handleIncomingSignal(type, senderId, data);
+    });
+
+    // عند انضمام مستخدم جديد عبر WebSocket — ابدأ اتصال WebRTC فوراً بدلاً من انتظار DB polling
+    wsSignaling.onUserJoined((newUserId) => {
+      if (!localStreamRef.current) return;
+      // فقط الطرف ذو الـ userId الأكبر يُرسل العرض (يمنع التعارض)
+      if (String(userId) <= String(newUserId)) return;
+      const offerKey = `${userId}->${newUserId}`;
+      if (offersInitiated.current.has(offerKey)) return;
+      const pc = getOrCreatePC(newUserId);
+      if (pc.signalingState !== 'stable') return;
+      offersInitiated.current.add(offerKey);
+      console.log(`[WebRTC] Sending offer to new user ${newUserId} via user-joined event`);
+      pc.createOffer()
+        .then((offer) => pc.setLocalDescription(offer).then(() => sendSignal('OFFER', newUserId, offer)))
+        .catch((err) => {
+          offersInitiated.current.delete(offerKey);
+          console.error('[WebRTC] Offer error (user-joined):', err);
+        });
     });
 
     wsDrawing.onDrawEvent((data) => {
@@ -551,21 +547,35 @@ export default function VirtualClassroom() {
 
   }, [isDemo, wsSignaling, wsDrawing]);
 
-  // ─────────────────────────────────────────────────────────────────────────
-  //  Initiate connections when participant list changes
-  // ─────────────────────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  //  Initiate offers when participant list changes
+  // Only send an offer once per peer (avoid duplicate offers on re-renders)
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   useEffect(() => {
-    if (isDemo || !wsSignaling.isConnected) return;
+    if (isDemo || !localStream || !wsSignaling.isConnected) return;
     participants.forEach((p) => {
-      if (p.id !== userId) {
-        getOrCreatePC(p.id);
-      }
+      if (p.id === userId) return;
+      // Only the peer with the HIGHER userId sends the offer
+      if (userId <= p.id) return;
+      // Avoid sending duplicate offers
+      const offerKey = `${userId}->${p.id}`;
+      if (offersInitiated.current.has(offerKey)) return;
+      const pc = getOrCreatePC(p.id);
+      if (pc.signalingState !== "stable") return;
+      offersInitiated.current.add(offerKey);
+      pc.createOffer()
+        .then((offer) => pc.setLocalDescription(offer).then(() => sendSignal("OFFER", p.id, offer)))
+        .catch((err) => {
+          // Allow retry next time
+          offersInitiated.current.delete(offerKey);
+          console.error("Offer error:", err);
+        });
     });
-  }, [participants, isDemo, wsSignaling.isConnected]);
+  }, [participants, localStream, isDemo, wsSignaling.isConnected]);
 
-  // ─────────────────────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   //  Whiteboard
-  // ─────────────────────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const startDrawing = (e) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -633,9 +643,9 @@ export default function VirtualClassroom() {
     return () => ro.disconnect();
   }, [presentationMode]);
 
-  // ─────────────────────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   //  Controls
-  // ─────────────────────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const toggleMic = async () => {
     const val = !micActive;
     setMicActive(val);
@@ -674,15 +684,15 @@ export default function VirtualClassroom() {
 
   const handleEndClass = async () => {
     if (isTeacher) {
-      if (confirm(isRTL ? "هل أنت متأكد من إنهاء الفصل للجميع؟" : "End class for everyone?")) {
+      if (confirm(isRTL ? "ظ‡ظ„ ط£ظ†طھ ظ…طھط£ظƒط¯ ظ…ظ† ط¥ظ†ظ‡ط§ط، ط§ظ„ظپطµظ„ ظ„ظ„ط¬ظ…ظٹط¹طں" : "End class for everyone?")) {
         try { await entities.VirtualSession.update(id, { status: "ended", ended_at: new Date().toISOString() }); } catch {}
-        toast.success(isRTL ? "تم إنهاء الفصل." : "Class ended.");
+        toast.success(isRTL ? "طھظ… ط¥ظ†ظ‡ط§ط، ط§ظ„ظپطµظ„." : "Class ended.");
         navigate("/teacher-portal");
       }
     } else if (isAdmin) {
       navigate("/admin-virtual-classrooms");
     } else {
-      toast.info(isRTL ? "غادرت الفصل." : "You left the classroom.");
+      toast.info(isRTL ? "ط؛ط§ط¯ط±طھ ط§ظ„ظپطµظ„." : "You left the classroom.");
       navigate("/student-portal");
     }
   };
@@ -690,14 +700,14 @@ export default function VirtualClassroom() {
   const handleStartSession = async (sessionItem) => {
     try {
       await entities.VirtualSession.update(sessionItem.id, { status: "active", started_at: new Date().toISOString() });
-      toast.success(isRTL ? "تم بدء الحصة!" : "Session started!");
+      toast.success(isRTL ? "طھظ… ط¨ط¯ط، ط§ظ„ط­طµط©!" : "Session started!");
       navigate(`/virtual-classroom/${sessionItem.id}`);
-    } catch { toast.error(isRTL ? "فشل بدء الحصة" : "Failed to start session"); }
+    } catch { toast.error(isRTL ? "ظپط´ظ„ ط¨ط¯ط، ط§ظ„ط­طµط©" : "Failed to start session"); }
   };
 
   const handleScheduleSession = async () => {
     if (!newSession.title || !newSession.subject_id || !newSession.scheduled_at || !newSession.scheduled_time) {
-      toast.error(isRTL ? "يرجى ملء جميع الحقول" : "Please fill all fields");
+      toast.error(isRTL ? "ظٹط±ط¬ظ‰ ظ…ظ„ط، ط¬ظ…ظٹط¹ ط§ظ„ط­ظ‚ظˆظ„" : "Please fill all fields");
       return;
     }
     const selectedSub = teacherSubjects.find((s) => s.id === newSession.subject_id);
@@ -714,15 +724,15 @@ export default function VirtualClassroom() {
         scheduled_at: scheduledDateTime,
         status: "scheduled",
       });
-      toast.success(isRTL ? "تم جدولة الحصة!" : "Session scheduled!");
+      toast.success(isRTL ? "طھظ… ط¬ط¯ظˆظ„ط© ط§ظ„ط­طµط©!" : "Session scheduled!");
       setNewSession({ title: "", subject_id: "", scheduled_at: "", scheduled_time: "" });
       refetchSessions();
-    } catch { toast.error(isRTL ? "فشل الجدولة" : "Failed to schedule"); }
+    } catch { toast.error(isRTL ? "ظپط´ظ„ ط§ظ„ط¬ط¯ظˆظ„ط©" : "Failed to schedule"); }
   };
 
-  // ─────────────────────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   //  Camera card sizing
-  // ─────────────────────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const getCameraCardClass = () => {
     const n = participants.length;
     if (n > 4) return "relative aspect-video w-32 lg:w-[80%] mx-auto rounded-xl bg-stone-850 border border-white/5 shadow-md overflow-hidden group shrink-0 transition-all duration-300";
@@ -733,20 +743,9 @@ export default function VirtualClassroom() {
   // The local active stream: screen share takes priority for the sender's own preview
   const activeStream = screenSharing && screenStream ? screenStream : localStream;
 
-  const chatMessages = dbMessages.filter((msg) => {
-    const text = msg.content || msg.message_text || "";
-    return !text.startsWith("SIGNAL:") && msg.type !== "signal";
-  });
-
-  useEffect(() => {
-    if (activeTab === "chat") {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [chatMessages, activeTab]);
-
-  // ─────────────────────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   //  DEMO PAGE
-  // ─────────────────────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (isDemo) {
     return (
       <div className="min-h-screen bg-stone-950 text-white flex flex-col font-sans" dir={isRTL ? "rtl" : "ltr"}>
@@ -756,14 +755,14 @@ export default function VirtualClassroom() {
               <Video size={18} />
             </div>
             <div>
-              <h1 className="text-sm font-extrabold">{isRTL ? "الفصول الافتراضية الذكية" : "Smart Virtual Classrooms"}</h1>
+              <h1 className="text-sm font-extrabold">{isRTL ? "ط§ظ„ظپطµظˆظ„ ط§ظ„ط§ظپطھط±ط§ط¶ظٹط© ط§ظ„ط°ظƒظٹط©" : "Smart Virtual Classrooms"}</h1>
               <p className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">
-                {isRTL ? "منصة التعليم والجدولة المباشرة" : "Live Learning & Scheduling Hub"}
+                {isRTL ? "ظ…ظ†طµط© ط§ظ„طھط¹ظ„ظٹظ… ظˆط§ظ„ط¬ط¯ظˆظ„ط© ط§ظ„ظ…ط¨ط§ط´ط±ط©" : "Live Learning & Scheduling Hub"}
               </p>
             </div>
           </div>
           <span className="bg-black/60 backdrop-blur-md px-3 py-1 rounded-xl text-[10px] font-bold border border-white/5">
-            {userName} ({isTeacher ? (isRTL ? "معلم" : "Teacher") : (isRTL ? "طالب" : "Student")})
+            {userName} ({isTeacher ? (isRTL ? "ظ…ط¹ظ„ظ…" : "Teacher") : (isRTL ? "ط·ط§ظ„ط¨" : "Student")})
           </span>
         </header>
 
@@ -775,35 +774,35 @@ export default function VirtualClassroom() {
                 <div className="absolute top-0 right-0 w-24 h-24 bg-teal-500/10 rounded-full blur-2xl" />
                 <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
                   <span className="h-2 w-2 rounded-full bg-teal-400 animate-pulse" />
-                  {isRTL ? "بدء حصة افتراضية فورية" : "Start Instant Live Class"}
+                  {isRTL ? "ط¨ط¯ط، ط­طµط© ط§ظپطھط±ط§ط¶ظٹط© ظپظˆط±ظٹط©" : "Start Instant Live Class"}
                 </h3>
                 <div className="space-y-4">
                   <div>
-                    <label className="text-[10px] font-bold text-stone-200 uppercase block mb-1.5">{isRTL ? "عنوان الحصة" : "Session Title"}</label>
-                    <Input placeholder={isRTL ? "مثال: مراجعة الجبر" : "e.g. Algebra Review"} value={newSession.title} onChange={(e) => setNewSession({ ...newSession, title: e.target.value })} className="!bg-stone-850 !text-white border-white/5 text-xs rounded-xl" style={{ backgroundColor: "#1c1917", color: "#ffffff" }} />
+                    <label className="text-[10px] font-bold text-stone-200 uppercase block mb-1.5">{isRTL ? "ط¹ظ†ظˆط§ظ† ط§ظ„ط­طµط©" : "Session Title"}</label>
+                    <Input placeholder={isRTL ? "ظ…ط«ط§ظ„: ظ…ط±ط§ط¬ط¹ط© ط§ظ„ط¬ط¨ط±" : "e.g. Algebra Review"} value={newSession.title} onChange={(e) => setNewSession({ ...newSession, title: e.target.value })} className="!bg-stone-850 !text-white border-white/5 text-xs rounded-xl" style={{ backgroundColor: "#1c1917", color: "#ffffff" }} />
                   </div>
                   <div>
-                    <label className="text-[10px] font-bold text-stone-200 uppercase block mb-1.5">{isRTL ? "المادة الدراسية" : "Subject"}</label>
+                    <label className="text-[10px] font-bold text-stone-200 uppercase block mb-1.5">{isRTL ? "ط§ظ„ظ…ط§ط¯ط© ط§ظ„ط¯ط±ط§ط³ظٹط©" : "Subject"}</label>
                     <select value={newSession.subject_id} onChange={(e) => setNewSession({ ...newSession, subject_id: e.target.value })} className="w-full border border-white/5 text-xs text-white rounded-xl p-2.5 focus:outline-none" style={{ backgroundColor: "#1c1917", color: "#ffffff" }}>
-                      <option value="">{isRTL ? "اختر المادة..." : "Select Subject..."}</option>
-                      {teacherSubjects.map((sub) => <option key={sub.id} value={sub.id} style={{ backgroundColor: "#1c1917" }}>{sub.name} ({sub.grade || "عام"})</option>)}
+                      <option value="">{isRTL ? "ط§ط®طھط± ط§ظ„ظ…ط§ط¯ط©..." : "Select Subject..."}</option>
+                      {teacherSubjects.map((sub) => <option key={sub.id} value={sub.id} style={{ backgroundColor: "#1c1917" }}>{sub.name} ({sub.grade || "ط¹ط§ظ…"})</option>)}
                     </select>
                   </div>
                   <button
                     onClick={async () => {
-                      if (!newSession.title || !newSession.subject_id) { toast.error(isRTL ? "أدخل العنوان واختر المادة" : "Enter title and select subject"); return; }
+                      if (!newSession.title || !newSession.subject_id) { toast.error(isRTL ? "ط£ط¯ط®ظ„ ط§ظ„ط¹ظ†ظˆط§ظ† ظˆط§ط®طھط± ط§ظ„ظ…ط§ط¯ط©" : "Enter title and select subject"); return; }
                       const selectedSub = teacherSubjects.find((s) => s.id === newSession.subject_id);
                       const roomName = `room-${Math.random().toString(36).substr(2, 9)}`;
                       try {
                         const res = await entities.VirtualSession.create({ title: newSession.title, teacher_id: userId, teacher_name: userName, subject_id: newSession.subject_id, subject_name: selectedSub?.name || "", room_name: roomName, scheduled_at: new Date().toISOString(), started_at: new Date().toISOString(), status: "active" });
-                        toast.success(isRTL ? "تم بدء الحصة!" : "Session started!");
+                        toast.success(isRTL ? "طھظ… ط¨ط¯ط، ط§ظ„ط­طµط©!" : "Session started!");
                         navigate(`/virtual-classroom/${res.id}`);
-                      } catch { toast.error(isRTL ? "فشل البدء" : "Failed to start"); }
+                      } catch { toast.error(isRTL ? "ظپط´ظ„ ط§ظ„ط¨ط¯ط،" : "Failed to start"); }
                     }}
                     className="w-full h-11 bg-teal-500 hover:bg-teal-400 text-stone-950 font-black rounded-xl text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
                   >
                     <Video size={16} />
-                    {isRTL ? "بدء البث المباشر الآن" : "Start Live Now"}
+                    {isRTL ? "ط¨ط¯ط، ط§ظ„ط¨ط« ط§ظ„ظ…ط¨ط§ط´ط± ط§ظ„ط¢ظ†" : "Start Live Now"}
                   </button>
                 </div>
               </Card>
@@ -813,33 +812,33 @@ export default function VirtualClassroom() {
                 <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/10 rounded-full blur-2xl" />
                 <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
                   <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
-                  {isRTL ? "جدولة حصة افتراضية" : "Schedule Virtual Class"}
+                  {isRTL ? "ط¬ط¯ظˆظ„ط© ط­طµط© ط§ظپطھط±ط§ط¶ظٹط©" : "Schedule Virtual Class"}
                 </h3>
                 <div className="space-y-4">
                   <div>
-                    <label className="text-[10px] font-bold text-stone-200 uppercase block mb-1.5">{isRTL ? "عنوان الحصة" : "Session Title"}</label>
-                    <Input placeholder={isRTL ? "مثال: مقدمة في الخوارزميات" : "e.g. Intro to Algorithms"} value={newSession.title} onChange={(e) => setNewSession({ ...newSession, title: e.target.value })} className="!bg-stone-850 !text-white border-white/5 text-xs rounded-xl" style={{ backgroundColor: "#1c1917", color: "#ffffff" }} />
+                    <label className="text-[10px] font-bold text-stone-200 uppercase block mb-1.5">{isRTL ? "ط¹ظ†ظˆط§ظ† ط§ظ„ط­طµط©" : "Session Title"}</label>
+                    <Input placeholder={isRTL ? "ظ…ط«ط§ظ„: ظ…ظ‚ط¯ظ…ط© ظپظٹ ط§ظ„ط®ظˆط§ط±ط²ظ…ظٹط§طھ" : "e.g. Intro to Algorithms"} value={newSession.title} onChange={(e) => setNewSession({ ...newSession, title: e.target.value })} className="!bg-stone-850 !text-white border-white/5 text-xs rounded-xl" style={{ backgroundColor: "#1c1917", color: "#ffffff" }} />
                   </div>
                   <div>
-                    <label className="text-[10px] font-bold text-stone-200 uppercase block mb-1.5">{isRTL ? "المادة الدراسية" : "Subject"}</label>
+                    <label className="text-[10px] font-bold text-stone-200 uppercase block mb-1.5">{isRTL ? "ط§ظ„ظ…ط§ط¯ط© ط§ظ„ط¯ط±ط§ط³ظٹط©" : "Subject"}</label>
                     <select value={newSession.subject_id} onChange={(e) => setNewSession({ ...newSession, subject_id: e.target.value })} className="w-full border border-white/5 text-xs text-white rounded-xl p-2.5 focus:outline-none" style={{ backgroundColor: "#1c1917", color: "#ffffff" }}>
-                      <option value="">{isRTL ? "اختر المادة..." : "Select Subject..."}</option>
-                      {teacherSubjects.map((sub) => <option key={sub.id} value={sub.id} style={{ backgroundColor: "#1c1917" }}>{sub.name} ({sub.grade || "عام"})</option>)}
+                      <option value="">{isRTL ? "ط§ط®طھط± ط§ظ„ظ…ط§ط¯ط©..." : "Select Subject..."}</option>
+                      {teacherSubjects.map((sub) => <option key={sub.id} value={sub.id} style={{ backgroundColor: "#1c1917" }}>{sub.name} ({sub.grade || "ط¹ط§ظ…"})</option>)}
                     </select>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="text-[10px] font-bold text-stone-200 uppercase block mb-1.5">{isRTL ? "التاريخ" : "Date"}</label>
+                      <label className="text-[10px] font-bold text-stone-200 uppercase block mb-1.5">{isRTL ? "ط§ظ„طھط§ط±ظٹط®" : "Date"}</label>
                       <input type="date" value={newSession.scheduled_at} onChange={(e) => setNewSession({ ...newSession, scheduled_at: e.target.value })} className="w-full border border-white/5 text-xs text-white rounded-xl p-2.5 focus:outline-none" style={{ backgroundColor: "#1c1917", color: "#ffffff", colorScheme: "dark" }} />
                     </div>
                     <div>
-                      <label className="text-[10px] font-bold text-stone-200 uppercase block mb-1.5">{isRTL ? "الوقت" : "Time"}</label>
+                      <label className="text-[10px] font-bold text-stone-200 uppercase block mb-1.5">{isRTL ? "ط§ظ„ظˆظ‚طھ" : "Time"}</label>
                       <input type="time" value={newSession.scheduled_time} onChange={(e) => setNewSession({ ...newSession, scheduled_time: e.target.value })} className="w-full border border-white/5 text-xs text-white rounded-xl p-2.5 focus:outline-none" style={{ backgroundColor: "#1c1917", color: "#ffffff", colorScheme: "dark" }} />
                     </div>
                   </div>
                   <button onClick={handleScheduleSession} className="w-full h-11 bg-stone-850 hover:bg-stone-800 text-white font-bold border border-white/10 rounded-xl text-xs flex items-center justify-center gap-2 transition-all cursor-pointer">
                     <Calendar size={16} className="text-amber-400" />
-                    {isRTL ? "جدولة الحصة وحفظها" : "Schedule & Save Class"}
+                    {isRTL ? "ط¬ط¯ظˆظ„ط© ط§ظ„ط­طµط© ظˆط­ظپط¸ظ‡ط§" : "Schedule & Save Class"}
                   </button>
                 </div>
               </Card>
@@ -849,13 +848,13 @@ export default function VirtualClassroom() {
           {/* Session list */}
           <div className={isTeacher ? "lg:col-span-7 space-y-6" : "lg:col-span-12 space-y-6"}>
             <div className="flex items-center justify-between mb-2">
-              <h2 className="text-xl font-extrabold text-white">{isRTL ? "الحصص الافتراضية الحالية والقادمة" : "Current & Upcoming Virtual Classes"}</h2>
-              <Badge className="bg-stone-800 text-stone-300 border-none rounded-full px-3 py-1 text-xs font-black">{virtualSessions.length} {isRTL ? "فصول" : "Sessions"}</Badge>
+              <h2 className="text-xl font-extrabold text-white">{isRTL ? "ط§ظ„ط­طµطµ ط§ظ„ط§ظپطھط±ط§ط¶ظٹط© ط§ظ„ط­ط§ظ„ظٹط© ظˆط§ظ„ظ‚ط§ط¯ظ…ط©" : "Current & Upcoming Virtual Classes"}</h2>
+              <Badge className="bg-stone-800 text-stone-300 border-none rounded-full px-3 py-1 text-xs font-black">{virtualSessions.length} {isRTL ? "ظپطµظˆظ„" : "Sessions"}</Badge>
             </div>
             {virtualSessions.length === 0 ? (
               <div className="h-64 flex flex-col items-center justify-center border border-dashed border-stone-850 rounded-[32px] text-stone-500">
                 <AlertCircle size={40} className="text-stone-700 mb-3" />
-                <p className="text-sm font-bold">{isRTL ? "لا توجد حصص مجدولة." : "No scheduled virtual classes."}</p>
+                <p className="text-sm font-bold">{isRTL ? "ظ„ط§ طھظˆط¬ط¯ ط­طµطµ ظ…ط¬ط¯ظˆظ„ط©." : "No scheduled virtual classes."}</p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -869,20 +868,20 @@ export default function VirtualClassroom() {
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
                             <h4 className="text-base font-bold text-white group-hover:text-teal-400 transition-colors">{si.title}</h4>
-                            {isActive && <Badge className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider flex items-center gap-1 animate-pulse"><span className="h-1 w-1 rounded-full bg-emerald-400 inline-block" />{isRTL ? "نشط" : "LIVE"}</Badge>}
-                            {isScheduled && <Badge className="bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded-md text-[9px] font-black uppercase">{isRTL ? "مجدول" : "SCHEDULED"}</Badge>}
-                            {isEnded && <Badge className="bg-stone-800 text-stone-500 border-none px-2 py-0.5 rounded-md text-[9px] font-black uppercase">{isRTL ? "منتهية" : "ENDED"}</Badge>}
+                            {isActive && <Badge className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider flex items-center gap-1 animate-pulse"><span className="h-1 w-1 rounded-full bg-emerald-400 inline-block" />{isRTL ? "ظ†ط´ط·" : "LIVE"}</Badge>}
+                            {isScheduled && <Badge className="bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded-md text-[9px] font-black uppercase">{isRTL ? "ظ…ط¬ط¯ظˆظ„" : "SCHEDULED"}</Badge>}
+                            {isEnded && <Badge className="bg-stone-800 text-stone-500 border-none px-2 py-0.5 rounded-md text-[9px] font-black uppercase">{isRTL ? "ظ…ظ†طھظ‡ظٹط©" : "ENDED"}</Badge>}
                           </div>
-                          <p className="text-xs text-stone-400">{si.subject_name} • {si.teacher_name}</p>
+                          <p className="text-xs text-stone-400">{si.subject_name} â€¢ {si.teacher_name}</p>
                           {(isScheduled || isActive) && si.scheduled_at && (
                             <p className="text-[10px] text-stone-500 font-bold flex items-center gap-1"><Clock size={10} />{new Date(si.scheduled_at).toLocaleString(isRTL ? "ar-EG" : "en-US")}</p>
                           )}
                         </div>
                         <div className="flex gap-2 shrink-0">
-                          {isActive && <button onClick={() => navigate(`/virtual-classroom/${si.id}`)} className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-stone-950 text-xs font-black rounded-xl flex items-center gap-1.5 cursor-pointer"><Video size={14} />{isRTL ? "دخول البث المباشر" : "Enter Live"}</button>}
-                          {isScheduled && isTeacher && <button onClick={() => handleStartSession(si)} className="px-4 py-2 bg-teal-500 hover:bg-teal-400 text-stone-950 text-xs font-black rounded-xl flex items-center gap-1.5 cursor-pointer"><Video size={14} />{isRTL ? "بدء الآن" : "Start Now"}</button>}
-                          {isScheduled && !isTeacher && <span className="px-3 py-1.5 bg-stone-850 text-stone-500 text-xs font-bold rounded-xl border border-white/5">{isRTL ? "انتظار المعلم" : "Awaiting Teacher"}</span>}
-                          {isEnded && <span className="px-3 py-1.5 bg-stone-950 text-stone-600 text-xs font-bold rounded-xl">{isRTL ? "انتهى البث" : "Ended"}</span>}
+                          {isActive && <button onClick={() => navigate(`/virtual-classroom/${si.id}`)} className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-stone-950 text-xs font-black rounded-xl flex items-center gap-1.5 cursor-pointer"><Video size={14} />{isRTL ? "ط¯ط®ظˆظ„ ط§ظ„ط¨ط« ط§ظ„ظ…ط¨ط§ط´ط±" : "Enter Live"}</button>}
+                          {isScheduled && isTeacher && <button onClick={() => handleStartSession(si)} className="px-4 py-2 bg-teal-500 hover:bg-teal-400 text-stone-950 text-xs font-black rounded-xl flex items-center gap-1.5 cursor-pointer"><Video size={14} />{isRTL ? "ط¨ط¯ط، ط§ظ„ط¢ظ†" : "Start Now"}</button>}
+                          {isScheduled && !isTeacher && <span className="px-3 py-1.5 bg-stone-850 text-stone-500 text-xs font-bold rounded-xl border border-white/5">{isRTL ? "ط§ظ†طھط¸ط§ط± ط§ظ„ظ…ط¹ظ„ظ…" : "Awaiting Teacher"}</span>}
+                          {isEnded && <span className="px-3 py-1.5 bg-stone-950 text-stone-600 text-xs font-bold rounded-xl">{isRTL ? "ط§ظ†طھظ‡ظ‰ ط§ظ„ط¨ط«" : "Ended"}</span>}
                         </div>
                       </div>
                     </Card>
@@ -896,54 +895,56 @@ export default function VirtualClassroom() {
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   //  LIVE CLASSROOM
-  // ─────────────────────────────────────────────────────────────────────────
-
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const chatMessages = dbMessages.filter((msg) => {
+    const text = msg.content || msg.message_text || "";
+    return !text.startsWith("SIGNAL:") && msg.type !== "signal";
+  });
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col font-sans select-none overflow-hidden" dir={isRTL ? "rtl" : "ltr"}>
-      {/* ── HEADER ── */}
-      <header className="h-16 px-6 bg-stone-900/60 backdrop-blur-xl border-b border-white/5 flex items-center justify-between z-10 shrink-0 shadow-lg">
-        <div className="flex items-center gap-4">
-          <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-teal-500/20 to-emerald-500/20 border border-teal-500/30 flex items-center justify-center text-teal-400 shadow-[0_0_15px_rgba(20,184,166,0.2)]">
-            <Sparkles size={20} className="animate-pulse" />
+    <div className="min-h-screen bg-stone-950 text-white flex flex-col font-sans select-none overflow-hidden" dir={isRTL ? "rtl" : "ltr"}>
+      {/* â”€â”€ HEADER â”€â”€ */}
+      <header className="h-16 px-6 bg-stone-900 border-b border-stone-800 flex items-center justify-between z-10 shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="h-9 w-9 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-400">
+            <Sparkles size={18} className="animate-pulse" />
           </div>
           <div>
-            <h1 className="text-sm font-black text-white/90 truncate max-w-[200px] sm:max-w-md drop-shadow-sm">
-              {session?.title || (isRTL ? "حصة دراسية افتراضية" : "Virtual Session")}
+            <h1 className="text-sm font-extrabold truncate max-w-[200px] sm:max-w-md">
+              {session?.title || (isRTL ? "ط­طµط© ط¯ط±ط§ط³ظٹط© ط§ظپطھط±ط§ط¶ظٹط©" : "Virtual Session")}
             </h1>
-            <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mt-0.5">
-              {session?.subject_name} • <span className="text-stone-300">{session?.teacher_name}</span>
+            <p className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">
+              {session?.subject_name} â€¢ {session?.teacher_name}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <Badge className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-2 shadow-[0_0_10px_rgba(16,185,129,0.1)]">
-            <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping absolute opacity-75" />
-            <span className="h-2 w-2 rounded-full bg-emerald-400 relative" />
-            {isRTL ? "مباشر" : "LIVE"}
+          <Badge className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 animate-pulse">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 inline-block" />
+            {isRTL ? "ظ…ط¨ط§ط´ط±" : "LIVE"}
           </Badge>
           {isAdmin && (
-            <Badge className="bg-violet-500/15 text-violet-300 border border-violet-500/30 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5">
-              <ShieldAlert size={12} />
-              {isRTL ? "مراقب" : "Observer"}
+            <Badge className="bg-violet-500/15 text-violet-300 border border-violet-500/30 px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5">
+              <ShieldAlert size={11} />
+              {isRTL ? "ظ…ط±ط§ظ‚ط¨ â€” ظ…ط¯ظٹط± ط§ظ„ظ†ط¸ط§ظ…" : "Observer â€” Admin"}
             </Badge>
           )}
           <button
-            onClick={() => { navigator.clipboard.writeText(window.location.href); toast.success(isRTL ? "تم نسخ الرابط!" : "Link copied!"); }}
-            className="hidden sm:inline-flex items-center gap-2 px-4 py-2 bg-stone-800/80 hover:bg-stone-700 text-stone-200 rounded-xl text-[11px] font-black transition-all border border-white/5 shadow-sm hover:shadow-md"
+            onClick={() => { navigator.clipboard.writeText(window.location.href); toast.success(isRTL ? "طھظ… ظ†ط³ط® ط§ظ„ط±ط§ط¨ط·!" : "Link copied!"); }}
+            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 bg-stone-800 hover:bg-stone-700 text-stone-300 rounded-lg text-xs font-bold transition-all"
           >
-            <Copy size={14} />
-            {isRTL ? "نسخ الرابط" : "Copy Link"}
+            <Copy size={12} />
+            {isRTL ? "ظ…ط´ط§ط±ظƒط© ط§ظ„ط±ط§ط¨ط·" : "Share Link"}
           </button>
         </div>
       </header>
 
-      {/* ── CORE WORKSPACE ── */}
+      {/* â”€â”€ CORE WORKSPACE â”€â”€ */}
       <div className="flex-1 flex flex-col md:flex-row relative min-h-0 overflow-hidden">
 
-        {/* ── MAIN AREA (Presentation / Pinned Video / Screen Share) ── */}
+        {/* â”€â”€ MAIN AREA (Presentation / Pinned Video / Screen Share) â”€â”€ */}
         <div className="flex-1 p-4 md:p-6 flex flex-col justify-between relative bg-stone-900/40 min-w-0">
 
           {/* Sidebar toggle */}
@@ -958,11 +959,11 @@ export default function VirtualClassroom() {
           {!pinnedParticipantId && (
             <div className="flex items-center justify-between mb-4 bg-stone-900/80 p-2 rounded-2xl border border-white/5">
               <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-stone-400 px-2">{isRTL ? "مساحة العرض:" : "Workspace:"}</span>
+                <span className="text-xs font-bold text-stone-400 px-2">{isRTL ? "ظ…ط³ط§ط­ط© ط§ظ„ط¹ط±ط¶:" : "Workspace:"}</span>
                 {[
-                  { id: "whiteboard", label: isRTL ? "اللوح الذكي" : "Whiteboard" },
-                  { id: "file", label: isRTL ? "عرض ملف" : "File/Image" },
-                  { id: "video", label: isRTL ? "فيديو" : "Video" },
+                  { id: "whiteboard", label: isRTL ? "ط§ظ„ظ„ظˆط­ ط§ظ„ط°ظƒظٹ" : "Whiteboard" },
+                  { id: "file", label: isRTL ? "ط¹ط±ط¶ ظ…ظ„ظپ" : "File/Image" },
+                  { id: "video", label: isRTL ? "ظپظٹط¯ظٹظˆ" : "Video" },
                 ].map((mode) => (
                   <button
                     key={mode.id}
@@ -982,7 +983,7 @@ export default function VirtualClassroom() {
           {/* Main content box */}
           <div className="flex-1 bg-stone-950/80 rounded-[32px] border border-white/5 relative overflow-hidden flex items-center justify-center min-h-[350px]">
             {pinnedParticipantId ? (
-              /* ── Pinned / Screen share view ── */
+              /* â”€â”€ Pinned / Screen share view â”€â”€ */
               <div className="w-full h-full relative bg-stone-950 flex items-center justify-center">
                 {pinnedParticipantId === userId ? (
                   /* Own screen share / camera */
@@ -993,7 +994,7 @@ export default function VirtualClassroom() {
                       className="w-full h-full object-contain"
                     />
                   ) : (
-                    <div className="text-stone-500 font-bold text-xs">{isRTL ? "الكاميرا مغلقة" : "Camera Off"}</div>
+                    <div className="text-stone-500 font-bold text-xs">{isRTL ? "ط§ظ„ظƒط§ظ…ظٹط±ط§ ظ…ط؛ظ„ظ‚ط©" : "Camera Off"}</div>
                   )
                 ) : (
                   /* Remote: always show remoteStreams (replaceTrack keeps same stream for screen share too) */
@@ -1013,7 +1014,7 @@ export default function VirtualClassroom() {
                       className="w-full h-full object-contain"
                     />
                   ) : (
-                    /* No stream yet — show participant avatar */
+                    /* No stream yet â€” show participant avatar */
                     <div className="relative w-full h-full flex flex-col items-center justify-center bg-stone-950">
                       <div className="absolute inset-0 bg-gradient-to-br from-teal-500/10 to-stone-950" />
                       {(() => {
@@ -1030,7 +1031,7 @@ export default function VirtualClassroom() {
                             <p className="text-sm font-bold text-stone-200 z-10">{pinnedP?.name}</p>
                             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-500/10 text-teal-400 text-xs font-bold mt-2 border border-teal-500/20 z-10">
                               <span className="h-2 w-2 rounded-full bg-amber-400 animate-ping" />
-                              {isRTL ? "جاري الاتصال..." : "Connecting..."}
+                              {isRTL ? "ط¬ط§ط±ظٹ ط§ظ„ط§طھطµط§ظ„..." : "Connecting..."}
                             </span>
                           </>
                         );
@@ -1042,18 +1043,18 @@ export default function VirtualClassroom() {
                 <button onClick={() => setPinnedParticipantId(null)}
                   className="absolute top-4 right-4 bg-black/70 hover:bg-black/90 text-white p-2 rounded-xl border border-white/10 z-20 flex items-center gap-1.5 text-xs font-bold transition-all">
                   <Minimize2 size={14} />
-                  <span>{isRTL ? "تصغير" : "Minimize"}</span>
+                  <span>{isRTL ? "طھطµط؛ظٹط±" : "Minimize"}</span>
                 </button>
                 {/* Screen share badge */}
                 {remoteScreenSharing[pinnedParticipantId] && (
                   <div className="absolute top-4 left-4 bg-teal-500/20 border border-teal-500/40 text-teal-300 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2 z-20">
                     <ScreenShare size={14} />
-                    {isRTL ? "مشاركة الشاشة" : "Screen Share"}
+                    {isRTL ? "ظ…ط´ط§ط±ظƒط© ط§ظ„ط´ط§ط´ط©" : "Screen Share"}
                   </div>
                 )}
               </div>
             ) : (
-              /* ── Normal presentation workspace ── */
+              /* â”€â”€ Normal presentation workspace â”€â”€ */
               <>
                 {presentationMode === "whiteboard" && (
                   <div className="w-full h-full relative bg-stone-900/20">
@@ -1064,16 +1065,16 @@ export default function VirtualClassroom() {
                       ))}
                       <div className="w-px h-6 bg-white/10" />
                       <button onClick={() => setIsEraser(!isEraser)} className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all ${isEraser ? "bg-amber-500 text-stone-950" : "bg-stone-850 hover:bg-stone-800 text-stone-300"}`}>
-                        {isEraser ? (isRTL ? "ممحاة نشطة" : "Eraser ON") : (isRTL ? "ممحاة" : "Eraser")}
+                        {isEraser ? (isRTL ? "ظ…ظ…ط­ط§ط© ظ†ط´ط·ط©" : "Eraser ON") : (isRTL ? "ظ…ظ…ط­ط§ط©" : "Eraser")}
                       </button>
                       <div className="w-px h-6 bg-white/10" />
                       <div className="flex items-center gap-2">
-                        <span className="text-[10px] text-stone-400 font-bold">{isRTL ? "السمك:" : "Size:"}</span>
+                        <span className="text-[10px] text-stone-400 font-bold">{isRTL ? "ط§ظ„ط³ظ…ظƒ:" : "Size:"}</span>
                         <input type="range" min="1" max="20" value={lineWidth} onChange={(e) => setLineWidth(parseInt(e.target.value))} className="w-16 h-1 bg-stone-700 rounded-lg appearance-none cursor-pointer accent-teal-400" />
                         <span className="text-[9px] font-mono text-teal-400 w-4">{lineWidth}px</span>
                       </div>
                       <div className="w-px h-6 bg-white/10" />
-                      <button onClick={clearCanvas} className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-bold transition-all">{isRTL ? "مسح" : "Clear"}</button>
+                      <button onClick={clearCanvas} className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-bold transition-all">{isRTL ? "ظ…ط³ط­" : "Clear"}</button>
                     </div>
                   </div>
                 )}
@@ -1082,7 +1083,7 @@ export default function VirtualClassroom() {
                     <img src={presentationData.imageUrl} alt="Slide" className="max-h-[85%] max-w-[95%] object-contain rounded-xl shadow-2xl" />
                     {isTeacher && (
                       <div className="absolute bottom-4 right-4 bg-stone-900/90 p-2 rounded-xl border border-white/10 flex items-center gap-3 z-10">
-                        <button onClick={() => { const u = prompt(isRTL ? "أدخل رابط الصورة:" : "Enter Image URL:", presentationData.imageUrl); if (u) { const upd = { ...presentationData, imageUrl: u }; setPresentationData(upd); sendSignal("PRESENTATION_DATA", "all", upd); } }} className="px-3 py-1.5 bg-teal-500 text-stone-950 rounded-lg text-[10px] font-black">{isRTL ? "تغيير" : "Change"}</button>
+                        <button onClick={() => { const u = prompt(isRTL ? "ط£ط¯ط®ظ„ ط±ط§ط¨ط· ط§ظ„طµظˆط±ط©:" : "Enter Image URL:", presentationData.imageUrl); if (u) { const upd = { ...presentationData, imageUrl: u }; setPresentationData(upd); sendSignal("PRESENTATION_DATA", "all", upd); } }} className="px-3 py-1.5 bg-teal-500 text-stone-950 rounded-lg text-[10px] font-black">{isRTL ? "طھط؛ظٹظٹط±" : "Change"}</button>
                       </div>
                     )}
                   </div>
@@ -1092,7 +1093,7 @@ export default function VirtualClassroom() {
                     <video src={presentationData.videoUrl} controls className="w-full max-h-[85%] rounded-xl shadow-2xl" />
                     {isTeacher && (
                       <div className="absolute bottom-4 right-4 bg-stone-900/90 p-2 rounded-xl border border-white/10 flex items-center gap-3 z-10">
-                        <button onClick={() => { const u = prompt(isRTL ? "أدخل رابط الفيديو (MP4):" : "Enter Video URL:", presentationData.videoUrl); if (u) { const upd = { ...presentationData, videoUrl: u }; setPresentationData(upd); sendSignal("PRESENTATION_DATA", "all", upd); } }} className="px-3 py-1.5 bg-teal-500 text-stone-950 rounded-lg text-[10px] font-black">{isRTL ? "تغيير" : "Change"}</button>
+                        <button onClick={() => { const u = prompt(isRTL ? "ط£ط¯ط®ظ„ ط±ط§ط¨ط· ط§ظ„ظپظٹط¯ظٹظˆ (MP4):" : "Enter Video URL:", presentationData.videoUrl); if (u) { const upd = { ...presentationData, videoUrl: u }; setPresentationData(upd); sendSignal("PRESENTATION_DATA", "all", upd); } }} className="px-3 py-1.5 bg-teal-500 text-stone-950 rounded-lg text-[10px] font-black">{isRTL ? "طھط؛ظٹظٹط±" : "Change"}</button>
                       </div>
                     )}
                   </div>
@@ -1101,20 +1102,20 @@ export default function VirtualClassroom() {
             )}
           </div>
 
-          {/* ── CONTROL TOOLBAR ── */}
-          <div className="h-20 bg-stone-900/80 backdrop-blur-xl border border-white/10 rounded-3xl mt-4 px-6 flex items-center justify-between shadow-[0_8px_30px_rgb(0,0,0,0.4)] relative z-10 transition-all hover:border-white/20">
-            <div className="flex items-center gap-3">
-              <button onClick={toggleMic} className={`h-12 w-12 rounded-2xl flex items-center justify-center border transition-all duration-300 hover:scale-105 active:scale-95 ${micActive ? "bg-stone-800 text-stone-200 border-white/10 hover:bg-stone-700" : "bg-rose-500 text-white border-rose-400 shadow-[0_0_15px_rgba(244,63,94,0.4)]"}`}>
-                {micActive ? <Mic size={20} /> : <MicOff size={20} />}
+          {/* â”€â”€ CONTROL TOOLBAR â”€â”€ */}
+          <div className="h-20 bg-stone-900/80 backdrop-blur-lg border border-white/5 rounded-3xl mt-4 px-4 md:px-6 flex items-center justify-between shadow-2xl relative z-10">
+            <div className="flex items-center gap-2">
+              <button onClick={toggleMic} className={`h-11 w-11 rounded-2xl flex items-center justify-center border transition-all ${micActive ? "bg-stone-850 text-stone-200 border-white/5 hover:bg-stone-800" : "bg-rose-500 text-white border-rose-400 shadow-lg shadow-rose-500/20"}`}>
+                {micActive ? <Mic size={18} /> : <MicOff size={18} />}
               </button>
-              <button onClick={toggleVideo} className={`h-12 w-12 rounded-2xl flex items-center justify-center border transition-all duration-300 hover:scale-105 active:scale-95 ${videoActive ? "bg-stone-800 text-stone-200 border-white/10 hover:bg-stone-700" : "bg-rose-500 text-white border-rose-400 shadow-[0_0_15px_rgba(244,63,94,0.4)]"}`}>
-                {videoActive ? <Video size={20} /> : <VideoOff size={20} />}
+              <button onClick={toggleVideo} className={`h-11 w-11 rounded-2xl flex items-center justify-center border transition-all ${videoActive ? "bg-stone-850 text-stone-200 border-white/5 hover:bg-stone-800" : "bg-rose-500 text-white border-rose-400 shadow-lg shadow-rose-500/20"}`}>
+                {videoActive ? <Video size={18} /> : <VideoOff size={18} />}
               </button>
-              {/* Screen share — teachers/admins only */}
+              {/* Screen share â€” teachers/admins only */}
               {(isTeacher || isAdmin) && (
                 <button onClick={() => setScreenSharing(!screenSharing)}
-                  className={`h-12 w-12 rounded-2xl flex items-center justify-center border transition-all duration-300 hover:scale-105 active:scale-95 ${screenSharing ? "bg-teal-500 text-stone-950 border-teal-400 shadow-[0_0_15px_rgba(20,184,166,0.4)]" : "bg-stone-800 text-stone-200 border-white/10 hover:bg-stone-700"}`}>
-                  {screenSharing ? <StopCircle size={20} /> : <ScreenShare size={20} />}
+                  className={`h-11 w-11 rounded-2xl flex items-center justify-center border transition-all ${screenSharing ? "bg-teal-500 text-stone-950 border-teal-400 shadow-lg shadow-teal-500/20" : "bg-stone-850 text-stone-200 border-white/5 hover:bg-stone-800"}`}>
+                  {screenSharing ? <StopCircle size={18} /> : <ScreenShare size={18} />}
                 </button>
               )}
             </div>
@@ -1122,27 +1123,27 @@ export default function VirtualClassroom() {
             <div className="flex items-center gap-4">
               {!isTeacher && !isAdmin && (
                 <button onClick={toggleHand}
-                  className={`h-12 px-5 rounded-2xl flex items-center justify-center gap-2.5 border transition-all duration-300 hover:scale-105 active:scale-95 ${handRaised ? "bg-amber-500 text-stone-950 border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.4)]" : "bg-stone-800 text-stone-200 border-white/10 hover:bg-stone-700"}`}>
-                  <Hand size={20} className={handRaised ? "animate-bounce" : ""} />
-                  <span className="hidden sm:inline text-xs font-black">{isRTL ? "رفع اليد" : "Raise Hand"}</span>
+                  className={`h-11 px-4 rounded-2xl flex items-center justify-center gap-2 border transition-all ${handRaised ? "bg-yellow-500 text-stone-950 border-yellow-400 shadow-lg shadow-yellow-500/20" : "bg-stone-850 text-stone-200 border-white/5 hover:bg-stone-800"}`}>
+                  <Hand size={18} />
+                  <span className="hidden sm:inline text-xs font-bold">{isRTL ? "ط±ظپط¹ ط§ظ„ظٹط¯" : "Raise Hand"}</span>
                 </button>
               )}
               {/* Volume slider */}
-              <div className="hidden md:flex items-center gap-3 bg-stone-800/80 px-4 py-3 rounded-2xl border border-white/5 h-12">
-                <span className="text-xs text-stone-400">🔊</span>
-                <input type="range" min="0" max="1" step="0.05" value={remoteVolume} onChange={(e) => setRemoteVolume(parseFloat(e.target.value))} className="w-24 accent-teal-400 cursor-pointer h-1.5 bg-stone-700 rounded-lg appearance-none" />
-                <span className="text-[10px] font-mono text-stone-400 w-8 text-right font-bold">{Math.round(remoteVolume * 100)}%</span>
+              <div className="flex items-center gap-2 bg-stone-850 px-3 py-2 rounded-2xl border border-white/5 h-11">
+                <span className="text-xs text-stone-400">ًں”ٹ</span>
+                <input type="range" min="0" max="1" step="0.05" value={remoteVolume} onChange={(e) => setRemoteVolume(parseFloat(e.target.value))} className="w-20 accent-teal-400 cursor-pointer h-1 bg-stone-700 rounded-lg appearance-none" />
+                <span className="text-[10px] font-mono text-stone-400 w-8 text-right">{Math.round(remoteVolume * 100)}%</span>
               </div>
             </div>
 
-            <button onClick={handleEndClass} className="h-12 px-6 rounded-2xl bg-rose-600 hover:bg-rose-500 text-white flex items-center justify-center gap-2.5 transition-all duration-300 hover:scale-105 active:scale-95 font-black text-xs shadow-[0_0_15px_rgba(225,29,72,0.3)]">
-              <PhoneOff size={18} />
-              <span>{isTeacher ? (isRTL ? "إنهاء للجميع" : "End for All") : (isRTL ? "مغادرة" : "Leave")}</span>
+            <button onClick={handleEndClass} className="h-11 px-6 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white flex items-center justify-center gap-2 transition-all font-bold text-xs">
+              <PhoneOff size={16} />
+              <span>{isTeacher ? (isRTL ? "ط¥ظ†ظ‡ط§ط، ظ„ظ„ط¬ظ…ظٹط¹" : "End for All") : (isRTL ? "ظ…ط؛ط§ط¯ط±ط©" : "Leave")}</span>
             </button>
           </div>
         </div>
 
-        {/* ── PARTICIPANT CAMERA STACK ── */}
+        {/* â”€â”€ PARTICIPANT CAMERA STACK â”€â”€ */}
         <div className="w-full lg:w-72 bg-stone-950/60 border-t lg:border-t-0 lg:border-r border-stone-850 p-4 flex flex-row lg:flex-col gap-4 overflow-y-auto shrink-0 justify-center lg:justify-start items-center lg:items-stretch min-w-0">
 
           {/* Local preview */}
@@ -1167,7 +1168,7 @@ export default function VirtualClassroom() {
                 {screenSharing && (
                   <div className="absolute inset-0 bg-stone-900/90 flex flex-col items-center justify-center p-2 text-center">
                     <ScreenShare size={20} className="text-teal-400 mb-1 animate-bounce" />
-                    <p className="text-[8px] font-bold">{isRTL ? "تشارك شاشتك" : "Sharing screen"}</p>
+                    <p className="text-[8px] font-bold">{isRTL ? "طھط´ط§ط±ظƒ ط´ط§ط´طھظƒ" : "Sharing screen"}</p>
                   </div>
                 )}
               </div>
@@ -1178,15 +1179,15 @@ export default function VirtualClassroom() {
                   {userName?.charAt(0)?.toUpperCase() || "U"}
                 </div>
                 <span className="text-[9px] text-stone-400 font-bold z-10">
-                  {!localStream ? (isRTL ? "جاري تفعيل الكاميرا..." : "Starting camera...") : (isRTL ? "الكاميرا مغلقة" : "Camera Off")}
+                  {!localStream ? (isRTL ? "ط¬ط§ط±ظٹ طھظپط¹ظٹظ„ ط§ظ„ظƒط§ظ…ظٹط±ط§..." : "Starting camera...") : (isRTL ? "ط§ظ„ظƒط§ظ…ظٹط±ط§ ظ…ط؛ظ„ظ‚ط©" : "Camera Off")}
                 </span>
               </div>
             )}
             <div className="absolute bottom-1.5 left-1.5 right-1.5 flex items-center justify-between z-10">
-              <span className="bg-black/60 backdrop-blur-md px-1.5 py-0.5 rounded-md text-[8px] font-bold border border-white/5">{userName} {isTeacher && "⭐️"}</span>
+              <span className="bg-black/60 backdrop-blur-md px-1.5 py-0.5 rounded-md text-[8px] font-bold border border-white/5">{userName} {isTeacher && "â­گï¸ڈ"}</span>
               <div className="flex gap-1">
                 {!micActive && <Badge className="bg-rose-500 text-white p-0.5 rounded-md"><MicOff size={8} /></Badge>}
-                {handRaised && <Badge className="bg-yellow-500 text-stone-950 px-1 py-0.5 rounded-md text-[8px] font-black">🙋‍♂️</Badge>}
+                {handRaised && <Badge className="bg-yellow-500 text-stone-950 px-1 py-0.5 rounded-md text-[8px] font-black">ًں™‹â€چâ™‚ï¸ڈ</Badge>}
               </div>
             </div>
           </div>
@@ -1223,7 +1224,7 @@ export default function VirtualClassroom() {
               {(!remoteStreams[p.id] || !p.video) && (
                 <div className="absolute inset-0 bg-gradient-to-br from-stone-900 to-stone-850 flex flex-col items-center justify-center p-2">
                   {!remoteStreams[p.id] ? (
-                    // Connecting state — animated avatar
+                    // Connecting state â€” animated avatar
                     <>
                       <div className="relative mb-2">
                         <div className={`h-10 w-10 rounded-full flex items-center justify-center text-sm font-black text-white shadow-lg ${
@@ -1235,7 +1236,7 @@ export default function VirtualClassroom() {
                         </div>
                         <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-amber-400 border-2 border-stone-900 animate-pulse" />
                       </div>
-                      <span className="text-[9px] text-stone-400 font-bold">{isRTL ? "جاري الاتصال..." : "Connecting..."}</span>
+                      <span className="text-[9px] text-stone-400 font-bold">{isRTL ? "ط¬ط§ط±ظٹ ط§ظ„ط§طھطµط§ظ„..." : "Connecting..."}</span>
                     </>
                   ) : (
                     // Camera off state
@@ -1247,7 +1248,7 @@ export default function VirtualClassroom() {
                       }`}>
                         {p.name?.charAt(0)?.toUpperCase() || "?"}
                       </div>
-                      <span className="text-[9px] text-stone-500 font-bold">{isRTL ? "الكاميرا مغلقة" : "Camera Off"}</span>
+                      <span className="text-[9px] text-stone-500 font-bold">{isRTL ? "ط§ظ„ظƒط§ظ…ظٹط±ط§ ظ…ط؛ظ„ظ‚ط©" : "Camera Off"}</span>
                     </>
                   )}
                 </div>
@@ -1257,33 +1258,33 @@ export default function VirtualClassroom() {
               {remoteScreenSharing[p.id] && (
                 <div className="absolute top-1 right-1 z-20">
                   <span className="bg-teal-500 text-stone-950 text-[7px] font-black px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
-                    <ScreenShare size={7} /> {isRTL ? "شاشة" : "Screen"}
+                    <ScreenShare size={7} /> {isRTL ? "ط´ط§ط´ط©" : "Screen"}
                   </span>
                 </div>
               )}
 
               <div className="absolute bottom-1.5 left-1.5 right-1.5 flex items-center justify-between z-10">
-                <span className="bg-black/60 backdrop-blur-md px-1.5 py-0.5 rounded-md text-[8px] font-bold border border-white/5">{p.name} {p.role === "teacher" && "⭐️"}</span>
+                <span className="bg-black/60 backdrop-blur-md px-1.5 py-0.5 rounded-md text-[8px] font-bold border border-white/5">{p.name} {p.role === "teacher" && "â­گï¸ڈ"}</span>
                 <div className="flex gap-1">
                   {!p.mic && <Badge className="bg-rose-500 text-white p-0.5 rounded-md"><MicOff size={8} /></Badge>}
-                  {p.hand && <Badge className="bg-yellow-500 text-stone-950 px-1 py-0.5 rounded-md text-[8px] font-black animate-bounce">🙋‍♂️</Badge>}
+                  {p.hand && <Badge className="bg-yellow-500 text-stone-950 px-1 py-0.5 rounded-md text-[8px] font-black animate-bounce">ًں™‹â€چâ™‚ï¸ڈ</Badge>}
                 </div>
               </div>
             </div>
           ))}
         </div>
 
-        {/* ── SIDEBAR (Chat / Participants / Notes) ── */}
-        <aside className={`transition-all duration-300 relative ${sidebarOpen ? "w-full md:w-96" : "w-0 overflow-hidden border-none"} bg-stone-900/40 backdrop-blur-md border-t md:border-t-0 md:border-r md:border-l border-white/5 flex flex-col z-10`}>
-          <div className="h-16 border-b border-white/5 p-2 flex gap-1">
+        {/* â”€â”€ SIDEBAR (Chat / Participants / Notes) â”€â”€ */}
+        <aside className={`transition-all duration-300 relative ${sidebarOpen ? "w-full md:w-96" : "w-0 overflow-hidden border-none"} bg-stone-900 border-t md:border-t-0 md:border-r border-stone-850 flex flex-col z-10`}>
+          <div className="h-14 border-b border-stone-850 p-1 flex">
             {[
-              { id: "chat", label: isRTL ? "الدردشة" : "Chat", icon: MessageSquare },
-              { id: "participants", label: isRTL ? "الحاضرين" : "Users", icon: Users },
-              { id: "notes", label: isRTL ? "الملاحظات" : "Notes", icon: FileText },
+              { id: "chat", label: isRTL ? "ط§ظ„ط¯ط±ط¯ط´ط©" : "Chat", icon: MessageSquare },
+              { id: "participants", label: isRTL ? "ط§ظ„ط­ط§ط¶ط±ظٹظ†" : "Users", icon: Users },
+              { id: "notes", label: isRTL ? "ط§ظ„ظ…ظ„ط§ط­ط¸ط§طھ" : "Notes", icon: FileText },
             ].map((tab) => (
               <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all duration-300 ${activeTab === tab.id ? "bg-stone-800 text-white shadow-sm" : "text-stone-400 hover:text-white hover:bg-stone-800/50"}`}>
-                <tab.icon size={16} />
+                className={`flex-1 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${activeTab === tab.id ? "bg-stone-800 text-white" : "text-stone-400 hover:text-white"}`}>
+                <tab.icon size={14} />
                 <span>{tab.label}</span>
               </button>
             ))}
@@ -1297,7 +1298,7 @@ export default function VirtualClassroom() {
                     {chatMessages.length === 0 && (
                       <div className="flex flex-col items-center justify-center h-full text-stone-600 py-12">
                         <MessageSquare size={32} className="mb-2 opacity-30" />
-                        <p className="text-xs font-bold">{isRTL ? "لا توجد رسائل بعد" : "No messages yet"}</p>
+                        <p className="text-xs font-bold">{isRTL ? "ظ„ط§ طھظˆط¬ط¯ ط±ط³ط§ط¦ظ„ ط¨ط¹ط¯" : "No messages yet"}</p>
                       </div>
                     )}
                     {chatMessages.map((msg, i) => {
@@ -1309,17 +1310,16 @@ export default function VirtualClassroom() {
                             <span className="text-[10px] font-bold text-stone-400">{msg.sender_name}</span>
                             <span className="text-[8px] text-stone-500">{time}</span>
                           </div>
-                          <div className={`px-4 py-2.5 rounded-2xl text-[11px] font-medium max-w-[85%] leading-relaxed shadow-sm ${isMe ? "bg-teal-600/90 backdrop-blur-sm text-white rounded-br-none" : "bg-stone-800 border border-white/5 text-stone-200 rounded-bl-none"}`}>
+                          <div className={`px-4 py-2.5 rounded-2xl text-xs max-w-[85%] ${isMe ? "bg-teal-600 text-white rounded-br-none" : "bg-stone-800 text-stone-200 rounded-bl-none"}`}>
                             {msg.content || msg.message_text}
                           </div>
                         </div>
                       );
                     })}
-                    <div ref={messagesEndRef} />
                   </div>
-                  <div className="flex gap-2 bg-stone-850 p-1.5 rounded-2xl border border-white/5 mt-auto shadow-inner">
-                    <Input value={chatMessage} onChange={(e) => setChatMessage(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSendMessage()} placeholder={isRTL ? "اكتب رسالة..." : "Type a message..."} className="border-none bg-transparent text-xs focus-visible:ring-0 text-white w-full placeholder:text-stone-500" />
-                    <button onClick={handleSendMessage} className="h-10 w-10 rounded-xl bg-teal-500 text-stone-950 flex items-center justify-center shrink-0 hover:bg-teal-400 transition-all hover:scale-105 active:scale-95 shadow-md"><Send size={16} /></button>
+                  <div className="flex gap-2 bg-stone-850 p-1.5 rounded-2xl border border-white/5 mt-auto">
+                    <Input value={chatMessage} onChange={(e) => setChatMessage(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSendMessage()} placeholder={isRTL ? "ط§ظƒطھط¨ ط±ط³ط§ظ„ط©..." : "Type a message..."} className="border-none bg-transparent text-xs focus-visible:ring-0 text-white" />
+                    <button onClick={handleSendMessage} className="h-9 w-9 rounded-xl bg-teal-500 text-stone-950 flex items-center justify-center shrink-0 hover:bg-teal-400 transition-colors"><Send size={14} /></button>
                   </div>
                 </motion.div>
               )}
@@ -1327,8 +1327,8 @@ export default function VirtualClassroom() {
               {activeTab === "participants" && (
                 <motion.div key="participants" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-3 overflow-y-auto flex-1 pr-1">
                   <div className="flex items-center justify-between text-stone-400 text-xs font-bold pb-2 border-b border-stone-800">
-                    <span>{isRTL ? "اسم المشارك" : "Name"}</span>
-                    <span>{isRTL ? "الحالة" : "Status"}</span>
+                    <span>{isRTL ? "ط§ط³ظ… ط§ظ„ظ…ط´ط§ط±ظƒ" : "Name"}</span>
+                    <span>{isRTL ? "ط§ظ„ط­ط§ظ„ط©" : "Status"}</span>
                   </div>
                   {participants.map((p) => (
                     <div key={p.id} className="flex items-center justify-between bg-stone-850/50 p-3 rounded-2xl border border-white/5">
@@ -1340,7 +1340,7 @@ export default function VirtualClassroom() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        {p.hand && <span className="text-xs">🙋‍♂️</span>}
+                        {p.hand && <span className="text-xs">ًں™‹â€چâ™‚ï¸ڈ</span>}
                         {p.mic ? <Mic size={14} className="text-stone-400" /> : <MicOff size={14} className="text-rose-500" />}
                       </div>
                     </div>
@@ -1352,9 +1352,9 @@ export default function VirtualClassroom() {
                 <motion.div key="notes" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full flex flex-col flex-1 min-h-0">
                   <p className="text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-2 flex items-center gap-1">
                     <Info size={12} />
-                    {isRTL ? "الملاحظات المشتركة للصف الدراسي" : "Shared notes panel"}
+                    {isRTL ? "ط§ظ„ظ…ظ„ط§ط­ط¸ط§طھ ط§ظ„ظ…ط´طھط±ظƒط© ظ„ظ„طµظپ ط§ظ„ط¯ط±ط§ط³ظٹ" : "Shared notes panel"}
                   </p>
-                  <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={isRTL ? "ابدأ كتابة الملاحظات..." : "Start writing lesson notes..."} className="flex-1 w-full bg-stone-800/50 rounded-2xl p-4 border border-white/5 text-xs text-stone-200 focus:outline-none focus:border-stone-600 resize-none font-mono shadow-inner" />
+                  <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={isRTL ? "ط§ط¨ط¯ط£ ظƒطھط§ط¨ط© ط§ظ„ظ…ظ„ط§ط­ط¸ط§طھ..." : "Start writing lesson notes..."} className="flex-1 w-full bg-stone-850/40 rounded-2xl p-4 border border-white/5 text-xs text-stone-200 focus:outline-none focus:border-stone-700 resize-none font-mono" />
                 </motion.div>
               )}
             </AnimatePresence>
@@ -1364,3 +1364,4 @@ export default function VirtualClassroom() {
     </div>
   );
 }
+
