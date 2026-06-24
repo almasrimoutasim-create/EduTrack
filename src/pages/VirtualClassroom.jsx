@@ -724,6 +724,17 @@ export default function VirtualClassroom() {
   // The local active stream: screen share takes priority for the sender's own preview
   const activeStream = screenSharing && screenStream ? screenStream : localStream;
 
+  const chatMessages = dbMessages.filter((msg) => {
+    const text = msg.content || msg.message_text || "";
+    return !text.startsWith("SIGNAL:") && msg.type !== "signal";
+  });
+
+  useEffect(() => {
+    if (activeTab === "chat") {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [chatMessages, activeTab]);
+
   // ─────────────────────────────────────────────────────────────────────────
   //  DEMO PAGE
   // ─────────────────────────────────────────────────────────────────────────
@@ -879,16 +890,7 @@ export default function VirtualClassroom() {
   // ─────────────────────────────────────────────────────────────────────────
   //  LIVE CLASSROOM
   // ─────────────────────────────────────────────────────────────────────────
-  const chatMessages = dbMessages.filter((msg) => {
-    const text = msg.content || msg.message_text || "";
-    return !text.startsWith("SIGNAL:") && msg.type !== "signal";
-  });
 
-  useEffect(() => {
-    if (activeTab === "chat") {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [chatMessages, activeTab]);
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col font-sans select-none overflow-hidden" dir={isRTL ? "rtl" : "ltr"}>
