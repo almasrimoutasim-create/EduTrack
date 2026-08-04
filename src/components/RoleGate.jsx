@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import RoleLogin from "@/pages/RoleLogin";
+import Gateway from "@/pages/Gateway";
 
 const PORTAL_REDIRECTS = { 
   admin: "/",
@@ -84,7 +85,7 @@ const isPathAllowed = (role, path) => {
 };
 
 export default function RoleGate({ children }) {
-  const { user, isAuthenticated, isLoadingAuth } = useAuth();
+  const { user, isAuthenticated, isLoadingAuth, isGatewayPassed } = useAuth();
   const [redirecting, setRedirecting] = useState(false);
   const path = window.location.pathname;
 
@@ -122,6 +123,11 @@ export default function RoleGate({ children }) {
         </div>
       </div>
     );
+  }
+
+  // Not passed gateway lock screen? Show gateway
+  if (!isGatewayPassed) {
+    return <Gateway />;
   }
 
   // Not authenticated? Show secure portal login

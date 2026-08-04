@@ -10,7 +10,25 @@ export const AuthProvider = ({ children }) => {
   const [isLoadingPublicSettings, setIsLoadingPublicSettings] = useState(false);
   const [authError, setAuthError] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
-  const [appPublicSettings, setAppPublicSettings] = useState(null);
+
+  // فرض قيم افتراضية حقيقية تضمن ظهور اسم المدرسة والشعار حتى لو فشلت قاعدة البيانات تماماً
+  const [appPublicSettings, setAppPublicSettings] = useState(() => {
+    const cached = localStorage.getItem('cached_school_settings');
+    if (cached) {
+      try { return JSON.parse(cached); } catch { /* ignore */ }
+    }
+    return {
+      id: 'edutrack',
+      public_settings: {
+        school_name_ar: 'مدارس عباد الرحمن التعليمية',
+        school_name_en: 'Abad Al-Rahman Educational Schools',
+        school_logo: '', // وضع رابط الشعار المباشر هنا إن لم يظهر
+        school_background_image: 'https://images.unsplash.com/photo-1510519138101-570d1dcb3d8e?q=80&w=2000&auto=format&fit=crop'
+      }
+    };
+  });
+
+  const [isGatewayPassed, setIsGatewayPassed] = useState(false);
 
   useEffect(() => {
     checkAppState();
@@ -39,36 +57,59 @@ export const AuthProvider = ({ children }) => {
 
       setIsLoadingAuth(false);
       setAuthChecked(true);
-      // جلب الإعدادات من قاعدة البيانات إن وجدت
+
+      const gatewayPassed = localStorage.getItem('portal_gateway_passed');
+      if (gatewayPassed === 'true') {
+        setIsGatewayPassed(true);
+      }
+
+      // محاولة جلب الإعدادات العامة بطريقة آمنة عبر الـ Backend مباشرة إذا كان مدعوماً
+      try {
+        const apiBase = import.meta.env.VITE_BACKEND_URL || '';
+        const res = await fetch(`${apiBase}/neon-db/public-settings`);
+        if (res.ok) {
+          const publicData = await res.json();
+          if (publicData) {
+            const formatted = {
+              id: 'edutrack',
+              public_settings: {
+                school_name_ar: publicData.school_name_ar || 'مدارس عباد الرحمن التعليمية',
+                school_name_en: publicData.school_name_en || 'Abad Al-Rahman Educational Schools',
+                school_logo: publicData.school_logo || '',
+                school_background_image: publicData.school_background_image || ''
+              }
+            };
+            setAppPublicSettings(formatted);
+            localStorage.setItem('cached_school_settings', JSON.stringify(formatted));
+            return;
+          }
+        }
+      } catch (e) {
+        // تخطي الخطأ والاعتماد على الـ Fallback
+      }
+
+      // الطريقة الاحتياطية القديمة
       try {
         const settingsList = await entities.SystemSetting.list("-created_at", 1);
-        const dbSettings = settingsList && settingsList.length > 0 ? settingsList[0] : {};
-        
-        setAppPublicSettings({ 
-          id: 'edutrack', 
-          public_settings: {
-            school_name_ar: dbSettings.school_name_ar || 'مدارس إديوتراك النموذجية الخاصة',
-            school_name_en: dbSettings.school_name_en || 'EduTrack Model School',
-            school_logo: dbSettings.school_logo || ''
-          } 
-        });
+        if (settingsList && settingsList.length > 0) {
+          const dbSettings = settingsList[0];
+          const newSettings = {
+            id: 'edutrack',
+            public_settings: {
+              school_name_ar: dbSettings.school_name_ar || 'مدارس عباد الرحمن التعليمية',
+              school_name_en: dbSettings.school_name_en || 'Abad Al-Rahman Educational Schools',
+              school_logo: dbSettings.school_logo || '',
+              school_background_image: dbSettings.school_background_image || ''
+            }
+          };
+          setAppPublicSettings(newSettings);
+          localStorage.setItem('cached_school_settings', JSON.stringify(newSettings));
+        }
       } catch (err) {
-        console.warn("Could not load system settings from DB, using defaults", err);
-        setAppPublicSettings({ 
-          id: 'edutrack', 
-          public_settings: {
-            school_name_ar: 'مدارس إديوتراك النموذجية الخاصة',
-            school_name_en: 'EduTrack Model School',
-            school_logo: ''
-          } 
-        });
+        // صامت لتجنب إزعاج الكونسول
       }
     } catch (error) {
       console.error('Unexpected error in checkAppState:', error);
-      setAuthError({
-        type: 'unknown',
-        message: error.message || 'An unexpected error occurred'
-      });
       setIsLoadingAuth(false);
       setAuthChecked(true);
     }
@@ -113,7 +154,7 @@ export const AuthProvider = ({ children }) => {
       try {
         data = await response.json();
       } catch {
-        throw new Error('استجابة غير صالحة من الخادم. تأكد من تشغيل الباكند وإعداد VITE_BACKEND_URL');
+        throw new Error('استجابة غير صالحة من الخادم.');
       }
 
       if (!response.ok) {
@@ -141,7 +182,44 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       setAuthError({
         type: 'login_failed',
-        message: error.message || 'فشل تسجيل الدخول. تحقق من بياناتك.'
+        message: error.message || 'فشل تسجيل الدخول.'
+      });
+      throw error;
+    }
+  };
+
+  const gatewayLogin = async (username, password) => {
+    setAuthError(null);
+    try {
+      const apiBase = import.meta.env.VITE_BACKEND_URL || '';
+      const loginUrl = apiBase
+        ? `${apiBase.replace(/\/$/, '')}/neon-db/auth/gateway`
+        : '/neon-db/auth/gateway';
+
+      const response = await fetch(loginUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+
+      let data;
+      try {
+        data = await response.json();
+      } catch {
+        throw new Error('استجابة غير صالحة من الخادم.');
+      }
+
+      if (!response.ok) {
+        throw new Error(data.error || 'فشل تسجيل الدخول');
+      }
+
+      setIsGatewayPassed(true);
+      localStorage.setItem('portal_gateway_passed', 'true');
+      return true;
+    } catch (error) {
+      setAuthError({
+        type: 'login_failed',
+        message: error.message || 'فشل تسجيل الدخول للبوابة.'
       });
       throw error;
     }
@@ -150,12 +228,14 @@ export const AuthProvider = ({ children }) => {
   const logout = (shouldRedirect = true) => {
     setUser(null);
     setIsAuthenticated(false);
+    setIsGatewayPassed(false);
     localStorage.removeItem('portal_role');
     localStorage.removeItem('portal_user');
     localStorage.removeItem('portal_user_id');
     localStorage.removeItem('portal_user_name');
     localStorage.removeItem('portal_is_auth');
     localStorage.removeItem('portal_jwt_token');
+    localStorage.removeItem('portal_gateway_passed');
 
     if (shouldRedirect) {
       window.location.href = '/';
@@ -175,7 +255,9 @@ export const AuthProvider = ({ children }) => {
       authError,
       appPublicSettings,
       authChecked,
+      isGatewayPassed,
       login,
+      gatewayLogin,
       logout,
       navigateToLogin,
       checkUserAuth,

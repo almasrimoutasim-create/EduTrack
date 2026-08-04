@@ -380,6 +380,65 @@ if (process.env.DATABASE_URL) {
   }).catch(err => {
     console.error('[neon] failed to alter staff_members table:', err.message);
   });
+  // Auto-create gateway_accounts table
+  sql`
+    CREATE TABLE IF NOT EXISTS gateway_accounts (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      username TEXT UNIQUE NOT NULL,
+      password TEXT NOT NULL,
+      created_by TEXT,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `.then(async () => {
+    console.log('[neon] gateway_accounts table verified/created');
+    // Seed default account if empty
+    const rows = await sql`SELECT COUNT(*) FROM gateway_accounts`;
+    if (rows[0].count === '0') {
+      const hashed = bcrypt.hashSync('edutrack2026', 10);
+      await sql`INSERT INTO gateway_accounts (username, password) VALUES ('gateway', ${hashed})`;
+      console.log('[neon] created default gateway account (gateway / edutrack2026)');
+    }
+  }).catch(err => {
+    console.error('[neon] failed to verify/create gateway_accounts table:', err.message);
+  });
+  // Auto-create system_admins table
+  sql`
+    CREATE TABLE IF NOT EXISTS system_admins (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      email TEXT UNIQUE NOT NULL,
+      password TEXT NOT NULL,
+      full_name TEXT NOT NULL DEFAULT 'System Admin',
+      created_by TEXT,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `.then(async () => {
+    console.log('[neon] system_admins table verified/created');
+    const rows = await sql`SELECT COUNT(*) FROM system_admins`;
+    if (rows[0].count === '0') {
+      const hashed = bcrypt.hashSync('admin123', 10);
+      await sql`INSERT INTO system_admins (email, password, full_name) VALUES ('admin@edutrack.com', ${hashed}, 'System Admin')`;
+      console.log('[neon] created default system admin (admin@edutrack.com / admin123)');
+    }
+  }).catch(err => {
+    console.error('[neon] failed to verify/create system_admins table:', err.message);
+  });
+
+  // Auto-create system_settings table
+  sql`
+    CREATE TABLE IF NOT EXISTS system_settings (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      school_name_ar TEXT,
+      school_name_en TEXT,
+      school_logo TEXT,
+      school_background_image TEXT,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `.then(() => {
+    console.log('[neon] system_settings table verified/created');
+  }).catch(err => {
+    console.error('[neon] failed to verify/create system_settings table:', err.message);
+  });
 }
 
 // Map entity names to table names
@@ -446,6 +505,9 @@ const ENTITY_TABLE_MAP = {
   SalaryRecord: 'salary_records',
   PurchaseOrder: 'purchase_orders',
   Visitor: 'visitors',
+  GatewayAccount: 'gateway_accounts',
+  SystemAdmin: 'system_admins',
+  SystemSetting: 'system_settings',
 };
 
 async function createStripePaymentIntent(amount, currency) {
@@ -585,6 +647,36 @@ export function createApiHandler() {
       }
     }
 
+    // Intercept Gateway login endpoint
+    if (req.url === '/neon-db/auth/gateway' && req.method === 'POST') {
+      res.setHeader('Content-Type', 'application/json');
+      try {
+        const body = await parseBody(req);
+        const { username, password } = body;
+        if (!username || !password) {
+          res.statusCode = 400;
+          return res.end(JSON.stringify({ error: 'Username and password are required' }));
+        }
+
+        const rows = await dbQuery('SELECT * FROM gateway_accounts WHERE username = $1', [username]);
+        if (rows.length === 0) {
+          res.statusCode = 401;
+          return res.end(JSON.stringify({ error: 'Invalid credentials' }));
+        }
+        
+        const account = rows[0];
+        if (!bcrypt.compareSync(password, account.password)) {
+          res.statusCode = 401;
+          return res.end(JSON.stringify({ error: 'Invalid credentials' }));
+        }
+
+        return res.end(JSON.stringify({ success: true }));
+      } catch (error) {
+        res.statusCode = 500;
+        return res.end(JSON.stringify({ error: error.message }));
+      }
+    }
+
     // 1. Intercept unified Auth login endpoint
     if (req.url === '/neon-db/auth/login' && req.method === 'POST') {
       res.setHeader('Content-Type', 'application/json');
@@ -599,23 +691,28 @@ export function createApiHandler() {
 
         // 1. Admin login
         if (role === 'admin') {
-          if (identifier === 'admin@edutrack.com' && password === 'admin123') {
-            const user = {
-                id: 'admin-id',
-                full_name: 'System Admin',
-                email: 'admin@edutrack.com',
-                role: 'admin'
-            };
-            const token = jwt.sign(user, JWT_SECRET, { expiresIn: '24h' });
-            return res.end(JSON.stringify({
-              success: true,
-              user,
-              token
-            }));
-          } else {
+          const rows = await dbQuery('SELECT * FROM system_admins WHERE email = $1', [identifier]);
+          if (rows.length === 0) {
+            res.statusCode = 401;
+            return res.end(JSON.stringify({ error: 'Admin account not found' }));
+          }
+          const adminRow = rows[0];
+          if (!bcrypt.compareSync(password, adminRow.password)) {
             res.statusCode = 401;
             return res.end(JSON.stringify({ error: 'Invalid admin credentials' }));
           }
+          const user = {
+              id: adminRow.id,
+              full_name: adminRow.full_name,
+              email: adminRow.email,
+              role: 'admin'
+          };
+          const token = jwt.sign(user, JWT_SECRET, { expiresIn: '24h' });
+          return res.end(JSON.stringify({
+            success: true,
+            user,
+            token
+          }));
         }
 
         // 2. Teacher login
@@ -907,6 +1004,20 @@ export function createApiHandler() {
             body.parent_password = hashPassword(body.parent_password);
           }
         }
+        if (table === 'gateway_accounts' && body.password !== undefined) {
+          if (body.password === '') {
+            delete body.password;
+          } else {
+            body.password = hashPassword(body.password);
+          }
+        }
+        if (table === 'system_admins' && body.password !== undefined) {
+          if (body.password === '') {
+            delete body.password;
+          } else {
+            body.password = hashPassword(body.password);
+          }
+        }
 
         if (table === 'portal_notifications' && body.recipient_id !== undefined) {
           body.user_id = body.recipient_id;
@@ -991,6 +1102,20 @@ export function createApiHandler() {
             delete body.parent_password;
           } else {
             body.parent_password = hashPassword(body.parent_password);
+          }
+        }
+        if (table === 'gateway_accounts' && body.password !== undefined) {
+          if (body.password === '') {
+            delete body.password;
+          } else {
+            body.password = hashPassword(body.password);
+          }
+        }
+        if (table === 'system_admins' && body.password !== undefined) {
+          if (body.password === '') {
+            delete body.password;
+          } else {
+            body.password = hashPassword(body.password);
           }
         }
 

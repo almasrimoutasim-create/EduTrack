@@ -6,8 +6,8 @@
 
 // @ts-ignore
 const BACKEND = import.meta.env.VITE_BACKEND_URL || '';
-const API_BASE = BACKEND 
-  ? `${BACKEND.replace(/\/$/, '')}/neon-db/entities` 
+const API_BASE = BACKEND
+  ? `${BACKEND.replace(/\/$/, '')}/neon-db/entities`
   : '/neon-db/entities';
 
 class EntityClient {
@@ -17,6 +17,11 @@ class EntityClient {
   }
 
   getHeaders() {
+    // إذا كان الطلب يخص جدول الإعدادات العامة SystemSetting ونحن نقوم بعملية جلب (قراءة عامة)، نتجاوز إرسال التوكن لئلا يحدث خطأ 401
+    if (this.entityName === 'SystemSetting') {
+      return { 'Content-Type': 'application/json' };
+    }
+
     const token = localStorage.getItem('portal_jwt_token');
     return token ? { 'Authorization': `Bearer ${token}` } : {};
   }
@@ -45,8 +50,15 @@ class EntityClient {
     params.set('offset', finalOffset.toString());
 
     const response = await fetch(`${this.baseUrl}?${params.toString()}`, { headers: this.getHeaders() });
+
     if (!response.ok) {
       const err = await response.json().catch(() => ({ error: response.statusText }));
+
+      if (response.status === 401 && this.entityName === 'SystemSetting') {
+        console.warn('SystemSetting list restricted (401), returning empty array for defaults.');
+        return [];
+      }
+
       throw new Error(err.error || 'Failed to list entities');
     }
     try {
@@ -145,8 +157,8 @@ const entityNames = [
   'ActivityFee', 'StudentActivityFee', 'StudentWallet',
   'WalletTransaction', 'HallRental', 'OtherRevenue',
   'Expense', 'SalaryRecord', 'PurchaseOrder', 'Visitor',
-  'StaffLeave', 'StaffContract', 'StaffEvaluation', 'StaffRequest', 
-  'Department', 'CareerLadder', 'StoreCategory', 'SalesOrder', 'SystemSetting',
+  'StaffLeave', 'StaffContract', 'StaffEvaluation', 'StaffRequest',
+  'Department', 'CareerLadder', 'StoreCategory', 'SalesOrder', 'SystemSetting', 'GatewayAccount', 'SystemAdmin'
 ];
 
 const entities = {};
