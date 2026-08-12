@@ -72,6 +72,7 @@ import SalesReports from './pages/SalesReports';
 import StudentEnrollment from './pages/StudentEnrollment';
 import AcademicFiles from './pages/AcademicFiles';
 import StudentArchive from './pages/StudentArchive';
+import PrintResults from './pages/PrintResults';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -139,6 +140,7 @@ const AuthenticatedApp = () => {
         <Route path="/staff/personal-requests" element={<StaffPersonalRequests />} />
         <Route path="/student-directory" element={<StudentDirectory />} />
         <Route path="/grades" element={<Grades />} />
+        <Route path="/print-results" element={<PrintResults />} />
         <Route path="/audit-log" element={<AuditLog />} />
         <Route path="/library" element={<Library />} />
         <Route path="/arabic-showcase" element={<ArabicShowcase />} />

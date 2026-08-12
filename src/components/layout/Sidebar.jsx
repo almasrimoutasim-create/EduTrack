@@ -4,7 +4,7 @@ import {
   FileText, ShoppingCart, Menu, X, Newspaper, Trophy, DollarSign, Shield, BarChart3, LogOut,
   Calendar, FileSpreadsheet, Award, History, Layers, Clock, FolderArchive, HelpCircle, Settings,
   Briefcase, CreditCard, Search, Percent, AlertTriangle, PlusCircle, UserCheck, ArrowLeft, MessageSquare,
-  Megaphone, Video, ChevronDown, Bus, ShoppingBag, LifeBuoy
+  Megaphone, Video, ChevronDown, Bus, ShoppingBag, LifeBuoy, Printer
 } from "lucide-react";
 import { useState } from "react";
 import { motion } from "framer-motion";
@@ -277,6 +277,7 @@ export default function Sidebar() {
               { label: t("common.attendance", language), path: "/attendance", icon: ClipboardCheck },
               { label: isRTL ? "ملخص الحضور" : "Attendance Summary", path: "/attendance-summary", icon: BarChart3 },
               { label: isRTL ? "الدرجات والنتائج" : "Grades & Results", path: "/grades", icon: Award },
+              { label: isRTL ? "طباعة النتائج" : "Print Results", path: "/print-results", icon: Printer },
               { label: isRTL ? "الجداول الدراسية" : "Schedules", path: "/schedules", icon: Calendar },
               { label: t("common.materials", language), path: "/materials", icon: FileText },
               { label: t("common.activity", language), path: "/activity", icon: Newspaper },
