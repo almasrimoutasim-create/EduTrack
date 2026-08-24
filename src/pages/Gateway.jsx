@@ -76,7 +76,7 @@ export default function Gateway() {
                 alt={schoolName}
                 className="h-20 w-auto mb-4 object-contain drop-shadow-md"
                 onError={(e) => {
-                  e.target.style.display = 'none';
+                  e.currentTarget.style.display = 'none';
                 }}
               />
             ) : (
