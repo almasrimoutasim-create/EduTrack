@@ -88,7 +88,7 @@ export default function StaffPayroll({ isEmbedded = false }) {
   const approvedLoans = useMemo(() => {
     const saved = localStorage.getItem("staff_approved_loans");
     return saved ? JSON.parse(saved) : [];
-  }, [requestsTriggered => localStorage.getItem("staff_approved_loans")]);
+  }, [requestsTriggered]);
 
   // احتساب مسير الرواتب ودمج السلف والتعديلات اليدوية
   const payrollList = useMemo(() => {

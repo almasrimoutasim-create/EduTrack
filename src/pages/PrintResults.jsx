@@ -146,7 +146,7 @@ function PreviewScaledWrapper({ children, isLandscape = false }) {
 // ═══════════════════════════════════════════════════════════════
 //  1. PORTRAIT SUDANESE OFFICIAL CERTIFICATE (A4 PORTRAIT)
 // ═══════════════════════════════════════════════════════════════
-function SudanesePortraitCertificate({ student, items, attendanceCount, schoolName, schoolLogo, theme, termLabel, principalName }) {
+function SudanesePortraitCertificate({ student, items, attendanceCount, schoolName, schoolLogo, theme, termLabel, principalName, academicYear, schoolStage, govLocality, schoolPhone }) {
   const gradedItems = items.filter(i => i.has_grade && i.score !== null);
   const totalScore = gradedItems.reduce((s, i) => s + Number(i.score || 0), 0);
   const totalMax = items.reduce((s, i) => s + Number(i.max_score || 100), 0);
@@ -163,16 +163,28 @@ function SudanesePortraitCertificate({ student, items, attendanceCount, schoolNa
           
           {/* Header Layout */}
           <div className="sudan-header-grid">
-            {/* Right: Government Particulars */}
-            <div className="sudan-header-side text-center">
-              <p className="font-bold text-[11px] leading-tight">جمهورية السودان</p>
-              <p className="font-bold text-[11px] leading-tight">وزارة التربية والتعليم</p>
-              <p className="font-bold text-[10px] leading-tight">ولاية الخرطوم</p>
-              <p className="font-bold text-[10px] leading-tight">إدارة التعليم غير الحكومي والخاص</p>
-              <p className="font-bold text-[9px] text-stone-600 leading-tight">مكتب تعليم محلية الخرطوم</p>
+            {/* Two equal squares: Right = Government, Left = Logo */}
+            {/* Right Square: Government Particulars */}
+            <div className="sudan-header-side text-center overflow-hidden">
+              <p className="font-bold text-[10px] leading-tight">جمهورية السودان</p>
+              <p className="font-bold text-[10px] leading-tight">وزارة التربية والتعليم</p>
+              <p className="font-bold text-[9px] leading-tight">{govLocality || "ولاية الخرطوم"}</p>
+              <p className="font-bold text-[9px] leading-tight">إدارة التعليم غير الحكومي والخاص</p>
+              <p className="font-bold text-[8px] text-stone-600 leading-tight">{schoolPhone ? `هاتف: ${schoolPhone}` : "مكتب تعليم محلية الخرطوم"}</p>
             </div>
 
-            {/* Center: Crest, Bismillah & School Name */}
+            {/* Left Square: School Logo (fills entire square - 140x140) */}
+            <div className="sudan-header-side text-center" style={{ flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '6px' }}>
+              {schoolLogo ? (
+                <img src={schoolLogo} alt="School Logo" style={{ width: '100%', height: '100%', objectFit: 'contain', maxWidth: '100%', maxHeight: '100%' }} />
+              ) : (
+                <div className="w-full h-full border border-dashed rounded flex items-center justify-center text-[9px] font-bold text-stone-500" style={{ borderColor: theme.border }}>
+                  شعار المدرسة
+                </div>
+              )}
+            </div>
+
+            {/* Below squares: Bismillah, Crest, School Name & Cert Badge */}
             <div className="sudan-header-center text-center">
               <div className="bismillah text-xs font-bold mb-0.5">بسم الله الرحمن الرحيم</div>
               {/* Emblem SVG / Sudanese Hawk Motif */}
@@ -184,25 +196,16 @@ function SudanesePortraitCertificate({ student, items, attendanceCount, schoolNa
                 </svg>
               </div>
               <h1 className="sudan-school-name text-xl font-black" style={{ color: theme.border }}>{schoolName}</h1>
-              <p className="font-bold text-[11px] mt-0.5">المرحلة الابتدائية والمتوسطة والثانوية (بنين - بنات)</p>
+              <p className="font-bold text-[11px] mt-0.5">{schoolStage || "المرحلة الابتدائية والمتوسطة والثانوية (بنين - بنات)"}</p>
               <div className="sudan-cert-title-badge" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>
                 <span className="font-black text-xs">كـشـف در جـا ت ا مـتـحـا ن {termLabel}</span>
               </div>
             </div>
 
-            {/* Left: School Logo & Academic Meta */}
-            <div className="sudan-header-side flex flex-col items-center justify-between text-center">
-              {schoolLogo ? (
-                <img src={schoolLogo} alt="School Logo" className="h-14 w-auto max-w-[110px] object-contain mb-1" />
-              ) : (
-                <div className="h-12 w-24 border border-dashed rounded flex items-center justify-center text-[9px] font-bold text-stone-500" style={{ borderColor: theme.border }}>
-                  شعار المدرسة
-                </div>
-              )}
-              <div className="w-full text-[10px] space-y-0.5 pt-1 border-t border-stone-300">
-                <p><span className="font-bold">رقم الجلوس:</span> <span className="font-mono font-bold">{student.student_id || student.id || "1024"}</span></p>
-                <p><span className="font-bold">العام الدراسي:</span> <span className="font-mono font-bold">2025 / 2026م</span></p>
-              </div>
+            {/* Student Meta (below the squares) */}
+            <div className="grid grid-cols-2 gap-4 text-[10px] mt-2 px-1">
+              <div className="text-right"><span className="font-bold">رقم الجلوس:</span> <span className="font-mono font-bold">{student.student_id || student.id || "1024"}</span></div>
+              <div className="text-left"><span className="font-bold">العام الدراسي:</span> <span className="font-mono font-bold">{academicYear || "2025 / 2026م"}</span></div>
             </div>
           </div>
 
@@ -381,7 +384,7 @@ function SudanesePortraitCertificate({ student, items, attendanceCount, schoolNa
 // ═══════════════════════════════════════════════════════════════
 //  2. LANDSCAPE MARKSHEET FRONT (A4 LANDSCAPE)
 // ═══════════════════════════════════════════════════════════════
-function CertificateMarksheetFront({ student, items, attendanceCount, schoolName, schoolLogo, theme, termLabel, principalName }) {
+function CertificateMarksheetFront({ student, items, attendanceCount, schoolName, schoolLogo, theme, termLabel, principalName, govLocality, academicYear, schoolStage, phone }) {
   const gradedItems = items.filter(i => i.has_grade && i.score !== null);
   const totalScore = gradedItems.reduce((s, i) => s + Number(i.score || 0), 0);
   const totalMax = items.reduce((s, i) => s + Number(i.max_score || 100), 0);
@@ -396,11 +399,11 @@ function CertificateMarksheetFront({ student, items, attendanceCount, schoolName
         <div className="marksheet-inner-flex">
 
           <div className="pro-header-grid">
-            <div className="header-box-side flex flex-col items-center justify-center text-center" style={{ borderColor: theme.border }}>
-              <p className="font-bold text-[12px] leading-snug">جمهورية السودان</p>
-              <p className="font-bold text-[12px] leading-snug">ولاية الخرطوم</p>
-              <p className="font-bold text-[11px] leading-snug">وزارة التربية والتعليم</p>
-              <p className="font-bold text-[10px] leading-snug">التعليم الخاص</p>
+            <div className="header-box-side flex flex-col items-center justify-center text-center overflow-hidden" style={{ borderColor: theme.border }}>
+              <p className="font-bold text-[10px] leading-tight">جمهورية السودان</p>
+              <p className="font-bold text-[9px] leading-tight">{govLocality || "ولاية الخرطوم"}</p>
+              <p className="font-bold text-[9px] leading-tight">وزارة التربية والتعليم</p>
+              <p className="font-bold text-[8px] leading-tight">{schoolStage || "التعليم الخاص"}</p>
             </div>
 
             <div className="header-box-center text-center">
@@ -409,12 +412,12 @@ function CertificateMarksheetFront({ student, items, attendanceCount, schoolName
               <p className="font-bold text-xs tracking-wide">إبتدائي ومتوسط وثانوي (بنين - بنات)</p>
             </div>
 
-            <div className="header-box-side flex items-center justify-center p-1" style={{ borderColor: theme.border }}>
+            <div className="header-box-side flex items-center justify-center overflow-hidden" style={{ borderColor: theme.border, padding: '6px' }}>
               {schoolLogo ? (
-                <img src={schoolLogo} alt="School Logo" className="pro-logo-img" />
+                <img src={schoolLogo} alt="School Logo" style={{ width: '100%', height: '100%', objectFit: 'contain', maxWidth: '100%', maxHeight: '100%' }} />
               ) : (
-                <div className="pro-logo-badge flex flex-col items-center justify-center text-center font-bold text-[10px]" style={{ borderColor: theme.border }}>
-                  <span>شعار المدرسة</span>
+                <div className="w-full h-full border border-dashed rounded flex items-center justify-center text-[9px] font-bold text-stone-500" style={{ borderColor: theme.border }}>
+                  شعار المدرسة
                 </div>
               )}
             </div>
@@ -423,7 +426,7 @@ function CertificateMarksheetFront({ student, items, attendanceCount, schoolName
           <div className="pro-meta-bar" style={{ borderColor: theme.border }}>
             <div className="meta-left space-y-1">
               <p><span className="lbl font-bold">نتيجة الامتحان للفترة :</span> <span className="val">{termLabel}</span></p>
-              <p><span className="lbl font-bold">العام الدراســـــــــــي :</span> <span className="val font-mono">2025/2026م</span></p>
+               <p><span className="lbl font-bold">العام الدراســـــــــــي :</span> <span className="val font-mono">{academicYear || "2025/2026م"}</span></p>
               <p><span className="lbl font-bold">الاســــــــــــــــــــــم :</span> <span className="val font-bold text-sm">{student.full_name || student.name}</span></p>
             </div>
             <div className="meta-right space-y-1 text-left">
@@ -477,32 +480,6 @@ function CertificateMarksheetFront({ student, items, attendanceCount, schoolName
           </div>
 
           <div className="pro-bottom-grid">
-            <div className="details-col space-y-1.5">
-              <p className="detail-line">
-                <span className="lbl font-bold">المجمـوع بالحــروف :</span>
-                <span className="val font-bold">{totalInWords}</span>
-              </p>
-              <p className="detail-line">
-                <span className="lbl font-bold">درجــة النـجــــــــاح :</span>
-                <span className="val text-[11px]">أي مادة = 50% من الدرجة الكاملة (نصف الدرجة الكاملة)</span>
-              </p>
-              <p className="detail-line">
-                <span className="lbl font-bold">إسم مدير المدرسة :</span>
-                <span className="val font-bold">{principalName || "هند يوسف حماد علي"}</span>
-              </p>
-              <p className="detail-line">
-                <span className="lbl font-bold">تاريخ إصدار النتيجة :</span>
-                <span className="val font-mono">{new Date().toLocaleDateString('ar-SA')}م</span>
-              </p>
-
-              <div className="stamp-overlay-pos">
-                <div className="stamp-circle" style={{ color: theme.stamp, borderColor: theme.stamp }}>
-                  <span className="font-bold text-[10px]">ختم المدرسة</span>
-                  <span className="text-[7px]">مصادق عليه</span>
-                </div>
-              </div>
-            </div>
-
             <div className="left-col space-y-2">
               <table className="absence-mini-table" style={{ borderColor: theme.border }}>
                 <thead>
@@ -538,6 +515,32 @@ function CertificateMarksheetFront({ student, items, attendanceCount, schoolName
                 </div>
               </div>
             </div>
+
+            <div className="details-col space-y-1.5">
+              <p className="detail-line">
+                <span className="lbl font-bold">المجمـوع بالحــروف :</span>
+                <span className="val font-bold">{totalInWords}</span>
+              </p>
+              <p className="detail-line">
+                <span className="lbl font-bold">درجــة النـجــــــــاح :</span>
+                <span className="val text-[11px]">أي مادة = 50% من الدرجة الكاملة (نصف الدرجة الكاملة)</span>
+              </p>
+              <p className="detail-line">
+                <span className="lbl font-bold">إسم مدير المدرسة :</span>
+                <span className="val font-bold">{principalName || ""}</span>
+              </p>
+              <p className="detail-line">
+                <span className="lbl font-bold">تاريخ إصدار النتيجة :</span>
+                <span className="val font-mono">{new Date().toLocaleDateString('ar-SA')}م</span>
+              </p>
+
+              <div className="stamp-overlay-pos">
+                <div className="stamp-circle" style={{ color: theme.stamp, borderColor: theme.stamp }}>
+                  <span className="font-bold text-[10px]">ختم المدرسة</span>
+                  <span className="text-[7px]">مصادق عليه</span>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="pro-footer-warning text-center font-bold text-xs pt-1">
@@ -551,88 +554,97 @@ function CertificateMarksheetFront({ student, items, attendanceCount, schoolName
 }
 
 // ─── LANDSCAPE MARKSHEET BACK (A4 LANDSCAPE COVER) ─────────────
-function CertificateCoverBack({ student, schoolName, theme }) {
-  const phone = "0123109370 / 0116375406";
+function CertificateCoverBack({ student, schoolName, theme, govLocality, schoolStage, phone }) {
 
   return (
     <div className="pro-cert-page-landscape" style={{ backgroundColor: theme.bg, color: theme.text }} dir="rtl">
       <div className="pro-cover-grid">
 
-        <div className="pro-rounded-panel" style={{ borderColor: theme.border }}>
-          <div className="panel-inner flex flex-col justify-between h-full">
-            <ul className="pro-bullet-list space-y-1">
-              <li>عود إبنك الصدق والصلاة ومكارم الأخلاق</li>
-              <li>تأكد من صداقة إبنك للأخيار</li>
-              <li>زيارتك للمدرسة مهمة لأنها تكمل دور المدرسة العلمية والتربوية</li>
-            </ul>
+        {/* Right Page in print = Instructions Side (as in reference image) */}
+        <div className="pro-rounded-panel" style={{ borderColor: theme.border, backgroundColor: theme.bg }}>
+          <div className="panel-inner flex flex-col justify-between h-full py-6 px-4 items-center text-center">
+            {/* Top 3 advices */}
+            <div className="w-full space-y-1.5 text-center">
+              <p className="text-[11.5px] font-bold leading-relaxed">• عود إبنك الصدق والصلاة ومكارم الأخلاق</p>
+              <p className="text-[11.5px] font-bold leading-relaxed">• تأكد من صداقة إبنك للأخيار</p>
+              <p className="text-[11.5px] font-bold leading-relaxed">• زيارتك للمدرسة مهمة لأنها تكمل دور المدرسة العلمية والتربوية</p>
+            </div>
 
-            <div className="pro-ribbon-banner">
+            <div className="pro-ribbon-banner mx-auto my-2">
               <span className="ribbon-tail-r" style={{ borderRightColor: theme.border }} />
-              <span className="ribbon-text" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>إبـنـنـا التـلـمـيـذ</span>
+              <span className="ribbon-text px-6 py-1 text-[12px]" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>إبـنـنـا التـلـمـيـذ</span>
               <span className="ribbon-tail-l" style={{ borderLeftColor: theme.border }} />
             </div>
 
-            <ul className="pro-bullet-list space-y-1">
-              <li>حافظ على صلواتك ودوام على تلاوة القرآن.</li>
-              <li>إجتهد في دراستك فلكل مجتهد نصيب.</li>
-              <li>إحترام المعلم واجب.</li>
-            </ul>
-
-            <div className="pro-scroll-banner" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>
-              <span>كـاد الـمـعـلـم أن يـكـون ر سـو لاً</span>
+            <div className="w-full space-y-1.5 text-center">
+              <p className="text-[11.5px] font-bold leading-relaxed">• حافظ على صلواتك ودوام على تلاوة القرآن.</p>
+              <p className="text-[11.5px] font-bold leading-relaxed">• إجتهد في دراستك فلكل مجتهد نصيب.</p>
+              <p className="text-[11.5px] font-bold leading-relaxed">• إحترام المعلم واجب.</p>
             </div>
 
-            <div className="flex justify-center my-1">
-              <div className="pro-hexagon-badge" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>
-                <span>سلم التقديرات بالسودان</span>
+            <div className="pro-scroll-banner w-[92%] mx-auto text-center py-1.5" style={{ borderColor: theme.border, backgroundColor: theme.headerBg, borderRadius: '4px' }}>
+              <span className="text-[12px] font-black tracking-wide">كـاد الـمـعـلـم أن يـكـون ر سـو لاً</span>
+            </div>
+
+            <div className="flex justify-center w-full my-1">
+              <div className="pro-hexagon-badge mx-auto px-5 py-1" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>
+                <span className="text-[11px] font-black">التقدير</span>
               </div>
             </div>
 
-            <ul className="pro-bullet-list scale-list space-y-0.5 text-xs">
-              <li>من 90% إلى 100% ممتاز (مرتفع).</li>
-              <li>من 80% إلى 89% جيد جداً.</li>
-              <li>من 65% إلى 79% جـيـد.</li>
-              <li>من 50% إلى 64% مقبول.</li>
-              <li>أقل من 50% ضعــيف (له دور ثانٍ).</li>
-            </ul>
+            <div className="w-full space-y-1 text-center">
+              <p className="text-[11px] font-bold">• من 100% الى 90% ممتاز.</p>
+              <p className="text-[11px] font-bold">• أقل من 90% الى 75% جيد جداً.</p>
+              <p className="text-[11px] font-bold">• أقل من 75% الى 60% جيد.</p>
+              <p className="text-[11px] font-bold">• أقل من 60% الى 50% مقبول.</p>
+              <p className="text-[11px] font-bold">• أقل من 50% ضعيف.</p>
+            </div>
           </div>
         </div>
 
-        <div className="pro-rounded-panel" style={{ borderColor: theme.border }}>
-          <div className="panel-inner text-center flex flex-col justify-between h-full">
-            <div>
-              <div className="bismillah-calligraphy text-base font-bold">بسم الله الرحمن الرحيم</div>
-              <div className="text-center mt-2 leading-snug">
-                <p className="font-bold text-xs">جمهورية السودان</p>
-                <p className="font-bold text-sm">ولاية الخرطوم – محلية الشهداء وسوبا</p>
-                <p className="font-bold text-xs">وزارة التربية والتعليم – إدارة التعليم الخاص</p>
+        {/* Left Page in print = School Identity Side (as in reference image) */}
+        <div className="pro-rounded-panel" style={{ borderColor: theme.border, backgroundColor: theme.bg }}>
+          <div className="panel-inner flex flex-col h-full py-8 px-4 items-center text-center justify-between">
+            <div className="w-full text-center space-y-3">
+              <div className="bismillah-calligraphy text-[13px] font-bold text-center" style={{ fontFamily: "'Amiri', serif" }}>بسم الله الرحمن الرحيم</div>
+              <div className="text-center leading-loose space-y-0.5 pt-2">
+                <p className="font-bold text-[11px]">ولاية الخرطوم – محلية الشهداء، وسوبا</p>
+                <p className="font-bold text-[11px]">وزارة التربية والتعليم – {schoolStage || "إدارة التعليم الخاص"}</p>
               </div>
             </div>
 
-            <div className="my-3">
-              <h2 className="pro-school-title text-2xl font-black" style={{ color: theme.border }}>{schoolName}</h2>
-              <p className="font-bold text-sm mt-1">الإبـتـدائـيـة والـمـتـوسـطـة والـثـانـويـة</p>
-              <p className="font-bold text-xs mt-0.5">بـنـيـن – بـنـات</p>
+            <div className="w-full text-center space-y-1.5 py-3">
+              <h2 className="pro-school-title text-[18px] font-black text-center leading-relaxed" style={{ color: theme.border, fontFamily: "'Amiri', serif", lineHeight: '1.6' }}>
+                مدارس الأستاذ سمير القرآنية الخاصة<br/>الإبتدائية والمتوسطة<br/>بنين – بنات
+              </h2>
             </div>
 
-            <div className="pro-scroll-banner main-title-scroll" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>
-              <span>نـتـيـجـة الـمـقـر ر ا ت الـدر ا سـيـة</span>
+            {/* Scroll: نتيجة المقررات الدراسية - exactly as image with rolled ends */}
+            <div className="relative w-[72%] mx-auto my-2">
+              <div className="pro-scroll-banner main-title-scroll w-full text-center py-1.5" style={{ borderColor: theme.border, backgroundColor: theme.headerBg, borderWidth: '1.2px', borderRadius: '2px' }}>
+                <span className="text-[11px] font-black tracking-[0.12em]">نتيجة المقررات الدراسية</span>
+              </div>
+              {/* rolled ends effect */}
+              <span className="absolute -left-1 top-1/2 -translate-y-1/2 w-2 h-[18px] bg-white border border-black rounded-r-sm" style={{ borderColor: theme.border }}></span>
+              <span className="absolute -right-1 top-1/2 -translate-y-1/2 w-2 h-[18px] bg-white border border-black rounded-l-sm" style={{ borderColor: theme.border }}></span>
             </div>
 
-            <div className="pro-student-cover-info text-right w-11/12 mx-auto space-y-2">
-              <div className="flex items-center">
-                <span className="font-bold w-24 text-sm">اسم التلميـذ/</span>
-                <span className="font-bold text-base border-b-2 border-black flex-1 pb-1">{student.full_name || student.name}</span>
+            <div className="w-full space-y-4 pt-4">
+              <div className="flex items-end justify-center gap-2 w-[92%] mx-auto">
+                <span className="font-bold text-[11px] shrink-0 pb-1">اسم التلميذ/</span>
+                <span className="font-bold text-[13px] flex-1 border-b border-black pb-1 text-center leading-none" style={{ minHeight: '18px' }}>{student.full_name || student.name}</span>
               </div>
-              <div className="flex items-center">
-                <span className="font-bold w-24 text-sm">الصــــــــــف/</span>
-                <span className="font-bold text-base border-b-2 border-black flex-1 pb-1">{student.grade || "الثالث المتوسط"}</span>
+              <div className="flex items-end justify-center gap-2 w-[92%] mx-auto">
+                <span className="font-bold text-[11px] shrink-0 pb-1">الصف/</span>
+                <span className="font-bold text-[13px] flex-1 border-b border-black pb-1 text-center leading-none" style={{ minHeight: '18px' }}>{student.grade || "الثالث المتوسط"}</span>
               </div>
-              <div className="flex items-center mt-2">
-                <span className="font-bold w-24 text-xs">الإدارة:</span>
-                <span className="font-mono text-xs border-b border-black flex-1 pb-1">{phone}</span>
+              <div className="flex items-center justify-center gap-1 w-[92%] mx-auto pt-1">
+                <span className="font-bold text-[9px] shrink-0">الإدارة :</span>
+                <span className="font-mono text-[10px] flex-1 text-center tracking-wide" dir="ltr">{phone ? `${phone}` : "0123109370 / 0116375406"}</span>
               </div>
             </div>
+
+            <div className="flex-1"></div>
           </div>
         </div>
 
@@ -659,12 +671,16 @@ export default function PrintResults() {
   const [showPreview, setShowPreview] = useState(false);
 
   // Customization Controls
-  const [certificateLayout, setCertificateLayout] = useState("portrait"); // 'portrait' | 'landscape'
+  const [certificateLayout, setCertificateLayout] = useState("landscape"); // 'portrait' | 'landscape'
   const [selectedThemeId, setSelectedThemeId] = useState("green");
   const [printSide, setPrintSide] = useState("front"); // 'front' | 'both'
   const [customSchoolName, setCustomSchoolName] = useState("");
   const [customLogo, setCustomLogo] = useState("");
-  const [principalName, setPrincipalName] = useState("هند يوسف حماد علي");
+  const [principalName, setPrincipalName] = useState("");
+  const [academicYear, setAcademicYear] = useState("");
+  const [schoolStage, setSchoolStage] = useState("");
+  const [schoolPhone, setSchoolPhone] = useState("");
+  const [govLocality, setGovLocality] = useState("");
 
   // ─── Queries ───────────────────────────────────────
   const { data: students = [], isLoading: loadingStudents } = useQuery({
@@ -700,8 +716,10 @@ export default function PrintResults() {
       if (existingSettings.school_name_ar) setCustomSchoolName(existingSettings.school_name_ar);
       if (existingSettings.school_logo) setCustomLogo(existingSettings.school_logo);
       if (existingSettings.principal_name) setPrincipalName(existingSettings.principal_name);
-    } else if (!customSchoolName) {
-      setCustomSchoolName("مدارس الأستاذ سمير القرآنية الخاصة");
+      if (existingSettings.gov_locality) setGovLocality(existingSettings.gov_locality);
+      if (existingSettings.academic_year) setAcademicYear(existingSettings.academic_year);
+      if (existingSettings.school_stage) setSchoolStage(existingSettings.school_stage);
+      if (existingSettings.school_phone) setSchoolPhone(existingSettings.school_phone);
     }
   }, [existingSettings]);
 
@@ -709,9 +727,13 @@ export default function PrintResults() {
   const saveSettingsMutation = useMutation({
     mutationFn: async () => {
       const dataToSave = {
-        school_name_ar: customSchoolName,
-        school_logo: customLogo,
-        principal_name: principalName
+        school_name_ar: customSchoolName || null,
+        school_logo: customLogo || null,
+        principal_name: principalName || null,
+        gov_locality: govLocality || null,
+        academic_year: academicYear || null,
+        school_stage: schoolStage || null,
+        school_phone: schoolPhone || null,
       };
       if (existingSettings?.id) {
         return await entities.SystemSetting.update(existingSettings.id, dataToSave);
@@ -721,11 +743,18 @@ export default function PrintResults() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["print-results-settings"] });
-      toast.success(isRTL ? "تم حفظ إعدادات اسم المدرسة والشعار بنجاح!" : "Settings saved successfully!");
+      toast.success(isRTL ? "تم حفظ إعدادات المدرسة بنجاح!" : "Settings saved successfully!");
     },
     onError: (err) => {
-      console.error(err);
-      toast.error(isRTL ? "فشل حفظ الإعدادات" : "Failed to save settings");
+      console.error("[SystemSetting save error]", err);
+      const msg = err?.message || "";
+      if (msg.includes("401") || msg.includes("Unauthorized")) {
+        toast.error(isRTL ? "فشل الحفظ: انتهت الجلسة، سجّل دخولك مرة أخرى كمسؤول" : "Save failed: Unauthorized - please re-login as admin");
+      } else if (msg.includes("principal_name") || msg.includes("column")) {
+        toast.error(isRTL ? "فشل الحفظ: قاعدة البيانات تحتاج تحديث، أعد تشغيل الخادم (npm run dev)" : "Save failed: DB schema needs migration - restart server");
+      } else {
+        toast.error(isRTL ? `فشل حفظ الإعدادات: ${msg}` : `Failed to save: ${msg}`);
+      }
     }
   });
 
@@ -910,9 +939,9 @@ export default function PrintResults() {
     }
 
     const termLabel = termFilter !== "all" ? termLabels[termFilter] : (isRTL ? "الفصل الأول" : "Term 1");
-    const sName = customSchoolName || "مدارس الأستاذ سمير القرآنية الخاصة";
-    const sLogo = customLogo || "";
-    const pName = principalName || "هند يوسف حماد علي";
+    const sName = customSchoolName || existingSettings?.school_name_ar || "مدارس الأستاذ سمير القرآنية الخاصة";
+    const sLogo = customLogo || existingSettings?.school_logo || "";
+    const pName = principalName || existingSettings?.principal_name || "هند يوسف حماد علي";
 
     let certificatesHTML = "";
 
@@ -961,29 +990,36 @@ export default function PrintResults() {
               <div class="sudan-inner-border" style="border-color:${activeTheme.border}">
                 
                 <div class="sudan-header-grid">
-                  <div class="sudan-header-side text-center">
-                    <p class="font-bold text-[11px]">جمهورية السودان</p>
-                    <p class="font-bold text-[11px]">وزارة التربية والتعليم</p>
-                    <p class="font-bold text-[10px]">ولاية الخرطوم</p>
-                    <p class="font-bold text-[10px]">إدارة التعليم الخاص</p>
+                  <div class="sudan-header-side text-center" style="width:140px;height:140px;min-width:140px;min-height:140px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;padding:6px 5px;gap:2px;box-sizing:border-box;border:1.5px solid ${activeTheme.border};border-radius:6px;background:#fff;">
+                    <p class="font-bold text-[10px]" style="line-height:1.4;margin:0;">جمهورية السودان</p>
+                    <p class="font-bold text-[10px]" style="line-height:1.4;margin:0;">وزارة التربية والتعليم</p>
+                    <p class="font-bold text-[9px]" style="line-height:1.4;margin:0;">${govLocality || "ولاية الخرطوم"}</p>
+                    <p class="font-bold text-[9px]" style="line-height:1.4;margin:0;">إدارة التعليم الخاص</p>
+                    ${schoolPhone ? `<p class="font-bold text-[8px] text-stone-600" style="line-height:1.3;margin:0;">${schoolPhone}</p>` : ``}
                   </div>
 
-                  <div class="sudan-header-center text-center">
-                    <div class="bismillah text-xs font-bold">بسم الله الرحمن الرحيم</div>
-                    <h1 class="sudan-school-name text-xl font-black" style="color:${activeTheme.border}">${sName}</h1>
-                    <p class="font-bold text-[11px]">المرحلة الابتدائية والمتوسطة والثانوية (بنين - بنات)</p>
-                    <div class="sudan-cert-title-badge" style="background-color:${activeTheme.headerBg};border-color:${activeTheme.border}">
-                      <span class="font-black text-xs">كـشـف در جـا ت ا مـتـحـا ن ${termLabel}</span>
-                    </div>
+                  <div class="sudan-header-side text-center" style="width:140px;height:140px;min-width:140px;min-height:140px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;padding:6px;box-sizing:border-box;border:1.5px solid ${activeTheme.border};border-radius:6px;background:#fff;">
+                    ${sLogo ? `<img src="${sLogo}" style="width:100%;height:100%;object-fit:contain;max-width:100%;max-height:100%;"/>` : `<div class="w-full h-full border border-dashed rounded flex items-center justify-center text-[9px] font-bold" style="border-color:${activeTheme.border}">شعار المدرسة</div>`}
                   </div>
+                </div>
 
-                  <div class="sudan-header-side flex flex-col items-center justify-between text-center">
-                    ${sLogo ? `<img src="${sLogo}" class="h-14 w-auto max-w-[110px] object-contain mb-1"/>` : `<div class="h-12 w-24 border border-dashed rounded flex items-center justify-center text-[9px] font-bold" style="border-color:${activeTheme.border}">شعار المدرسة</div>`}
-                    <div class="w-full text-[10px] space-y-0.5 pt-1 border-t border-stone-300">
-                      <p><span class="font-bold">رقم الجلوس:</span> <span class="font-mono font-bold">${student.student_id || student.id || "1024"}</span></p>
-                      <p><span class="font-bold">العام الدراسي:</span> <span class="font-mono font-bold">2025 / 2026م</span></p>
-                    </div>
+                <div class="sudan-header-center text-center" style="grid-column:1/-1">
+                  <div class="bismillah text-xs font-bold">بسم الله الرحمن الرحيم</div>
+                  <svg viewBox="0 0 100 80" width="50" height="40" style="display:inline-block;vertical-align:middle;margin:0 6px">
+                    <polygon points="50,5 61,35 95,35 67,55 78,85 50,65 22,85 33,55 5,35 39,35" fill="#c8a951" stroke="#9a7d2e" stroke-width="2"/>
+                    <circle cx="50" cy="46" r="14" fill="none" stroke="#9a7d2e" stroke-width="1.5"/>
+                    <text x="50" y="50" text-anchor="middle" font-size="8" font-weight="bold" fill="#5c4a1e">م</text>
+                  </svg>
+                  <h1 class="sudan-school-name text-xl font-black" style="color:${activeTheme.border}">${sName}</h1>
+                  <p class="font-bold text-[11px]">${schoolStage || "المرحلة الابتدائية والمتوسطة والثانوية (بنين - بنات)"}</p>
+                  <div class="sudan-cert-title-badge" style="background-color:${activeTheme.headerBg};border-color:${activeTheme.border}">
+                    <span class="font-black text-xs">كـشـف در جـا ت ا مـتـحـا ن ${termLabel}</span>
                   </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2 mt-2 text-[10px] border-t border-stone-300 pt-1">
+                  <p class="text-right"><span class="font-bold">رقم الجلوس:</span> <span class="font-mono font-bold">${student.student_id || student.id || "1024"}</span></p>
+                  <p class="text-left"><span class="font-bold">العام الدراسي:</span> <span class="font-mono font-bold">${academicYear || "2025 / 2026م"}</span></p>
                 </div>
 
                 <div class="sudan-student-info-box" style="border-color:${activeTheme.border};background-color:${activeTheme.headerBg}">
@@ -1101,26 +1137,26 @@ export default function PrintResults() {
             <div class="pro-marksheet-border" style="border-color:${activeTheme.border}">
               <div class="marksheet-inner-flex">
                 <div class="pro-header-grid">
-                  <div class="header-box-side flex flex-col items-center justify-center text-center" style="border-color:${activeTheme.border}">
-                    <p class="font-bold text-[12px] leading-snug">جمهورية السودان</p>
-                    <p class="font-bold text-[12px] leading-snug">ولاية الخرطوم</p>
-                    <p class="font-bold text-[11px] leading-snug">وزارة التربية والتعليم</p>
-                    <p class="font-bold text-[10px] leading-snug">التعليم الخاص</p>
+                  <div class="header-box-side flex flex-col items-center justify-center text-center overflow-hidden" style="border-color:${activeTheme.border};width:140px;height:140px;min-width:140px;min-height:140px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6px 5px;gap:1px;box-sizing:border-box;overflow:hidden;">
+                    <p class="font-bold text-[10px]" style="line-height:1.4;margin:0;">جمهورية السودان</p>
+                    <p class="font-bold text-[9px]" style="line-height:1.4;margin:0;">${govLocality || "ولاية الخرطوم"}</p>
+                    <p class="font-bold text-[9px]" style="line-height:1.4;margin:0;">وزارة التربية والتعليم</p>
+                    <p class="font-bold text-[8px]" style="line-height:1.3;margin:0;">التعليم الخاص</p>
                   </div>
                   <div class="header-box-center text-center">
                     <div class="bismillah-calligraphy text-sm font-bold">بسم الله الرحمن الرحيم</div>
                     <h1 class="pro-school-title text-2xl font-black my-0.5" style="color:${activeTheme.border}">${sName}</h1>
-                    <p class="font-bold text-xs tracking-wide">إبتدائي ومتوسط وثانوي (بنين - بنات)</p>
+                    <p class="font-bold text-xs tracking-wide">${schoolStage || "إبتدائي ومتوسط وثانوي (بنين - بنات)"}</p>
                   </div>
-                  <div class="header-box-side flex items-center justify-center p-1" style="border-color:${activeTheme.border}">
-                    ${sLogo ? `<img src="${sLogo}" class="pro-logo-img" />` : `<div class="pro-logo-badge" style="border-color:${activeTheme.border}"><span>شعار المدرسة</span></div>`}
+                  <div class="header-box-side flex items-center justify-center overflow-hidden" style="border-color:${activeTheme.border};width:140px;height:140px;min-width:140px;min-height:140px;padding:6px;box-sizing:border-box;overflow:hidden;">
+                    ${sLogo ? `<img src="${sLogo}" style="width:100%;height:100%;object-fit:contain;max-width:100%;max-height:100%;" />` : `<div style="width:100%;height:100%;border:1.5px dashed ${activeTheme.border};border-radius:8px;display:flex;align-items:center;justify-content:center;text-align:center;font-size:9px;font-weight:800;">شعار المدرسة</div>`}
                   </div>
                 </div>
 
                 <div class="pro-meta-bar" style="border-color:${activeTheme.border}">
                   <div class="meta-left space-y-1">
                     <p><span class="lbl font-bold">نتيجة الامتحان للفترة :</span> <span class="val">${termLabel}</span></p>
-                    <p><span class="lbl font-bold">العام الدراســـــــــــي :</span> <span class="val font-mono">2025/2026م</span></p>
+                    <p><span class="lbl font-bold">العام الدراســـــــــــي :</span> <span class="val font-mono">${academicYear || "2025/2026م"}</span></p>
                     <p><span class="lbl font-bold">الاســــــــــــــــــــــم :</span> <span class="val font-bold text-sm">${student.full_name || student.name}</span></p>
                   </div>
                   <div class="meta-right space-y-1 text-left">
@@ -1141,14 +1177,6 @@ export default function PrintResults() {
                 </div>
 
                 <div class="pro-bottom-grid">
-                  <div class="details-col space-y-1.5">
-                    <p class="detail-line"><span class="lbl font-bold">المجمـوع بالحــروف :</span> <span class="val font-bold">${totalInWords}</span></p>
-                    <p class="detail-line"><span class="lbl font-bold">درجــة النـجــــــــاح :</span> <span class="val text-[11px]">أي مادة = 50% من الدرجة الكاملة (نصف الدرجة الكاملة)</span></p>
-                    <p class="detail-line"><span class="lbl font-bold">إسم مدير المدرسة :</span> <span class="val font-bold">${pName}</span></p>
-                    <p class="detail-line"><span class="lbl font-bold">تاريخ إصدار النتيجة :</span> <span class="val font-mono">${new Date().toLocaleDateString('ar-SA')}م</span></p>
-                    <div class="stamp-overlay-pos"><div class="stamp-circle" style="color:${activeTheme.stamp};border-color:${activeTheme.stamp}"><span class="font-bold text-[10px]">ختم المدرسة</span><span style="font-size:7px;display:block">مصادق عليه</span></div></div>
-                  </div>
-
                   <div class="left-col space-y-2">
                     <table class="absence-mini-table" style="border-color:${activeTheme.border}">
                       <thead><tr style="background-color:${activeTheme.headerBg}"><th style="border-color:${activeTheme.border}">عدد أيام السنة</th><th style="border-color:${activeTheme.border}">عدد أيام الغياب</th><th style="border-color:${activeTheme.border}">بعذر مقبول</th><th style="border-color:${activeTheme.border}">بدون عذر</th></tr></thead>
@@ -1159,6 +1187,14 @@ export default function PrintResults() {
                       <p class="text-xs mt-1 leading-relaxed">${gradedItems.length > 0 ? (overallPct >= 85 ? "تلميذ منضبط وممتاز أكاديمياً وخلقياً. نتمنى له مزيداً من التقدم والاجتهاد." : "أداء جيد نوصي بمواصلة الاجتهاد والمتابعة الدورية.") : "جاري استكمال رصد باقي المواد."}</p>
                       <div class="advisor-sig-row flex justify-between text-xs mt-2"><span>التوقيع :</span><span class="border-b border-black w-28 text-center font-bold">مرشد الصف</span></div>
                     </div>
+                  </div>
+
+                  <div class="details-col space-y-1.5">
+                    <p class="detail-line"><span class="lbl font-bold">المجمـوع بالحــروف :</span> <span class="val font-bold">${totalInWords}</span></p>
+                    <p class="detail-line"><span class="lbl font-bold">درجــة النـجــــــــاح :</span> <span class="val text-[11px]">أي مادة = 50% من الدرجة الكاملة (نصف الدرجة الكاملة)</span></p>
+                    <p class="detail-line"><span class="lbl font-bold">إسم مدير المدرسة :</span> <span class="val font-bold">${pName}</span></p>
+                    <p class="detail-line"><span class="lbl font-bold">تاريخ إصدار النتيجة :</span> <span class="val font-mono">${new Date().toLocaleDateString('ar-SA')}م</span></p>
+                    <div class="stamp-overlay-pos"><div class="stamp-circle" style="color:${activeTheme.stamp};border-color:${activeTheme.stamp}"><span class="font-bold text-[10px]">ختم المدرسة</span><span style="font-size:7px;display:block">مصادق عليه</span></div></div>
                   </div>
                 </div>
 
@@ -1171,44 +1207,47 @@ export default function PrintResults() {
           certificatesHTML += `
             <div class="pro-cert-page-landscape" style="background-color:${activeTheme.bg};color:${activeTheme.text}">
               <div class="pro-cover-grid">
-                <div class="pro-rounded-panel" style="border-color:${activeTheme.border}"><div class="panel-inner flex flex-col justify-between h-full">
-                  <ul class="pro-bullet-list space-y-1">
-                    <li>عود إبنك الصدق والصلاة ومكارم الأخلاق</li>
-                    <li>تأكد من صداقة إبنك للأخيار</li>
-                    <li>زيارتك للمدرسة مهمة لأنها تكمل دور المدرسة العلمية والتربوية</li>
-                  </ul>
-                  <div class="pro-ribbon-banner"><span class="ribbon-tail-r" style="border-right-color:${activeTheme.border}"></span><span class="ribbon-text" style="border-color:${activeTheme.border};background-color:${activeTheme.headerBg}">إبـنـنـا التـلـمـيـذ</span><span class="ribbon-tail-l" style="border-left-color:${activeTheme.border}"></span></div>
-                  <ul class="pro-bullet-list space-y-1">
-                    <li>حافظ على صلواتك ودوام على تلاوة القرآن.</li>
-                    <li>إجتهد في دراستك فلكل مجتهد نصيب.</li>
-                    <li>إحترام المعلم واجب.</li>
-                  </ul>
-                  <div class="pro-scroll-banner" style="border-color:${activeTheme.border};background-color:${activeTheme.headerBg}"><span>كـاد الـمـعـلـم أن يـكـون ر سـو لاً</span></div>
-                  <div class="flex justify-center my-1"><div class="pro-hexagon-badge" style="border-color:${activeTheme.border};background-color:${activeTheme.headerBg}"><span>سلم التقديرات بالسودان</span></div></div>
-                  <ul class="pro-bullet-list scale-list space-y-0.5 text-xs">
-                    <li>من 90% إلى 100% ممتاز (مرتفع).</li>
-                    <li>من 80% إلى 89% جيد جداً.</li>
-                    <li>من 65% إلى 79% جـيـد.</li>
-                    <li>من 50% إلى 64% مقبول.</li>
-                    <li>أقل من 50% ضعــيف (له دور ثانٍ).</li>
-                  </ul>
+                <div class="pro-rounded-panel" style="border-color:${activeTheme.border};background-color:${activeTheme.bg}"><div class="panel-inner flex flex-col justify-between h-full py-6 px-4 items-center text-center">
+                  <div class="w-full space-y-1.5 text-center">
+                    <p class="text-[11.5px] font-bold leading-relaxed">• عود إبنك الصدق والصلاة ومكارم الأخلاق</p>
+                    <p class="text-[11.5px] font-bold leading-relaxed">• تأكد من صداقة إبنك للأخيار</p>
+                    <p class="text-[11.5px] font-bold leading-relaxed">• زيارتك للمدرسة مهمة لأنها تكمل دور المدرسة العلمية والتربوية</p>
+                  </div>
+                  <div class="pro-ribbon-banner mx-auto my-2"><span class="ribbon-tail-r" style="border-right-color:${activeTheme.border}"></span><span class="ribbon-text px-6 py-1 text-[12px]" style="border-color:${activeTheme.border};background-color:${activeTheme.headerBg}">إبـنـنـا التـلـمـيـذ</span><span class="ribbon-tail-l" style="border-left-color:${activeTheme.border}"></span></div>
+                  <div class="w-full space-y-1.5 text-center">
+                    <p class="text-[11.5px] font-bold leading-relaxed">• حافظ على صلواتك ودوام على تلاوة القرآن.</p>
+                    <p class="text-[11.5px] font-bold leading-relaxed">• إجتهد في دراستك فلكل مجتهد نصيب.</p>
+                    <p class="text-[11.5px] font-bold leading-relaxed">• إحترام المعلم واجب.</p>
+                  </div>
+                  <div class="pro-scroll-banner w-[92%] mx-auto text-center py-1.5" style="border-color:${activeTheme.border};background-color:${activeTheme.headerBg};border-radius:4px"><span class="text-[12px] font-black tracking-wide">كـاد الـمـعـلـم أن يـكـون ر سـو لاً</span></div>
+                  <div class="flex justify-center w-full my-1"><div class="pro-hexagon-badge mx-auto px-5 py-1" style="border-color:${activeTheme.border};background-color:${activeTheme.headerBg}"><span class="text-[11px] font-black">التقدير</span></div></div>
+                  <div class="w-full space-y-1 text-center">
+                    <p class="text-[11px] font-bold">• من 100% الى 90% ممتاز.</p>
+                    <p class="text-[11px] font-bold">• أقل من 90% الى 75% جيد جداً.</p>
+                    <p class="text-[11px] font-bold">• أقل من 75% الى 60% جيد.</p>
+                    <p class="text-[11px] font-bold">• أقل من 60% الى 50% مقبول.</p>
+                    <p class="text-[11px] font-bold">• أقل من 50% ضعيف.</p>
+                  </div>
                 </div></div>
-                <div class="pro-rounded-panel" style="border-color:${activeTheme.border}"><div class="panel-inner text-center flex flex-col justify-between h-full">
-                  <div>
-                    <div class="bismillah-calligraphy text-base font-bold">بسم الله الرحمن الرحيم</div>
-                    <div class="text-center mt-2 leading-snug"><p class="font-bold text-xs">جمهورية السودان</p><p class="font-bold text-sm">ولاية الخرطوم – محلية الشهداء وسوبا</p><p class="font-bold text-xs">وزارة التربية والتعليم – إدارة التعليم الخاص</p></div>
+                <div class="pro-rounded-panel" style="border-color:${activeTheme.border};background-color:${activeTheme.bg}"><div class="panel-inner flex flex-col h-full py-8 px-4 items-center text-center justify-between">
+                  <div class="w-full text-center space-y-3">
+                    <div class="bismillah-calligraphy text-[13px] font-bold text-center" style="font-family:'Amiri', serif">بسم الله الرحمن الرحيم</div>
+                    <div class="text-center leading-loose space-y-0.5 pt-2"><p class="font-bold text-[11px]">ولاية الخرطوم – محلية الشهداء، وسوبا</p><p class="font-bold text-[11px]">وزارة التربية والتعليم – إدارة التعليم الخاص</p></div>
                   </div>
-                  <div class="my-3">
-                    <h2 class="pro-school-title text-2xl font-black" style="color:${activeTheme.border}">${sName}</h2>
-                    <p class="font-bold text-sm mt-1">الإبـتـدائـيـة والـمـتـوسـطـة والـثـانـويـة</p>
-                    <p class="font-bold text-xs mt-0.5">بـنـيـن – بـنـات</p>
+                  <div class="w-full text-center space-y-1.5 py-3">
+                    <h2 class="pro-school-title text-[18px] font-black text-center leading-relaxed" style="color:${activeTheme.border};font-family:'Amiri', serif;line-height:1.6">${sName}<br/>الإبتدائية والمتوسطة<br/>بنين – بنات</h2>
                   </div>
-                  <div class="pro-scroll-banner main-title-scroll" style="border-color:${activeTheme.border};background-color:${activeTheme.headerBg}"><span>نـتـيـجـة الـمـقـر ر ا ت الـدر ا سـيـة</span></div>
-                  <div class="pro-student-cover-info text-right w-11/12 mx-auto space-y-2">
-                    <div class="flex items-center"><span class="font-bold w-24 text-sm">اسم التلميـذ/</span><span class="font-bold text-base border-b-2 border-black flex-1 pb-1">${student.full_name || student.name}</span></div>
-                    <div class="flex items-center"><span class="font-bold w-24 text-sm">الصــــــــــف/</span><span class="font-bold text-base border-b-2 border-black flex-1 pb-1">${student.grade || "الثالث المتوسط"}</span></div>
-                    <div class="flex items-center mt-2"><span class="font-bold w-24 text-xs">الإدارة:</span><span class="font-mono text-xs border-b border-black flex-1 pb-1">0123109370 / 0116375406</span></div>
+                  <div class="relative w-[72%] mx-auto my-2">
+                    <div class="pro-scroll-banner main-title-scroll w-full text-center py-1.5" style="border-color:${activeTheme.border};background-color:${activeTheme.headerBg};border-width:1.2px;border-radius:2px"><span class="text-[11px] font-black tracking-[0.12em]">نتيجة المقررات الدراسية</span></div>
+                    <span class="absolute -left-1 top-1/2 -translate-y-1/2 w-2 h-[18px] bg-white border border-black rounded-r-sm" style="border-color:${activeTheme.border}"></span>
+                    <span class="absolute -right-1 top-1/2 -translate-y-1/2 w-2 h-[18px] bg-white border border-black rounded-l-sm" style="border-color:${activeTheme.border}"></span>
                   </div>
+                  <div class="w-full space-y-4 pt-4">
+                    <div class="flex items-end justify-center gap-2 w-[92%] mx-auto"><span class="font-bold text-[11px] shrink-0 pb-1">اسم التلميذ/</span><span class="font-bold text-[13px] flex-1 border-b border-black pb-1 text-center leading-none" style="min-height:18px">${student.full_name || student.name}</span></div>
+                    <div class="flex items-end justify-center gap-2 w-[92%] mx-auto"><span class="font-bold text-[11px] shrink-0 pb-1">الصف/</span><span class="font-bold text-[13px] flex-1 border-b border-black pb-1 text-center leading-none" style="min-height:18px">${student.grade || "الثالث المتوسط"}</span></div>
+                    <div class="flex items-center justify-center gap-1 w-[92%] mx-auto pt-1"><span class="font-bold text-[9px] shrink-0">الإدارة :</span><span class="font-mono text-[10px] flex-1 text-center tracking-wide" dir="ltr">${schoolPhone ? `${schoolPhone}` : "0123109370 / 0116375406"}</span></div>
+                  </div>
+                  <div class="flex-1"></div>
                 </div></div>
               </div>
             </div>`;
@@ -1233,7 +1272,21 @@ ${PRO_CERTIFICATE_PRINT_CSS}
 </head>
 <body>
 ${certificatesHTML}
-<script>window.onload=function(){window.print();}<\/script>
+ <script>
+  function doPrint(){ setTimeout(function(){ window.print(); }, 300); }
+  window.onload = function(){
+    var imgs = document.images;
+    if(!imgs || imgs.length===0){ doPrint(); return; }
+    var loaded = 0;
+    var total = imgs.length;
+    function check(){ loaded++; if(loaded>=total) doPrint(); }
+    for(var i=0;i<total;i++){
+      if(imgs[i].complete) check();
+      else { imgs[i].onload = check; imgs[i].onerror = check; }
+    }
+    setTimeout(doPrint, 1200);
+  };
+<\/script>
 </body></html>`);
     printWindow.document.close();
   };
@@ -1247,7 +1300,7 @@ ${certificatesHTML}
   return (
     <div className="space-y-6 pb-20" dir={isRTL ? "rtl" : "ltr"}>
       <PageHeader
-        title={isRTL ? "منظومة ومحرك طباعة النتائج المدرسية السودانية" : "Sudanese Official Result Print Engine"}
+        title={isRTL ? "طباعة النتائج" : "Print Results"}
         subtitle={isRTL ? "طباعة شهادات نتائج الطلاب حسب المعايير المعتمدة بالسودان، مع إمكانية التخصيص الكامل للشعار والختم والألوان" : "Print official student certificates according to Sudanese standards with full branding control"}
       >
         <div className="flex gap-3 items-center">
@@ -1304,17 +1357,17 @@ ${certificatesHTML}
             <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={() => setCertificateLayout("portrait")}
-                className={`h-11 px-3 rounded-xl border text-xs font-bold flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${certificateLayout === "portrait" ? "border-emerald-700 bg-emerald-50 text-emerald-950 shadow-sm" : "border-stone-200 bg-white text-stone-600 hover:bg-stone-50"}`}
+                className={`h-11 px-3 rounded-xl border text-sm font-bold flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${certificateLayout === "portrait" ? "border-emerald-700 bg-emerald-50 text-emerald-950 shadow-sm" : "border-stone-200 bg-white text-stone-600 hover:bg-stone-50"}`}
               >
                 <Layout size={16} />
-                <span>عمودي (الشهادة السودانية A4)</span>
+                <span>عمودي</span>
               </button>
               <button
                 onClick={() => setCertificateLayout("landscape")}
-                className={`h-11 px-3 rounded-xl border text-xs font-bold flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${certificateLayout === "landscape" ? "border-emerald-700 bg-emerald-50 text-emerald-950 shadow-sm" : "border-stone-200 bg-white text-stone-600 hover:bg-stone-50"}`}
+                className={`h-11 px-3 rounded-xl border text-sm font-bold flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${certificateLayout === "landscape" ? "border-emerald-700 bg-emerald-50 text-emerald-950 shadow-sm" : "border-stone-200 bg-white text-stone-600 hover:bg-stone-50"}`}
               >
                 <LayoutGrid size={16} />
-                <span>أفقي (الكشف البانورامي A4)</span>
+                <span>أفقي</span>
               </button>
             </div>
           </div>
@@ -1327,8 +1380,8 @@ ${certificatesHTML}
                 <Input
                   value={customSchoolName}
                   onChange={(e) => setCustomSchoolName(e.target.value)}
-                  placeholder={isRTL ? "مدارس الأستاذ سمير القرآنية الخاصة..." : "School name..."}
-                  className="h-10 rounded-xl border-stone-200 text-xs font-bold bg-stone-50/50"
+                  placeholder={isRTL ? "أدخل اسم المدرسة الرسمي" : "Enter official school name"}
+                  className="h-10 rounded-xl border-stone-200 text-xs font-bold bg-stone-50/50 placeholder:text-stone-400 placeholder:font-normal"
                 />
               </div>
 
@@ -1337,8 +1390,52 @@ ${certificatesHTML}
                 <Input
                   value={principalName}
                   onChange={(e) => setPrincipalName(e.target.value)}
-                  placeholder={isRTL ? "هند يوسف حماد علي..." : "Principal Name..."}
-                  className="h-10 rounded-xl border-stone-200 text-xs font-bold bg-stone-50/50"
+                  placeholder={isRTL ? "أدخل اسم مدير المدرسة" : "Enter principal name"}
+                  className="h-10 rounded-xl border-stone-200 text-xs font-bold bg-stone-50/50 placeholder:text-stone-400 placeholder:font-normal"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-stone-400 uppercase tracking-widest">{isRTL ? "ولاية ومحلية المدرسة" : "Government Locality"}</label>
+                <Input
+                  value={govLocality}
+                  onChange={(e) => setGovLocality(e.target.value)}
+                  placeholder={isRTL ? "أدخل الولاية والمحلية" : "Enter state and locality"}
+                  className="h-10 rounded-xl border-stone-200 text-xs font-bold bg-stone-50/50 placeholder:text-stone-400 placeholder:font-normal"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-stone-400 uppercase tracking-widest">{isRTL ? "العام الدراسي *" : "Academic Year *"}</label>
+                <Input
+                  value={academicYear}
+                  onChange={(e) => setAcademicYear(e.target.value)}
+                  placeholder={isRTL ? "أدخل العام الدراسي" : "Enter academic year"}
+                  className="h-10 rounded-xl border-stone-200 text-xs font-bold bg-stone-50/50 placeholder:text-stone-400 placeholder:font-normal"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-stone-400 uppercase tracking-widest">{isRTL ? "مرحلة التعليم" : "School Stage"}</label>
+                <Input
+                  value={schoolStage}
+                  onChange={(e) => setSchoolStage(e.target.value)}
+                  placeholder={isRTL ? "أدخل مرحلة التعليم" : "Enter school stage"}
+                  className="h-10 rounded-xl border-stone-200 text-xs font-bold bg-stone-50/50 placeholder:text-stone-400 placeholder:font-normal"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-stone-400 uppercase tracking-widest">{isRTL ? "هاتف المدرسة" : "School Phone"}</label>
+                <Input
+                  value={schoolPhone}
+                  onChange={(e) => setSchoolPhone(e.target.value)}
+                  placeholder={isRTL ? "أدخل هاتف المدرسة" : "Enter phone number"}
+                  className="h-10 rounded-xl border-stone-200 text-xs font-bold bg-stone-50/50 placeholder:text-stone-400 placeholder:font-normal"
                 />
               </div>
             </div>
@@ -1670,10 +1767,14 @@ ${certificatesHTML}
                       items={getStudentCompleteSubjectsAndGrades(previewStudent)}
                       attendanceCount={getAbsenceCount(previewStudent)}
                       schoolName={customSchoolName || 'مدارس الأستاذ سمير القرآنية الخاصة'}
-                      schoolLogo={customLogo}
+                      schoolLogo={customLogo || existingSettings?.school_logo || ""}
                       theme={activeTheme}
                       termLabel={currentTermLabel}
-                      principalName={principalName || 'هند يوسف حماد علي'}
+                      principalName={principalName || ''}
+                      govLocality={govLocality}
+                      academicYear={academicYear}
+                      schoolStage={schoolStage}
+                      schoolPhone={schoolPhone}
                     />
                   </PreviewScaledWrapper>
                 </div>
@@ -1686,10 +1787,14 @@ ${certificatesHTML}
                         items={getStudentCompleteSubjectsAndGrades(previewStudent)}
                         attendanceCount={getAbsenceCount(previewStudent)}
                         schoolName={customSchoolName || 'مدارس الأستاذ سمير القرآنية الخاصة'}
-                        schoolLogo={customLogo}
+                        schoolLogo={customLogo || existingSettings?.school_logo || ""}
                         theme={activeTheme}
                         termLabel={currentTermLabel}
-                        principalName={principalName || 'هند يوسف حماد علي'}
+                        principalName={principalName || ''}
+                        govLocality={govLocality}
+                        academicYear={academicYear}
+                        schoolStage={schoolStage}
+                        phone={schoolPhone}
                       />
                     </PreviewScaledWrapper>
                   </div>
@@ -1703,6 +1808,9 @@ ${certificatesHTML}
                           student={previewStudent}
                           schoolName={customSchoolName || 'مدارس الأستاذ سمير القرآنية الخاصة'}
                           theme={activeTheme}
+                          govLocality={govLocality}
+                          schoolStage={schoolStage}
+                          phone={schoolPhone}
                         />
                       </PreviewScaledWrapper>
                     </div>
@@ -1767,19 +1875,36 @@ body {
 }
 
 .sudan-header-grid {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  justify-items: center;
+  gap: 12px;
   margin-bottom: 8px;
 }
 
+/* دفع المربع الأيمن لليمين والأيسر لليسار - يحاكي الصورة */
+.sudan-header-grid .sudan-header-side:first-child { justify-self: end; }
+.sudan-header-grid .sudan-header-side:last-child { justify-self: start; }
+
 .sudan-header-side {
-  width: 170px;
+  width: 140px;
+  height: 140px;
+  border: 1.5px solid #000;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 5px;
+  box-sizing: border-box;
+  overflow: hidden;
+  gap: 2px;
 }
 
 .sudan-header-center {
-  flex: 1;
-  padding: 0 10px;
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 4px 10px;
 }
 
 .sudan-school-name {
@@ -1890,13 +2015,22 @@ body {
 }
 
 .header-box-side {
-  border: 2px solid #000;
-  border-radius: 10px;
-  padding: 6px 10px;
-  width: 170px;
-  height: 72px;
+  border: 1.5px solid #000;
+  border-radius: 8px;
+  padding: 6px 5px;
+  width: 140px;
+  height: 140px;
+  min-width: 140px;
+  min-height: 140px;
   box-sizing: border-box;
-  background: rgba(0,0,0,0.01);
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  gap: 1px;
+  text-align: center;
 }
 
 .header-box-center {
@@ -1940,6 +2074,7 @@ body {
 .pro-meta-bar {
   display: flex;
   justify-content: space-between;
+  align-items: flex-start;
   border-bottom: 1.5px solid #000;
   padding-bottom: 4px;
   margin-bottom: 6px;
@@ -1947,6 +2082,10 @@ body {
 
 .meta-left p, .meta-right p {
   font-size: 12.5px;
+}
+
+.meta-right {
+  transform: translateX(78px);
 }
 
 .pro-table-wrapper {
@@ -2083,23 +2222,32 @@ body {
 .pro-bullet-list {
   list-style: none;
   padding: 0;
-  margin: 0;
+  margin: 0 auto;
+  text-align: center;
 }
 
 .pro-bullet-list li {
   font-size: 12.5px;
   font-weight: 700;
   line-height: 1.7;
+  text-align: center;
   position: relative;
-  padding-right: 16px;
+  padding: 0;
 }
 
 .pro-bullet-list li::before {
-  content: "•";
-  position: absolute;
-  right: 0;
-  font-size: 15px;
+  content: "• ";
+  position: static;
+  display: inline;
+  font-size: 13px;
   font-weight: 900;
+  margin-left: 4px;
+}
+
+.panel-inner {
+  width: 100%;
+  align-items: center;
+  text-align: center;
 }
 
 .pro-ribbon-banner {
@@ -2150,6 +2298,19 @@ body {
   clip-path: polygon(10% 0%, 90% 0%, 100% 50%, 90% 100%, 10% 100%, 0% 50%);
 }
 
+.sudan-footer-notice,
+.pro-footer-warning {
+  text-align: center !important;
+  width: 100% !important;
+  margin: 0 auto !important;
+  transform: none !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  left: auto !important;
+  right: auto !important;
+  display: block;
+}
+
 @media print {
   body { background: #fff; }
   .sudan-cert-portrait,
@@ -2157,6 +2318,14 @@ body {
     page-break-after: always;
     margin: 0;
     padding: 5mm;
+  }
+  .sudan-header-side,
+  .header-box-side {
+    width: 140px !important;
+    height: 140px !important;
+    min-width: 140px !important;
+    min-height: 140px !important;
+    flex-shrink: 0 !important;
   }
 }
 `;

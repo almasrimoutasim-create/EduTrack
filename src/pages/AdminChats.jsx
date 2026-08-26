@@ -19,7 +19,7 @@ import PageHeader from "@/components/shared/PageHeader";
 import { useLanguage } from "@/lib/LanguageContext";
 
 export default function AdminChats() {
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   const isRTL = language === "ar";
   const [activeConvKey, setActiveConvKey] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -216,7 +216,7 @@ export default function AdminChats() {
                                 className="flex items-center gap-2 p-2 rounded-lg text-xs font-semibold bg-stone-50 text-stone-800 hover:bg-stone-100 border border-stone-200"
                               >
                                 <FileText size={16} />
-                                <span className="truncate flex-1">تحميل المرفق</span>
+                                <span className="truncate flex-1">{t("downloadAttachment")}</span>
                                 <Download size={14} />
                               </a>
                             )}

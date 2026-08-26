@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { entities } from "@/api/dbClient";
 import { useLanguage } from "@/lib/LanguageContext";
 import { Card } from "@/components/ui/card";
-import { TrendingUp, Banknote, CreditCard, Wallet, Package, ShoppingBag, ArrowUpRight } from "lucide-react";
+import { TrendingUp, Banknote, CreditCard, Wallet, ShoppingBag, ArrowUpRight } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 
 export default function SalesReports() {

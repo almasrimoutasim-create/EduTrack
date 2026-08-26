@@ -431,13 +431,50 @@ if (process.env.DATABASE_URL) {
       school_name_en TEXT,
       school_logo TEXT,
       school_background_image TEXT,
+      principal_name TEXT,
+      gov_locality TEXT,
+      academic_year TEXT,
+      school_stage TEXT,
+      school_phone TEXT,
       created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     )
   `.then(() => {
     console.log('[neon] system_settings table verified/created');
+    // ترحيل تلقائي للأعمدة الجديدة إذا كان الجدول موجود مسبقاً
+    sql`ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS principal_name TEXT;`.catch(()=>{});
+    sql`ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS gov_locality TEXT;`.catch(()=>{});
+    sql`ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS academic_year TEXT;`.catch(()=>{});
+    sql`ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS school_stage TEXT;`.catch(()=>{});
+    sql`ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS school_phone TEXT;`.catch(()=>{});
   }).catch(err => {
     console.error('[neon] failed to verify/create system_settings table:', err.message);
+  });
+
+  // Auto-create registration_requests table (نظام التسجيل الجديد)
+  sql`
+    CREATE TABLE IF NOT EXISTS registration_requests (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      full_name TEXT NOT NULL,
+      email TEXT NOT NULL,
+      phone TEXT,
+      id_number TEXT,
+      role_requested TEXT NOT NULL,
+      grade TEXT,
+      department TEXT,
+      notes TEXT,
+      status TEXT NOT NULL DEFAULT 'pending',
+      username_generated TEXT,
+      password_generated TEXT,
+      reviewed_by TEXT,
+      reviewed_at TIMESTAMP WITH TIME ZONE,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `.then(() => {
+    console.log('[neon] registration_requests table verified/created');
+  }).catch(err => {
+    console.error('[neon] failed to verify/create registration_requests table:', err.message);
   });
 }
 
@@ -508,6 +545,7 @@ const ENTITY_TABLE_MAP = {
   GatewayAccount: 'gateway_accounts',
   SystemAdmin: 'system_admins',
   SystemSetting: 'system_settings',
+  RegistrationRequest: 'registration_requests',
 };
 
 async function createStripePaymentIntent(amount, currency) {
@@ -878,18 +916,27 @@ export function createApiHandler() {
 
     res.setHeader('Content-Type', 'application/json');
 
-    // JWT Authentication Middleware
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      res.statusCode = 401;
-      return res.end(JSON.stringify({ error: 'Unauthorized: Missing or invalid token' }));
-    }
-    const token = authHeader.split(' ')[1];
-    try {
-      req.user = jwt.verify(token, JWT_SECRET);
-    } catch (err) {
-      res.statusCode = 401;
-      return res.end(JSON.stringify({ error: 'Unauthorized: Invalid or expired token' }));
+    // Parse entity early to allow public registration
+    const earlyUrlParts = req.url.split('?');
+    const earlyPath = earlyUrlParts[0];
+    const earlyMatch = earlyPath.match(/^\/neon-db\/entities\/([^\/]+)(?:\/(.+))?$/);
+    const earlyEntity = earlyMatch ? earlyMatch[1] : null;
+    const isPublicRegistrationPost = earlyEntity === 'RegistrationRequest' && req.method === 'POST';
+
+    // JWT Authentication Middleware (skip for public registration creation)
+    if (!isPublicRegistrationPost) {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        res.statusCode = 401;
+        return res.end(JSON.stringify({ error: 'Unauthorized: Missing or invalid token' }));
+      }
+      const token = authHeader.split(' ')[1];
+      try {
+        req.user = jwt.verify(token, JWT_SECRET);
+      } catch (err) {
+        res.statusCode = 401;
+        return res.end(JSON.stringify({ error: 'Unauthorized: Invalid or expired token' }));
+      }
     }
 
     try {

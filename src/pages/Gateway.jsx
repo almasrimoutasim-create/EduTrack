@@ -170,6 +170,13 @@ export default function Gateway() {
                 )}
               </button>
 
+              <div className="flex items-center justify-center gap-1.5 mt-4 text-sm" style={{ transform: "translateX(-6%)" }}>
+                <span className="text-stone-400 text-xs">{isRTL ? "ليس لديك حساب؟" : "Don't have an account?"}</span>
+                <a href="/register" className="font-bold text-stone-900 hover:text-black underline underline-offset-4">
+                  {isRTL ? "سجل الآن" : "Register now"}
+                </a>
+              </div>
+
             </form>
           </div>
         </Card>

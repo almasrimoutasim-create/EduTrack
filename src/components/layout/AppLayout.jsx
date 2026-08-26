@@ -9,7 +9,7 @@ import { useLanguage } from "@/lib/LanguageContext";
 import { useAuth } from "@/lib/AuthContext";
 import { cn } from "@/lib/utils";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
-import { User } from "lucide-react";
+import { User, ArrowLeft } from "lucide-react";
 
 export default function AppLayout() {
   const { language } = useLanguage();
@@ -17,6 +17,45 @@ export default function AppLayout() {
   const isRTL = language === "ar";
 
   const portalRole = localStorage.getItem("portal_role") || user?.role || "admin";
+
+  const PORTAL_HOMES = {
+    admin: "/", teacher: "/teacher-portal", student: "/student-portal", parent: "/parent-portal",
+    bus: "/staff-portal", bus_supervisor: "/staff-portal", staff: "/staff-portal", registrar: "/staff-portal",
+    hr: "/staff-portal", accountant: "/staff-portal", store: "/staff-portal", store_keeper: "/staff-portal", library: "/library",
+    security: "/staff-portal", counselor: "/staff-portal", counseling: "/staff-portal", support: "/staff-portal",
+  };
+  // لوحات التحكم الفعلية لكل قسم إداري (للتمييز بين لوحة التحكم ومحور الأقسام)
+  const STAFF_DASHBOARDS = {
+    registrar: "/student-directory", bus: "/bus-supervisor", bus_supervisor: "/bus-supervisor",
+    store: "/store", store_keeper: "/store", hr: "/staff-control", accountant: "/finance",
+    counselor: "/counseling", counseling: "/counseling", security: "/staff-portal", staff: "/staff-portal", support: "/staff-portal",
+  };
+  const portalHome = PORTAL_HOMES[portalRole] || "/";
+  const currentPath = typeof window !== "undefined" ? window.location.pathname : "/";
+  const isStaffHubRole = ["registrar","bus","bus_supervisor","store","store_keeper","hr","accountant","counselor","counseling","security","staff","support"].includes(portalRole);
+  const staffDashboard = STAFF_DASHBOARDS[portalRole];
+  // يظهر في كل الصفحات بما فيها لوحة التحكم
+  const showBack = !currentPath.startsWith("/register");
+
+  const handleBackToPortal = () => {
+    // للأقسام الإدارية: من لوحة التحكم الخاصة بهم يرجع لمحور الأقسام /staff-portal
+    if (isStaffHubRole && staffDashboard && currentPath === staffDashboard) {
+      window.location.href = "/staff-portal";
+      return;
+    }
+    // من محور الأقسام نفسه أو من بوابة رئيسية أخرى يرجع لاختيار البوابات
+    if (currentPath === portalHome) {
+      localStorage.removeItem("portal_user");
+      localStorage.removeItem("portal_is_auth");
+      localStorage.removeItem("portal_jwt_token");
+      localStorage.removeItem("portal_role");
+      localStorage.removeItem("portal_user_id");
+      localStorage.removeItem("portal_user_name");
+      window.location.reload();
+    } else {
+      window.location.href = portalHome;
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#FDFCF8]" dir={isRTL ? "rtl" : "ltr"}>
@@ -53,8 +92,14 @@ export default function AppLayout() {
             </span>
           </div>
 
-          {/* الجانب الأيسر (RTL) / الأيمن (LTR) - زر تبديل اللغة الثابت */}
-          <div className="flex items-center gap-4">
+          {/* الجانب الأيسر (RTL) / الأيمن (LTR) - زر رجوع في اليسار + اللغة */}
+          <div className="flex items-center gap-3">
+            {showBack && (
+              <button onClick={handleBackToPortal} className="h-9 px-4 rounded-xl bg-stone-900 text-white text-xs font-black flex items-center gap-1.5 hover:bg-black transition-colors shadow-md">
+                <ArrowLeft size={14} className={isRTL ? "" : "rotate-180"} />
+                {isRTL ? "رجوع" : "Back"}
+              </button>
+            )}
             <div className="flex items-center gap-2">
               <span className="text-stone-400 text-[11px] font-black uppercase tracking-wider hidden sm:inline-block">
                 {isRTL ? "اللغة الحالية:" : "Active Language:"}

@@ -321,8 +321,8 @@ export default function Schedules() {
           return (
             <Card key={day} className="p-5 bg-white border-none shadow-sm rounded-3xl flex flex-col min-h-[350px]">
               <div className="border-b border-stone-100 pb-3 mb-4 flex items-center justify-between">
-                <span className="font-serif font-black text-sm text-stone-900">{dayName}</span>
-                <Badge className="bg-stone-100 text-stone-500 border-none font-bold text-[10px] px-2 py-0.5 rounded-lg">
+                <span className="font-serif font-black text-base text-stone-900">{dayName}</span>
+                <Badge className="bg-stone-100 text-stone-500 border-none font-bold text-xs px-2.5 py-1 rounded-lg">
                   {dayClasses.length} {isRTL ? "حصص" : "classes"}
                 </Badge>
               </div>
@@ -352,9 +352,9 @@ export default function Schedules() {
                         <div className="absolute top-1.5 right-1.5 p-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10 flex gap-1">
                           <button
                             onClick={() => handleStartEdit(cls)}
-                            className="text-stone-400 hover:text-teal-650 bg-white shadow-sm border border-stone-100 rounded-md p-1 transition-colors cursor-pointer"
+                            className="text-stone-400 hover:text-teal-650 bg-white shadow-sm border border-stone-100 rounded-md p-1.5 transition-colors cursor-pointer"
                           >
-                            <Pencil size={10} />
+                            <Pencil size={12} />
                           </button>
                           <button
                             onClick={() => {
@@ -362,25 +362,25 @@ export default function Schedules() {
                                 deleteScheduleMutation.mutate(cls.id);
                               }
                             }}
-                            className="text-stone-400 hover:text-rose-600 bg-white shadow-sm border border-stone-100 rounded-md p-1 transition-colors cursor-pointer"
+                            className="text-stone-400 hover:text-rose-600 bg-white shadow-sm border border-stone-100 rounded-md p-1.5 transition-colors cursor-pointer"
                           >
-                            <Trash2 size={10} />
+                            <Trash2 size={12} />
                           </button>
                         </div>
 
-                        <div className="space-y-1.5 relative z-0 mt-1">
-                          <p className={`font-extrabold ${colors.text} text-xs text-center px-1.5 truncate w-full block`} title={cls.subject_name}>
+                        <div className="space-y-2 relative z-0 mt-1">
+                          <p className={`font-extrabold ${colors.text} text-[13px] leading-tight text-center px-1.5 truncate w-full block`} title={cls.subject_name}>
                             {cls.subject_name}
                           </p>
                           
-                          <div className={`flex items-center justify-center gap-1 text-[9px] font-bold ${colors.subtext} uppercase tracking-wide`}>
-                            <Clock size={9} className={colors.icon} />
+                          <div className={`flex items-center justify-center gap-1.5 text-[11px] font-bold ${colors.subtext} uppercase tracking-wide`}>
+                            <Clock size={11} className={colors.icon} />
                             <span className="num-en">{cls.start_time} - {cls.end_time}</span>
                           </div>
 
-                          <div className={`flex items-center justify-center gap-1 text-[9px] font-semibold ${colors.text} opacity-85`}>
-                            <GraduationCap size={9} className={colors.icon} />
-                            <span className="truncate max-w-[95px]">{cls.teacher_name}</span>
+                          <div className={`flex items-center justify-center gap-1.5 text-xs font-semibold ${colors.text} opacity-90`}>
+                            <GraduationCap size={12} className={colors.icon} />
+                            <span className="truncate max-w-[110px]">{cls.teacher_name}</span>
                           </div>
 
                           {subjectBooks.length > 0 && (
@@ -389,20 +389,20 @@ export default function Schedules() {
                                 setSelectedClassBooks({ subjectName: cls.subject_name, books: subjectBooks });
                                 setBooksDialogOpen(true);
                               }}
-                              className={`w-full flex items-center justify-center gap-1 mt-1 text-[8.5px] font-bold ${colors.subtext} ${colors.bg} hover:opacity-90 rounded-md py-0.5 px-1.5 cursor-pointer transition-colors border ${colors.border}`}
+                              className={`w-full flex items-center justify-center gap-1 mt-1.5 text-[11px] font-bold ${colors.subtext} ${colors.bg} hover:opacity-90 rounded-lg py-1 px-2 cursor-pointer transition-colors border ${colors.border}`}
                             >
-                              <BookOpen size={8.5} className={colors.icon} />
+                              <BookOpen size={11} className={colors.icon} />
                               <span>{isRTL ? `المراجع: ${subjectBooks.length}` : `Ref: ${subjectBooks.length}`}</span>
                             </button>
                           )}
 
-                          <div className={`flex justify-between items-center pt-1.5 border-t border-stone-200/40 flex-wrap gap-1 mt-1`}>
-                            <Badge className={`${colors.badge} border-none font-bold text-[8px] px-1 py-0.5 rounded-md`}>
+                          <div className={`flex justify-between items-center pt-2 border-t border-stone-200/50 flex-wrap gap-1 mt-1.5`}>
+                            <Badge className={`${colors.badge} border-none font-bold text-[10px] px-1.5 py-0.5 rounded-md`}>
                               {isRTL ? `${cls.grade} - ${cls.section || 'أبو بكر'}` : `Gr ${cls.grade} - ${cls.section || 'Abu Bakr'}`}
                             </Badge>
                             {cls.room && (
-                              <span className={`text-[8.5px] font-bold ${colors.subtext} flex items-center gap-0.5`}>
-                                <MapPin size={8.5} className={colors.icon} /> {cls.room}
+                              <span className={`text-xs font-bold ${colors.subtext} flex items-center gap-1`}>
+                                <MapPin size={11} className={colors.icon} /> {cls.room}
                               </span>
                             )}
                           </div>

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import RoleLogin from "@/pages/RoleLogin";
 import Gateway from "@/pages/Gateway";
+import BackToPortalButton from "@/components/shared/BackToPortalButton";
 
 const PORTAL_REDIRECTS = { 
   admin: "/",
@@ -84,10 +85,13 @@ const isPathAllowed = (role, path) => {
   return false;
 };
 
+const PUBLIC_PATHS = ["/register", "/registration"];
+
 export default function RoleGate({ children }) {
   const { user, isAuthenticated, isLoadingAuth, isGatewayPassed } = useAuth();
   const [redirecting, setRedirecting] = useState(false);
   const path = window.location.pathname;
+  const isPublicPath = PUBLIC_PATHS.some(p => path === p || path.startsWith(p + "/"));
 
   useEffect(() => {
     if (isLoadingAuth || redirecting) return;
@@ -125,6 +129,11 @@ export default function RoleGate({ children }) {
     );
   }
 
+  // Public paths bypass auth (registration)
+  if (isPublicPath) {
+    return children;
+  }
+
   // Not passed gateway lock screen? Show gateway
   if (!isGatewayPassed) {
     return <Gateway />;
@@ -136,5 +145,18 @@ export default function RoleGate({ children }) {
   }
 
   // Authenticated & authorized? Let the children render!
+  // للبوابات التي لا تستخدم AppLayout (طالب/معلم/ولي أمر/دعم) نضيف زر رجوع ثابت أعلى اليسار
+  const portalRolesWithFixedBack = ["teacher", "student", "parent", "support", "staff", "bus", "bus_supervisor"];
+  const showFixedBack = isAuthenticated && portalRolesWithFixedBack.includes(user?.role) && !isPublicPath;
+  if (showFixedBack) {
+    return (
+      <>
+        <div className="fixed top-4 left-4 z-50">
+          <BackToPortalButton />
+        </div>
+        {children}
+      </>
+    );
+  }
   return children;
 }

@@ -25,7 +25,7 @@ const btnOutline = "inline-flex items-center justify-center gap-2 whitespace-now
 const btnPrimary = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-sm font-semibold transition-all bg-stone-900 text-white hover:bg-black cursor-pointer shadow-lg shadow-stone-200 disabled:opacity-50 disabled:cursor-not-allowed";
 
 export default function PortalAccessAdmin() {
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   const isRTL = language === "ar";
   const [searchTerm, setSearchTerm] = useState("");
 

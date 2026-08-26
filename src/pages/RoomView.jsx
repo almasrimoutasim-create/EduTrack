@@ -24,9 +24,10 @@ const btnOutline = "inline-flex items-center justify-center gap-2 whitespace-now
 const btnPrimary = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-sm font-semibold transition-all bg-stone-900 text-white hover:bg-black cursor-pointer shadow-lg shadow-stone-200 disabled:opacity-50 disabled:cursor-not-allowed";
 
 export default function RoomView() {
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   const isRTL = language === "ar";
   const [selectedFloor, setSelectedFloor] = useState(1);
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Mock Room Data
   const rooms = [
@@ -109,6 +110,8 @@ export default function RoomView() {
               <Search className={`absolute ${isRTL ? 'right-4' : 'left-4'} top-1/2 -translate-y-1/2 text-stone-300`} size={18} />
               <Input 
                 placeholder={isRTL ? "بحث عن قاعة..." : "Search room..."} 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 className={`h-10 ${isRTL ? 'pr-12' : 'pl-12'} border-none bg-transparent text-sm font-medium focus-visible:ring-0`}
               />
             </div>
@@ -124,7 +127,11 @@ export default function RoomView() {
         animate="visible"
         className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
       >
-        {rooms.map((room) => (
+        {rooms.filter(room =>
+          room.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          room.id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          room.type?.toLowerCase().includes(searchQuery.toLowerCase())
+        ).map((room) => (
           <motion.div
             key={room.id}
             variants={{ hidden: { y: 20, opacity: 0 }, visible: { y: 0, opacity: 1 } }}

@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { useLanguage } from "@/lib/LanguageContext";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Users, Clock, Eye, BookOpen, GraduationCap,
+  Users, Clock, Eye, BookOpen,
   Calendar, RefreshCw, Monitor, Radio,
   AlertCircle, Activity, Shield, User,
   StopCircle, Hourglass, Layers

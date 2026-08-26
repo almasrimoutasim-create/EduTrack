@@ -17,12 +17,15 @@ class EntityClient {
   }
 
   getHeaders() {
-    // إذا كان الطلب يخص جدول الإعدادات العامة SystemSetting ونحن نقوم بعملية جلب (قراءة عامة)، نتجاوز إرسال التوكن لئلا يحدث خطأ 401
+    const token = localStorage.getItem('portal_jwt_token') || localStorage.getItem('jwt_token') || localStorage.getItem('auth_token') || localStorage.getItem('token');
+    // للقراءة العامة لإعدادات النظام نسمح بدون توكن، لكن للكتابة نرسل التوكن إن وجد
     if (this.entityName === 'SystemSetting') {
-      return { 'Content-Type': 'application/json' };
+      return token ? { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` } : { 'Content-Type': 'application/json' };
     }
-
-    const token = localStorage.getItem('portal_jwt_token');
+    // طلبات التسجيل: الإنشاء عام بدون توكن، القراءة/التعديل تتطلب توكن
+    if (this.entityName === 'RegistrationRequest') {
+      return token ? { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` } : { 'Content-Type': 'application/json' };
+    }
     return token ? { 'Authorization': `Bearer ${token}` } : {};
   }
 
@@ -158,7 +161,7 @@ const entityNames = [
   'WalletTransaction', 'HallRental', 'OtherRevenue',
   'Expense', 'SalaryRecord', 'PurchaseOrder', 'Visitor',
   'StaffLeave', 'StaffContract', 'StaffEvaluation', 'StaffRequest',
-  'Department', 'CareerLadder', 'StoreCategory', 'SalesOrder', 'SystemSetting', 'GatewayAccount', 'SystemAdmin'
+  'Department', 'CareerLadder', 'StoreCategory', 'SalesOrder', 'SystemSetting', 'GatewayAccount', 'SystemAdmin', 'RegistrationRequest'
 ];
 
 const entities = {};
