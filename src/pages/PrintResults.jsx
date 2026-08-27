@@ -354,13 +354,9 @@ function SudanesePortraitCertificate({ student, items, attendanceCount, schoolNa
               <p className="font-bold text-xs border-b border-black pb-1 w-28 mx-auto">........................</p>
             </div>
 
-            {/* Official Blue Circular Seal Stamp */}
-            <div className="relative flex items-center justify-center w-1/4">
-              <div className="stamp-circle-sudan" style={{ color: theme.stamp, borderColor: theme.stamp }}>
-                <span className="font-black text-[9px]">جمهورية السودان</span>
-                <span className="font-bold text-[8px] my-0.5">{schoolName.substring(0, 18)}</span>
-                <span className="font-black text-[8px]">مصادق عليه رسميـاً</span>
-              </div>
+            {/* مكان الختم الخارجي — يظهر كلمة الختم فقط */}
+            <div className="flex items-center justify-center w-1/4">
+              <span className="font-black text-sm text-stone-700">الختم</span>
             </div>
 
             <div className="text-center space-y-4 w-1/4">
@@ -534,11 +530,8 @@ function CertificateMarksheetFront({ student, items, attendanceCount, schoolName
                 <span className="val font-mono">{new Date().toLocaleDateString('ar-SA')}م</span>
               </p>
 
-              <div className="stamp-overlay-pos">
-                <div className="stamp-circle" style={{ color: theme.stamp, borderColor: theme.stamp }}>
-                  <span className="font-bold text-[10px]">ختم المدرسة</span>
-                  <span className="text-[7px]">مصادق عليه</span>
-                </div>
+              <div className="flex items-center justify-center">
+                <span className="font-black text-sm text-stone-700">الختم</span>
               </div>
             </div>
           </div>
@@ -554,97 +547,103 @@ function CertificateMarksheetFront({ student, items, attendanceCount, schoolName
 }
 
 // ─── LANDSCAPE MARKSHEET BACK (A4 LANDSCAPE COVER) ─────────────
-function CertificateCoverBack({ student, schoolName, theme, govLocality, schoolStage, phone }) {
+function CertificateCoverBack({ student, schoolName, schoolLogo, theme, govLocality, schoolStage, percentage, phone }) {
 
   return (
     <div className="pro-cert-page-landscape" style={{ backgroundColor: theme.bg, color: theme.text }} dir="rtl">
       <div className="pro-cover-grid">
 
-        {/* Right Page in print = Instructions Side (as in reference image) */}
-        <div className="pro-rounded-panel" style={{ borderColor: theme.border, backgroundColor: theme.bg }}>
-          <div className="panel-inner flex flex-col justify-between h-full py-6 px-4 items-center text-center">
-            {/* Top 3 advices */}
-            <div className="w-full space-y-1.5 text-center">
-              <p className="text-[11.5px] font-bold leading-relaxed">• عود إبنك الصدق والصلاة ومكارم الأخلاق</p>
-              <p className="text-[11.5px] font-bold leading-relaxed">• تأكد من صداقة إبنك للأخيار</p>
-              <p className="text-[11.5px] font-bold leading-relaxed">• زيارتك للمدرسة مهمة لأنها تكمل دور المدرسة العلمية والتربوية</p>
-            </div>
-
-            <div className="pro-ribbon-banner mx-auto my-2">
-              <span className="ribbon-tail-r" style={{ borderRightColor: theme.border }} />
-              <span className="ribbon-text px-6 py-1 text-[12px]" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>إبـنـنـا التـلـمـيـذ</span>
-              <span className="ribbon-tail-l" style={{ borderLeftColor: theme.border }} />
-            </div>
-
-            <div className="w-full space-y-1.5 text-center">
-              <p className="text-[11.5px] font-bold leading-relaxed">• حافظ على صلواتك ودوام على تلاوة القرآن.</p>
-              <p className="text-[11.5px] font-bold leading-relaxed">• إجتهد في دراستك فلكل مجتهد نصيب.</p>
-              <p className="text-[11.5px] font-bold leading-relaxed">• إحترام المعلم واجب.</p>
-            </div>
-
-            <div className="pro-scroll-banner w-[92%] mx-auto text-center py-1.5" style={{ borderColor: theme.border, backgroundColor: theme.headerBg, borderRadius: '4px' }}>
-              <span className="text-[12px] font-black tracking-wide">كـاد الـمـعـلـم أن يـكـون ر سـو لاً</span>
-            </div>
-
-            <div className="flex justify-center w-full my-1">
-              <div className="pro-hexagon-badge mx-auto px-5 py-1" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>
-                <span className="text-[11px] font-black">التقدير</span>
+        {/* تصميم بريميوم — الجزء الأيمن: إرشادات (بعد التبديل: يظهر يمين الورقة) */}
+        <div className="pro-rounded-panel" style={{ borderColor: theme.border, backgroundColor: "#ffffff", borderRadius: "20px", borderWidth: "1.4px", boxShadow: "0 4px 24px rgba(0,0,0,0.04)" }}>
+          <div className="panel-inner flex flex-col h-full p-6 justify-between" style={{ fontFamily: "'Cairo', sans-serif" }}>
+            <div className="text-center">
+              <div className="inline-flex items-center gap-2 bg-stone-900 text-white rounded-full px-5 py-1.5 shadow-sm">
+                <span className="h-1.5 w-1.5 rounded-full bg-white/80" />
+                <span className="font-black text-[11px] tracking-wide">ابنتنا / ابننا التلميذ</span>
+                <span className="h-1.5 w-1.5 rounded-full bg-white/80" />
               </div>
             </div>
-
-            <div className="w-full space-y-1 text-center">
-              <p className="text-[11px] font-bold">• من 100% الى 90% ممتاز.</p>
-              <p className="text-[11px] font-bold">• أقل من 90% الى 75% جيد جداً.</p>
-              <p className="text-[11px] font-bold">• أقل من 75% الى 60% جيد.</p>
-              <p className="text-[11px] font-bold">• أقل من 60% الى 50% مقبول.</p>
-              <p className="text-[11px] font-bold">• أقل من 50% ضعيف.</p>
+            <div className="space-y-2.5 py-3">
+              {[
+                "عوّد ابنك على الصدق والصلاة وإكرام الآخرين.",
+                "تأكد من صداقته لأصدقاء أخيار.",
+                "زيارة المدرسة مهمة لأنها تكمل دور المدرسة العلمية والتربوية.",
+                "حافظ على صلواتك وداوم على قراءة القرآن.",
+                "اجتهد في دراستك لتنل مستقبلًا مشرقًا.",
+                "احترام المعلم واجب.",
+              ].map((txt) => (
+                <div key={txt} className="flex items-start gap-2.5 text-right">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 mt-2 shrink-0" />
+                  <span className="text-[11px] font-semibold leading-relaxed text-stone-700 flex-1">{txt}</span>
+                </div>
+              ))}
+            </div>
+            <div className="rounded-2xl border border-amber-100 bg-amber-50/70 px-4 py-3 text-center">
+              <span className="font-black text-[11px] text-amber-900 tracking-wide">“ كل المعلم أن يكون رسولًا ”</span>
+            </div>
+            <div className="pt-3">
+              <div className="text-center mb-2.5">
+                <span className="inline-block bg-white border border-stone-900 rounded-full px-5 py-1 text-[10px] font-black tracking-widest">التقدير</span>
+              </div>
+              <div className="space-y-1.5">
+                {[
+                  { range: "100% → 80%", grade: "ممتاز", color: "bg-emerald-500" },
+                  { range: "80% → 75%", grade: "جيد جدًا", color: "bg-sky-500" },
+                  { range: "75% → 60%", grade: "جيد", color: "bg-amber-500" },
+                  { range: "60% → 50%", grade: "مقبول", color: "bg-orange-500" },
+                  { range: "< 50%", grade: "ضعيف", color: "bg-rose-500" },
+                ].map((r) => (
+                  <div key={r.grade} className="flex items-center justify-between bg-stone-50 rounded-xl px-3 py-1.5 border border-stone-100">
+                    <span className="text-[10.5px] font-bold text-stone-600">{r.range}</span>
+                    <span className="flex items-center gap-2">
+                      <span className="text-[11px] font-black text-stone-900">{r.grade}</span>
+                      <span className={`h-2 w-2 rounded-full ${r.color}`} />
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Left Page in print = School Identity Side (as in reference image) */}
-        <div className="pro-rounded-panel" style={{ borderColor: theme.border, backgroundColor: theme.bg }}>
-          <div className="panel-inner flex flex-col h-full py-8 px-4 items-center text-center justify-between">
-            <div className="w-full text-center space-y-3">
-              <div className="bismillah-calligraphy text-[13px] font-bold text-center" style={{ fontFamily: "'Amiri', serif" }}>بسم الله الرحمن الرحيم</div>
-              <div className="text-center leading-loose space-y-0.5 pt-2">
-                <p className="font-bold text-[11px]">ولاية الخرطوم – محلية الشهداء، وسوبا</p>
-                <p className="font-bold text-[11px]">وزارة التربية والتعليم – {schoolStage || "إدارة التعليم الخاص"}</p>
+        {/* تصميم بريميوم — الجزء الأيسر: معلومات الطالب (مطلوب نقله لليسار) */}
+        <div className="pro-rounded-panel" style={{ borderColor: theme.border, backgroundColor: "#ffffff", borderRadius: "20px", borderWidth: "1.4px", boxShadow: "0 4px 24px rgba(0,0,0,0.04)" }}>
+          <div className="panel-inner flex flex-col h-full items-center text-center p-6 justify-between" style={{ fontFamily: "'Cairo', sans-serif" }}>
+            <div className="w-full">
+              <div className="flex justify-center mb-3">
+                {schoolLogo ? (
+                  <div className="h-16 w-16 rounded-2xl bg-white border border-stone-100 shadow-sm p-1.5 flex items-center justify-center">
+                    <img src={schoolLogo} alt="شعار المدرسة" className="h-full w-full object-contain" />
+                  </div>
+                ) : (
+                  <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-stone-900 to-stone-700 flex items-center justify-center text-white shadow-md">✦</div>
+                )}
+              </div>
+              <p className="font-bold text-[10px] tracking-[0.14em] text-stone-400 uppercase">{govLocality || "ولاية الخرطوم – محلية الشهداء وسوبا"}</p>
+              <p className="font-bold text-[10px] text-stone-500 mt-0.5">وزارة التربية والتعليم</p>
+              <h2 className="font-black text-[17px] leading-relaxed mt-2.5" style={{ color: theme.border, fontFamily: "'Cairo', sans-serif" }}>{schoolName}</h2>
+              <p className="font-semibold text-[11px] text-stone-500 mt-1 tracking-wide">{schoolStage || "الإبتدائية والمتوسطة والثانوية — بنين / بنات"}</p>
+              <div className="h-px bg-stone-100 my-4 w-[60%] mx-auto" />
+            </div>
+            <div className="w-full">
+              <div className="mx-auto w-[82%] rounded-full border-2 py-2.5 px-4 text-center" style={{ borderColor: theme.border, backgroundColor: "#ffffff" }}>
+                <span className="font-black text-[11px] tracking-[0.16em] text-stone-900">نتيجة الفترة الدراسية</span>
               </div>
             </div>
-
-            <div className="w-full text-center space-y-1.5 py-3">
-              <h2 className="pro-school-title text-[18px] font-black text-center leading-relaxed" style={{ color: theme.border, fontFamily: "'Amiri', serif", lineHeight: '1.6' }}>
-                مدارس الأستاذ سمير القرآنية الخاصة<br/>الإبتدائية والمتوسطة<br/>بنين – بنات
-              </h2>
-            </div>
-
-            {/* Scroll: نتيجة المقررات الدراسية - exactly as image with rolled ends */}
-            <div className="relative w-[72%] mx-auto my-2">
-              <div className="pro-scroll-banner main-title-scroll w-full text-center py-1.5" style={{ borderColor: theme.border, backgroundColor: theme.headerBg, borderWidth: '1.2px', borderRadius: '2px' }}>
-                <span className="text-[11px] font-black tracking-[0.12em]">نتيجة المقررات الدراسية</span>
+            <div className="w-full space-y-3 mt-4">
+              <div className="flex items-center gap-3 bg-stone-50 rounded-xl px-3.5 py-2.5 border border-stone-100">
+                <span className="font-bold text-[10px] text-stone-500 shrink-0 w-[92px] text-right">اسم التلميذ / الطالب</span>
+                <span className="flex-1 font-bold text-[12px] text-stone-900 text-center truncate">{student?.full_name || student?.name || ""}</span>
               </div>
-              {/* rolled ends effect */}
-              <span className="absolute -left-1 top-1/2 -translate-y-1/2 w-2 h-[18px] bg-white border border-black rounded-r-sm" style={{ borderColor: theme.border }}></span>
-              <span className="absolute -right-1 top-1/2 -translate-y-1/2 w-2 h-[18px] bg-white border border-black rounded-l-sm" style={{ borderColor: theme.border }}></span>
-            </div>
-
-            <div className="w-full space-y-4 pt-4">
-              <div className="flex items-end justify-center gap-2 w-[92%] mx-auto">
-                <span className="font-bold text-[11px] shrink-0 pb-1">اسم التلميذ/</span>
-                <span className="font-bold text-[13px] flex-1 border-b border-black pb-1 text-center leading-none" style={{ minHeight: '18px' }}>{student.full_name || student.name}</span>
+              <div className="flex items-center gap-3 bg-stone-50 rounded-xl px-3.5 py-2.5 border border-stone-100">
+                <span className="font-bold text-[10px] text-stone-500 shrink-0 w-[92px] text-right">الصف</span>
+                <span className="flex-1 font-bold text-[12px] text-stone-900 text-center truncate">{student?.grade || ""}</span>
               </div>
-              <div className="flex items-end justify-center gap-2 w-[92%] mx-auto">
-                <span className="font-bold text-[11px] shrink-0 pb-1">الصف/</span>
-                <span className="font-bold text-[13px] flex-1 border-b border-black pb-1 text-center leading-none" style={{ minHeight: '18px' }}>{student.grade || "الثالث المتوسط"}</span>
-              </div>
-              <div className="flex items-center justify-center gap-1 w-[92%] mx-auto pt-1">
-                <span className="font-bold text-[9px] shrink-0">الإدارة :</span>
-                <span className="font-mono text-[10px] flex-1 text-center tracking-wide" dir="ltr">{phone ? `${phone}` : "0123109370 / 0116375406"}</span>
+              <div className="flex items-center gap-3 bg-stone-900 rounded-xl px-3.5 py-3 text-white shadow-md">
+                <span className="font-bold text-[10px] text-white/70 shrink-0 w-[92px] text-right">النسبة المئوية</span>
+                <span className="flex-1 font-black text-[14px] text-center tracking-wide">{typeof percentage !== 'undefined' && percentage !== null && percentage !== "" && !isNaN(percentage) ? `${percentage}%` : ""}</span>
               </div>
             </div>
-
-            <div className="flex-1"></div>
           </div>
         </div>
 
@@ -1099,12 +1098,8 @@ export default function PrintResults() {
                 <div class="sudan-signatures-bar flex items-center justify-between pt-3 mt-1 border-t" style="border-color:${activeTheme.border}">
                   <div class="text-center space-y-3 w-1/4"><p class="font-bold text-xs">مرشد الصف</p><p class="font-bold text-xs border-b border-black pb-1 w-28 mx-auto">........................</p></div>
                   <div class="text-center space-y-3 w-1/4"><p class="font-bold text-xs">رئيس لجنة الامتحانات</p><p class="font-bold text-xs border-b border-black pb-1 w-28 mx-auto">........................</p></div>
-                  <div class="relative flex items-center justify-center w-1/4">
-                    <div class="stamp-circle-sudan" style="color:${activeTheme.stamp};border-color:${activeTheme.stamp}">
-                      <span class="font-black text-[9px]">جمهورية السودان</span>
-                      <span class="font-bold text-[8px] my-0.5">${sName.substring(0, 18)}</span>
-                      <span class="font-black text-[8px]">مصادق عليه رسمياً</span>
-                    </div>
+                  <div class="flex items-center justify-center w-1/4">
+                    <span class="font-black text-sm" style="color:#1c1917">الختم</span>
                   </div>
                   <div class="text-center space-y-3 w-1/4"><p class="font-bold text-xs">مدير المدرسة</p><p class="font-black text-xs">${pName}</p></div>
                 </div>
@@ -1194,7 +1189,7 @@ export default function PrintResults() {
                     <p class="detail-line"><span class="lbl font-bold">درجــة النـجــــــــاح :</span> <span class="val text-[11px]">أي مادة = 50% من الدرجة الكاملة (نصف الدرجة الكاملة)</span></p>
                     <p class="detail-line"><span class="lbl font-bold">إسم مدير المدرسة :</span> <span class="val font-bold">${pName}</span></p>
                     <p class="detail-line"><span class="lbl font-bold">تاريخ إصدار النتيجة :</span> <span class="val font-mono">${new Date().toLocaleDateString('ar-SA')}م</span></p>
-                    <div class="stamp-overlay-pos"><div class="stamp-circle" style="color:${activeTheme.stamp};border-color:${activeTheme.stamp}"><span class="font-bold text-[10px]">ختم المدرسة</span><span style="font-size:7px;display:block">مصادق عليه</span></div></div>
+                    <div style="display:flex;align-items:center;justify-content:center"><span style="font-weight:900;font-size:14px;color:#1c1917">الختم</span></div>
                   </div>
                 </div>
 
@@ -1205,50 +1200,54 @@ export default function PrintResults() {
 
         if (printSide === 'both') {
           certificatesHTML += `
-            <div class="pro-cert-page-landscape" style="background-color:${activeTheme.bg};color:${activeTheme.text}">
-              <div class="pro-cover-grid">
-                <div class="pro-rounded-panel" style="border-color:${activeTheme.border};background-color:${activeTheme.bg}"><div class="panel-inner flex flex-col justify-between h-full py-6 px-4 items-center text-center">
-                  <div class="w-full space-y-1.5 text-center">
-                    <p class="text-[11.5px] font-bold leading-relaxed">• عود إبنك الصدق والصلاة ومكارم الأخلاق</p>
-                    <p class="text-[11.5px] font-bold leading-relaxed">• تأكد من صداقة إبنك للأخيار</p>
-                    <p class="text-[11.5px] font-bold leading-relaxed">• زيارتك للمدرسة مهمة لأنها تكمل دور المدرسة العلمية والتربوية</p>
+            <div class="pro-cert-page-landscape back-cover-page" style="background-color:${activeTheme.bg};color:${activeTheme.text};font-family:'Cairo', sans-serif" dir="rtl">
+              <div class="pro-cover-grid" style="gap:6mm">
+                <div class="pro-rounded-panel" style="border:1px solid ${activeTheme.border};background:#ffffff;border-radius:20px;box-shadow:0 4px 24px rgba(0,0,0,0.04)">
+                  <div class="panel-inner flex flex-col h-full p-6 justify-between" style="font-family:'Cairo', sans-serif">
+                    <div style="text-align:center"><div style="display:inline-flex;align-items:center;gap:8px;background:${activeTheme.border};color:#fff;border-radius:9999px;padding:6px 20px;box-shadow:0 2px 8px rgba(0,0,0,0.12)"><span style="height:6px;width:6px;border-radius:9999px;background:rgba(255,255,255,0.8)"></span><span style="font-weight:900;font-size:11px;letter-spacing:0.02em">ابنتنا / ابننا التلميذ</span><span style="height:6px;width:6px;border-radius:9999px;background:rgba(255,255,255,0.8)"></span></div></div>
+                    <div style="display:flex;flex-direction:column;gap:10px;padding:12px 0">
+                      <div style="display:flex;align-items:flex-start;gap:10px;text-align:right"><span style="height:6px;width:6px;border-radius:9999px;background:#10b981;margin-top:7px;flex-shrink:0"></span><span style="font-size:11px;font-weight:600;line-height:1.6;color:#44403c;flex:1">عوّد ابنك على الصدق والصلاة وإكرام الآخرين.</span></div>
+                      <div style="display:flex;align-items:flex-start;gap:10px;text-align:right"><span style="height:6px;width:6px;border-radius:9999px;background:#10b981;margin-top:7px;flex-shrink:0"></span><span style="font-size:11px;font-weight:600;line-height:1.6;color:#44403c;flex:1">تأكد من صداقته لأصدقاء أخيار.</span></div>
+                      <div style="display:flex;align-items:flex-start;gap:10px;text-align:right"><span style="height:6px;width:6px;border-radius:9999px;background:#10b981;margin-top:7px;flex-shrink:0"></span><span style="font-size:11px;font-weight:600;line-height:1.6;color:#44403c;flex:1">زيارة المدرسة مهمة لأنها تكمل دور المدرسة العلمية والتربوية.</span></div>
+                      <div style="display:flex;align-items:flex-start;gap:10px;text-align:right"><span style="height:6px;width:6px;border-radius:9999px;background:#10b981;margin-top:7px;flex-shrink:0"></span><span style="font-size:11px;font-weight:600;line-height:1.6;color:#44403c;flex:1">حافظ على صلواتك وداوم على قراءة القرآن.</span></div>
+                      <div style="display:flex;align-items:flex-start;gap:10px;text-align:right"><span style="height:6px;width:6px;border-radius:9999px;background:#10b981;margin-top:7px;flex-shrink:0"></span><span style="font-size:11px;font-weight:600;line-height:1.6;color:#44403c;flex:1">اجتهد في دراستك لتنل مستقبلًا مشرقًا.</span></div>
+                      <div style="display:flex;align-items:flex-start;gap:10px;text-align:right"><span style="height:6px;width:6px;border-radius:9999px;background:#10b981;margin-top:7px;flex-shrink:0"></span><span style="font-size:11px;font-weight:600;line-height:1.6;color:#44403c;flex:1">احترام المعلم واجب.</span></div>
+                    </div>
+                    <div style="border:1px solid #fde68a;background:#fefce8;border-radius:16px;padding:12px 16px;text-align:center"><span style="font-weight:900;font-size:11px;color:#92400e;letter-spacing:0.02em">“ كل المعلم أن يكون رسولًا ”</span></div>
+                    <div style="padding-top:12px">
+                      <div style="text-align:center;margin-bottom:10px"><span style="display:inline-block;background:#fff;border:2px solid ${activeTheme.border};border-radius:9999px;padding:4px 20px;font-size:10px;font-weight:900;letter-spacing:0.1em">التقدير</span></div>
+                      <div style="display:flex;flex-direction:column;gap:6px">
+                        <div style="display:flex;align-items:center;justify-content:space-between;background:#fafaf9;border-radius:12px;padding:6px 12px;border:1px solid #f5f5f4"><span style="font-size:10.5px;font-weight:700;color:#57534e">100% → 80%</span><span style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;font-weight:900;color:#1c1917">ممتاز</span><span style="height:8px;width:8px;border-radius:9999px;background:#10b981"></span></span></div>
+                        <div style="display:flex;align-items:center;justify-content:space-between;background:#fafaf9;border-radius:12px;padding:6px 12px;border:1px solid #f5f5f4"><span style="font-size:10.5px;font-weight:700;color:#57534e">80% → 75%</span><span style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;font-weight:900;color:#1c1917">جيد جدًا</span><span style="height:8px;width:8px;border-radius:9999px;background:#0ea5e9"></span></span></div>
+                        <div style="display:flex;align-items:center;justify-content:space-between;background:#fafaf9;border-radius:12px;padding:6px 12px;border:1px solid #f5f5f4"><span style="font-size:10.5px;font-weight:700;color:#57534e">75% → 60%</span><span style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;font-weight:900;color:#1c1917">جيد</span><span style="height:8px;width:8px;border-radius:9999px;background:#f59e0b"></span></span></div>
+                        <div style="display:flex;align-items:center;justify-content:space-between;background:#fafaf9;border-radius:12px;padding:6px 12px;border:1px solid #f5f5f4"><span style="font-size:10.5px;font-weight:700;color:#57534e">60% → 50%</span><span style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;font-weight:900;color:#1c1917">مقبول</span><span style="height:8px;width:8px;border-radius:9999px;background:#f97316"></span></span></div>
+                        <div style="display:flex;align-items:center;justify-content:space-between;background:#fafaf9;border-radius:12px;padding:6px 12px;border:1px solid #f5f5f4"><span style="font-size:10.5px;font-weight:700;color:#57534e">< 50%</span><span style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;font-weight:900;color:#1c1917">ضعيف</span><span style="height:8px;width:8px;border-radius:9999px;background:#ef4444"></span></span></div>
+                      </div>
+                    </div>
                   </div>
-                  <div class="pro-ribbon-banner mx-auto my-2"><span class="ribbon-tail-r" style="border-right-color:${activeTheme.border}"></span><span class="ribbon-text px-6 py-1 text-[12px]" style="border-color:${activeTheme.border};background-color:${activeTheme.headerBg}">إبـنـنـا التـلـمـيـذ</span><span class="ribbon-tail-l" style="border-left-color:${activeTheme.border}"></span></div>
-                  <div class="w-full space-y-1.5 text-center">
-                    <p class="text-[11.5px] font-bold leading-relaxed">• حافظ على صلواتك ودوام على تلاوة القرآن.</p>
-                    <p class="text-[11.5px] font-bold leading-relaxed">• إجتهد في دراستك فلكل مجتهد نصيب.</p>
-                    <p class="text-[11.5px] font-bold leading-relaxed">• إحترام المعلم واجب.</p>
+                </div>
+                <div class="pro-rounded-panel" style="border:1px solid ${activeTheme.border};background:#ffffff;border-radius:20px;box-shadow:0 4px 24px rgba(0,0,0,0.04)">
+                  <div class="panel-inner flex flex-col h-full items-center text-center p-6 justify-between" style="font-family:'Cairo', sans-serif">
+                    <div style="width:100%;text-align:center">
+                      <div style="display:flex;justify-content:center;margin-bottom:12px">
+                        ${sLogo ? `<div style="height:64px;width:64px;border-radius:16px;background:#fff;border:1px solid ${activeTheme.border};box-shadow:0 2px 8px rgba(0,0,0,0.06);padding:6px;display:flex;align-items:center;justify-content:center"><img src="${sLogo}" alt="شعار المدرسة" style="height:100%;width:100%;object-fit:contain" /></div>` : `<div style="height:56px;width:56px;border-radius:16px;background:linear-gradient(135deg,#1c1917,#44403c);display:flex;align-items:center;justify-content:center;color:#fff;box-shadow:0 4px 12px rgba(0,0,0,0.15)">✦</div>`}
+                      </div>
+                      <p style="font-weight:700;font-size:10px;letter-spacing:0.14em;color:#a8a29e;text-transform:uppercase">${govLocality || "ولاية الخرطوم – محلية الشهداء وسوبا"}</p>
+                      <p style="font-weight:700;font-size:10px;color:#78716c;margin-top:2px">وزارة التربية والتعليم</p>
+                      <h2 style="font-weight:900;font-size:17px;line-height:1.6;color:${activeTheme.border};margin-top:10px;font-family:'Cairo', sans-serif">${sName}</h2>
+                      <p style="font-weight:600;font-size:11px;color:#78716c;margin-top:4px;letter-spacing:0.02em">${schoolStage || "الإبتدائية والمتوسطة والثانوية — بنين / بنات"}</p>
+                      <div style="height:1px;background:#f5f5f4;margin:16px auto;width:60%"></div>
+                    </div>
+                    <div style="width:100%">
+                      <div style="margin:0 auto;width:82%;border-radius:9999px;border:2px solid ${activeTheme.border};background:#fff;padding:10px 16px;text-align:center"><span style="font-weight:900;font-size:11px;letter-spacing:0.16em;color:#1c1917">نتيجة الفترة الدراسية</span></div>
+                    </div>
+                    <div style="width:100%;display:flex;flex-direction:column;gap:12px;margin-top:16px">
+                      <div style="display:flex;align-items:center;gap:12px;background:#fafaf9;border-radius:12px;padding:10px 14px;border:1px solid #f5f5f4"><span style="font-weight:700;font-size:10px;color:#78716c;flex-shrink:0;width:92px;text-align:right">اسم التلميذ / الطالب</span><span style="flex:1;font-weight:700;font-size:12px;color:${activeTheme.border};text-align:center">${student.full_name || student.name}</span></div>
+                      <div style="display:flex;align-items:center;gap:12px;background:#fafaf9;border-radius:12px;padding:10px 14px;border:1px solid #f5f5f4"><span style="font-weight:700;font-size:10px;color:#78716c;flex-shrink:0;width:92px;text-align:right">الصف</span><span style="flex:1;font-weight:700;font-size:12px;color:${activeTheme.border};text-align:center">${student.grade || ""}</span></div>
+                      <div style="display:flex;align-items:center;gap:12px;background:${activeTheme.border};border-radius:12px;padding:12px 14px;color:#fff;box-shadow:0 4px 12px rgba(0,0,0,0.12)"><span style="font-weight:700;font-size:10px;color:rgba(255,255,255,0.7);flex-shrink:0;width:92px;text-align:right">النسبة المئوية</span><span style="flex:1;font-weight:900;font-size:14px;text-align:center;letter-spacing:0.05em">${overallPct !== null && overallPct !== undefined ? overallPct + "%" : "—"}</span></div>
+                    </div>
                   </div>
-                  <div class="pro-scroll-banner w-[92%] mx-auto text-center py-1.5" style="border-color:${activeTheme.border};background-color:${activeTheme.headerBg};border-radius:4px"><span class="text-[12px] font-black tracking-wide">كـاد الـمـعـلـم أن يـكـون ر سـو لاً</span></div>
-                  <div class="flex justify-center w-full my-1"><div class="pro-hexagon-badge mx-auto px-5 py-1" style="border-color:${activeTheme.border};background-color:${activeTheme.headerBg}"><span class="text-[11px] font-black">التقدير</span></div></div>
-                  <div class="w-full space-y-1 text-center">
-                    <p class="text-[11px] font-bold">• من 100% الى 90% ممتاز.</p>
-                    <p class="text-[11px] font-bold">• أقل من 90% الى 75% جيد جداً.</p>
-                    <p class="text-[11px] font-bold">• أقل من 75% الى 60% جيد.</p>
-                    <p class="text-[11px] font-bold">• أقل من 60% الى 50% مقبول.</p>
-                    <p class="text-[11px] font-bold">• أقل من 50% ضعيف.</p>
-                  </div>
-                </div></div>
-                <div class="pro-rounded-panel" style="border-color:${activeTheme.border};background-color:${activeTheme.bg}"><div class="panel-inner flex flex-col h-full py-8 px-4 items-center text-center justify-between">
-                  <div class="w-full text-center space-y-3">
-                    <div class="bismillah-calligraphy text-[13px] font-bold text-center" style="font-family:'Amiri', serif">بسم الله الرحمن الرحيم</div>
-                    <div class="text-center leading-loose space-y-0.5 pt-2"><p class="font-bold text-[11px]">ولاية الخرطوم – محلية الشهداء، وسوبا</p><p class="font-bold text-[11px]">وزارة التربية والتعليم – إدارة التعليم الخاص</p></div>
-                  </div>
-                  <div class="w-full text-center space-y-1.5 py-3">
-                    <h2 class="pro-school-title text-[18px] font-black text-center leading-relaxed" style="color:${activeTheme.border};font-family:'Amiri', serif;line-height:1.6">${sName}<br/>الإبتدائية والمتوسطة<br/>بنين – بنات</h2>
-                  </div>
-                  <div class="relative w-[72%] mx-auto my-2">
-                    <div class="pro-scroll-banner main-title-scroll w-full text-center py-1.5" style="border-color:${activeTheme.border};background-color:${activeTheme.headerBg};border-width:1.2px;border-radius:2px"><span class="text-[11px] font-black tracking-[0.12em]">نتيجة المقررات الدراسية</span></div>
-                    <span class="absolute -left-1 top-1/2 -translate-y-1/2 w-2 h-[18px] bg-white border border-black rounded-r-sm" style="border-color:${activeTheme.border}"></span>
-                    <span class="absolute -right-1 top-1/2 -translate-y-1/2 w-2 h-[18px] bg-white border border-black rounded-l-sm" style="border-color:${activeTheme.border}"></span>
-                  </div>
-                  <div class="w-full space-y-4 pt-4">
-                    <div class="flex items-end justify-center gap-2 w-[92%] mx-auto"><span class="font-bold text-[11px] shrink-0 pb-1">اسم التلميذ/</span><span class="font-bold text-[13px] flex-1 border-b border-black pb-1 text-center leading-none" style="min-height:18px">${student.full_name || student.name}</span></div>
-                    <div class="flex items-end justify-center gap-2 w-[92%] mx-auto"><span class="font-bold text-[11px] shrink-0 pb-1">الصف/</span><span class="font-bold text-[13px] flex-1 border-b border-black pb-1 text-center leading-none" style="min-height:18px">${student.grade || "الثالث المتوسط"}</span></div>
-                    <div class="flex items-center justify-center gap-1 w-[92%] mx-auto pt-1"><span class="font-bold text-[9px] shrink-0">الإدارة :</span><span class="font-mono text-[10px] flex-1 text-center tracking-wide" dir="ltr">${schoolPhone ? `${schoolPhone}` : "0123109370 / 0116375406"}</span></div>
-                  </div>
-                  <div class="flex-1"></div>
-                </div></div>
+                </div>
               </div>
             </div>`;
         }
@@ -1806,10 +1805,12 @@ ${certificatesHTML}
                       <PreviewScaledWrapper isLandscape={true}>
                         <CertificateCoverBack
                           student={previewStudent}
-                          schoolName={customSchoolName || 'مدارس الأستاذ سمير القرآنية الخاصة'}
+                          schoolName={customSchoolName || existingSettings?.school_name_ar || 'مدارس الأستاذ سمير القرآنية الخاصة'}
+                          schoolLogo={customLogo || existingSettings?.school_logo || ""}
                           theme={activeTheme}
                           govLocality={govLocality}
                           schoolStage={schoolStage}
+                          percentage={(() => { const items = getStudentCompleteSubjectsAndGrades(previewStudent); const graded = items.filter(i=>i.has_grade&&i.score!==null); if(graded.length===0) return null; const totalMax = items.reduce((s,i)=>s+Number(i.max_score||100),0); const totalScore = graded.reduce((s,i)=>s+Number(i.score||0),0); return totalMax>0 ? Math.round(totalScore/totalMax*100) : null; })()}
                           phone={schoolPhone}
                         />
                       </PreviewScaledWrapper>
