@@ -10,6 +10,7 @@ import { Toaster as SonnerToaster } from "sonner";
 
 import AppLayout from './components/layout/AppLayout';
 import RoleGate from './components/RoleGate';
+import RoleLogin from './pages/RoleLogin';
 import PortalAccessAdmin from './pages/PortalAccessAdmin';
 import Dashboard from './pages/Dashboard';
 import Students from './pages/Students';
@@ -101,7 +102,7 @@ const AuthenticatedApp = () => {
     <Routes>
       <Route path="/" element={<LandingPage />} />
       <Route path="/gateway" element={<Gateway />} />
-      <Route path="/login" element={<Gateway />} />
+      <Route path="/login" element={<RoleLogin />} />
       <Route path="/register" element={<PublicRegistration />} />
       <Route path="/registration" element={<PublicRegistration />} />
       <Route element={<AppLayout />}>
@@ -130,7 +131,7 @@ const AuthenticatedApp = () => {
         <Route path="/registrar/enrollment" element={<StudentEnrollment />} />
         <Route path="/registrar/files" element={<AcademicFiles />} />
         <Route path="/registrar/archive" element={<StudentArchive />} />
-        
+
         <Route path="/card" element={<StudentCard />} />
         <Route path="/study-rooms" element={<StudyRooms />} />
         <Route path="/room-view" element={<RoomView />} />

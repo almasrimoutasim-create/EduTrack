@@ -24,7 +24,11 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Mount Neon DB API routes FIRST (before static or body parsers)
+// ⚠️ هام جداً: إضافة محلل بيانات الـ JSON لقراءة الطلبات القادمة من الواجهة الأمامية (مثل تسجيل الدخول)
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// Mount Neon DB API routes FIRST (before static files)
 app.use(createApiHandler());
 
 // Serve STUN configuration for WebRTC

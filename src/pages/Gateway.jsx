@@ -41,8 +41,8 @@ export default function Gateway() {
 
     try {
       await gatewayLogin(username.trim(), password);
-      // بعد نجاح تسجيل الدخول، ننتقل إلى صفحة الروست legate
-      window.location.href = "/rolegate";
+      // After successful gateway login, redirect to login page for role selection
+      window.location.href = "/login";
     } catch (err) {
       setErrorMsg(err.message || (isRTL ? "فشل تسجيل الدخول. تأكد من البيانات." : "Login failed. Check your credentials."));
     } finally {
