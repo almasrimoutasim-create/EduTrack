@@ -41,6 +41,8 @@ export default function Gateway() {
 
     try {
       await gatewayLogin(username.trim(), password);
+      // بعد نجاح تسجيل الدخول، ننتقل إلى صفحة الروست legate
+      window.location.href = "/rolegate";
     } catch (err) {
       setErrorMsg(err.message || (isRTL ? "فشل تسجيل الدخول. تأكد من البيانات." : "Login failed. Check your credentials."));
     } finally {
@@ -151,6 +153,8 @@ export default function Gateway() {
                   </button>
                 </div>
               </div>
+
+              
 
               <button
                 type="submit"

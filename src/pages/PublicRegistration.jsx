@@ -103,7 +103,7 @@ export default function PublicRegistration() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-stone-600">{isRTL ? "الاسم الكامل *" : "Full Name *"}</label>
-                <Input value={form.full_name} onChange={e => update("full_name", e.target.value)} placeholder={isRTL ? "محمد أحمد علي" : "Full name"} className="h-11 rounded-xl" required />
+                <Input value={form.full_name} onChange={e => update("full_name", e.target.value)} placeholder={isRTL ? "الاسم" : "Name"} className="h-11 rounded-xl" required />
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-stone-600">{isRTL ? "البريد الإلكتروني *" : "Email *"}</label>
@@ -111,7 +111,7 @@ export default function PublicRegistration() {
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-stone-600">{isRTL ? "رقم الجوال" : "Phone"}</label>
-                <Input value={form.phone} onChange={e => update("phone", e.target.value)} placeholder={isRTL ? "05xxxxxxxx" : "Phone"} className="h-11 rounded-xl" dir="ltr" />
+                <Input value={form.phone} onChange={e => update("phone", e.target.value)} placeholder={isRTL ? "اكتب رقم الهاتف بالمفتاح" : "Enter phone with country code"} className="h-11 rounded-xl" dir="ltr" />
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-stone-600">{isRTL ? "رقم الهوية / الإقامة" : "ID Number"}</label>

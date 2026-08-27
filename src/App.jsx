@@ -75,6 +75,8 @@ import StudentArchive from './pages/StudentArchive';
 import PrintResults from './pages/PrintResults';
 import PublicRegistration from './pages/PublicRegistration';
 import RegistrationRequestsAdmin from './pages/RegistrationRequestsAdmin';
+import LandingPage from './pages/LandingPage';
+import Gateway from './pages/Gateway';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -97,10 +99,13 @@ const AuthenticatedApp = () => {
 
   return (
     <Routes>
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/gateway" element={<Gateway />} />
+      <Route path="/login" element={<Gateway />} />
       <Route path="/register" element={<PublicRegistration />} />
       <Route path="/registration" element={<PublicRegistration />} />
       <Route element={<AppLayout />}>
-        <Route path="/" element={<Dashboard />} />
+        <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/admin-dashboard" element={<Dashboard />} />
         <Route path="/registration-requests" element={<RegistrationRequestsAdmin />} />
         <Route path="/settings" element={<Settings />} />

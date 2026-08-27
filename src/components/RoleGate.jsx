@@ -3,6 +3,7 @@ import { useAuth } from "@/lib/AuthContext";
 import RoleLogin from "@/pages/RoleLogin";
 import Gateway from "@/pages/Gateway";
 import BackToPortalButton from "@/components/shared/BackToPortalButton";
+import { ArrowLeft } from "lucide-react";
 
 const PORTAL_REDIRECTS = { 
   admin: "/",
@@ -85,7 +86,7 @@ const isPathAllowed = (role, path) => {
   return false;
 };
 
-const PUBLIC_PATHS = ["/register", "/registration"];
+const PUBLIC_PATHS = ["/", "/gateway", "/login", "/register", "/registration"];
 
 export default function RoleGate({ children }) {
   const { user, isAuthenticated, isLoadingAuth, isGatewayPassed } = useAuth();
@@ -136,12 +137,26 @@ export default function RoleGate({ children }) {
 
   // Not passed gateway lock screen? Show gateway
   if (!isGatewayPassed) {
-    return <Gateway />;
+    return (
+      <>
+        <a href="/" className="fixed top-4 right-4 z-50 h-9 px-4 rounded-xl bg-white/90 backdrop-blur border border-stone-200 text-stone-700 text-xs font-black flex items-center gap-1.5 shadow-md hover:bg-white">
+          <ArrowLeft size={14} /> العودة للرئيسية
+        </a>
+        <Gateway />
+      </>
+    );
   }
 
   // Not authenticated? Show secure portal login
   if (!isAuthenticated) {
-    return <RoleLogin />;
+    return (
+      <>
+        <a href="/" className="fixed top-4 right-4 z-50 h-9 px-4 rounded-xl bg-white/90 backdrop-blur border border-stone-200 text-stone-700 text-xs font-black flex items-center gap-1.5 shadow-md hover:bg-white">
+          <ArrowLeft size={14} /> العودة للرئيسية
+        </a>
+        <RoleLogin />
+      </>
+    );
   }
 
   // Authenticated & authorized? Let the children render!
