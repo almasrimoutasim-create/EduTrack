@@ -1,14 +1,14 @@
 import React, { useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { useLanguage } from "@/lib/LanguageContext";
-import { 
-  User, 
-  GraduationCap, 
-  Users, 
-  Bus, 
-  ShieldCheck, 
-  Settings, 
-  ChevronRight, 
+import {
+  User,
+  GraduationCap,
+  Users,
+  Bus,
+  ShieldCheck,
+  Settings,
+  ChevronRight,
   ChevronLeft,
   Sparkles,
   Lock,
@@ -90,7 +90,7 @@ export default function RoleLogin() {
       }
 
       await login(resolvedRole, identifier.trim(), password);
-      // On success, AuthContext sets isAuthenticated and RoleGate will let through
+      window.location.href = selectedRole.path || "/";
     } catch (err) {
       console.error("Login failed:", err);
       let message = err.message;
@@ -117,7 +117,7 @@ export default function RoleLogin() {
 
       {/* Language Switcher */}
       <div className="absolute top-4 end-4 z-50">
-        <button 
+        <button
           onClick={toggleLanguage}
           className={`${btnOutline} h-10 px-4 font-bold text-[10px] gap-1.5 shadow-sm`}
         >
@@ -136,14 +136,14 @@ export default function RoleLogin() {
           >
             <Lock size={28} />
           </motion.div>
-          <motion.h1 
+          <motion.h1
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             className="text-3xl md:text-4xl font-serif font-black text-stone-900 tracking-tight"
           >
             Edu<span className="text-primary">Track</span>
           </motion.h1>
-          <motion.p 
+          <motion.p
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.1 }}
@@ -153,7 +153,7 @@ export default function RoleLogin() {
           </motion.p>
         </header>
 
-        <motion.div 
+        <motion.div
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
           initial="hidden"
           animate="visible"
@@ -192,14 +192,14 @@ export default function RoleLogin() {
                 <div className={`h-16 w-16 rounded-[20px] ${role.color} flex items-center justify-center mb-4 shadow-xl group-hover:scale-110 transition-transform duration-500`}>
                   <role.icon size={32} />
                 </div>
-                
+
                 <h3 className="text-lg font-serif font-black text-stone-900 mb-1.5 group-hover:text-primary transition-colors">
                   {isRTL ? role.label.ar : role.label.en}
                 </h3>
                 <p className="text-stone-400 text-xs font-medium mb-4">
                   {isRTL ? role.desc.ar : role.desc.en}
                 </p>
-                
+
                 <div className="mt-auto">
                   <div className={`h-8 w-8 rounded-full border-2 border-stone-50 flex items-center justify-center text-stone-200 group-hover:border-primary group-hover:text-primary transition-all duration-500`}>
                     {isRTL ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
@@ -217,7 +217,7 @@ export default function RoleLogin() {
 
         <footer className="mt-12 text-center">
           <p className="text-stone-400 text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2">
-            {isRTL ? "مدعوم من" : "Powered by"} 
+            {isRTL ? "مدعوم من" : "Powered by"}
             <span className="text-stone-900 font-black">EduTrack Advanced Engine</span>
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
             V 2.0.4
@@ -250,8 +250,8 @@ export default function RoleLogin() {
               className="fixed inset-0 z-[101] flex items-center justify-center p-4"
               onClick={(e) => { if (e.target === e.currentTarget) closeLoginPopup(); }}
             >
-              <div 
-                className="w-full max-w-md rounded-[28px] bg-white shadow-[0_25px_80px_rgba(0,0,0,0.25)] border border-stone-100 overflow-hidden relative" 
+              <div
+                className="w-full max-w-md rounded-[28px] bg-white shadow-[0_25px_80px_rgba(0,0,0,0.25)] border border-stone-100 overflow-hidden relative"
                 dir={isRTL ? "rtl" : "ltr"}
               >
                 {/* Modal Header */}
@@ -284,7 +284,7 @@ export default function RoleLogin() {
 
                 {/* Login Form */}
                 <form onSubmit={handleLogin} className="p-6 space-y-5">
-                  
+
                   {/* Error Alert */}
                   <AnimatePresence mode="wait">
                     {errorMsg && (
@@ -329,16 +329,15 @@ export default function RoleLogin() {
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="••••••••"
                         className="w-full h-12 rounded-xl border border-stone-200 bg-stone-50 text-sm font-semibold text-stone-900 px-4 placeholder-stone-300 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all font-sans text-start"
-                        style={{ 
+                        style={{
                           paddingInlineEnd: '3rem'
                         }}
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className={`absolute inset-y-0 flex items-center justify-center text-stone-400 hover:text-stone-600 w-10 h-10 my-auto cursor-pointer ${
-                          isRTL ? "left-1" : "right-1"
-                        }`}
+                        className={`absolute inset-y-0 flex items-center justify-center text-stone-400 hover:text-stone-600 w-10 h-10 my-auto cursor-pointer ${isRTL ? "left-1" : "right-1"
+                          }`}
                       >
                         {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                       </button>
@@ -368,10 +367,10 @@ export default function RoleLogin() {
                     <button
                       type="button"
                       onClick={() => {
-                        const guestUser = selectedRole.id === "support" 
+                        const guestUser = selectedRole.id === "support"
                           ? { id: "support-guest", full_name: isRTL ? "مهندس الدعم الفني" : "Technical Support", email: "support@edutrack.com", role: "support" }
                           : { id: "staff-guest", full_name: isRTL ? "موظف زائر" : "Staff Guest", email: "guest@edutrack.com", role: "staff" };
-                        
+
                         localStorage.setItem("portal_role", guestUser.role);
                         localStorage.setItem("portal_user", JSON.stringify(guestUser));
                         localStorage.setItem("portal_user_id", guestUser.id);
