@@ -1,0 +1,1094 @@
+﻿ظùç injected env (0) from .env // tip: ظùê secrets for agents [www.dotenvx.com]
+node : (node:20752) Warning: SECURITY WARNING: The SSL modes 'prefer', 'require', and 'verify-ca' are treated as 
+aliases for 'verify-full'.
+At line:1 char:171
++ ... quire&channel_binding=require'; node dump_full_schema.js 2>&1 | Out-F ...
++                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ((node:20752) Wa... 'verify-full'.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+In the next major version (pg-connection-string v3.0.0 and pg v9.0.0), these modes will adopt standard libpq 
+semantics, which have weaker security guarantees.
+
+To prepare for this change:
+- If you want the current behavior, explicitly use 'sslmode=verify-full'
+- If you want libpq compatibility now, use 'uselibpqcompat=true&sslmode=require'
+
+See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode definitions.
+(Use `node --trace-warnings ...` to show where the warning was created)
+FULL SCHEMA DUMP (69 tables)
+============================================================
+
+TABLE activity_chats (rows: 0)
+columns:
+  id | uuid (uuid) | nullable=NO | default=gen_random_uuid()
+  name | text (text) | nullable=YES | default=null
+  description | text (text) | nullable=YES | default=null
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+  updated_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+constraints:
+  [PRIMARY KEY] activity_chats_pkey on id
+
+TABLE activity_comments (rows: 0)
+columns:
+  id | uuid (uuid) | nullable=NO | default=gen_random_uuid()
+  post_id | uuid (uuid) | nullable=YES | default=null
+  content | text (text) | nullable=NO | default=null
+  author_id | text (text) | nullable=YES | default=null
+  author_name | text (text) | nullable=YES | default=null
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+  updated_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+constraints:
+  [FOREIGN KEY] activity_comments_post_id_fkey on post_id -> public.activity_posts(id)
+  [PRIMARY KEY] activity_comments_pkey on id
+
+TABLE activity_fees (rows: 0)
+columns:
+  id | integer (int4) | nullable=NO | default=nextval('activity_fees_id_seq'::regclass)
+  activity_name | text (text) | nullable=NO | default=null
+  description | text (text) | nullable=YES | default=null
+  amount | numeric (numeric) | nullable=NO | default=null
+  due_date | date (date) | nullable=NO | default=null
+  grade_level | text (text) | nullable=YES | default=null
+  is_mandatory | boolean (bool) | nullable=YES | default=false
+  created_by | integer (int4) | nullable=NO | default=null
+  created_at | timestamp without time zone (timestamp) | nullable=YES | default=now()
+constraints:
+  [PRIMARY KEY] activity_fees_pkey on id
+
+TABLE activity_posts (rows: 0)
+columns:
+  id | uuid (uuid) | nullable=NO | default=gen_random_uuid()
+  content | text (text) | nullable=NO | default=null
+  author_id | text (text) | nullable=YES | default=null
+  author_name | text (text) | nullable=YES | default=null
+  photo_url | text (text) | nullable=YES | default=null
+  likes_count | integer (int4) | nullable=YES | default=0
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+  updated_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+constraints:
+  [PRIMARY KEY] activity_posts_pkey on id
+
+TABLE attendance (rows: 16)
+columns:
+  id | uuid (uuid) | nullable=NO | default=gen_random_uuid()
+  student_id | text (text) | nullable=NO | default=null
+  student_name | text (text) | nullable=NO | default=null
+  student_card_id | text (text) | nullable=YES | default=null
+  date | date (date) | nullable=NO | default=null
+  type | text (text) | nullable=NO | default=null
+  subject_name | text (text) | nullable=YES | default=null
+  status | text (text) | nullable=YES | default='present'::text
+  time | text (text) | nullable=YES | default=null
+  notes | text (text) | nullable=YES | default=null
+  recorded_by | text (text) | nullable=YES | default=null
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+  updated_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+constraints:
+  [PRIMARY KEY] attendance_pkey on id
+
+TABLE audit_logs (rows: 0)
+columns:
+  id | uuid (uuid) | nullable=NO | default=gen_random_uuid()
+  user_id | text (text) | nullable=YES | default=null
+  action | text (text) | nullable=NO | default=null
+  entity_type | text (text) | nullable=YES | default=null
+  entity_id | text (text) | nullable=YES | default=null
+  old_data | jsonb (jsonb) | nullable=YES | default=null
+  new_data | jsonb (jsonb) | nullable=YES | default=null
+  timestamp | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+  updated_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+constraints:
+  [PRIMARY KEY] audit_logs_pkey on id
+
+TABLE book_reviews (rows: 0)
+columns:
+  id | uuid (uuid) | nullable=NO | default=gen_random_uuid()
+  book_id | uuid (uuid) | nullable=YES | default=null
+  reviewer_id | text (text) | nullable=YES | default=null
+  reviewer_name | text (text) | nullable=YES | default=null
+  rating | integer (int4) | nullable=YES | default=null
+  comment | text (text) | nullable=YES | default=null
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+  updated_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+constraints:
+  [PRIMARY KEY] book_reviews_pkey on id
+
+TABLE bus_driver_reports (rows: 0)
+columns:
+  id | uuid (uuid) | nullable=NO | default=gen_random_uuid()
+  driver_id | uuid (uuid) | nullable=YES | default=null
+  report_type | text (text) | nullable=YES | default=null
+  description | text (text) | nullable=YES | default=null
+  date | date (date) | nullable=YES | default=CURRENT_DATE
+  status | text (text) | nullable=YES | default='pending'::text
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+  updated_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+constraints:
+  [PRIMARY KEY] bus_driver_reports_pkey on id
+
+TABLE bus_drivers (rows: 0)
+columns:
+  id | uuid (uuid) | nullable=NO | default=gen_random_uuid()
+  full_name | text (text) | nullable=NO | default=null
+  phone | text (text) | nullable=YES | default=null
+  license_number | text (text) | nullable=YES | default=null
+  status | text (text) | nullable=YES | default='active'::text
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+  updated_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+constraints:
+  [PRIMARY KEY] bus_drivers_pkey on id
+
+TABLE card_top_ups (rows: 0)
+columns:
+  id | uuid (uuid) | nullable=NO | default=gen_random_uuid()
+  student_id | text (text) | nullable=YES | default=null
+  student_name | text (text) | nullable=YES | default=null
+  amount | numeric (numeric) | nullable=NO | default=null
+  method | text (text) | nullable=YES | default='cash'::text
+  recorded_by | text (text) | nullable=YES | default=null
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+  updated_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+constraints:
+  [PRIMARY KEY] card_top_ups_pkey on id
+
+TABLE case_assessments (rows: 0)
+columns:
+  id | integer (int4) | nullable=NO | default=nextval('case_assessments_id_seq'::regclass)
+  case_id | integer (int4) | nullable=NO | default=null
+  academic_score | integer (int4) | nullable=NO | default=null
+  behavioral_score | integer (int4) | nullable=NO | default=null
+  social_score | integer (int4) | nullable=NO | default=null
+  psychological_score | integer (int4) | nullable=NO | default=null
+  average_score | numeric (numeric) | nullable=YES | default=null
+  notes | text (text) | nullable=YES | default=null
+  created_by | text (text) | nullable=NO | default=null
+  created_at | timestamp without time zone (timestamp) | nullable=YES | default=now()
+constraints:
+  [FOREIGN KEY] case_assessments_case_id_fkey on case_id -> public.counseling_cases(id)
+  [PRIMARY KEY] case_assessments_pkey on id
+
+TABLE case_visibility_log (rows: 0)
+columns:
+  id | integer (int4) | nullable=NO | default=nextval('case_visibility_log_id_seq'::regclass)
+  user_id | text (text) | nullable=NO | default=null
+  case_id | integer (int4) | nullable=NO | default=null
+  viewed_at | timestamp without time zone (timestamp) | nullable=YES | default=now()
+constraints:
+  [FOREIGN KEY] case_visibility_log_case_id_fkey on case_id -> public.counseling_cases(id)
+  [PRIMARY KEY] case_visibility_log_pkey on id
+
+TABLE case_visibility_logs (rows: 0)
+columns:
+  id | uuid (uuid) | nullable=NO | default=gen_random_uuid()
+  case_id | uuid (uuid) | nullable=NO | default=null
+  viewer_id | text (text) | nullable=YES | default=null
+  viewer_role | text (text) | nullable=YES | default=null
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=CURRENT_TIMESTAMP
+constraints:
+  [PRIMARY KEY] case_visibility_logs_pkey on id
+
+TABLE class_schedules (rows: 11)
+columns:
+  id | uuid (uuid) | nullable=NO | default=gen_random_uuid()
+  subject_name | text (text) | nullable=YES | default=null
+  teacher_name | text (text) | nullable=YES | default=null
+  teacher_id | text (text) | nullable=YES | default=null
+  grade | text (text) | nullable=YES | default=null
+  section | text (text) | nullable=YES | default=null
+  day_of_week | text (text) | nullable=YES | default=null
+  start_time | text (text) | nullable=YES | default=null
+  end_time | text (text) | nullable=YES | default=null
+  room | text (text) | nullable=YES | default=null
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+  updated_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+constraints:
+  [PRIMARY KEY] class_schedules_pkey on id
+
+TABLE counseling_cases (rows: 0)
+columns:
+  id | integer (int4) | nullable=NO | default=nextval('counseling_cases_id_seq'::regclass)
+  student_id | uuid (uuid) | nullable=NO | default=null
+  created_by | text (text) | nullable=NO | default=null
+  assigned_counselor_id | text (text) | nullable=YES | default=null
+  title | text (text) | nullable=NO | default=null
+  problem_type | text (text) | nullable=NO | default=null
+  referral_reason | text (text) | nullable=NO | default=null
+  status | text (text) | nullable=NO | default='open'::text
+  risk_level | text (text) | nullable=NO | default='low'::text
+  closed_at | timestamp without time zone (timestamp) | nullable=YES | default=null
+  closed_by | text (text) | nullable=YES | default=null
+  created_at | timestamp without time zone (timestamp) | nullable=YES | default=now()
+  updated_at | timestamp without time zone (timestamp) | nullable=YES | default=now()
+constraints:
+  [FOREIGN KEY] counseling_cases_student_id_fkey on student_id -> public.students(id)
+  [PRIMARY KEY] counseling_cases_pkey on id
+
+TABLE donations (rows: 0)
+columns:
+  id | uuid (uuid) | nullable=NO | default=gen_random_uuid()
+  donor_name | text (text) | nullable=YES | default=null
+  amount | numeric (numeric) | nullable=NO | default=null
+  purpose | text (text) | nullable=YES | default=null
+  date | date (date) | nullable=YES | default=CURRENT_DATE
+  status | text (text) | nullable=YES | default='received'::text
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+  updated_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+  payment_method | text (text) | nullable=YES | default=null
+  is_anonymous | boolean (bool) | nullable=YES | default=false
+  acknowledgment_sent | boolean (bool) | nullable=YES | default=false
+constraints:
+  [PRIMARY KEY] donations_pkey on id
+
+TABLE expenses (rows: 0)
+columns:
+  id | uuid (uuid) | nullable=NO | default=gen_random_uuid()
+  category | text (text) | nullable=NO | default=null
+  description | text (text) | nullable=NO | default=null
+  amount | numeric (numeric) | nullable=NO | default=null
+  vendor | text (text) | nullable=YES | default=null
+  expense_date | text (text) | nullable=NO | default=null
+  payment_method | text (text) | nullable=NO | default=null
+  academic_year | text (text) | nullable=YES | default='2025-2026'::text
+  created_by | text (text) | nullable=YES | default=null
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=CURRENT_TIMESTAMP
+  updated_at | timestamp with time zone (timestamptz) | nullable=YES | default=CURRENT_TIMESTAMP
+constraints:
+  [PRIMARY KEY] expenses_pkey on id
+
+TABLE fee_payments (rows: 0)
+columns:
+  id | integer (int4) | nullable=NO | default=nextval('fee_payments_id_seq'::regclass)
+  student_fee_id | integer (int4) | nullable=NO | default=null
+  student_id | uuid (uuid) | nullable=NO | default=null
+  amount | numeric (numeric) | nullable=NO | default=null
+  payment_method | text (text) | nullable=NO | default=null
+  stripe_payment_intent_id | text (text) | nullable=YES | default=null
+  stripe_receipt_url | text (text) | nullable=YES | default=null
+  paid_by | integer (int4) | nullable=NO | default=null
+  notes | text (text) | nullable=YES | default=null
+  created_at | timestamp without time zone (timestamp) | nullable=YES | default=now()
+constraints:
+  [FOREIGN KEY] fee_payments_student_fee_id_fkey on student_fee_id -> public.student_fees(id)
+  [FOREIGN KEY] fee_payments_student_id_fkey on student_id -> public.students(id)
+  [PRIMARY KEY] fee_payments_pkey on id
+
+TABLE fee_structures (rows: 0)
+columns:
+  id | integer (int4) | nullable=NO | default=nextval('fee_structures_id_seq'::regclass)
+  grade_level | text (text) | nullable=NO | default=null
+  fee_name | text (text) | nullable=NO | default=null
+  amount | numeric (numeric) | nullable=NO | default=null
+  payment_type | text (text) | nullable=NO | default=null
+  is_active | boolean (bool) | nullable=YES | default=true
+  created_by | integer (int4) | nullable=NO | default=null
+  created_at | timestamp without time zone (timestamp) | nullable=YES | default=now()
+  updated_at | timestamp without time zone (timestamp) | nullable=YES | default=now()
+constraints:
+  [PRIMARY KEY] fee_structures_pkey on id
+
+TABLE financial_records (rows: 4)
+columns:
+  id | uuid (uuid) | nullable=NO | default=gen_random_uuid()
+  student_id | text (text) | nullable=YES | default=null
+  amount | numeric (numeric) | nullable=NO | default=null
+  type | text (text) | nullable=NO | default=null
+  description | text (text) | nullable=YES | default=null
+  date | date (date) | nullable=YES | default=CURRENT_DATE
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+  updated_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+  record_type | text (text) | nullable=YES | default=null
+  recipient_type | text (text) | nullable=YES | default=null
+  recipient_id | text (text) | nullable=YES | default=null
+  recipient_name | text (text) | nullable=YES | default=null
+  month | text (text) | nullable=YES | default=null
+  payment_date | date (date) | nullable=YES | default=null
+  status | text (text) | nullable=YES | default='pending'::text
+  payment_method | text (text) | nullable=YES | default=null
+  reference_no | text (text) | nullable=YES | default=null
+  notes | text (text) | nullable=YES | default=null
+constraints:
+  [PRIMARY KEY] financial_records_pkey on id
+
+TABLE fines (rows: 6)
+columns:
+  id | uuid (uuid) | nullable=NO | default=gen_random_uuid()
+  student_id | text (text) | nullable=NO | default=null
+  amount | numeric (numeric) | nullable=NO | default=0
+  reason | text (text) | nullable=NO | default=null
+  status | text (text) | nullable=NO | default='pending'::text
+  category | text (text) | nullable=YES | default=null
+  date | text (text) | nullable=YES | default=null
+  issued_by | text (text) | nullable=YES | default=null
+  notes | text (text) | nullable=YES | default=null
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=CURRENT_TIMESTAMP
+  updated_at | timestamp with time zone (timestamptz) | nullable=YES | default=CURRENT_TIMESTAMP
+constraints:
+  [PRIMARY KEY] fines_pkey on id
+
+TABLE follow_ups (rows: 0)
+columns:
+  id | integer (int4) | nullable=NO | default=nextval('follow_ups_id_seq'::regclass)
+  case_id | integer (int4) | nullable=NO | default=null
+  note | text (text) | nullable=NO | default=null
+  progress_status | text (text) | nullable=NO | default=null
+  created_by | text (text) | nullable=NO | default=null
+  created_at | timestamp without time zone (timestamp) | nullable=YES | default=now()
+constraints:
+  [FOREIGN KEY] follow_ups_case_id_fkey on case_id -> public.counseling_cases(id)
+  [PRIMARY KEY] follow_ups_pkey on id
+
+TABLE friend_requests (rows: 0)
+columns:
+  id | uuid (uuid) | nullable=NO | default=gen_random_uuid()
+  from_student_id | text (text) | nullable=YES | default=null
+  to_student_id | text (text) | nullable=YES | default=null
+  from_student_name | text (text) | nullable=YES | default=null
+  to_student_name | text (text) | nullable=YES | default=null
+  status | text (text) | nullable=YES | default='pending'::text
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+  updated_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+constraints:
+  [PRIMARY KEY] friend_requests_pkey on id
+
+TABLE gateway_accounts (rows: 1)
+columns:
+  id | uuid (uuid) | nullable=NO | default=gen_random_uuid()
+  username | text (text) | nullable=NO | default=null
+  password | text (text) | nullable=NO | default=null
+  created_by | text (text) | nullable=YES | default=null
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=CURRENT_TIMESTAMP
+constraints:
+  [PRIMARY KEY] gateway_accounts_pkey on id
+  [UNIQUE] gateway_accounts_username_key on username
+
+TABLE hall_rentals (rows: 0)
+columns:
+  id | uuid (uuid) | nullable=NO | default=gen_random_uuid()
+  hall_name | text (text) | nullable=NO | default=null
+  amount | numeric (numeric) | nullable=NO | default=null
+  payment_method | text (text) | nullable=NO | default=null
+  status | text (text) | nullable=NO | default='pending'::text
+  created_by | text (text) | nullable=YES | default=null
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=CURRENT_TIMESTAMP
+  updated_at | timestamp with time zone (timestamptz) | nullable=YES | default=CURRENT_TIMESTAMP
+constraints:
+  [PRIMARY KEY] hall_rentals_pkey on id
+
+TABLE intervention_plans (rows: 0)
+columns:
+  id | integer (int4) | nullable=NO | default=nextval('intervention_plans_id_seq'::regclass)
+  case_id | integer (int4) | nullable=NO | default=null
+  goal_text | text (text) | nullable=NO | default=null
+  actions | jsonb (jsonb) | nullable=NO | default='[]'::jsonb
+  responsible_person | text (text) | nullable=NO | default=null
+  start_date | date (date) | nullable=NO | default=null
+  end_date | date (date) | nullable=NO | default=null
+  status | text (text) | nullable=NO | default='active'::text
+  created_by | text (text) | nullable=NO | default=null
+  created_at | timestamp without time zone (timestamp) | nullable=YES | default=now()
+  updated_at | timestamp without time zone (timestamp) | nullable=YES | default=now()
+constraints:
+  [FOREIGN KEY] intervention_plans_case_id_fkey on case_id -> public.counseling_cases(id)
+  [PRIMARY KEY] intervention_plans_pkey on id
+
+TABLE library_books (rows: 1)
+columns:
+  id | uuid (uuid) | nullable=NO | default=gen_random_uuid()
+  title | text (text) | nullable=NO | default=null
+  author | text (text) | nullable=YES | default=null
+  isbn | text (text) | nullable=YES | default=null
+  category | text (text) | nullable=YES | default=null
+  status | text (text) | nullable=YES | default='available'::text
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+  updated_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+  subject_name | text (text) | nullable=YES | default=null
+  subject_code | text (text) | nullable=YES | default=null
+  grade | text (text) | nullable=YES | default=null
+  file_url | text (text) | nullable=YES | default=null
+  description | text (text) | nullable=YES | default=null
+  uploaded_by | text (text) | nullable=YES | default=null
+  thumbnail_url | text (text) | nullable=YES | default=null
+  subject_id | uuid (uuid) | nullable=YES | default=null
+constraints:
+  [PRIMARY KEY] library_books_pkey on id
+
+TABLE message_read_receipts (rows: 0)
+columns:
+  id | uuid (uuid) | nullable=NO | default=gen_random_uuid()
+  message_id | uuid (uuid) | nullable=YES | default=null
+  user_id | text (text) | nullable=YES | default=null
+  read_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+  updated_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+constraints:
+  [PRIMARY KEY] message_read_receipts_pkey on id
+
+TABLE official_announcements (rows: 2)
+columns:
+  id | uuid (uuid) | nullable=NO | default=gen_random_uuid()
+  title | text (text) | nullable=NO | default=null
+  content | text (text) | nullable=NO | default=null
+  priority | text (text) | nullable=YES | default='normal'::text
+  target_audience | text (text) | nullable=NO | default=null
+  created_by | text (text) | nullable=YES | default=null
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=CURRENT_TIMESTAMP
+  updated_at | timestamp with time zone (timestamptz) | nullable=YES | default=CURRENT_TIMESTAMP
+constraints:
+  [PRIMARY KEY] official_announcements_pkey on id
+
+TABLE other_revenue (rows: 0)
+columns:
+  id | uuid (uuid) | nullable=NO | default=gen_random_uuid()
+  title | text (text) | nullable=NO | default=null
+  amount | numeric (numeric) | nullable=NO | default=null
+  payment_method | text (text) | nullable=NO | default=null
+  created_by | text (text) | nullable=YES | default=null
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=CURRENT_TIMESTAMP
+  updated_at | timestamp with time zone (timestamptz) | nullable=YES | default=CURRENT_TIMESTAMP
+constraints:
+  [PRIMARY KEY] other_revenue_pkey on id
+
+TABLE parent_link_requests (rows: 1)
+columns:
+  id | uuid (uuid) | nullable=NO | default=gen_random_uuid()
+  parent_email | text (text) | nullable=NO | default=null
+  parent_name | text (text) | nullable=YES | default=null
+  student_id | text (text) | nullable=NO | default=null
+  student_name | text (text) | nullable=YES | default=null
+  relationship | text (text) | nullable=YES | default=null
+  status | text (text) | nullable=NO | default='pending'::text
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=CURRENT_TIMESTAMP
+  updated_at | timestamp with time zone (timestamptz) | nullable=YES | default=CURRENT_TIMESTAMP
+constraints:
+  [PRIMARY KEY] parent_link_requests_pkey on id
+
+TABLE portal_access_configs (rows: 0)
+columns:
+  id | uuid (uuid) | nullable=NO | default=gen_random_uuid()
+  portal_type | text (text) | nullable=NO | default=null
+  is_enabled | boolean (bool) | nullable=YES | default=true
+  allowed_roles | ARRAY (_text) | nullable=YES | default=null
+  settings | jsonb (jsonb) | nullable=YES | default='{}'::jsonb
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+  updated_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+constraints:
+  [PRIMARY KEY] portal_access_configs_pkey on id
+
+TABLE portal_group_messages (rows: 0)
+columns:
+  id | uuid (uuid) | nullable=NO | default=gen_random_uuid()
+  group_id | uuid (uuid) | nullable=YES | default=null
+  sender_id | text (text) | nullable=YES | default=null
+  sender_name | text (text) | nullable=YES | default=null
+  content | text (text) | nullable=YES | default=null
+  type | text (text) | nullable=YES | default='text'::text
+  file_url | text (text) | nullable=YES | default=null
+  read_by | jsonb (jsonb) | nullable=YES | default='[]'::jsonb
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+  updated_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+constraints:
+  [PRIMARY KEY] portal_group_messages_pkey on id
+
+TABLE portal_groups (rows: 0)
+columns:
+  id | uuid (uuid) | nullable=NO | default=gen_random_uuid()
+  name | text (text) | nullable=NO | default=null
+  description | text (text) | nullable=YES | default=null
+  type | text (text) | nullable=YES | default='general'::text
+  members | jsonb (jsonb) | nullable=YES | default='[]'::jsonb
+  created_by | text (text) | nullable=YES | default=null
+  photo_url | text (text) | nullable=YES | default=null
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+  updated_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+constraints:
+  [PRIMARY KEY] portal_groups_pkey on id
+
+TABLE portal_notifications (rows: 6)
+columns:
+  id | uuid (uuid) | nullable=NO | default=gen_random_uuid()
+  user_id | text (text) | nullable=YES | default=null
+  title | text (text) | nullable=YES | default=null
+  message | text (text) | nullable=YES | default=null
+  type | text (text) | nullable=YES | default='info'::text
+  is_read | boolean (bool) | nullable=YES | default=false
+  link | text (text) | nullable=YES | default=null
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+  updated_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+constraints:
+  [PRIMARY KEY] portal_notifications_pkey on id
+
+TABLE private_messages (rows: 8)
+columns:
+  id | uuid (uuid) | nullable=NO | default=gen_random_uuid()
+  sender_id | text (text) | nullable=YES | default=null
+  sender_name | text (text) | nullable=YES | default=null
+  receiver_id | text (text) | nullable=YES | default=null
+  receiver_name | text (text) | nullable=YES | default=null
+  content | text (text) | nullable=YES | default=null
+  type | text (text) | nullable=YES | default='text'::text
+  file_url | text (text) | nullable=YES | default=null
+  is_read | boolean (bool) | nullable=YES | default=false
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+  updated_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+constraints:
+  [PRIMARY KEY] private_messages_pkey on id
+
+TABLE purchase_orders (rows: 0)
+columns:
+  id | uuid (uuid) | nullable=NO | default=gen_random_uuid()
+  category | text (text) | nullable=NO | default=null
+  item_description | text (text) | nullable=NO | default=null
+  quantity | integer (int4) | nullable=NO | default=1
+  total_amount | numeric (numeric) | nullable=NO | default=null
+  vendor | text (text) | nullable=YES | default=null
+  status | text (text) | nullable=NO | default='pending'::text
+  approved_by | text (text) | nullable=YES | default=null
+  approved_at | text (text) | nullable=YES | default=null
+  expense_id | uuid (uuid) | nullable=YES | default=null
+  created_by | text (text) | nullable=YES | default=null
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=CURRENT_TIMESTAMP
+  updated_at | timestamp with time zone (timestamptz) | nullable=YES | default=CURRENT_TIMESTAMP
+constraints:
+  [PRIMARY KEY] purchase_orders_pkey on id
+
+TABLE purchases (rows: 14)
+columns:
+  id | uuid (uuid) | nullable=NO | default=gen_random_uuid()
+  student_id | text (text) | nullable=YES | default=null
+  student_name | text (text) | nullable=YES | default=null
+  item_id | uuid (uuid) | nullable=YES | default=null
+  item_name | text (text) | nullable=YES | default=null
+  quantity | integer (int4) | nullable=YES | default=1
+  total_price | numeric (numeric) | nullable=YES | default=null
+  payment_method | text (text) | nullable=YES | default='card'::text
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+  updated_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+constraints:
+  [PRIMARY KEY] purchases_pkey on id
+
+TABLE registration_requests (rows: 0)
+columns:
+  id | uuid (uuid) | nullable=NO | default=gen_random_uuid()
+  full_name | text (text) | nullable=NO | default=null
+  email | text (text) | nullable=NO | default=null
+  phone | text (text) | nullable=YES | default=null
+  id_number | text (text) | nullable=YES | default=null
+  role_requested | text (text) | nullable=NO | default=null
+  grade | text (text) | nullable=YES | default=null
+  department | text (text) | nullable=YES | default=null
+  notes | text (text) | nullable=YES | default=null
+  status | text (text) | nullable=NO | default='pending'::text
+  username_generated | text (text) | nullable=YES | default=null
+  password_generated | text (text) | nullable=YES | default=null
+  reviewed_by | text (text) | nullable=YES | default=null
+  reviewed_at | timestamp with time zone (timestamptz) | nullable=YES | default=null
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=CURRENT_TIMESTAMP
+  updated_at | timestamp with time zone (timestamptz) | nullable=YES | default=CURRENT_TIMESTAMP
+constraints:
+  [PRIMARY KEY] registration_requests_pkey on id
+
+TABLE room_messages (rows: 7444)
+columns:
+  id | uuid (uuid) | nullable=NO | default=gen_random_uuid()
+  room_id | uuid (uuid) | nullable=YES | default=null
+  sender_id | text (text) | nullable=YES | default=null
+  sender_name | text (text) | nullable=YES | default=null
+  content | text (text) | nullable=YES | default=null
+  type | text (text) | nullable=YES | default='text'::text
+  file_url | text (text) | nullable=YES | default=null
+  reply_to | uuid (uuid) | nullable=YES | default=null
+  reactions | jsonb (jsonb) | nullable=YES | default='{}'::jsonb
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+  updated_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+constraints:
+  [PRIMARY KEY] room_messages_pkey on id
+
+TABLE room_videos (rows: 0)
+columns:
+  id | uuid (uuid) | nullable=NO | default=gen_random_uuid()
+  room_id | uuid (uuid) | nullable=YES | default=null
+  title | text (text) | nullable=YES | default=null
+  video_url | text (text) | nullable=YES | default=null
+  thumbnail_url | text (text) | nullable=YES | default=null
+  uploaded_by | text (text) | nullable=YES | default=null
+  duration | integer (int4) | nullable=YES | default=null
+  status | text (text) | nullable=YES | default='active'::text
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+  updated_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+constraints:
+  [PRIMARY KEY] room_videos_pkey on id
+
+TABLE salary_records (rows: 0)
+columns:
+  id | uuid (uuid) | nullable=NO | default=gen_random_uuid()
+  employee_name | text (text) | nullable=NO | default=null
+  employee_type | text (text) | nullable=NO | default=null
+  base_salary | numeric (numeric) | nullable=NO | default=null
+  allowances | numeric (numeric) | nullable=YES | default=0
+  deductions | numeric (numeric) | nullable=YES | default=0
+  net_salary | numeric (numeric) | nullable=NO | default=null
+  month | text (text) | nullable=NO | default=null
+  year | integer (int4) | nullable=NO | default=null
+  payment_method | text (text) | nullable=NO | default=null
+  notes | text (text) | nullable=YES | default=null
+  status | text (text) | nullable=NO | default='pending'::text
+  payment_date | text (text) | nullable=YES | default=null
+  created_by | text (text) | nullable=YES | default=null
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=CURRENT_TIMESTAMP
+  updated_at | timestamp with time zone (timestamptz) | nullable=YES | default=CURRENT_TIMESTAMP
+  advances | numeric (numeric) | nullable=YES | default=0
+constraints:
+  [PRIMARY KEY] salary_records_pkey on id
+
+TABLE schools (rows: 0)
+columns:
+  id | character varying (varchar) | nullable=NO | default=null
+  name_ar | character varying (varchar) | nullable=NO | default=null
+  name_en | character varying (varchar) | nullable=NO | default=null
+  domain_subdomain | character varying (varchar) | nullable=YES | default=null
+  logo_url | text (text) | nullable=YES | default=null
+  plan_id | character varying (varchar) | nullable=YES | default=null
+  subscription_status | character varying (varchar) | nullable=YES | default='active'::character varying
+  subscription_start_date | timestamp with time zone (timestamptz) | nullable=YES | default=null
+  subscription_end_date | timestamp with time zone (timestamptz) | nullable=YES | default=null
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=CURRENT_TIMESTAMP
+constraints:
+  [FOREIGN KEY] schools_plan_id_fkey on plan_id -> public.subscription_plans(id)
+  [PRIMARY KEY] schools_pkey on id
+  [UNIQUE] schools_domain_subdomain_key on domain_subdomain
+
+TABLE session_participants (rows: 103)
+columns:
+  id | uuid (uuid) | nullable=NO | default=gen_random_uuid()
+  session_id | uuid (uuid) | nullable=NO | default=null
+  user_id | text (text) | nullable=NO | default=null
+  user_name | text (text) | nullable=YES | default=null
+  role | text (text) | nullable=NO | default=null
+  joined_at | timestamp with time zone (timestamptz) | nullable=YES | default=CURRENT_TIMESTAMP
+  left_at | timestamp with time zone (timestamptz) | nullable=YES | default=null
+  attendance_minutes | integer (int4) | nullable=YES | default=0
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=CURRENT_TIMESTAMP
+  hand_raised | boolean (bool) | nullable=YES | default=false
+  mic_active | boolean (bool) | nullable=YES | default=true
+  video_active | boolean (bool) | nullable=YES | default=true
+constraints:
+  [PRIMARY KEY] session_participants_pkey on id
+
+TABLE staff_members (rows: 6)
+columns:
+  id | uuid (uuid) | nullable=NO | default=gen_random_uuid()
+  full_name | text (text) | nullable=NO | default=null
+  employee_id | text (text) | nullable=YES | default=null
+  role | text (text) | nullable=YES | default=null
+  department | text (text) | nullable=YES | default=null
+  phone | text (text) | nullable=YES | default=null
+  email | text (text) | nullable=YES | default=null
+  status | text (text) | nullable=YES | default='active'::text
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+  updated_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+  portal_password | text (text) | nullable=YES | default=null
+  notes | text (text) | nullable=YES | default=null
+  salary | numeric (numeric) | nullable=YES | default=4000
+constraints:
+  [PRIMARY KEY] staff_members_pkey on id
+  [UNIQUE] staff_members_employee_id_key on employee_id
+
+TABLE store_items (rows: 3)
+columns:
+  id | uuid (uuid) | nullable=NO | default=gen_random_uuid()
+  name | text (text) | nullable=NO | default=null
+  description | text (text) | nullable=YES | default=null
+  price | numeric (numeric) | nullable=NO | default=0
+  category | text (text) | nullable=YES | default=null
+  stock | integer (int4) | nullable=YES | default=0
+  image_url | text (text) | nullable=YES | default=null
+  status | text (text) | nullable=YES | default='available'::text
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+  updated_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+  available | boolean (bool) | nullable=YES | default=true
+  low_stock_threshold | integer (int4) | nullable=YES | default=5
+constraints:
+  [PRIMARY KEY] store_items_pkey on id
+
+TABLE student_activity_fees (rows: 0)
+columns:
+  id | integer (int4) | nullable=NO | default=nextval('student_activity_fees_id_seq'::regclass)
+  student_id | uuid (uuid) | nullable=NO | default=null
+  activity_fee_id | integer (int4) | nullable=NO | default=null
+  status | text (text) | nullable=NO | default='pending'::text
+  paid_at | timestamp without time zone (timestamp) | nullable=YES | default=null
+  stripe_payment_intent_id | text (text) | nullable=YES | default=null
+  created_at | timestamp without time zone (timestamp) | nullable=YES | default=now()
+constraints:
+  [FOREIGN KEY] student_activity_fees_activity_fee_id_fkey on activity_fee_id -> public.activity_fees(id)
+  [FOREIGN KEY] student_activity_fees_student_id_fkey on student_id -> public.students(id)
+  [PRIMARY KEY] student_activity_fees_pkey on id
+
+TABLE student_awards (rows: 0)
+columns:
+  id | uuid (uuid) | nullable=NO | default=gen_random_uuid()
+  student_id | text (text) | nullable=YES | default=null
+  student_name | text (text) | nullable=YES | default=null
+  award_type | text (text) | nullable=YES | default=null
+  title | text (text) | nullable=YES | default=null
+  description | text (text) | nullable=YES | default=null
+  points | integer (int4) | nullable=YES | default=0
+  awarded_by | text (text) | nullable=YES | default=null
+  date | date (date) | nullable=YES | default=CURRENT_DATE
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+  updated_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+constraints:
+  [PRIMARY KEY] student_awards_pkey on id
+
+TABLE student_fees (rows: 0)
+columns:
+  id | integer (int4) | nullable=NO | default=nextval('student_fees_id_seq'::regclass)
+  student_id | uuid (uuid) | nullable=NO | default=null
+  fee_structure_id | integer (int4) | nullable=YES | default=null
+  fee_name | text (text) | nullable=NO | default=null
+  amount | numeric (numeric) | nullable=NO | default=null
+  due_date | date (date) | nullable=NO | default=null
+  status | text (text) | nullable=NO | default='pending'::text
+  amount_paid | numeric (numeric) | nullable=NO | default=0
+  remaining | numeric (numeric) | nullable=YES | default=null
+  payment_plan | text (text) | nullable=YES | default=null
+  notes | text (text) | nullable=YES | default=null
+  created_by | integer (int4) | nullable=NO | default=null
+  created_at | timestamp without time zone (timestamp) | nullable=YES | default=now()
+  updated_at | timestamp without time zone (timestamp) | nullable=YES | default=now()
+constraints:
+  [FOREIGN KEY] student_fees_fee_structure_id_fkey on fee_structure_id -> public.fee_structures(id)
+  [FOREIGN KEY] student_fees_student_id_fkey on student_id -> public.students(id)
+  [PRIMARY KEY] student_fees_pkey on id
+
+TABLE student_grades (rows: 0)
+columns:
+  id | uuid (uuid) | nullable=NO | default=gen_random_uuid()
+  student_id | text (text) | nullable=YES | default=null
+  student_name | text (text) | nullable=YES | default=null
+  subject | text (text) | nullable=YES | default=null
+  grade_value | text (text) | nullable=YES | default=null
+  score | numeric (numeric) | nullable=YES | default=null
+  max_score | numeric (numeric) | nullable=YES | default=100
+  semester | text (text) | nullable=YES | default=null
+  teacher_id | text (text) | nullable=YES | default=null
+  notes | text (text) | nullable=YES | default=null
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+  updated_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+constraints:
+  [PRIMARY KEY] student_grades_pkey on id
+
+TABLE student_reports (rows: 0)
+columns:
+  id | uuid (uuid) | nullable=NO | default=gen_random_uuid()
+  student_id | text (text) | nullable=YES | default=null
+  student_name | text (text) | nullable=YES | default=null
+  report_type | text (text) | nullable=YES | default=null
+  title | text (text) | nullable=YES | default=null
+  content | text (text) | nullable=YES | default=null
+  semester | text (text) | nullable=YES | default=null
+  teacher_id | text (text) | nullable=YES | default=null
+  teacher_name | text (text) | nullable=YES | default=null
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+  updated_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+constraints:
+  [PRIMARY KEY] student_reports_pkey on id
+
+TABLE student_wallet (rows: 0)
+columns:
+  id | integer (int4) | nullable=NO | default=nextval('student_wallet_id_seq'::regclass)
+  student_id | uuid (uuid) | nullable=NO | default=null
+  balance | numeric (numeric) | nullable=NO | default=0
+  updated_at | timestamp without time zone (timestamp) | nullable=YES | default=now()
+constraints:
+  [FOREIGN KEY] student_wallet_student_id_fkey on student_id -> public.students(id)
+  [PRIMARY KEY] student_wallet_pkey on id
+  [UNIQUE] student_wallet_student_id_key on student_id
+
+TABLE students (rows: 7)
+columns:
+  id | uuid (uuid) | nullable=NO | default=gen_random_uuid()
+  full_name | text (text) | nullable=NO | default=null
+  student_id | text (text) | nullable=NO | default=null
+  user_email | text (text) | nullable=YES | default=null
+  portal_password | text (text) | nullable=YES | default=null
+  grade | text (text) | nullable=NO | default=null
+  section | text (text) | nullable=YES | default=null
+  date_of_birth | date (date) | nullable=YES | default=null
+  gender | text (text) | nullable=YES | default=null
+  parent_name | text (text) | nullable=YES | default=null
+  parent_phone | text (text) | nullable=YES | default=null
+  parent_email | text (text) | nullable=YES | default=null
+  address | text (text) | nullable=YES | default=null
+  photo_url | text (text) | nullable=YES | default=null
+  cover_photo_url | text (text) | nullable=YES | default=null
+  bio | text (text) | nullable=YES | default=null
+  card_balance | numeric (numeric) | nullable=YES | default=0
+  bus_registered | boolean (bool) | nullable=YES | default=false
+  bus_route | text (text) | nullable=YES | default=null
+  status | text (text) | nullable=YES | default='active'::text
+  attendance_score | numeric (numeric) | nullable=YES | default=100
+  total_absences | numeric (numeric) | nullable=YES | default=0
+  total_lates | numeric (numeric) | nullable=YES | default=0
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+  updated_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+  parent_password | text (text) | nullable=YES | default=null
+  tuition_total | numeric (numeric) | nullable=YES | default=0
+  tuition_paid | numeric (numeric) | nullable=YES | default=0
+constraints:
+  [PRIMARY KEY] students_pkey on id
+  [UNIQUE] students_student_id_key on student_id
+
+TABLE study_group_posts (rows: 0)
+columns:
+  id | uuid (uuid) | nullable=NO | default=gen_random_uuid()
+  group_id | uuid (uuid) | nullable=YES | default=null
+  author_id | text (text) | nullable=YES | default=null
+  author_name | text (text) | nullable=YES | default=null
+  content | text (text) | nullable=YES | default=null
+  type | text (text) | nullable=YES | default='text'::text
+  file_url | text (text) | nullable=YES | default=null
+  likes_count | integer (int4) | nullable=YES | default=0
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+  updated_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+constraints:
+  [PRIMARY KEY] study_group_posts_pkey on id
+
+TABLE study_groups (rows: 0)
+columns:
+  id | uuid (uuid) | nullable=NO | default=gen_random_uuid()
+  name | text (text) | nullable=NO | default=null
+  description | text (text) | nullable=YES | default=null
+  subject | text (text) | nullable=YES | default=null
+  grade | text (text) | nullable=YES | default=null
+  max_members | integer (int4) | nullable=YES | default=10
+  status | text (text) | nullable=YES | default='active'::text
+  created_by | text (text) | nullable=YES | default=null
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+  updated_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+constraints:
+  [PRIMARY KEY] study_groups_pkey on id
+
+TABLE study_materials (rows: 0)
+columns:
+  id | uuid (uuid) | nullable=NO | default=gen_random_uuid()
+  title | text (text) | nullable=NO | default=null
+  description | text (text) | nullable=YES | default=null
+  subject | text (text) | nullable=YES | default=null
+  grade | text (text) | nullable=YES | default=null
+  type | text (text) | nullable=YES | default='document'::text
+  file_url | text (text) | nullable=YES | default=null
+  uploaded_by | text (text) | nullable=YES | default=null
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+  updated_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+constraints:
+  [PRIMARY KEY] study_materials_pkey on id
+
+TABLE study_rooms (rows: 0)
+columns:
+  id | uuid (uuid) | nullable=NO | default=gen_random_uuid()
+  name | text (text) | nullable=NO | default=null
+  description | text (text) | nullable=YES | default=null
+  capacity | integer (int4) | nullable=YES | default=10
+  status | text (text) | nullable=YES | default='open'::text
+  type | text (text) | nullable=YES | default='general'::text
+  grade | text (text) | nullable=YES | default=null
+  subject | text (text) | nullable=YES | default=null
+  created_by | text (text) | nullable=YES | default=null
+  photo_url | text (text) | nullable=YES | default=null
+  rules | text (text) | nullable=YES | default=null
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+  updated_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+constraints:
+  [PRIMARY KEY] study_rooms_pkey on id
+
+TABLE subjects (rows: 13)
+columns:
+  id | uuid (uuid) | nullable=NO | default=gen_random_uuid()
+  name | text (text) | nullable=NO | default=null
+  code | text (text) | nullable=YES | default=null
+  description | text (text) | nullable=YES | default=null
+  department | text (text) | nullable=YES | default=null
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+  updated_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+  grade | text (text) | nullable=YES | default=null
+  teacher_id | uuid (uuid) | nullable=YES | default=null
+  teacher_name | text (text) | nullable=YES | default=null
+  status | text (text) | nullable=YES | default='active'::text
+constraints:
+  [FOREIGN KEY] subjects_teacher_id_fkey on teacher_id -> public.teachers(id)
+  [PRIMARY KEY] subjects_pkey on id
+  [UNIQUE] subjects_code_key on code
+
+TABLE subscription_plans (rows: 0)
+columns:
+  id | character varying (varchar) | nullable=NO | default=null
+  name_ar | character varying (varchar) | nullable=NO | default=null
+  name_en | character varying (varchar) | nullable=NO | default=null
+  price_monthly | numeric (numeric) | nullable=NO | default=null
+  price_yearly | numeric (numeric) | nullable=NO | default=null
+  max_students | integer (int4) | nullable=YES | default=500
+  max_teachers | integer (int4) | nullable=YES | default=50
+  features | jsonb (jsonb) | nullable=YES | default='{}'::jsonb
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=CURRENT_TIMESTAMP
+constraints:
+  [PRIMARY KEY] subscription_plans_pkey on id
+
+TABLE supervisors (rows: 0)
+columns:
+  id | uuid (uuid) | nullable=NO | default=gen_random_uuid()
+  full_name | text (text) | nullable=NO | default=null
+  phone | text (text) | nullable=YES | default=null
+  email | text (text) | nullable=YES | default=null
+  bus_route | text (text) | nullable=YES | default=null
+  status | text (text) | nullable=YES | default='active'::text
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+  updated_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+  portal_password | text (text) | nullable=YES | default=null
+constraints:
+  [PRIMARY KEY] supervisors_pkey on id
+
+TABLE system_admins (rows: 1)
+columns:
+  id | uuid (uuid) | nullable=NO | default=gen_random_uuid()
+  email | text (text) | nullable=NO | default=null
+  password | text (text) | nullable=NO | default=null
+  full_name | text (text) | nullable=NO | default='System Admin'::text
+  created_by | text (text) | nullable=YES | default=null
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=CURRENT_TIMESTAMP
+constraints:
+  [PRIMARY KEY] system_admins_pkey on id
+  [UNIQUE] system_admins_email_key on email
+
+TABLE system_settings (rows: 0)
+columns:
+  id | uuid (uuid) | nullable=NO | default=gen_random_uuid()
+  school_name_ar | text (text) | nullable=YES | default=null
+  school_name_en | text (text) | nullable=YES | default=null
+  school_logo | text (text) | nullable=YES | default=null
+  school_background_image | text (text) | nullable=YES | default=null
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=CURRENT_TIMESTAMP
+  updated_at | timestamp with time zone (timestamptz) | nullable=YES | default=CURRENT_TIMESTAMP
+  academic_year | text (text) | nullable=YES | default=null
+  school_phone | text (text) | nullable=YES | default=null
+  principal_name | text (text) | nullable=YES | default=null
+  school_stage | text (text) | nullable=YES | default=null
+  gov_locality | text (text) | nullable=YES | default=null
+constraints:
+  [PRIMARY KEY] system_settings_pkey on id
+
+TABLE teacher_ratings (rows: 0)
+columns:
+  id | uuid (uuid) | nullable=NO | default=gen_random_uuid()
+  teacher_id | text (text) | nullable=YES | default=null
+  teacher_name | text (text) | nullable=YES | default=null
+  student_id | text (text) | nullable=YES | default=null
+  rating | integer (int4) | nullable=YES | default=null
+  comment | text (text) | nullable=YES | default=null
+  subject | text (text) | nullable=YES | default=null
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+  updated_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+constraints:
+  [PRIMARY KEY] teacher_ratings_pkey on id
+
+TABLE teacher_tasks (rows: 0)
+columns:
+  id | uuid (uuid) | nullable=NO | default=gen_random_uuid()
+  teacher_id | text (text) | nullable=YES | default=null
+  teacher_name | text (text) | nullable=YES | default=null
+  title | text (text) | nullable=NO | default=null
+  description | text (text) | nullable=YES | default=null
+  due_date | date (date) | nullable=YES | default=null
+  status | text (text) | nullable=YES | default='pending'::text
+  priority | text (text) | nullable=YES | default='medium'::text
+  assigned_by | text (text) | nullable=YES | default=null
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+  updated_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+  grade | text (text) | nullable=YES | default=null
+constraints:
+  [PRIMARY KEY] teacher_tasks_pkey on id
+
+TABLE teachers (rows: 13)
+columns:
+  id | uuid (uuid) | nullable=NO | default=gen_random_uuid()
+  full_name | text (text) | nullable=NO | default=null
+  employee_id | text (text) | nullable=NO | default=null
+  email | text (text) | nullable=YES | default=null
+  phone | text (text) | nullable=YES | default=null
+  subject | text (text) | nullable=YES | default=null
+  subjects | text (text) | nullable=YES | default=null
+  photo_url | text (text) | nullable=YES | default=null
+  bio | text (text) | nullable=YES | default=null
+  salary | numeric (numeric) | nullable=YES | default=0
+  status | text (text) | nullable=YES | default='active'::text
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+  updated_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+  portal_password | text (text) | nullable=YES | default=null
+constraints:
+  [PRIMARY KEY] teachers_pkey on id
+  [UNIQUE] teachers_employee_id_key on employee_id
+
+TABLE typing_indicators (rows: 0)
+columns:
+  id | uuid (uuid) | nullable=NO | default=gen_random_uuid()
+  room_id | uuid (uuid) | nullable=YES | default=null
+  user_id | text (text) | nullable=YES | default=null
+  user_name | text (text) | nullable=YES | default=null
+  is_typing | boolean (bool) | nullable=YES | default=false
+  last_typed_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+  updated_at | timestamp with time zone (timestamptz) | nullable=YES | default=now()
+constraints:
+  [PRIMARY KEY] typing_indicators_pkey on id
+
+TABLE virtual_sessions (rows: 5)
+columns:
+  id | uuid (uuid) | nullable=NO | default=gen_random_uuid()
+  title | text (text) | nullable=NO | default=null
+  teacher_id | text (text) | nullable=YES | default=null
+  teacher_name | text (text) | nullable=YES | default=null
+  subject_id | uuid (uuid) | nullable=YES | default=null
+  subject_name | text (text) | nullable=YES | default=null
+  room_name | text (text) | nullable=NO | default=null
+  scheduled_at | timestamp with time zone (timestamptz) | nullable=YES | default=null
+  started_at | timestamp with time zone (timestamptz) | nullable=YES | default=null
+  ended_at | timestamp with time zone (timestamptz) | nullable=YES | default=null
+  status | text (text) | nullable=NO | default='scheduled'::text
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=CURRENT_TIMESTAMP
+  updated_at | timestamp with time zone (timestamptz) | nullable=YES | default=CURRENT_TIMESTAMP
+constraints:
+  [PRIMARY KEY] virtual_sessions_pkey on id
+  [UNIQUE] virtual_sessions_room_name_key on room_name
+
+TABLE visitors (rows: 0)
+columns:
+  id | uuid (uuid) | nullable=NO | default=gen_random_uuid()
+  visitor_name | text (text) | nullable=NO | default=null
+  reason | text (text) | nullable=YES | default=null
+  check_in_time | timestamp with time zone (timestamptz) | nullable=YES | default=CURRENT_TIMESTAMP
+  check_out_time | timestamp with time zone (timestamptz) | nullable=YES | default=null
+  status | text (text) | nullable=NO | default='checked_in'::text
+  recorded_by | text (text) | nullable=YES | default=null
+  created_at | timestamp with time zone (timestamptz) | nullable=YES | default=CURRENT_TIMESTAMP
+  updated_at | timestamp with time zone (timestamptz) | nullable=YES | default=CURRENT_TIMESTAMP
+constraints:
+  [PRIMARY KEY] visitors_pkey on id
+
+TABLE wallet_transactions (rows: 0)
+columns:
+  id | integer (int4) | nullable=NO | default=nextval('wallet_transactions_id_seq'::regclass)
+  student_id | uuid (uuid) | nullable=NO | default=null
+  type | text (text) | nullable=NO | default=null
+  amount | numeric (numeric) | nullable=NO | default=null
+  balance_after | numeric (numeric) | nullable=NO | default=null
+  description | text (text) | nullable=YES | default=null
+  stripe_payment_intent_id | text (text) | nullable=YES | default=null
+  created_by | integer (int4) | nullable=NO | default=null
+  created_at | timestamp without time zone (timestamp) | nullable=YES | default=now()
+constraints:
+  [FOREIGN KEY] wallet_transactions_student_id_fkey on student_id -> public.students(id)
+  [PRIMARY KEY] wallet_transactions_pkey on id
+
+END OF DUMP
