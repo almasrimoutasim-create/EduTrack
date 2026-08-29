@@ -584,6 +584,11 @@ function getTableName(entity) {
 }
 
 async function parseBody(req) {
+  // express.json() (server.js) already parses the body into req.body and drains
+  // the stream, so reading the stream here would never emit 'end' and hang.
+  if (req.body && typeof req.body === 'object' && !Buffer.isBuffer(req.body)) {
+    return req.body;
+  }
   return new Promise((resolve, reject) => {
     let body = '';
     req.on('data', chunk => { body += chunk; });
@@ -591,6 +596,7 @@ async function parseBody(req) {
       try { resolve(body ? JSON.parse(body) : {}); }
       catch (e) { reject(e); }
     });
+    req.on('error', reject);
   });
 }
 
