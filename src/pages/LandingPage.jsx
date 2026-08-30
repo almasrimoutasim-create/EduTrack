@@ -149,7 +149,7 @@ export default function LandingPage() {
             </motion.div>
             {(() => {
               const slides = [
-                { img: "https://images.unsplash.com/photo-1509062522246-3755977927d?q=80&w=800&auto=format&fit=crop", caption: isRTL ? "أثناء الدرس المباشر" : "During live lesson" },
+                { img: "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?q=80&w=800&auto=format&fit=crop", caption: isRTL ? "أثناء الدرس المباشر" : "During live lesson" },
                 { img: "https://images.unsplash.com/photo-1523240795612-9a054b0db644?q=80&w=800&auto=format&fit=crop", caption: isRTL ? "العمل الجماعي في الفصل" : "Group work in class" },
                 { img: "https://images.unsplash.com/photo-1588072432836-e10032774350?q=80&w=800&auto=format&fit=crop", caption: isRTL ? "أثناء أداء الواجب" : "Doing homework" },
                 { img: "https://images.unsplash.com/photo-1516534775068-ba3e7458af70?q=80&w=800&auto=format&fit=crop", caption: isRTL ? "المراجعة والتحضير" : "Review & preparation" },
@@ -168,6 +168,7 @@ export default function LandingPage() {
                           key={idx}
                           src={slides[idx].img}
                           alt={slides[idx].caption}
+                          onError={(e) => { e.currentTarget.src = "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?q=80&w=800&auto=format&fit=crop"; }}
                           initial={{ opacity: 0, scale: 1.04 }}
                           animate={{ opacity: 1, scale: 1 }}
                           exit={{ opacity: 0, scale: 1.02 }}
