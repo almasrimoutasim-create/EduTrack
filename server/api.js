@@ -15,6 +15,7 @@ function hashPassword(password) {
 let sql = null;
 if (process.env.DATABASE_URL) {
   sql = neon(process.env.DATABASE_URL);
+  sql.query(`CREATE EXTENSION IF NOT EXISTS "pgcrypto"`).catch(()=>{});
   // Auto-create parent_link_requests table
   sql`
     CREATE TABLE IF NOT EXISTS parent_link_requests (
@@ -507,6 +508,61 @@ if (process.env.DATABASE_URL) {
   }).catch(err => {
     console.error('[neon] failed to verify/create registration_requests table:', err.message);
   });
+
+  // ── Multi-tenant: إضافة school_id لكل جدول مستأجر + فهرسة + RLS سيتم لاحقاً ──
+  const TENANT_TABLES = [
+    'students','teachers','attendance','subjects','library_books','financial_records',
+    'activity_posts','activity_comments','activity_chats','audit_logs','bus_drivers','bus_driver_reports','card_top_ups','class_schedules','donations','friend_requests','store_items','purchases','study_rooms','study_groups','study_group_posts','study_materials','student_awards','student_grades','student_reports','supervisors','staff_members','teacher_ratings','teacher_tasks','portal_access_configs','portal_groups','portal_group_messages','portal_notifications','private_messages','room_messages','room_videos','book_reviews','message_read_receipts','typing_indicators','fines','parent_link_requests','virtual_sessions','session_participants','official_announcements','counseling_cases','case_assessments','intervention_plans','follow_ups','case_visibility_logs','fee_structures','student_fees','fee_payments','activity_fees','student_activity_fees','student_wallet','wallet_transactions','hall_rentals','other_revenue','expenses','salary_records','purchase_orders','visitors','system_settings','system_admins'
+  ];
+  TENANT_TABLES.forEach(tbl => {
+    sql.query(`ALTER TABLE ${tbl} ADD COLUMN IF NOT EXISTS school_id UUID`).catch(err=>console.error(`[neon] add school_id to ${tbl}:`, err.message))
+      .then(()=> sql.query(`CREATE INDEX IF NOT EXISTS idx_${tbl}_school_id ON ${tbl}(school_id)`).catch(()=>{}))
+      .then(()=> sql.query(`CREATE INDEX IF NOT EXISTS idx_${tbl}_school_created ON ${tbl}(school_id, created_at DESC)`).catch(()=>{}));
+  });
+  // تهيئة مستأجر افتراضي وترحيل البيانات القديمة (NULL -> المدرسة الافتراضية)
+  (async () => {
+    try {
+      await sql.query(`CREATE EXTENSION IF NOT EXISTS "pgcrypto"`).catch(()=>{});
+      // إصلاح الـ default للـ id إن كان مكسوراً
+      await sql.query(`ALTER TABLE schools ALTER COLUMN id SET DEFAULT gen_random_uuid()`).catch(()=>{});
+      // تأكد من أعمدة schools الأساسية
+      await sql.query(`ALTER TABLE schools ADD COLUMN IF NOT EXISTS name TEXT`).catch(()=>{});
+      await sql.query(`ALTER TABLE schools ADD COLUMN IF NOT EXISTS country TEXT`).catch(()=>{});
+      await sql.query(`ALTER TABLE schools ADD COLUMN IF NOT EXISTS plan TEXT`).catch(()=>{});
+      await sql.query(`ALTER TABLE schools ADD COLUMN IF NOT EXISTS subscription_status TEXT`).catch(()=>{});
+      await sql.query(`ALTER TABLE schools ADD COLUMN IF NOT EXISTS director_name TEXT`).catch(()=>{});
+      await sql.query(`ALTER TABLE schools ADD COLUMN IF NOT EXISTS email TEXT`).catch(()=>{});
+      await sql.query(`ALTER TABLE schools ADD COLUMN IF NOT EXISTS phone TEXT`).catch(()=>{});
+      // تشخيص أعمدة schools
+      try {
+        const cols = await sql.query(`SELECT column_name FROM information_schema.columns WHERE table_name='schools'`);
+        console.log('[neon] schools columns:', cols.map(c=>c.column_name).join(', '));
+      } catch {}
+      const schoolsExist = await sql.query(`SELECT id FROM schools LIMIT 1`);
+      let defaultSchoolId = schoolsExist[0]?.id;
+      if (!defaultSchoolId) {
+        try {
+          const { randomUUID } = await import('crypto');
+          const newId = randomUUID();
+          const rows = await sql.query(`INSERT INTO schools (id, name, name_ar, name_en, country, plan, subscription_status, director_name) VALUES ($1, 'مدارس عباد الرحمن التعليمية', 'مدارس عباد الرحمن التعليمية', 'Abad Al-Rahman Educational Schools', 'السودان', 'enterprise', 'active', 'الإدارة') RETURNING id`, [newId]);
+          defaultSchoolId = rows[0]?.id || newId;
+          console.log('[neon] created default tenant school:', defaultSchoolId);
+        } catch (e) {
+          const rows2 = await sql.query(`SELECT id FROM schools LIMIT 1`);
+          defaultSchoolId = rows2[0]?.id;
+          console.error('[neon] default school insert failed:', e.message);
+        }
+      }
+      if (defaultSchoolId) {
+        for (const tbl of TENANT_TABLES) {
+          await sql.query(`UPDATE ${tbl} SET school_id = $1 WHERE school_id IS NULL`, [defaultSchoolId]).catch(()=>{});
+        }
+        await sql.query(`UPDATE system_admins SET school_id = $1 WHERE school_id IS NULL`, [defaultSchoolId]).catch(()=>{});
+        console.log('[neon] backfilled school_id for existing rows to', defaultSchoolId);
+      }
+    } catch (e) { console.error('[neon] tenant backfill error:', e.message); }
+  })();
+  // RLS سيُفعّل في مرحلة ثانية بعد تثبيت حقن school_id على مستوى التطبيق — حالياً نعتمد على فلترة التطبيق
 }
 
 // Map entity names to table names
@@ -801,7 +857,8 @@ export function createApiHandler() {
               id: adminRow.id,
               full_name: adminRow.full_name,
               email: adminRow.email,
-              role: 'admin'
+              role: 'admin',
+              school_id: adminRow.school_id || null
           };
           const token = jwt.sign(user, JWT_SECRET, { expiresIn: '24h' });
           return res.end(JSON.stringify({
@@ -830,7 +887,8 @@ export function createApiHandler() {
               id: teacher.id,
               full_name: teacher.full_name,
               email: teacher.email,
-              role: 'teacher'
+              role: 'teacher',
+              school_id: teacher.school_id || null
           };
           const token = jwt.sign(user, JWT_SECRET, { expiresIn: '24h' });
           return res.end(JSON.stringify({
@@ -859,7 +917,8 @@ export function createApiHandler() {
               id: student.id,
               full_name: student.full_name,
               email: student.user_email,
-              role: 'student'
+              role: 'student',
+              school_id: student.school_id || null
           };
           const token = jwt.sign(user, JWT_SECRET, { expiresIn: '24h' });
           return res.end(JSON.stringify({
@@ -889,7 +948,8 @@ export function createApiHandler() {
               full_name: student.parent_name || 'Parent',
               email: student.parent_email,
               role: 'parent',
-              student_id: student.id
+              student_id: student.id,
+              school_id: student.school_id || null
           };
           const token = jwt.sign(user, JWT_SECRET, { expiresIn: '24h' });
           return res.end(JSON.stringify({
@@ -918,7 +978,8 @@ export function createApiHandler() {
               id: supervisor.id,
               full_name: supervisor.full_name,
               email: supervisor.email,
-              role: 'bus'
+              role: 'bus',
+              school_id: supervisor.school_id || null
           };
           const token = jwt.sign(user, JWT_SECRET, { expiresIn: '24h' });
           return res.end(JSON.stringify({
@@ -951,7 +1012,8 @@ export function createApiHandler() {
               id: staff.id,
               full_name: staff.full_name,
               email: staff.email,
-              role: staffRole
+              role: staffRole,
+              school_id: staff.school_id || null
           };
           const token = jwt.sign(user, JWT_SECRET, { expiresIn: '24h' });
           return res.end(JSON.stringify({
@@ -974,16 +1036,19 @@ export function createApiHandler() {
 
     res.setHeader('Content-Type', 'application/json');
 
-    // Parse entity early to allow public registration
+    // Parse entity early to allow public registration + founder cross-tenant reads
     const earlyUrlParts = req.url.split('?');
     const earlyPath = earlyUrlParts[0];
     const earlyMatch = earlyPath.match(/^\/neon-db\/entities\/([^\/]+)(?:\/(.+))?$/);
     const earlyEntity = earlyMatch ? earlyMatch[1] : null;
     const isPublicRegistrationPost = earlyEntity === 'RegistrationRequest' && req.method === 'POST';
+    const isFounderPublicRead = (earlyEntity === 'School' || earlyEntity === 'RegistrationRequest') && req.method === 'GET';
+    const authHeader = req.headers.authorization;
+    // Founder (بدون JWT) يسمح له بقراءة المدارس والطلبات عبر /founder-dashboard — يرى الكل
+    const allowWithoutAuth = isPublicRegistrationPost || isFounderPublicRead;
 
-    // JWT Authentication Middleware (skip for public registration creation)
-    if (!isPublicRegistrationPost) {
-      const authHeader = req.headers.authorization;
+    // JWT Authentication Middleware
+    if (!allowWithoutAuth) {
       if (!authHeader || !authHeader.startsWith('Bearer ')) {
         res.statusCode = 401;
         return res.end(JSON.stringify({ error: 'Unauthorized: Missing or invalid token' }));
@@ -995,6 +1060,11 @@ export function createApiHandler() {
         res.statusCode = 401;
         return res.end(JSON.stringify({ error: 'Unauthorized: Invalid or expired token' }));
       }
+    } else if (authHeader && authHeader.startsWith('Bearer ')) {
+      // حتى في المسارات العامة، إن وُجد توكن نحاول فكه لمعرفة المستأجر
+      try { req.user = jwt.verify(authHeader.split(' ')[1], JWT_SECRET); } catch { req.user = null; }
+    } else {
+      req.user = null;
     }
 
     try {
@@ -1016,6 +1086,11 @@ export function createApiHandler() {
         res.statusCode = 400;
         return res.end(JSON.stringify({ error: `Unknown entity: ${entityName}` }));
       }
+
+      // Multi-tenant helpers
+      const TENANT_TABLES_SET = new Set(['students','teachers','attendance','subjects','library_books','financial_records','activity_posts','activity_comments','activity_chats','audit_logs','bus_drivers','bus_driver_reports','card_top_ups','class_schedules','donations','friend_requests','store_items','purchases','study_rooms','study_groups','study_group_posts','study_materials','student_awards','student_grades','student_reports','supervisors','staff_members','teacher_ratings','teacher_tasks','portal_access_configs','portal_groups','portal_group_messages','portal_notifications','private_messages','room_messages','room_videos','book_reviews','message_read_receipts','typing_indicators','fines','parent_link_requests','virtual_sessions','session_participants','official_announcements','counseling_cases','case_assessments','intervention_plans','follow_ups','case_visibility_logs','fee_structures','student_fees','fee_payments','activity_fees','student_activity_fees','student_wallet','wallet_transactions','hall_rentals','other_revenue','expenses','salary_records','purchase_orders','visitors','system_settings','system_admins']);
+      const isTenantTable = TENANT_TABLES_SET.has(table);
+      const tenantId = req.user?.school_id || null;
 
       // ===== LIST =====
       if (req.method === 'GET' && !entityId) {
@@ -1070,6 +1145,12 @@ export function createApiHandler() {
             }
           } catch (e) { /* ignore filter errors */ }
         }
+        // Multi-tenant: حقن school_id تلقائياً للمستأجر
+        if (isTenantTable && tenantId) {
+          conditions.push(`school_id = $${paramIdx}`);
+          values.push(tenantId);
+          paramIdx++;
+        }
 
         const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
         const limitParam = paramIdx;
@@ -1083,7 +1164,12 @@ export function createApiHandler() {
 
       // ===== GET ONE =====
       if (req.method === 'GET' && entityId) {
-        const rows = await dbQuery(`SELECT * FROM ${table} WHERE id = $1`, [entityId]);
+        let rows;
+        if (isTenantTable && tenantId) {
+          rows = await dbQuery(`SELECT * FROM ${table} WHERE id = $1 AND school_id = $2`, [entityId, tenantId]);
+        } else {
+          rows = await dbQuery(`SELECT * FROM ${table} WHERE id = $1`, [entityId]);
+        }
         if (rows.length === 0) {
           res.statusCode = 404;
           return res.end(JSON.stringify({ error: 'Not found' }));
@@ -1094,6 +1180,10 @@ export function createApiHandler() {
       // ===== CREATE =====
       if (req.method === 'POST') {
         const body = await parseBody(req);
+        // Multi-tenant: حقن school_id تلقائياً
+        if (isTenantTable && tenantId && !body.school_id) {
+          body.school_id = tenantId;
+        }
         
         if (body.portal_password !== undefined) {
           if (body.portal_password === '') {
@@ -1239,7 +1329,14 @@ export function createApiHandler() {
         const sets = keys.map((k, i) => `${sanitizeColumn(k)} = $${i + 1}`);
         const values = keys.map(k => body[k]);
         values.push(entityId);
-        const q = `UPDATE ${table} SET ${sets.join(', ')} WHERE id = $${values.length} RETURNING *`;
+        let q = `UPDATE ${table} SET ${sets.join(', ')} WHERE id = $${values.length} RETURNING *`;
+        // Multi-tenant: منع تعديل سجل لمستأجر آخر
+        if (isTenantTable && tenantId) {
+          q = `UPDATE ${table} SET ${sets.join(', ')} WHERE id = $${values.length} AND school_id = $${values.length + 1} RETURNING *`;
+          values.push(tenantId);
+        } else {
+          q = `UPDATE ${table} SET ${sets.join(', ')} WHERE id = $${values.length} RETURNING *`;
+        }
         console.log(`[neon] Updating ${table} ID ${entityId}:`, keys.join(', '));
         const rows = await dbQuery(q, values);
         if (rows.length === 0) {
@@ -1253,7 +1350,11 @@ export function createApiHandler() {
 
       // ===== DELETE =====
       if (req.method === 'DELETE' && entityId) {
-        await dbQuery(`DELETE FROM ${table} WHERE id = $1`, [entityId]);
+        if (isTenantTable && tenantId) {
+          await dbQuery(`DELETE FROM ${table} WHERE id = $1 AND school_id = $2`, [entityId, tenantId]);
+        } else {
+          await dbQuery(`DELETE FROM ${table} WHERE id = $1`, [entityId]);
+        }
         return res.end(JSON.stringify({ success: true }));
       }
 
