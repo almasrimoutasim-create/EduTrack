@@ -17,7 +17,9 @@ const FounderLogin = () => {
     setLoading(true);
 
     setTimeout(() => {
-      if (email.trim() === FOUNDER_EMAIL && password === FOUNDER_PASSWORD) {
+      const customPw = localStorage.getItem("founder_custom_password");
+      const validPw = customPw || FOUNDER_PASSWORD;
+      if (email.trim() === FOUNDER_EMAIL && password === validPw) {
         localStorage.setItem("founder_auth", "true");
         localStorage.setItem("founder_email", email.trim());
         localStorage.setItem("founder_login_time", Date.now().toString());

@@ -451,6 +451,31 @@ if (process.env.DATABASE_URL) {
     console.error('[neon] failed to verify/create system_settings table:', err.message);
   });
 
+  // Auto-create schools table (SaaS — لوحة المؤسس)
+  sql`
+    CREATE TABLE IF NOT EXISTS schools (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      name TEXT NOT NULL,
+      country TEXT DEFAULT 'السودان',
+      plan TEXT NOT NULL DEFAULT 'starter',
+      subscription_status TEXT NOT NULL DEFAULT 'trial',
+      director_name TEXT,
+      email TEXT,
+      phone TEXT,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      expires_at TIMESTAMP WITH TIME ZONE DEFAULT (CURRENT_TIMESTAMP + INTERVAL '30 days')
+    )
+  `.then(() => {
+    console.log('[neon] schools table verified/created');
+    sql`ALTER TABLE schools ADD COLUMN IF NOT EXISTS country TEXT DEFAULT 'السودان';`.catch(()=>{});
+    sql`ALTER TABLE schools ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP WITH TIME ZONE;`.catch(()=>{});
+    sql`ALTER TABLE schools ADD COLUMN IF NOT EXISTS director_name TEXT;`.catch(()=>{});
+    sql`ALTER TABLE schools ADD COLUMN IF NOT EXISTS phone TEXT;`.catch(()=>{});
+  }).catch(err => {
+    console.error('[neon] failed to verify/create schools table:', err.message);
+  });
+
   // Auto-create registration_requests table (نظام التسجيل الجديد)
   sql`
     CREATE TABLE IF NOT EXISTS registration_requests (
@@ -546,6 +571,7 @@ const ENTITY_TABLE_MAP = {
   SystemAdmin: 'system_admins',
   SystemSetting: 'system_settings',
   RegistrationRequest: 'registration_requests',
+  School: 'schools',
 };
 
 async function createStripePaymentIntent(amount, currency) {
