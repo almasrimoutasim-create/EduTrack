@@ -6,7 +6,7 @@ import {
   Briefcase, CreditCard, Search, Percent, AlertTriangle, PlusCircle, UserCheck, ArrowLeft, MessageSquare,
   Megaphone, Video, ChevronDown, Bus, ShoppingBag, LifeBuoy, Printer
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/lib/LanguageContext";
@@ -98,6 +98,8 @@ export default function Sidebar() {
     return `${apiBase.replace(/\/$/, '')}${url.startsWith('/') ? '' : '/'}${url}`;
   };
   const sidebarLogoUrl = getLogoUrl(s.school_logo);
+  const [sidebarLogoError, setSidebarLogoError] = useState(false);
+  useEffect(() => { setSidebarLogoError(false); }, [sidebarLogoUrl]);
 
   const getNavGroups = () => {
     switch (portalRole) {
@@ -400,8 +402,8 @@ export default function Sidebar() {
               window.location.href = "/";
             }
           }}>
-            {sidebarLogoUrl ? (
-              <img src={sidebarLogoUrl} alt={schoolName} className="h-10 w-10 rounded-xl object-contain bg-white border border-stone-100 p-1 shadow-sm" onError={(e)=>{e.currentTarget.style.display='none'}} />
+            {sidebarLogoUrl && !sidebarLogoError ? (
+              <img src={sidebarLogoUrl} alt={schoolName} className="h-10 w-10 rounded-xl object-contain bg-white border border-stone-100 p-1 shadow-sm" onError={()=>setSidebarLogoError(true)} />
             ) : (
               <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform duration-300", brand.color)}>
                 <brand.logoIcon size={24} />

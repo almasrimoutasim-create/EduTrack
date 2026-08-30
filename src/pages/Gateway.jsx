@@ -36,6 +36,17 @@ export default function Gateway() {
   const rawBg = settings.school_background_image || FALLBACK_BG;
   const logoUrl = rawLogo ? getFullImageUrl(rawLogo) : "";
   const backgroundUrl = getFullImageUrl(rawBg) || FALLBACK_BG;
+  const [logoFailed, setLogoFailed] = useState(false);
+  const [bgFailed, setBgFailed] = useState(false);
+
+  // preload background to detect 404 and fallback
+  React.useEffect(() => {
+    if (!backgroundUrl || backgroundUrl === FALLBACK_BG) { setBgFailed(false); return; }
+    const img = new window.Image();
+    img.onload = () => setBgFailed(false);
+    img.onerror = () => setBgFailed(true);
+    img.src = backgroundUrl;
+  }, [backgroundUrl]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -58,7 +69,7 @@ export default function Gateway() {
       <div
         className="absolute inset-0 z-0 bg-cover bg-center transition-all duration-500"
         style={{
-          backgroundImage: `url('${backgroundUrl}')`,
+          backgroundImage: `url('${bgFailed ? FALLBACK_BG : backgroundUrl}')`,
           filter: "blur(8px) brightness(0.6)",
           transform: "scale(1.05)"
         }}
@@ -75,14 +86,12 @@ export default function Gateway() {
         <Card className="rounded-[32px] bg-white/95 backdrop-blur-xl border border-white/20 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.5)] overflow-hidden">
 
           <div className="p-8 text-center flex flex-col items-center">
-            {logoUrl ? (
+            {logoUrl && !logoFailed ? (
               <img
                 src={logoUrl}
                 alt={schoolName}
                 className="h-20 w-auto mb-4 object-contain drop-shadow-md"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                }}
+                onError={() => setLogoFailed(true)}
               />
             ) : (
               <div className="h-16 w-16 rounded-2xl bg-stone-900 text-white flex items-center justify-center mb-4 shadow-xl">
