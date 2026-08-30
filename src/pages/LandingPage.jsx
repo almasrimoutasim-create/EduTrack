@@ -143,7 +143,7 @@ export default function LandingPage() {
                 </a>
               </div>
               <div className="mt-4 flex items-center gap-3 text-xs text-stone-500">
-                <span className="flex items-center gap-1"><CheckCircle2 size={14} className="text-emerald-500" />{isRTL ? "دعم فني سوداني" : "Local support"}</span>
+                <span className="flex items-center gap-1"><CheckCircle2 size={14} className="text-emerald-500" />{isRTL ? "دعم فني" : "Local support"}</span>
                 <span className="flex items-center gap-1"><ShieldCheck size={14} className="text-sky-500" />{isRTL ? "آمن ومشفّر" : "Secure"}</span>
               </div>
             </motion.div>
@@ -306,7 +306,7 @@ export default function LandingPage() {
                   <span className="text-emerald-400 shrink-0">@</span>
                   <a href="mailto:etrack249@gmail.com" className="hover:text-white text-stone-300">etrack249@gmail.com</a>
                 </li>
-                <li className="text-stone-500 text-xs mt-1">{isRTL ? "الخرطوم، السودان — دعم فني سوداني" : "Khartoum, Sudan — Local support"}</li>
+                <li className="text-stone-500 text-xs mt-1">{isRTL ? "الخرطوم، السودان — دعم فني" : "Khartoum, Sudan — Local support"}</li>
               </ul>
             </div>
             <div>
