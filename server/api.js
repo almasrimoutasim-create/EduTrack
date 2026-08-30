@@ -1619,6 +1619,67 @@ export function createApiHandler() {
         return res.end(JSON.stringify({ success: true }));
       }
 
+      // ── POST /api/approve-teacher — الموافقة على تسجيل معلم + إنشاء حساب ──
+      if (req.url === '/api/approve-teacher' && req.method === 'POST') {
+        res.setHeader('Content-Type', 'application/json');
+        try {
+          const body = await parseBody(req);
+          const { requestId, username, password } = body;
+          if (!requestId || !username || !password) {
+            res.statusCode = 400;
+            return res.end(JSON.stringify({ error: 'requestId, username, and password are required' }));
+          }
+
+          // Fetch the registration request
+          const reqRows = await dbQuery(
+            `SELECT * FROM registration_requests WHERE id = $1 AND role_requested = 'teacher' AND status = 'pending'`,
+            [requestId]
+          );
+          if (reqRows.length === 0) {
+            res.statusCode = 404;
+            return res.end(JSON.stringify({ error: 'Registration request not found or already processed' }));
+          }
+          const reg = reqRows[0];
+
+          // Check username uniqueness
+          const existingTeacher = await dbQuery(
+            `SELECT id FROM teachers WHERE email = $1 OR employee_id = $1`,
+            [username]
+          );
+          if (existingTeacher.length > 0) {
+            res.statusCode = 409;
+            return res.end(JSON.stringify({ error: 'Username already exists — choose a different one' }));
+          }
+
+          // Create teacher account in teachers table
+          const teacherId = crypto.randomUUID();
+          const hashedPassword = hashPassword(password);
+          const subjects = Array.isArray(reg.subjects) ? reg.subjects.join(', ') : (reg.subjects || '');
+
+          await dbQuery(
+            `INSERT INTO teachers (id, full_name, email, employee_id, subjects, status, portal_password, school_id, created_at)
+             VALUES ($1, $2, $3, $4, $5, 'active', $6, NULL, NOW())`,
+            [teacherId, reg.full_name, reg.email, username, subjects, hashedPassword]
+          );
+
+          // Mark registration request as accepted
+          await dbQuery(
+            `UPDATE registration_requests SET status = 'accepted', reviewed_at = NOW() WHERE id = $1`,
+            [requestId]
+          );
+
+          return res.end(JSON.stringify({
+            success: true,
+            teacherId,
+            message: 'Teacher account created — credentials ready for login'
+          }));
+        } catch (error) {
+          console.error('[approve-teacher] error:', error);
+          res.statusCode = 500;
+          return res.end(JSON.stringify({ error: error.message }));
+        }
+      }
+
       res.statusCode = 405;
       res.end(JSON.stringify({ error: 'Method not allowed' }));
 
@@ -2006,67 +2067,6 @@ async function renewSchoolSubscription(schoolId, billingCycle = 'monthly') {
         updated_at = NOW()
     WHERE id = ${schoolId}
   `.catch(e => console.error('[renew] failed:', e.message));
-}
-
-// ── POST /api/approve-teacher — الموافقة على تسجيل معلم + إنشاء حساب ──
-if (req.url === '/api/approve-teacher' && req.method === 'POST') {
-  res.setHeader('Content-Type', 'application/json');
-  try {
-    const body = await parseBody(req);
-    const { requestId, username, password } = body;
-    if (!requestId || !username || !password) {
-      res.statusCode = 400;
-      return res.end(JSON.stringify({ error: 'requestId, username, and password are required' }));
-    }
-
-    // Fetch the registration request
-    const reqRows = await dbQuery(
-      `SELECT * FROM registration_requests WHERE id = $1 AND role_requested = 'teacher' AND status = 'pending'`,
-      [requestId]
-    );
-    if (reqRows.length === 0) {
-      res.statusCode = 404;
-      return res.end(JSON.stringify({ error: 'Registration request not found or already processed' }));
-    }
-    const reg = reqRows[0];
-
-    // Check username uniqueness
-    const existingTeacher = await dbQuery(
-      `SELECT id FROM teachers WHERE email = $1 OR employee_id = $1`,
-      [username]
-    );
-    if (existingTeacher.length > 0) {
-      res.statusCode = 409;
-      return res.end(JSON.stringify({ error: 'Username already exists — choose a different one' }));
-    }
-
-    // Create teacher account in teachers table
-    const teacherId = crypto.randomUUID();
-    const hashedPassword = hashPassword(password);
-    const subjects = Array.isArray(reg.subjects) ? reg.subjects.join(', ') : (reg.subjects || '');
-
-    await dbQuery(
-      `INSERT INTO teachers (id, full_name, email, employee_id, subjects, status, portal_password, school_id, created_at)
-       VALUES ($1, $2, $3, $4, $5, 'active', $6, NULL, NOW())`,
-      [teacherId, reg.full_name, reg.email, username, subjects, hashedPassword]
-    );
-
-    // Mark registration request as accepted
-    await dbQuery(
-      `UPDATE registration_requests SET status = 'accepted', reviewed_at = NOW() WHERE id = $1`,
-      [requestId]
-    );
-
-    return res.end(JSON.stringify({
-      success: true,
-      teacherId,
-      message: 'Teacher account created — credentials ready for login'
-    }));
-  } catch (error) {
-    console.error('[approve-teacher] error:', error);
-    res.statusCode = 500;
-    return res.end(JSON.stringify({ error: error.message }));
-  }
 }
 
 // ── Background job: تنبيهات الانتهاء (7/3/1 يوم) ──
