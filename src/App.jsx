@@ -81,6 +81,7 @@ import StudentArchive from './pages/StudentArchive';
 import PrintResults from './pages/PrintResults';
 import PublicRegistration from './pages/PublicRegistration';
 import StudentRegister from './pages/StudentRegister';
+import TeacherRegister from './pages/TeacherRegister';
 import RenewSubscription from './pages/RenewSubscription';
 import IndependentTeacherPortal from './pages/IndependentTeacherPortal';
 import EnhancedStudentPortal from './pages/EnhancedStudentPortal';
@@ -115,6 +116,7 @@ const AuthenticatedApp = () => {
       <Route path="/register" element={<PublicRegistration />} />
       <Route path="/registration" element={<PublicRegistration />} />
       <Route path="/student-register" element={<StudentRegister />} />
+      <Route path="/teacher-register" element={<TeacherRegister />} />
       <Route element={<AppLayout />}>
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/admin-dashboard" element={<Dashboard />} />

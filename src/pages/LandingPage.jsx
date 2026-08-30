@@ -317,6 +317,9 @@ export default function LandingPage() {
                 {isRTL ? "أي معلم يمكنه التسجيل لإدارة طلابه وواجباتهم وامتحاناتهم بشكل مستقل. أنشئ حصص مباشرة، ارفع فيديوهات يوتيوب التعليمية، وتابع تقدم كل طالب. مجاني للمعلمين الأفراد." : "Any teacher can register to manage students, assignments, and exams independently. Create live classes, upload YouTube teaching videos, and track each student's progress. Free for individual teachers."}
               </p>
               <div className="mt-5 flex flex-wrap gap-3">
+                <Link to="/teacher-register" className="h-11 px-6 rounded-xl bg-white/20 border border-white/30 text-white font-black text-sm hover:bg-white/30 inline-flex items-center gap-2">
+                  <UserPlus size={16} /> {isRTL ? "تسجيل جديد كمعلم" : "Register as Teacher"}
+                </Link>
                 <Link to="/teacher-panel" className="h-11 px-6 rounded-xl bg-white text-indigo-700 font-black text-sm hover:bg-white/90 inline-flex items-center gap-2 shadow-lg">
                   <GraduationCap size={16} /> {isRTL ? "دخول بوابة المعلم" : "Open Teacher Portal"}
                 </Link>

@@ -48,6 +48,43 @@ const FounderDashboard = () => {
   const [section, setSection] = useState("overview");
   const queryClient = useQueryClient();
 
+  // ── Teacher Approval Modal ──
+  const [teacherApproval, setTeacherApproval] = useState(null); // { requestId, fullName, email }
+  const [teacherUsername, setTeacherUsername] = useState("");
+  const [teacherPassword, setTeacherPassword] = useState("");
+  const [approvingTeacher, setApprovingTeacher] = useState(false);
+
+  const handleApproveTeacher = async () => {
+    if (!teacherUsername.trim() || !teacherPassword.trim()) {
+      toast.error("أدخل اسم المستخدم وكلمة المرور");
+      return;
+    }
+    setApprovingTeacher(true);
+    try {
+      const apiBase = import.meta.env.VITE_BACKEND_URL || '';
+      const res = await fetch(`${apiBase}/api/approve-teacher`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          requestId: teacherApproval.requestId,
+          username: teacherUsername.trim(),
+          password: teacherPassword.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed");
+      toast.success(`تم إنشاء حساب المعلم بنجاح — اسم المستخدم: ${teacherUsername.trim()}`);
+      setTeacherApproval(null);
+      setTeacherUsername("");
+      setTeacherPassword("");
+      queryClient.invalidateQueries({ queryKey: ["founder-teacher-student-regs"] });
+    } catch (err) {
+      toast.error(err.message || "فشل إنشاء الحساب");
+    } finally {
+      setApprovingTeacher(false);
+    }
+  };
+
   const logout = () => {
     localStorage.removeItem("founder_auth");
     localStorage.removeItem("founder_email");
@@ -708,10 +745,17 @@ const FounderDashboard = () => {
                       <td className="p-4">
                         {r.status !== "approved" && r.status !== "rejected" ? (
                           <div className="flex gap-1 flex-wrap">
-                            <button onClick={async () => {
-                              await entities.RegistrationRequest.update(r.id, { status: "approved" });
-                              toast.success(`تم قبول طلب ${isTeacher ? "المعلم" : "الطالب"}: ${r.student_name || r.full_name}`);
-                              queryClient.invalidateQueries({ queryKey: ["founder-teacher-student-regs"] });
+                            <button onClick={() => {
+                              if (isTeacher) {
+                                setTeacherApproval({ requestId: r.id, fullName: r.student_name || r.full_name, email: r.email });
+                                setTeacherUsername(r.email || "");
+                                setTeacherPassword("");
+                              } else {
+                                entities.RegistrationRequest.update(r.id, { status: "approved" }).then(() => {
+                                  toast.success(`تم قبول طلب الطالب: ${r.student_name || r.full_name}`);
+                                  queryClient.invalidateQueries({ queryKey: ["founder-teacher-student-regs"] });
+                                });
+                              }
                             }} className="flex items-center gap-1 bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-emerald-700"><CheckCircle2 size={12}/> قبول</button>
                             <button onClick={async () => {
                               await entities.RegistrationRequest.update(r.id, { status: "rejected" });
@@ -1006,6 +1050,58 @@ const FounderDashboard = () => {
                 <button onClick={()=>setDelivery(null)} className="w-full h-10 rounded-xl bg-slate-100 font-bold text-sm hover:bg-slate-200">إغلاق — تم التسليم</button>
                 <p className="text-[11px] text-center text-slate-400">نصيحة: سلّم كلمة المرور مرة واحدة فقط. المدير يغيّرها، ويمكنك إعادة تعيينها لاحقاً من إدارة المدارس بزر "حساب المدير".</p>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Teacher Approval Modal */}
+        {teacherApproval && (
+          <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => setTeacherApproval(null)}>
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+              <h3 className="text-lg font-black text-slate-900 mb-1">إنشاء حساب المعلم</h3>
+              <p className="text-sm text-slate-500 mb-4">
+                الموافقة على <span className="font-bold text-slate-800">{teacherApproval.fullName}</span> — أدخل اسم المستخدم وكلمة المرور للدخول من بوابة المعلم.
+              </p>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">اسم المستخدم (Username)</label>
+                  <input
+                    type="text"
+                    value={teacherUsername}
+                    onChange={e => setTeacherUsername(e.target.value)}
+                    className="w-full h-11 rounded-xl border border-slate-200 px-4 text-sm font-bold focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none"
+                    placeholder="teacher_name"
+                    dir="ltr"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">كلمة المرور (Password)</label>
+                  <input
+                    type="text"
+                    value={teacherPassword}
+                    onChange={e => setTeacherPassword(e.target.value)}
+                    className="w-full h-11 rounded-xl border border-slate-200 px-4 text-sm font-bold focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none"
+                    placeholder="••••••••"
+                    dir="ltr"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2 mt-5">
+                <button
+                  onClick={handleApproveTeacher}
+                  disabled={approvingTeacher}
+                  className="flex-1 h-11 rounded-xl bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 inline-flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {approvingTeacher ? "جارٍ الإنشاء..." : <><CheckCircle2 size={14}/> تأكيد الموافقة</>}
+                </button>
+                <button
+                  onClick={() => setTeacherApproval(null)}
+                  className="h-11 px-4 rounded-xl bg-slate-100 font-bold text-sm hover:bg-slate-200"
+                >
+                  إلغاء
+                </button>
+              </div>
+              <p className="text-[11px] text-center text-slate-400 mt-3">اسم المستخدم هو الذي سيستخدمه المعلم للدخول من صفحة الهبوط.</p>
             </div>
           </div>
         )}
