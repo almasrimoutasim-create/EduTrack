@@ -7,7 +7,7 @@ import {
   LogOut, CheckCircle2, XCircle, Bell, School as SchoolIcon, TrendingUp,
   Users, CircleDollarSign, RefreshCw, Eye, Plus, Clock, AlertTriangle,
   BarChart3, MessageCircle, Save, Download, KeyRound, PauseCircle, Timer,
-  MapPin, Calendar, Phone, Mail, Crown, Zap, Shield
+  MapPin, Calendar, Phone, Mail, Crown, Zap, Shield, Copy, Printer, Send, UserPlus, Lock, Link2, ExternalLink
 } from "lucide-react";
 
 const PLANS_DEFAULT = [
@@ -150,29 +150,111 @@ const FounderDashboard = () => {
     onError: () => toast.error("تعذر تحديث الطلب"),
   });
 
-  // قبول الطلب مع إنشاء مدرسة تلقائياً
+  // ── حالة بطاقة التسليم (بعد القبول)
+  const [delivery, setDelivery] = useState(null); // { school, adminEmail, password, loginUrl }
+
+  const genPassword = (len = 10) => {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789@#$";
+    let out = "";
+    for (let i = 0; i < len; i++) out += chars[Math.floor(Math.random() * chars.length)];
+    return out;
+  };
+
+  // قبول الطلب مع إنشاء مدرسة + حساب مدير + بطاقة تسليم
   const acceptRequest = async (r) => {
     try {
       const schoolName = r.school_name || r.full_name || "مدرسة جديدة";
       const plan = r.plan || r.role_requested || "starter";
-      // خريطة role إلى plan
       const planMap = { admin: "starter", teacher: "starter", student: "starter" };
       const finalPlan = ["starter","professional","enterprise"].includes(plan) ? plan : (planMap[plan] || "starter");
-      await entities.School.create({
+      const schoolEmail = (r.email || "").trim().toLowerCase();
+      const directorName = r.director_name || r.full_name || "مدير المدرسة";
+      const rawPassword = genPassword(10);
+
+      // 1) إنشاء المدرسة
+      const newSchool = await entities.School.create({
         name: schoolName,
-        director_name: r.director_name || r.full_name || "",
-        email: r.email || "",
-        phone: r.phone || "",
+        name_ar: schoolName,
+        name_en: schoolName,
+        director_name: directorName,
+        email: schoolEmail || null,
+        phone: r.phone || null,
         country: r.country || "السودان",
         plan: finalPlan,
         subscription_status: "active",
       });
+
+      // 2) إنشاء حساب مدير المدرسة وربطه بالمستأجر
+      if (schoolEmail) {
+        try {
+          await entities.SystemAdmin.create({
+            full_name: directorName,
+            email: schoolEmail,
+            portal_password: rawPassword,
+            role: "admin",
+            school_id: newSchool.id || newSchool._id,
+            status: "active",
+          });
+        } catch (e2) {
+          // لو فشل إنشاء الأدمن (مثلاً البريد مكرر) — لا نُفشل القبول كله
+          console.warn("create admin failed:", e2.message);
+          toast("تم إنشاء المدرسة لكن تعذر إنشاء حساب المدير تلقائياً — أنشئه يدوياً من تبويب المدارس", { icon: "⚠️" });
+        }
+      }
+
       await entities.RegistrationRequest.update(r.id, { status: "approved" });
       toast.success(`تم قبول الطلب وإنشاء حساب المدرسة: ${schoolName}`);
       queryClient.invalidateQueries({ queryKey: ["founder-schools"] });
       queryClient.invalidateQueries({ queryKey: ["founder-registrations"] });
+
+      // 3) إظهار بطاقة التسليم
+      if (schoolEmail) {
+        const origin = window.location.origin;
+        setDelivery({
+          school: { id: newSchool.id || newSchool._id, name: schoolName, plan: finalPlan, email: schoolEmail, director: directorName, phone: r.phone || "" },
+          adminEmail: schoolEmail,
+          password: rawPassword,
+          loginUrl: `${origin}/role-login`,
+        });
+      }
     } catch (e) {
       toast.error(e.message || "فشل القبول");
+    }
+  };
+
+  // إنشاء/إعادة تعيين حساب مدير لمدرسة موجودة
+  const createAdminForSchool = async (school) => {
+    const email = (school.email || "").trim().toLowerCase();
+    if (!email) return toast.error("هذه المدرسة بلا بريد — أضف البريد أولاً من التفاصيل");
+    const rawPassword = genPassword(10);
+    try {
+      // هل يوجد حساب بهذا البريد؟ إن وجد نحدّث كلمة المرور
+      let existing = [];
+      try { existing = await entities.SystemAdmin.filter({ email }); } catch {}
+      if (existing && existing.length > 0) {
+        const admin = existing[0];
+        await entities.SystemAdmin.update(admin.id, { portal_password: rawPassword, school_id: school.id, status: "active" });
+        toast.success("تمت إعادة تعيين كلمة مرور المدير");
+      } else {
+        await entities.SystemAdmin.create({
+          full_name: school.director_name || school.name,
+          email,
+          portal_password: rawPassword,
+          role: "admin",
+          school_id: school.id,
+          status: "active",
+        });
+        toast.success("تم إنشاء حساب المدير");
+      }
+      const origin = window.location.origin;
+      setDelivery({
+        school: { id: school.id, name: school.name, plan: school.plan, email, director: school.director_name || school.name, phone: school.phone || "" },
+        adminEmail: email,
+        password: rawPassword,
+        loginUrl: `${origin}/role-login`,
+      });
+    } catch (e) {
+      toast.error(e.message || "فشل إنشاء/تحديث حساب المدير");
     }
   };
 
@@ -362,9 +444,10 @@ const FounderDashboard = () => {
                             <option value="expired">منتهي</option>
                           </select>
                         </td>
-                        <td className="p-4 flex gap-1">
+                        <td className="p-4 flex gap-1 flex-wrap">
                           <button onClick={()=>updateSchool.mutate({id:s.id, status:"active"})} className="px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-bold hover:bg-emerald-100">تفعيل</button>
                           <button onClick={()=>updateSchool.mutate({id:s.id, status:"inactive"})} className="px-2 py-1 rounded-lg bg-amber-50 text-amber-700 text-xs font-bold hover:bg-amber-100">تعليق</button>
+                          <button onClick={()=>createAdminForSchool(s)} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-violet-600 text-white text-xs font-bold hover:bg-violet-700"><KeyRound size={12}/> حساب المدير</button>
                           <button onClick={()=>setViewSchool(s)} className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200"><Eye size={14}/></button>
                         </td>
                       </tr>
@@ -648,6 +731,78 @@ const FounderDashboard = () => {
             <button onClick={() => { localStorage.setItem("founder_platform_settings", JSON.stringify(settings)); toast.success("تم حفظ جميع الإعدادات"); }} className="flex items-center gap-2 rounded-xl bg-blue-600 text-white font-bold px-6 py-3 text-sm shadow-lg shadow-blue-900/30 hover:bg-blue-700">
               <Save size={16}/> حفظ كل الإعدادات
             </button>
+          </div>
+        )}
+
+        {/* ── بطاقة تسليم بيانات الدخول ── */}
+        {delivery && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[60] p-4" onClick={()=>setDelivery(null)}>
+            <div className="bg-white rounded-[28px] max-w-lg w-full shadow-2xl overflow-hidden" onClick={e=>e.stopPropagation()} dir="rtl">
+              <div className="bg-gradient-to-br from-violet-600 via-blue-600 to-emerald-500 p-6 text-white">
+                <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center mb-3"><KeyRound className="text-white" size={24}/></div>
+                <h3 className="text-xl font-black">تم إنشاء اشتراك المدرسة ✅</h3>
+                <p className="text-sm text-white/90 mt-1">سلّم هذه البيانات للمسؤول — كل بيانات المدرسة معزولة تلقائياً</p>
+                <p className="text-xs bg-white/15 rounded-lg px-3 py-1.5 mt-3 inline-block">{delivery.school.name} • باقة {delivery.school.plan}</p>
+              </div>
+              <div className="p-6 space-y-4">
+                <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 text-xs font-bold text-slate-500"><Link2 size={14}/> رابط الدخول</div>
+                    <button onClick={()=>{navigator.clipboard.writeText(delivery.loginUrl); toast.success("تم نسخ الرابط");}} className="text-xs font-bold text-blue-600 hover:underline inline-flex items-center gap-1"><Copy size={12}/> نسخ</button>
+                  </div>
+                  <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm font-mono text-slate-800" dir="ltr">
+                    <span className="flex-1 truncate">{delivery.loginUrl}</span>
+                    <a href={delivery.loginUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline"><ExternalLink size={14}/></a>
+                  </div>
+                  <p className="text-[11px] text-slate-400">يختار المدير: <b>الإدارة</b> → يدخل البريد وكلمة المرور</p>
+                </div>
+
+                <div className="grid grid-cols-1 gap-3">
+                  <div className="bg-white border border-slate-200 rounded-2xl p-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-500 flex items-center gap-1"><Mail size={14}/> البريد / اسم المستخدم</span>
+                      <button onClick={()=>{navigator.clipboard.writeText(delivery.adminEmail); toast.success("تم نسخ البريد");}} className="text-xs font-bold text-blue-600 hover:underline inline-flex items-center gap-1"><Copy size={12}/> نسخ</button>
+                    </div>
+                    <p className="mt-1 text-sm font-bold text-slate-900 font-mono" dir="ltr">{delivery.adminEmail}</p>
+                  </div>
+                  <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-amber-700 flex items-center gap-1"><Lock size={14}/> كلمة المرور المؤقتة</span>
+                      <button onClick={()=>{navigator.clipboard.writeText(delivery.password); toast.success("تم نسخ كلمة المرور");}} className="text-xs font-bold text-amber-700 hover:underline inline-flex items-center gap-1"><Copy size={12}/> نسخ</button>
+                    </div>
+                    <p className="mt-1 text-base font-black text-amber-900 font-mono tracking-wider" dir="ltr">{delivery.password}</p>
+                    <p className="text-[11px] text-amber-700 mt-1">يُنصح بتغييرها بعد أول دخول — لا تُخزن كنص واضح بعد التسليم</p>
+                  </div>
+                </div>
+
+                <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 text-xs leading-relaxed text-blue-900">
+                  <b>ماذا يستطيع المدير الآن؟</b> تسجيل دخول → إنشاء المعلمين/الطلاب/أولياء الأمور → كلهم يُربطون تلقائياً بـ <b>{delivery.school.name}</b> ولا يرون أي مدرسة أخرى. الاشتراك: <b>{delivery.school.plan}</b> — حالته <b>نشط</b> ويمكنك تعليقه من تبويب المدارس.
+                </div>
+
+                <div className="flex gap-2">
+                  <button onClick={()=>{
+                    const msg = `مرحباً ${delivery.school.director} 👋\nتم تفعيل اشتراك مدرستكم *${delivery.school.name}* على منصة EduTrack\n\n🔗 رابط الدخول: ${delivery.loginUrl}\nاختر: الإدارة\n👤 البريد: ${delivery.adminEmail}\n🔑 كلمة المرور: ${delivery.password}\n\nالخطة: ${delivery.school.plan} — الحالة: نشط\nيرجى تغيير كلمة المرور بعد أول دخول.`;
+                    const url = `https://wa.me/${(delivery.school.phone||"").replace(/[^0-9]/g,"")}?text=${encodeURIComponent(msg)}`;
+                    if((delivery.school.phone||"").trim()) window.open(url, "_blank");
+                    else { navigator.clipboard.writeText(msg); toast.success("تم نسخ رسالة الواتساب — الصقها يدوياً"); }
+                  }} className="flex-1 h-11 rounded-xl bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 inline-flex items-center justify-center gap-2"><Send size={16}/> إرسال واتساب</button>
+                  <button onClick={()=>{
+                    const subject = `بيانات دخول EduTrack — ${delivery.school.name}`;
+                    const body = `مرحباً ${delivery.school.director},\n\nتم تفعيل اشتراك مدرستكم ${delivery.school.name} (باقة ${delivery.school.plan}).\n\nرابط الدخول: ${delivery.loginUrl}\nاختر: الإدارة\nالبريد: ${delivery.adminEmail}\nكلمة المرور: ${delivery.password}\n\nيرجى تغيير كلمة المرور بعد أول دخول.\n`;
+                    window.location.href = `mailto:${delivery.adminEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+                  }} className="flex-1 h-11 rounded-xl border border-slate-200 bg-white font-bold text-sm hover:bg-slate-50 inline-flex items-center justify-center gap-2"><Mail size={16}/> إرسال بريد</button>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={()=>window.print()} className="flex-1 h-10 rounded-xl border border-slate-200 bg-white font-bold text-sm hover:bg-slate-50 inline-flex items-center justify-center gap-2"><Printer size={16}/> طباعة</button>
+                  <button onClick={()=>{
+                    const txt = `EduTrack — ${delivery.school.name}\nالرابط: ${delivery.loginUrl}\nالبريد: ${delivery.adminEmail}\nكلمة المرور: ${delivery.password}\nالخطة: ${delivery.school.plan}`;
+                    navigator.clipboard.writeText(txt); toast.success("تم نسخ كل البيانات");
+                  }} className="flex-1 h-10 rounded-xl bg-slate-900 text-white font-bold text-sm hover:bg-black inline-flex items-center justify-center gap-2"><Copy size={16}/> نسخ الكل</button>
+                </div>
+                <button onClick={()=>setDelivery(null)} className="w-full h-10 rounded-xl bg-slate-100 font-bold text-sm hover:bg-slate-200">إغلاق — تم التسليم</button>
+                <p className="text-[11px] text-center text-slate-400">نصيحة: سلّم كلمة المرور مرة واحدة فقط. المدير يغيّرها، ويمكنك إعادة تعيينها لاحقاً من إدارة المدارس بزر "حساب المدير".</p>
+              </div>
+            </div>
           </div>
         )}
       </main>
