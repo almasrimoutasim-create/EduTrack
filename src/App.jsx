@@ -80,7 +80,7 @@ import AcademicFiles from './pages/AcademicFiles';
 import StudentArchive from './pages/StudentArchive';
 import PrintResults from './pages/PrintResults';
 import PublicRegistration from './pages/PublicRegistration';
-import RegistrationRequestsAdmin from './pages/RegistrationRequestsAdmin';
+
 import LandingPage from './pages/LandingPage';
 import Gateway from './pages/Gateway';
 
@@ -113,7 +113,7 @@ const AuthenticatedApp = () => {
       <Route element={<AppLayout />}>
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/admin-dashboard" element={<Dashboard />} />
-        <Route path="/registration-requests" element={<RegistrationRequestsAdmin />} />
+
         <Route path="/settings" element={<Settings />} />
         <Route path="/portal-access" element={<PortalAccessAdmin />} />
         <Route path="/students" element={<Students />} />

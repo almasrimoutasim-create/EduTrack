@@ -261,7 +261,7 @@ export default function Sidebar() {
             label: isRTL ? "نظرة عامة" : "Overview",
             items: [
               { label: t("common.dashboard", language), path: "/", icon: LayoutDashboard },
-              { label: isRTL ? "طلبات التسجيل" : "Registration Requests", path: "/registration-requests", icon: UserCheck }
+
             ]
           },
           {
