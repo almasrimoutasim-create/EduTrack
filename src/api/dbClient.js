@@ -161,7 +161,8 @@ const entityNames = [
   'WalletTransaction', 'HallRental', 'OtherRevenue',
   'Expense', 'SalaryRecord', 'PurchaseOrder', 'Visitor',
   'StaffLeave', 'StaffContract', 'StaffEvaluation', 'StaffRequest',
-  'Department', 'CareerLadder', 'StoreCategory', 'SalesOrder', 'SystemSetting', 'GatewayAccount', 'SystemAdmin', 'RegistrationRequest'
+  'Department', 'CareerLadder', 'StoreCategory', 'SalesOrder', 'SystemSetting', 'GatewayAccount', 'SystemAdmin', 'RegistrationRequest',
+  'School'
 ];
 
 const entities = {};

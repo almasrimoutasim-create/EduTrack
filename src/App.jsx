@@ -62,6 +62,11 @@ import Departments from './pages/Departments';
 import CareerLadder from './pages/CareerLadder';
 import Settings from './pages/Settings';
 
+// Founder Control Panel (invisible from school UI)
+import FounderLogin from './pages/FounderLogin';
+import FounderDashboard from './pages/FounderDashboard';
+import FounderGuard from './components/founder/FounderGuard';
+
 // Store Modules
 import StoreInventory from './pages/StoreInventory';
 import StoreCategories from './pages/StoreCategories';
@@ -178,15 +183,31 @@ function App() {
   return (
     <LanguageProvider>
       <Router>
-        <AuthProvider>
-          <RoleGate>
-            <QueryClientProvider client={queryClientInstance}>
-              <AuthenticatedApp />
-              <Toaster />
-              <SonnerToaster richColors position="top-right" />
-            </QueryClientProvider>
-          </RoleGate>
-        </AuthProvider>
+        <QueryClientProvider client={queryClientInstance}>
+          <Routes>
+            <Route path="/founder-login" element={<FounderLogin />} />
+            <Route
+              path="/founder-dashboard"
+              element={
+                <FounderGuard>
+                  <FounderDashboard />
+                </FounderGuard>
+              }
+            />
+            <Route
+              path="/*"
+              element={
+                <AuthProvider>
+                  <RoleGate>
+                    <AuthenticatedApp />
+                  </RoleGate>
+                </AuthProvider>
+              }
+            />
+          </Routes>
+          <Toaster />
+          <SonnerToaster richColors position="top-right" />
+        </QueryClientProvider>
       </Router>
     </LanguageProvider>
   );
