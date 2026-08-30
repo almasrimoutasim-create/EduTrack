@@ -160,16 +160,27 @@ const FounderDashboard = () => {
     return out;
   };
 
-  // قبول الطلب مع إنشاء مدرسة + حساب مدير + بطاقة تسليم
+  // ── خطة → مدة الاشتراك (أيام)
+  const planDuration = (planId, cycle = 'monthly') => {
+    if (cycle === 'yearly') return 365;
+    return planId === 'starter' ? 30 : planId === 'professional' ? 30 : 30; // افتراضياً شهرياً
+  };
+
+  // ── قبول الطلب مع إنشاء مدرسة + حساب مدير + بطاقة تسليم
   const acceptRequest = async (r) => {
     try {
       const schoolName = r.school_name || r.full_name || "مدرسة جديدة";
       const plan = r.plan || r.role_requested || "starter";
+      const billingCycle = r.billing_cycle || "monthly";
       const planMap = { admin: "starter", teacher: "starter", student: "starter" };
       const finalPlan = ["starter","professional","enterprise"].includes(plan) ? plan : (planMap[plan] || "starter");
       const schoolEmail = (r.email || "").trim().toLowerCase();
       const directorName = r.director_name || r.full_name || "مدير المدرسة";
       const rawPassword = genPassword(10);
+
+      const startDate = new Date();
+      const endDate = new Date(startDate);
+      endDate.setDate(endDate.getDate() + planDuration(finalPlan, billingCycle));
 
       // 1) إنشاء المدرسة
       const newSchool = await entities.School.create({
@@ -181,7 +192,10 @@ const FounderDashboard = () => {
         phone: r.phone || null,
         country: r.country || "السودان",
         plan: finalPlan,
+        billing_cycle: billingCycle,
         subscription_status: "active",
+        subscription_start_date: startDate.toISOString(),
+        expires_at: endDate.toISOString(),
       });
 
       // 2) إنشاء حساب مدير المدرسة وربطه بالمستأجر
@@ -211,7 +225,7 @@ const FounderDashboard = () => {
       if (schoolEmail) {
         const origin = window.location.origin;
         setDelivery({
-          school: { id: newSchool.id || newSchool._id, name: schoolName, plan: finalPlan, email: schoolEmail, director: directorName, phone: r.phone || "" },
+          school: { id: newSchool.id || newSchool._id, name: schoolName, plan: finalPlan, billing_cycle: billingCycle, email: schoolEmail, director: directorName, phone: r.phone || "", subscription_start_date: startDate.toISOString(), expires_at: endDate.toISOString() },
           adminEmail: schoolEmail,
           password: rawPassword,
           loginUrl: `${origin}/role-login`,
@@ -223,6 +237,28 @@ const FounderDashboard = () => {
   };
 
   // إنشاء/إعادة تعيين حساب مدير لمدرسة موجودة
+  const renewSubscription = async (school) => {
+    const cycle = school.billing_cycle || 'monthly';
+    const days = cycle === 'yearly' ? 365 : 30;
+    const startDate = school.expires_at && new Date(school.expires_at) > new Date()
+      ? new Date(school.expires_at)
+      : new Date();
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + days);
+    try {
+      await entities.School.update(school.id, {
+        subscription_status: "active",
+        subscription_start_date: startDate.toISOString(),
+        expires_at: endDate.toISOString(),
+      });
+      toast.success(`تم تجديد الاشتراك لـ ${school.name} حتى ${endDate.toLocaleDateString('ar-EG')}`);
+      queryClient.invalidateQueries({ queryKey: ["founder-schools"] });
+    } catch (e) {
+      toast.error(e.message || "فشل التجديد");
+    }
+  };
+
+  // إنشاء/إعادة تعيين حساب مدير لمدرسة موجودة
   const createAdminForSchool = async (school) => {
     const email = (school.email || "").trim().toLowerCase();
     if (!email) return toast.error("هذه المدرسة بلا بريد — أضف البريد أولاً من التفاصيل");
@@ -230,7 +266,7 @@ const FounderDashboard = () => {
     try {
       // هل يوجد حساب بهذا البريد؟ إن وجد نحدّث كلمة المرور
       let existing = [];
-      try { existing = await entities.SystemAdmin.filter({ email }); } catch {}
+      try { existing = await entities.SystemAdmin.filter({ email }); } catch (e) { console.warn('filter failed', e); }
       if (existing && existing.length > 0) {
         const admin = existing[0];
         await entities.SystemAdmin.update(admin.id, { portal_password: rawPassword, school_id: school.id, status: "active" });
@@ -248,7 +284,7 @@ const FounderDashboard = () => {
       }
       const origin = window.location.origin;
       setDelivery({
-        school: { id: school.id, name: school.name, plan: school.plan, email, director: school.director_name || school.name, phone: school.phone || "" },
+        school: { id: school.id, name: school.name, plan: school.plan, billing_cycle: school.billing_cycle || 'monthly', email, director: school.director_name || school.name, phone: school.phone || "", subscription_start_date: school.subscription_start_date, expires_at: school.expires_at },
         adminEmail: email,
         password: rawPassword,
         loginUrl: `${origin}/role-login`,
@@ -260,7 +296,7 @@ const FounderDashboard = () => {
 
   // ── Add school dialog state ──
   const [showAdd, setShowAdd] = useState(false);
-  const [newSchool, setNewSchool] = useState({ name: "", country: "السودان", plan: "starter", email: "", phone: "", director_name: "" });
+  const [newSchool, setNewSchool] = useState({ name: "", country: "السودان", plan: "starter", billing_cycle: "monthly", email: "", phone: "", director_name: "" });
   const [viewSchool, setViewSchool] = useState(null);
 
   // ── Password change ──
@@ -420,7 +456,10 @@ const FounderDashboard = () => {
                       <th className="text-right p-4 font-semibold">اسم المدرسة</th>
                       <th className="text-right p-4 font-semibold">البلد</th>
                       <th className="text-right p-4 font-semibold">الخطة</th>
+                      <th className="text-right p-4 font-semibold">الدورة</th>
                       <th className="text-right p-4 font-semibold">تاريخ الانضمام</th>
+                      <th className="text-right p-4 font-semibold">بدء الاشتراك</th>
+                      <th className="text-right p-4 font-semibold">ينتهي في</th>
                       <th className="text-right p-4 font-semibold">حالة الاشتراك</th>
                       <th className="text-right p-4 font-semibold">إجراءات</th>
                     </tr>
@@ -435,6 +474,21 @@ const FounderDashboard = () => {
                         <td className="p-4 flex items-center gap-1 text-slate-600"><MapPin size={14} className="text-slate-400"/>{s.country || "السودان"}</td>
                         <td className="p-4"><span className={`px-2 py-1 rounded-full text-xs font-bold ${s.plan==='enterprise'?'bg-violet-100 text-violet-700': s.plan==='professional'?'bg-blue-100 text-blue-700':'bg-slate-100 text-slate-700'}`}>{s.plan || "starter"}</span></td>
                         <td className="p-4 text-slate-500 flex items-center gap-1"><Calendar size={14}/>{s.created_at ? new Date(s.created_at).toLocaleDateString('ar-EG') : "-"}</td>
+                        <td className="p-4 text-slate-500 flex items-center gap-1">
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${s.billing_cycle==='yearly'?'bg-amber-100 text-amber-700':'bg-slate-100 text-slate-700'}`}>
+                            {s.billing_cycle === 'yearly' ? 'سنوي' : 'شهري'}
+                          </span>
+                        </td>
+                        <td className="p-4 text-slate-500">
+                          {s.subscription_start_date ? new Date(s.subscription_start_date).toLocaleDateString('ar-EG') : '—'}
+                        </td>
+                        <td className="p-4">
+                          {s.expires_at ? (
+                            <span className={new Date(s.expires_at) < new Date() ? 'text-rose-600 font-bold' : new Date(s.expires_at) - new Date() < 7*24*60*60*1000 ? 'text-amber-600 font-bold' : 'text-emerald-600'}>
+                              {new Date(s.expires_at).toLocaleDateString('ar-EG')}
+                            </span>
+                          ) : <span className="text-slate-400">—</span>}
+                        </td>
                         <td className="p-4">
                           <select value={s.subscription_status || "trial"} onChange={(e)=>updateSchool.mutate({id:s.id, status:e.target.value})} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold">
                             <option value="active">نشط</option>
@@ -447,6 +501,7 @@ const FounderDashboard = () => {
                         <td className="p-4 flex gap-1 flex-wrap">
                           <button onClick={()=>updateSchool.mutate({id:s.id, status:"active"})} className="px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-bold hover:bg-emerald-100">تفعيل</button>
                           <button onClick={()=>updateSchool.mutate({id:s.id, status:"inactive"})} className="px-2 py-1 rounded-lg bg-amber-50 text-amber-700 text-xs font-bold hover:bg-amber-100">تعليق</button>
+                          <button onClick={()=>renewSubscription(s)} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-blue-600 text-white text-xs font-bold hover:bg-blue-700"><RefreshCw size={12}/> تجديد</button>
                           <button onClick={()=>createAdminForSchool(s)} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-violet-600 text-white text-xs font-bold hover:bg-violet-700"><KeyRound size={12}/> حساب المدير</button>
                           <button onClick={()=>setViewSchool(s)} className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200"><Eye size={14}/></button>
                         </td>
@@ -469,11 +524,16 @@ const FounderDashboard = () => {
                     <div className="flex justify-between"><span className="text-slate-500">البريد</span><b>{viewSchool.email || "-"}</b></div>
                     <div className="flex justify-between"><span className="text-slate-500">الهاتف</span><b>{viewSchool.phone || "-"}</b></div>
                     <div className="flex justify-between"><span className="text-slate-500">الخطة</span><b>{viewSchool.plan}</b></div>
+                    <div className="flex justify-between"><span className="text-slate-500">دورة الفوترة</span><b>{viewSchool.billing_cycle === 'yearly' ? 'سنوي' : 'شهري'}</b></div>
                     <div className="flex justify-between"><span className="text-slate-500">الحالة</span><b>{viewSchool.subscription_status}</b></div>
                     <div className="flex justify-between"><span className="text-slate-500">تاريخ الانضمام</span><b>{viewSchool.created_at ? new Date(viewSchool.created_at).toLocaleString('ar-EG') : "-"}</b></div>
-                    {viewSchool.expires_at && <div className="flex justify-between"><span className="text-slate-500">ينتهي في</span><b>{new Date(viewSchool.expires_at).toLocaleDateString('ar-EG')}</b></div>}
+                    <div className="flex justify-between"><span className="text-slate-500">بدء الاشتراك</span><b>{viewSchool.subscription_start_date ? new Date(viewSchool.subscription_start_date).toLocaleDateString('ar-EG') : "—"}</b></div>
+                    {viewSchool.expires_at && <div className="flex justify-between"><span className="text-slate-500">ينتهي في</span><b className={new Date(viewSchool.expires_at) < new Date() ? 'text-rose-600' : new Date(viewSchool.expires_at) - new Date() < 7*24*60*60*1000 ? 'text-amber-600' : 'text-emerald-600'}>{new Date(viewSchool.expires_at).toLocaleDateString('ar-EG')}</b></div>}
                   </div>
-                  <button onClick={()=>setViewSchool(null)} className="mt-6 w-full h-10 rounded-xl bg-slate-900 text-white font-bold">إغلاق</button>
+                  <div className="flex gap-2 mt-4">
+                    <button onClick={()=>renewSubscription(viewSchool)} className="flex-1 h-10 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-700"><RefreshCw size={14}/> تجديد</button>
+                    <button onClick={()=>setViewSchool(null)} className="flex-1 h-10 rounded-xl bg-slate-900 text-white font-bold">إغلاق</button>
+                  </div>
                 </div>
               </div>
             )}
@@ -486,13 +546,14 @@ const FounderDashboard = () => {
                     <div className="col-span-2"><label className="text-xs font-bold text-slate-600">اسم المدرسة *</label><input value={newSchool.name} onChange={e=>setNewSchool({...newSchool, name:e.target.value})} className="w-full mt-1 rounded-xl border border-slate-300 px-3 py-2 text-sm" placeholder="مثال: مدارس النور"/></div>
                     <div><label className="text-xs font-bold text-slate-600">البلد</label><input value={newSchool.country} onChange={e=>setNewSchool({...newSchool, country:e.target.value})} className="w-full mt-1 rounded-xl border border-slate-300 px-3 py-2 text-sm"/></div>
                     <div><label className="text-xs font-bold text-slate-600">الخطة</label><select value={newSchool.plan} onChange={e=>setNewSchool({...newSchool, plan:e.target.value})} className="w-full mt-1 rounded-xl border border-slate-300 px-3 py-2 text-sm"><option value="starter">Starter $49</option><option value="professional">Professional $99</option><option value="enterprise">Enterprise $199</option></select></div>
+                    <div><label className="text-xs font-bold text-slate-600">دورة الفوترة</label><select value={newSchool.billing_cycle} onChange={e=>setNewSchool({...newSchool, billing_cycle:e.target.value})} className="w-full mt-1 rounded-xl border border-slate-300 px-3 py-2 text-sm"><option value="monthly">شهري</option><option value="yearly">سنوي</option></select></div>
                     <div><label className="text-xs font-bold text-slate-600">البريد</label><input value={newSchool.email} onChange={e=>setNewSchool({...newSchool, email:e.target.value})} className="w-full mt-1 rounded-xl border border-slate-300 px-3 py-2 text-sm" dir="ltr"/></div>
                     <div><label className="text-xs font-bold text-slate-600">الهاتف</label><input value={newSchool.phone} onChange={e=>setNewSchool({...newSchool, phone:e.target.value})} className="w-full mt-1 rounded-xl border border-slate-300 px-3 py-2 text-sm" dir="ltr"/></div>
                     <div className="col-span-2"><label className="text-xs font-bold text-slate-600">اسم المسؤول</label><input value={newSchool.director_name} onChange={e=>setNewSchool({...newSchool, director_name:e.target.value})} className="w-full mt-1 rounded-xl border border-slate-300 px-3 py-2 text-sm"/></div>
                   </div>
                   <div className="flex gap-2 mt-6">
                     <button onClick={()=>setShowAdd(false)} className="flex-1 h-10 rounded-xl border border-slate-200 font-bold">إلغاء</button>
-                    <button onClick={async()=>{ if(!newSchool.name.trim()) return toast.error("اسم المدرسة مطلوب"); await createSchool.mutateAsync({ name:newSchool.name.trim(), country:newSchool.country, plan:newSchool.plan, email:newSchool.email||null, phone:newSchool.phone||null, director_name:newSchool.director_name||null, subscription_status:"active" }); setShowAdd(false); setNewSchool({ name:"", country:"السودان", plan:"starter", email:"", phone:"", director_name:""});}} className="flex-[2] h-10 rounded-xl bg-blue-600 text-white font-bold">إنشاء المدرسة</button>
+                    <button onClick={async()=>{ if(!newSchool.name.trim()) return toast.error("اسم المدرسة مطلوب"); const start = new Date(); const end = new Date(start); end.setDate(end.getDate() + (newSchool.billing_cycle==='yearly'?365:30)); await createSchool.mutateAsync({ name:newSchool.name.trim(), country:newSchool.country, plan:newSchool.plan, billing_cycle:newSchool.billing_cycle, email:newSchool.email||null, phone:newSchool.phone||null, director_name:newSchool.director_name||null, subscription_status:"active", subscription_start_date:start.toISOString(), expires_at:end.toISOString() }); setShowAdd(false); setNewSchool({ name:"", country:"السودان", plan:"starter", billing_cycle:"monthly", email:"", phone:"", director_name:""});}} className="flex-[2] h-10 rounded-xl bg-blue-600 text-white font-bold">إنشاء المدرسة</button>
                   </div>
                 </div>
               </div>
@@ -740,9 +801,9 @@ const FounderDashboard = () => {
             <div className="bg-white rounded-[28px] max-w-lg w-full shadow-2xl overflow-hidden" onClick={e=>e.stopPropagation()} dir="rtl">
               <div className="bg-gradient-to-br from-violet-600 via-blue-600 to-emerald-500 p-6 text-white">
                 <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center mb-3"><KeyRound className="text-white" size={24}/></div>
-                <h3 className="text-xl font-black">تم إنشاء اشتراك المدرسة ✅</h3>
+<h3 className="text-xl font-black">تم إنشاء اشتراك المدرسة ✅</h3>
                 <p className="text-sm text-white/90 mt-1">سلّم هذه البيانات للمسؤول — كل بيانات المدرسة معزولة تلقائياً</p>
-                <p className="text-xs bg-white/15 rounded-lg px-3 py-1.5 mt-3 inline-block">{delivery.school.name} • باقة {delivery.school.plan}</p>
+                <p className="text-xs bg-white/15 rounded-lg px-3 py-1.5 mt-3 inline-block">{delivery.school.name} • باقة {delivery.school.plan} • {delivery.school.billing_cycle === 'yearly' ? 'سنوي' : 'شهري'}</p>
               </div>
               <div className="p-6 space-y-4">
                 <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 space-y-3">
@@ -775,20 +836,26 @@ const FounderDashboard = () => {
                   </div>
                 </div>
 
+                <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3 text-xs leading-relaxed text-emerald-900">
+                  <b>تفاصيل الاشتراك:</b> دورة الفوترة: <b>{delivery.school.billing_cycle === 'yearly' ? 'سنوي' : 'شهري'}</b> • بدء الاشتراك: <b>{delivery.school.subscription_start_date ? new Date(delivery.school.subscription_start_date).toLocaleDateString('ar-EG') : 'اليوم'}</b> • ينتهي في: <b>{delivery.school.expires_at ? new Date(delivery.school.expires_at).toLocaleDateString('ar-EG') : '—'}</b>
+                </div>
+
                 <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 text-xs leading-relaxed text-blue-900">
                   <b>ماذا يستطيع المدير الآن؟</b> تسجيل دخول → إنشاء المعلمين/الطلاب/أولياء الأمور → كلهم يُربطون تلقائياً بـ <b>{delivery.school.name}</b> ولا يرون أي مدرسة أخرى. الاشتراك: <b>{delivery.school.plan}</b> — حالته <b>نشط</b> ويمكنك تعليقه من تبويب المدارس.
                 </div>
 
                 <div className="flex gap-2">
                   <button onClick={()=>{
-                    const msg = `مرحباً ${delivery.school.director} 👋\nتم تفعيل اشتراك مدرستكم *${delivery.school.name}* على منصة EduTrack\n\n🔗 رابط الدخول: ${delivery.loginUrl}\nاختر: الإدارة\n👤 البريد: ${delivery.adminEmail}\n🔑 كلمة المرور: ${delivery.password}\n\nالخطة: ${delivery.school.plan} — الحالة: نشط\nيرجى تغيير كلمة المرور بعد أول دخول.`;
+                    const cycle = delivery.school.billing_cycle === 'yearly' ? 'سنوي' : 'شهري';
+                    const msg = `مرحباً ${delivery.school.director} 👋\nتم تفعيل اشتراك مدرستكم *${delivery.school.name}* على منصة EduTrack\n\n🔗 رابط الدخول: ${delivery.loginUrl}\nاختر: الإدارة\n👤 البريد: ${delivery.adminEmail}\n🔑 كلمة المرور: ${delivery.password}\n\nالخطة: ${delivery.school.plan} (${cycle})\nبدء الاشتراك: ${delivery.school.subscription_start_date ? new Date(delivery.school.subscription_start_date).toLocaleDateString('ar-EG') : 'اليوم'}\nينتهي في: ${delivery.school.expires_at ? new Date(delivery.school.expires_at).toLocaleDateString('ar-EG') : '—'}\n\nيرجى تغيير كلمة المرور بعد أول دخول.`;
                     const url = `https://wa.me/${(delivery.school.phone||"").replace(/[^0-9]/g,"")}?text=${encodeURIComponent(msg)}`;
                     if((delivery.school.phone||"").trim()) window.open(url, "_blank");
                     else { navigator.clipboard.writeText(msg); toast.success("تم نسخ رسالة الواتساب — الصقها يدوياً"); }
                   }} className="flex-1 h-11 rounded-xl bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 inline-flex items-center justify-center gap-2"><Send size={16}/> إرسال واتساب</button>
                   <button onClick={()=>{
+                    const cycle = delivery.school.billing_cycle === 'yearly' ? 'سنوي' : 'شهري';
                     const subject = `بيانات دخول EduTrack — ${delivery.school.name}`;
-                    const body = `مرحباً ${delivery.school.director},\n\nتم تفعيل اشتراك مدرستكم ${delivery.school.name} (باقة ${delivery.school.plan}).\n\nرابط الدخول: ${delivery.loginUrl}\nاختر: الإدارة\nالبريد: ${delivery.adminEmail}\nكلمة المرور: ${delivery.password}\n\nيرجى تغيير كلمة المرور بعد أول دخول.\n`;
+                    const body = `مرحباً ${delivery.school.director},\n\nتم تفعيل اشتراك مدرستكم ${delivery.school.name} (باقة ${delivery.school.plan} - ${cycle}).\n\nرابط الدخول: ${delivery.loginUrl}\nاختر: الإدارة\nالبريد: ${delivery.adminEmail}\nكلمة المرور: ${delivery.password}\n\nبدء الاشتراك: ${delivery.school.subscription_start_date ? new Date(delivery.school.subscription_start_date).toLocaleDateString('ar-EG') : 'اليوم'}\nينتهي في: ${delivery.school.expires_at ? new Date(delivery.school.expires_at).toLocaleDateString('ar-EG') : '—'}\n\nيرجى تغيير كلمة المرور بعد أول دخول.\n`;
                     window.location.href = `mailto:${delivery.adminEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
                   }} className="flex-1 h-11 rounded-xl border border-slate-200 bg-white font-bold text-sm hover:bg-slate-50 inline-flex items-center justify-center gap-2"><Mail size={16}/> إرسال بريد</button>
                 </div>

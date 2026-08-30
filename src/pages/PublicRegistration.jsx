@@ -14,6 +14,11 @@ const PLAN_OPTIONS = [
   { id: "enterprise", name: "Enterprise", price: 199, icon: Crown, descAr: "شبكة مدارس بلا حدود", descEn: "Unlimited network", color: "border-violet-300" },
 ];
 
+const BILLING_CYCLES = [
+  { id: "monthly", nameAr: "شهري", nameEn: "Monthly", descAr: "دفع شهري", descEn: "Pay monthly" },
+  { id: "yearly", nameAr: "سنوي (توفير 20%)", nameEn: "Yearly (Save 20%)", descAr: "دفع سنوي مع خصم", descEn: "Annual payment with discount" },
+];
+
 export default function PublicRegistration() {
   const { language } = useLanguage();
   const { appPublicSettings } = useAuth();
@@ -28,6 +33,7 @@ export default function PublicRegistration() {
     phone: "",
     country: "السودان",
     plan: "",
+    billing_cycle: "monthly",
     notes: "",
   });
   const [loading, setLoading] = useState(false);
@@ -56,6 +62,7 @@ export default function PublicRegistration() {
         phone: form.phone.trim(),
         country: form.country.trim() || "السودان",
         plan: form.plan,
+        billing_cycle: form.billing_cycle,
         role_requested: form.plan, // توافق خلفي مع الجدول القديم
         notes: form.notes.trim() || null,
         status: "pending",
@@ -142,6 +149,22 @@ export default function PublicRegistration() {
                       <opt.icon size={20} className={`mx-auto mb-1.5 ${active ? "text-white" : "text-stone-600"}`} />
                       <div className="text-sm font-black">{opt.name}</div>
                       <div className="text-lg font-extrabold">${opt.price}<span className="text-xs font-normal opacity-70">/شهر</span></div>
+                      <div className={`text-[11px] mt-1 ${active ? "text-white/70" : "text-stone-400"}`}>{isRTL ? opt.descAr : opt.descEn}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-stone-600">{isRTL ? "دورة الفوترة" : "Billing cycle"}</label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {BILLING_CYCLES.map(opt => {
+                  const active = form.billing_cycle === opt.id;
+                  return (
+                    <button key={opt.id} type="button" onClick={() => update("billing_cycle", opt.id)}
+                      className={`relative p-4 rounded-2xl border-2 text-center transition-all ${active ? "border-stone-900 bg-stone-900 text-white shadow-lg" : "border-stone-200 bg-stone-50 hover:bg-white text-stone-700"}`}>
+                      <div className="text-sm font-black">{isRTL ? opt.nameAr : opt.nameEn}</div>
                       <div className={`text-[11px] mt-1 ${active ? "text-white/70" : "text-stone-400"}`}>{isRTL ? opt.descAr : opt.descEn}</div>
                     </button>
                   );

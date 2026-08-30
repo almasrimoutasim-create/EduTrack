@@ -459,22 +459,33 @@ if (process.env.DATABASE_URL) {
     CREATE TABLE IF NOT EXISTS schools (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       name TEXT NOT NULL,
+      name_ar TEXT,
+      name_en TEXT,
       country TEXT DEFAULT 'السودان',
       plan TEXT NOT NULL DEFAULT 'starter',
+      billing_cycle TEXT NOT NULL DEFAULT 'monthly', -- 'monthly' or 'yearly'
       subscription_status TEXT NOT NULL DEFAULT 'trial',
       director_name TEXT,
       email TEXT,
       phone TEXT,
+      domain_subdomain TEXT UNIQUE, -- للمدارس التي تريد نطاق فرعي
+      logo_url TEXT,
+      subscription_start_date TIMESTAMP WITH TIME ZONE, -- متى بدأ الاشتراك فعلياً
+      expires_at TIMESTAMP WITH TIME ZONE, -- متى ينتهي الاشتراك الحالي
       created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-      expires_at TIMESTAMP WITH TIME ZONE DEFAULT (CURRENT_TIMESTAMP + INTERVAL '30 days')
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     )
   `.then(() => {
     console.log('[neon] schools table verified/created');
-    sql`ALTER TABLE schools ADD COLUMN IF NOT EXISTS country TEXT DEFAULT 'السودان';`.catch(()=>{});
+    sql`ALTER TABLE schools ADD COLUMN IF NOT EXISTS name_ar TEXT;`.catch(()=>{});
+    sql`ALTER TABLE schools ADD COLUMN IF NOT EXISTS name_en TEXT;`.catch(()=>{});
+    sql`ALTER TABLE schools ADD COLUMN IF NOT EXISTS billing_cycle TEXT DEFAULT 'monthly';`.catch(()=>{});
+    sql`ALTER TABLE schools ADD COLUMN IF NOT EXISTS subscription_start_date TIMESTAMP WITH TIME ZONE;`.catch(()=>{});
     sql`ALTER TABLE schools ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP WITH TIME ZONE;`.catch(()=>{});
-    sql`ALTER TABLE schools ADD COLUMN IF NOT EXISTS director_name TEXT;`.catch(()=>{});
-    sql`ALTER TABLE schools ADD COLUMN IF NOT EXISTS phone TEXT;`.catch(()=>{});
+    sql`ALTER TABLE schools ADD COLUMN IF NOT EXISTS domain_subdomain TEXT;`.catch(()=>{});
+    sql`ALTER TABLE schools ADD COLUMN IF NOT EXISTS logo_url TEXT;`.catch(()=>{});
+    sql`ALTER TABLE schools ADD COLUMN IF NOT EXISTS plan_id TEXT;`.catch(()=>{});
+    sql`ALTER TABLE schools ADD COLUMN IF NOT EXISTS subscription_end_date TIMESTAMP WITH TIME ZONE;`.catch(()=>{});
   }).catch(err => {
     console.error('[neon] failed to verify/create schools table:', err.message);
   });
