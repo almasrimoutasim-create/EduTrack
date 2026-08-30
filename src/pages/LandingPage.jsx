@@ -269,8 +269,11 @@ export default function LandingPage() {
                 {isRTL ? "أي طالب يمكنه التسجيل مجاناً للوصول إلى كتب المنهج السوداني المعتمدة، وحل الواجبات، ومتابعة الدروس. للاشتراك مع معلم خاص والدروس المباشرة، يرسل طلب اشتراك من داخل البوابة." : "Any student can register free for Sudanese curriculum books, assignments, and lessons. To join a private teacher for live classes, send a subscription request from within the portal."}
               </p>
               <div className="mt-5 flex flex-wrap gap-3">
-                <Link to="/student-register" className="h-11 px-6 rounded-xl bg-white text-emerald-700 font-black text-sm hover:bg-white/90 inline-flex items-center gap-2 shadow-lg">
+                <Link to="/student-register" className="h-11 px-6 rounded-xl bg-white/20 border border-white/30 text-white font-black text-sm hover:bg-white/30 inline-flex items-center gap-2">
                   <UserPlus size={16} /> {isRTL ? "تسجيل طالب جديد (مجاني)" : "Register Student (Free)"}
+                </Link>
+                <Link to="/student-panel" className="h-11 px-6 rounded-xl bg-white text-emerald-700 font-black text-sm hover:bg-white/90 inline-flex items-center gap-2 shadow-lg">
+                  <BookOpen size={16} /> {isRTL ? "دخول بوابة الطالب" : "Open Student Portal"}
                 </Link>
                 <a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("مرحباً، أريد تسجيل طالب في منصة EduTrack. كيف أبدأ؟")}`} target="_blank" rel="noopener noreferrer" className="h-11 px-6 rounded-xl bg-white/20 border border-white/30 text-white font-black text-sm hover:bg-white/30 inline-flex items-center gap-2">
                   <MessageCircle size={16} /> {isRTL ? "استفسار عبر الواتساب" : "WhatsApp Inquiry"}
