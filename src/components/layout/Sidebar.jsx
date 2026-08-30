@@ -88,6 +88,16 @@ export default function Sidebar() {
 
   const portalRole = localStorage.getItem("portal_role") || "admin";
   const brand = BRAND_CONFIGS[portalRole] || BRAND_CONFIGS.admin;
+  const { appPublicSettings: sidebarSettings } = useAuth();
+  const s = sidebarSettings?.public_settings || {};
+  const schoolName = isRTL ? (s.school_name_ar || brand.title.ar) : (s.school_name_en || brand.title.en);
+  const getLogoUrl = (url) => {
+    if (!url) return "";
+    if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) return url;
+    const apiBase = import.meta.env.VITE_BACKEND_URL || '';
+    return `${apiBase.replace(/\/$/, '')}${url.startsWith('/') ? '' : '/'}${url}`;
+  };
+  const sidebarLogoUrl = getLogoUrl(s.school_logo);
 
   const getNavGroups = () => {
     switch (portalRole) {
@@ -390,12 +400,16 @@ export default function Sidebar() {
               window.location.href = "/";
             }
           }}>
-            <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform duration-300", brand.color)}>
-              <brand.logoIcon size={24} />
-            </div>
+            {sidebarLogoUrl ? (
+              <img src={sidebarLogoUrl} alt={schoolName} className="h-10 w-10 rounded-xl object-contain bg-white border border-stone-100 p-1 shadow-sm" onError={(e)=>{e.currentTarget.style.display='none'}} />
+            ) : (
+              <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform duration-300", brand.color)}>
+                <brand.logoIcon size={24} />
+              </div>
+            )}
             <div>
               <h1 className="font-serif text-xl font-bold text-stone-900 leading-none">
-                {isRTL ? brand.title.ar : brand.title.en}
+                {schoolName}
               </h1>
               <p className="text-[10px] text-stone-400 font-bold uppercase tracking-widest mt-1">
                 {isRTL ? brand.subtitle.ar : brand.subtitle.en}

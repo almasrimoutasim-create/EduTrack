@@ -328,33 +328,48 @@ export default function Settings() {
               {isRTL ? "معاينة الشعار" : "Logo Preview"}
             </h3>
             
+            {(() => {
+              const getFullUrl = (url) => {
+                if (!url) return "";
+                if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) return url;
+                const apiBase = import.meta.env.VITE_BACKEND_URL || '';
+                return `${apiBase.replace(/\/$/, '')}${url.startsWith('/') ? '' : '/'}${url}`;
+              };
+              const previewUrl = getFullUrl(formData.school_logo);
+              return (
             <div className="h-40 border-2 border-dashed border-stone-200 rounded-xl flex items-center justify-center bg-stone-50/50 overflow-hidden">
-              {formData.school_logo ? (
+              {previewUrl ? (
                 <img 
-                  src={formData.school_logo} 
+                  src={previewUrl} 
                   alt="School Logo" 
                   className="max-h-full max-w-full object-contain p-2"
                   onError={(e) => {
                     e.currentTarget.style.display = 'none';
-                    if (e.currentTarget.nextElementSibling) {
-                      /** @type {HTMLElement} */ (e.currentTarget.nextElementSibling).style.display = 'block';
-                    }
+                    const err = e.currentTarget.nextElementSibling;
+                    if (err) err.style.display = 'block';
+                    const hidden = e.currentTarget.parentElement?.querySelector('.no-logo-fallback');
+                    if (hidden) hidden.style.display = 'none';
+                  }}
+                  onLoad={(e) => {
+                    const err = e.currentTarget.nextElementSibling;
+                    if (err) err.style.display = 'none';
                   }}
                 />
-              ) : (
-                <div className="text-center p-4">
-                  <ImageIcon size={32} className="mx-auto text-stone-300 mb-2" />
-                  <p className="text-xs text-stone-500 font-medium">
-                    {isRTL ? "لم يتم تحديد شعار" : "No logo set"}
-                  </p>
-                </div>
-              )}
+              ) : null}
+              <div className={`text-center p-4 ${previewUrl ? 'hidden no-logo-fallback' : ''}`}>
+                <ImageIcon size={32} className="mx-auto text-stone-300 mb-2" />
+                <p className="text-xs text-stone-500 font-medium">
+                  {isRTL ? "لم يتم تحديد شعار" : "No logo set"}
+                </p>
+              </div>
               <div className="text-center p-4 hidden">
                 <p className="text-xs text-rose-500 font-bold">
                   {isRTL ? "الرابط غير صالح أو لا يمكن تحميل الصورة" : "Invalid URL or image failed to load"}
                 </p>
               </div>
             </div>
+              );
+            })()}
 
             <div className="p-4 rounded-xl bg-primary/5 border border-primary/10">
               <p className="text-xs font-bold text-primary mb-1">
