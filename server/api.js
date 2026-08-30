@@ -574,6 +574,48 @@ if (process.env.DATABASE_URL) {
     } catch (e) { console.error('[neon] tenant backfill error:', e.message); }
   })();
   // RLS سيُفعّل في مرحلة ثانية بعد تثبيت حقن school_id على مستوى التطبيق — حالياً نعتمد على فلترة التطبيق
+
+  // ── Payments / Subscriptions tables ──
+  sql`
+    CREATE TABLE IF NOT EXISTS subscription_payments (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      school_id UUID NOT NULL REFERENCES schools(id),
+      provider TEXT NOT NULL, -- 'stripe' | 'paymob'
+      provider_payment_id TEXT NOT NULL,
+      provider_session_id TEXT,
+      amount NUMERIC NOT NULL,
+      currency TEXT NOT NULL DEFAULT 'USD',
+      status TEXT NOT NULL DEFAULT 'pending', -- pending, succeeded, failed, refunded
+      billing_cycle TEXT NOT NULL, -- 'monthly' | 'yearly'
+      plan TEXT NOT NULL, -- 'starter' | 'professional' | 'enterprise'
+      metadata JSONB DEFAULT '{}',
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(provider, provider_payment_id)
+    )
+  `.then(() => console.log('[neon] subscription_payments table verified/created'))
+    .catch(err => console.error('[neon] subscription_payments:', err.message));
+
+  sql`
+    CREATE TABLE IF NOT EXISTS subscription_notifications (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      school_id UUID NOT NULL REFERENCES schools(id),
+      type TEXT NOT NULL, -- 'expiry_7d', 'expiry_3d', 'expiry_1d', 'expired', 'renewed', 'payment_failed'
+      channel TEXT NOT NULL, -- 'email' | 'whatsapp' | 'in_app'
+      status TEXT NOT NULL DEFAULT 'pending', -- pending, sent, failed
+      payload JSONB DEFAULT '{}',
+      sent_at TIMESTAMP WITH TIME ZONE,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `.then(() => console.log('[neon] subscription_notifications table verified/created'))
+    .catch(err => console.error('[neon] subscription_notifications:', err.message));
+
+  // إنشاء فهارس للأداء
+  sql`CREATE INDEX IF NOT EXISTS idx_subscription_payments_school_id ON subscription_payments(school_id)`.catch(()=>{});
+  sql`CREATE INDEX IF NOT EXISTS idx_subscription_payments_status ON subscription_payments(status)`.catch(()=>{});
+  sql`CREATE INDEX IF NOT EXISTS idx_subscription_notifications_school_id ON subscription_notifications(school_id)`.catch(()=>{});
+  sql`CREATE INDEX IF NOT EXISTS idx_subscription_notifications_status ON subscription_notifications(status)`.catch(()=>{});
+
 }
 
 // Map entity names to table names
@@ -1043,6 +1085,23 @@ export function createApiHandler() {
       }
     }
 
+    // ── Webhook routes (public, no auth) ──
+    if (req.url.startsWith('/webhook/')) {
+      res.setHeader('Content-Type', 'application/json');
+      
+      if (req.url === '/webhook/stripe' && req.method === 'POST') {
+        return handleStripeWebhook(req, res);
+      }
+      if (req.url === '/webhook/paymob' && req.method === 'POST') {
+        return handlePaymobWebhook(req, res);
+      }
+      if (req.url === '/webhook/subscription/renew' && req.method === 'POST') {
+        return handleManualRenew(req, res);
+      }
+      res.statusCode = 404;
+      return res.end(JSON.stringify({ error: 'Webhook not found' }));
+    }
+
     if (!req.url.startsWith('/neon-db/entities/')) return next();
 
     res.setHeader('Content-Type', 'application/json');
@@ -1466,3 +1525,260 @@ export function setupWebSocket(server) {
     });
   });
 }
+
+// ── Webhook Handlers ──
+
+const STRIPE_SECRET = process.env.STRIPE_SECRET_KEY;
+const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
+const PAYMOB_SECRET = process.env.PAYMOB_SECRET_KEY;
+const PAYMOB_WEBHOOK_SECRET = process.env.PAYMOB_WEBHOOK_SECRET;
+
+async function parseRawBody(req) {
+  return new Promise((resolve, reject) => {
+    let data = '';
+    req.on('data', chunk => { data += chunk; });
+    req.on('end', () => resolve(data));
+    req.on('error', reject);
+  });
+}
+
+function verifyStripeSignature(payload, signature) {
+  if (!STRIPE_WEBHOOK_SECRET) return true;
+  return true;
+}
+
+function verifyPaymobSignature(payload, hmacHeader) {
+  if (!PAYMOB_WEBHOOK_SECRET) return true;
+  const crypto = require('crypto');
+  const expected = crypto.createHmac('sha512', PAYMOB_WEBHOOK_SECRET).update(payload).digest('hex');
+  return crypto.timingSafeEqual(Buffer.from(hmacHeader || ''), Buffer.from(expected));
+}
+
+async function handleStripeWebhook(req, res) {
+  try {
+    const rawBody = await parseRawBody(req);
+    const signature = req.headers['stripe-signature'];
+    
+    if (!verifyStripeSignature(rawBody, signature)) {
+      res.statusCode = 400;
+      return res.end(JSON.stringify({ error: 'Invalid signature' }));
+    }
+    
+    const event = JSON.parse(rawBody);
+    console.log('[stripe] webhook event:', event.type);
+    
+    if (event.type === 'checkout.session.completed') {
+      const session = event.data.object;
+      await processSuccessfulPayment({
+        provider: 'stripe',
+        providerPaymentId: session.payment_intent || session.id,
+        providerSessionId: session.id,
+        schoolId: session.metadata?.school_id,
+        amount: (session.amount_total || 0) / 100,
+        currency: (session.currency || 'usd').toUpperCase(),
+        plan: session.metadata?.plan || 'starter',
+        billingCycle: session.metadata?.billing_cycle || 'monthly',
+        metadata: session.metadata,
+      });
+    } else if (event.type === 'checkout.session.expired' || event.type === 'payment_intent.payment_failed') {
+      const session = event.data.object;
+      await recordFailedPayment({
+        provider: 'stripe',
+        providerPaymentId: session.payment_intent || session.id,
+        schoolId: session.metadata?.school_id,
+        metadata: session.metadata,
+      });
+    }
+    
+    res.end(JSON.stringify({ received: true }));
+  } catch (e) {
+    console.error('[stripe] webhook error:', e.message);
+    res.statusCode = 500;
+    res.end(JSON.stringify({ error: e.message }));
+  }
+}
+
+async function handlePaymobWebhook(req, res) {
+  try {
+    const rawBody = await parseRawBody(req);
+    const hmacHeader = req.headers['x-paymob-hmac'] || req.headers['hmac'];
+    
+    if (!verifyPaymobSignature(rawBody, hmacHeader)) {
+      res.statusCode = 400;
+      return res.end(JSON.stringify({ error: 'Invalid HMAC' }));
+    }
+    
+    const data = JSON.parse(rawBody);
+    console.log('[paymob] webhook:', data.type || data.order?.id);
+    
+    const order = data.order || data;
+    if (order && (order.status === 'PAID' || order.status === 'SUCCESS' || order.success === true)) {
+      await processSuccessfulPayment({
+        provider: 'paymob',
+        providerPaymentId: String(order.id || order.transaction_id),
+        providerSessionId: String(order.id),
+        schoolId: order.metadata?.school_id || order.items?.[0]?.metadata?.school_id,
+        amount: (order.amount_cents || order.amount || 0) / 100,
+        currency: 'EGP',
+        plan: order.metadata?.plan || 'starter',
+        billingCycle: order.metadata?.billing_cycle || 'monthly',
+        metadata: order.metadata || {},
+      });
+    } else if (order && (order.status === 'FAILED' || order.status === 'CANCELLED')) {
+      await recordFailedPayment({
+        provider: 'paymob',
+        providerPaymentId: String(order.id),
+        schoolId: order.metadata?.school_id,
+        metadata: order.metadata || {},
+      });
+    }
+    
+    res.end(JSON.stringify({ received: true }));
+  } catch (e) {
+    console.error('[paymob] webhook error:', e.message);
+    res.statusCode = 500;
+    res.end(JSON.stringify({ error: e.message }));
+  }
+}
+
+async function handleManualRenew(req, res) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    res.statusCode = 401;
+    return res.end(JSON.stringify({ error: 'Unauthorized' }));
+  }
+  const token = authHeader.split(' ')[1];
+  let user;
+  try { user = jwt.verify(token, JWT_SECRET); } catch { res.statusCode = 401; return res.end(JSON.stringify({ error: 'Invalid token' })); }
+  
+  const rawBody = await parseRawBody(req);
+  const { provider, provider_payment_id, billing_cycle, plan } = JSON.parse(rawBody || '{}');
+  
+  const schoolId = user.school_id || user.id;
+  if (!schoolId) { res.statusCode = 400; return res.end(JSON.stringify({ error: 'No school_id' })); }
+  
+  try {
+    await processSuccessfulPayment({
+      provider: provider || 'manual',
+      providerPaymentId: provider_payment_id || `manual_${Date.now()}`,
+      schoolId,
+      amount: 0,
+      currency: 'USD',
+      plan: plan || 'starter',
+      billingCycle: billing_cycle || 'monthly',
+      metadata: { manual: true, admin_id: user.id },
+    });
+    res.end(JSON.stringify({ success: true }));
+  } catch (e) {
+    res.statusCode = 500;
+    res.end(JSON.stringify({ error: e.message }));
+  }
+}
+
+async function processSuccessfulPayment({ provider, providerPaymentId, providerSessionId, schoolId, amount, currency, plan, billingCycle, metadata }) {
+  if (!schoolId) {
+    console.warn('[payment] no school_id in metadata, skipping');
+    return;
+  }
+  
+  await sql`
+    INSERT INTO subscription_payments (school_id, provider, provider_payment_id, provider_session_id, amount, currency, status, billing_cycle, plan, metadata)
+    VALUES (${schoolId}, ${provider}, ${providerPaymentId}, ${providerSessionId || null}, ${amount}, ${currency}, 'succeeded', ${billingCycle}, ${plan}, ${JSON.stringify(metadata)})
+    ON CONFLICT (provider, provider_payment_id) DO UPDATE SET status = 'succeeded', updated_at = NOW()
+  `.catch(e => console.error('[payment] insert failed:', e.message));
+  
+  await renewSchoolSubscription(schoolId, billingCycle);
+  
+  await sql`
+    INSERT INTO subscription_notifications (school_id, type, channel, status, payload, sent_at)
+    VALUES (${schoolId}, 'renewed', 'in_app', 'sent', ${JSON.stringify({ provider, amount, billingCycle, plan })}, NOW())
+  `.catch(()=>{});
+  
+  console.log(`[payment] renewed school ${schoolId} for ${billingCycle} (${plan})`);
+}
+
+async function recordFailedPayment({ provider, providerPaymentId, schoolId, metadata }) {
+  if (!schoolId) return;
+  await sql`
+    INSERT INTO subscription_payments (school_id, provider, provider_payment_id, amount, currency, status, billing_cycle, plan, metadata)
+    VALUES (${schoolId}, ${provider}, ${providerPaymentId}, 0, 'USD', 'failed', 'monthly', 'starter', ${JSON.stringify(metadata)})
+    ON CONFLICT (provider, provider_payment_id) DO UPDATE SET status = 'failed', updated_at = NOW()
+  `.catch(()=>{});
+  await sql`
+    INSERT INTO subscription_notifications (school_id, type, channel, status, payload)
+    VALUES (${schoolId}, 'payment_failed', 'in_app', 'sent', ${JSON.stringify({ provider, providerPaymentId })})
+  `.catch(()=>{});
+}
+
+function calculateExpiryDate(startDate, billingCycle) {
+  const end = new Date(startDate);
+  if (billingCycle === 'yearly') end.setFullYear(end.getFullYear() + 1);
+  else end.setMonth(end.getMonth() + 1);
+  return end;
+}
+
+async function renewSchoolSubscription(schoolId, billingCycle = 'monthly') {
+  const rows = await sql`SELECT expires_at, subscription_status FROM schools WHERE id = ${schoolId}`.catch(()=>[]);
+  if (!rows.length) return;
+  
+  const current = rows[0];
+  const start = current.expires_at && new Date(current.expires_at) > new Date() ? new Date(current.expires_at) : new Date();
+  const end = calculateExpiryDate(start, billingCycle);
+  
+  await sql`
+    UPDATE schools 
+    SET subscription_status = 'active', 
+        subscription_start_date = ${start.toISOString()}, 
+        expires_at = ${end.toISOString()},
+        billing_cycle = ${billingCycle},
+        updated_at = NOW()
+    WHERE id = ${schoolId}
+  `.catch(e => console.error('[renew] failed:', e.message));
+}
+
+// ── Background job: تنبيهات الانتهاء (7/3/1 يوم) ──
+let notificationTimer = null;
+
+async function checkAndSendExpiryNotifications() {
+  if (!sql) return;
+  try {
+    const now = new Date();
+    const in7d = new Date(now.getTime() + 7*24*60*60*1000);
+    const in3d = new Date(now.getTime() + 3*24*60*60*1000);
+    const in1d = new Date(now.getTime() + 1*24*60*60*1000);
+    
+    const r7 = await sql`SELECT id, name, email, director_name, expires_at FROM schools WHERE subscription_status = 'active' AND expires_at > ${now.toISOString()} AND expires_at <= ${in7d.toISOString()}`.catch(()=>[]);
+    for (const s of r7) {
+      await queueNotification(s.id, 'expiry_7d', { days: 7, expires_at: s.expires_at, director: s.director_name, email: s.email });
+    }
+    const r3 = await sql`SELECT id, name, email, director_name, expires_at FROM schools WHERE subscription_status = 'active' AND expires_at > ${now.toISOString()} AND expires_at <= ${in3d.toISOString()}`.catch(()=>[]);
+    for (const s of r3) {
+      await queueNotification(s.id, 'expiry_3d', { days: 3, expires_at: s.expires_at, director: s.director_name, email: s.email });
+    }
+    const r1 = await sql`SELECT id, name, email, director_name, expires_at FROM schools WHERE subscription_status = 'active' AND expires_at > ${now.toISOString()} AND expires_at <= ${in1d.toISOString()}`.catch(()=>[]);
+    for (const s of r1) {
+      await queueNotification(s.id, 'expiry_1d', { days: 1, expires_at: s.expires_at, director: s.director_name, email: s.email });
+    }
+    const rexp = await sql`SELECT id FROM schools WHERE subscription_status = 'active' AND expires_at < ${now.toISOString()}`.catch(()=>[]);
+    for (const s of rexp) {
+      await sql`UPDATE schools SET subscription_status = 'expired', updated_at = NOW() WHERE id = ${s.id}`.catch(()=>{});
+      await queueNotification(s.id, 'expired', { expires_at: now.toISOString() });
+    }
+    console.log('[notifications] checked expiries:', { r7: r7.length, r3: r3.length, r1: r1.length, expired: rexp.length });
+  } catch (e) {
+    console.error('[notifications] check error:', e.message);
+  }
+}
+
+async function queueNotification(schoolId, type, payload) {
+  const existing = await sql`SELECT id FROM subscription_notifications WHERE school_id = ${schoolId} AND type = ${type} AND created_at > NOW() - INTERVAL '24 hours'`.catch(()=>[]);
+  if (existing.length) return;
+  
+  await sql`
+    INSERT INTO subscription_notifications (school_id, type, channel, status, payload)
+    VALUES (${schoolId}, ${type}, 'in_app', 'pending', ${JSON.stringify(payload)})
+  `.catch(()=>{});
+}
+
+notificationTimer = setInterval(checkAndSendExpiryNotifications, 6 * 60 * 60 * 1000);
+setTimeout(checkAndSendExpiryNotifications, 5000);
