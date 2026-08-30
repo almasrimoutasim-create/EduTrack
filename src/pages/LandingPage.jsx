@@ -5,7 +5,7 @@ import { useLanguage } from "@/lib/LanguageContext";
 import { useAuth } from "@/lib/AuthContext";
 import {
   GraduationCap, ShieldCheck, Users, Wallet, ClipboardCheck, BarChart3,
-  Award, BookOpen, Lock, ArrowLeft, MessageCircle, Phone, CheckCircle2, Star, Sparkles, X, UserPlus, Mail
+  Award, BookOpen, Lock, ArrowLeft, MessageCircle, Phone, CheckCircle2, Star, Sparkles, X, UserPlus, Mail, Video
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -290,6 +290,54 @@ export default function LandingPage() {
                   ].map((item, i) => (
                     <div key={i} className="bg-white/5 rounded-xl p-3 text-center hover:bg-white/10 transition-colors">
                       <div className="h-8 w-8 rounded-lg bg-emerald-500 text-white flex items-center justify-center mx-auto mb-2">
+                        <item.icon size={16} />
+                      </div>
+                      <span className="text-xs font-bold text-white/90">{item.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      </section>
+
+      {/* Teacher Registration CTA */}
+      <section className="max-w-7xl mx-auto px-4 md:px-6 py-6">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 rounded-[28px] p-6 md:p-8 text-white shadow-xl">
+          <div className="grid md:grid-cols-2 gap-8 items-center">
+            <div>
+              <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur rounded-full px-4 py-2 text-sm font-bold">
+                <GraduationCap size={16} /> {isRTL ? "بوابة المعلم المستقل" : "Independent Teacher Portal"}
+              </div>
+              <h3 className="mt-3 text-2xl md:text-3xl font-black leading-tight">
+                {isRTL ? "ادَرْ فصلك بذكاء — وواجبات، امتحانات، وبث مباشر" : "Manage your class smartly — assignments, exams & live classes"}
+              </h3>
+              <p className="mt-2 text-white/90 leading-relaxed">
+                {isRTL ? "أي معلم يمكنه التسجيل لإدارة طلابه وواجباتهم وامتحاناتهم بشكل مستقل. أنشئ حصص مباشرة، ارفع فيديوهات يوتيوب التعليمية، وتابع تقدم كل طالب. مجاني للمعلمين الأفراد." : "Any teacher can register to manage students, assignments, and exams independently. Create live classes, upload YouTube teaching videos, and track each student's progress. Free for individual teachers."}
+              </p>
+              <div className="mt-5 flex flex-wrap gap-3">
+                <Link to="/teacher-panel" className="h-11 px-6 rounded-xl bg-white text-indigo-700 font-black text-sm hover:bg-white/90 inline-flex items-center gap-2 shadow-lg">
+                  <GraduationCap size={16} /> {isRTL ? "دخول بوابة المعلم" : "Open Teacher Portal"}
+                </Link>
+                <a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("مرحباً، أريد التسجيل كمعلم في منصة EduTrack.")}`} target="_blank" rel="noopener noreferrer" className="h-11 px-6 rounded-xl bg-white/20 border border-white/30 text-white font-black text-sm hover:bg-white/30 inline-flex items-center gap-2">
+                  <MessageCircle size={16} /> {isRTL ? "استفسار عبر الواتساب" : "WhatsApp Inquiry"}
+                </a>
+              </div>
+            </div>
+            <div className="relative">
+              <div className="bg-white/10 backdrop-blur rounded-[24px] p-2 border border-white/20">
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { icon: Users, label: isRTL ? "إدارة طلابي" : "My Students" },
+                    { icon: ClipboardCheck, label: isRTL ? "واجبات ذكية" : "Smart Assignments" },
+                    { icon: BarChart3, label: isRTL ? "امتحانات وتقييم" : "Exams & Grading" },
+                    { icon: Video, label: isRTL ? "حصص مباشرة" : "Live Classes" },
+                    { icon: Star, label: isRTL ? "فيديوهات يوتيوب" : "YouTube Videos" },
+                    { icon: ShieldCheck, label: isRTL ? "مستقل وخالص" : "Fully Independent" },
+                  ].map((item, i) => (
+                    <div key={i} className="bg-white/5 rounded-xl p-3 text-center hover:bg-white/10 transition-colors">
+                      <div className="h-8 w-8 rounded-lg bg-indigo-500 text-white flex items-center justify-center mx-auto mb-2">
                         <item.icon size={16} />
                       </div>
                       <span className="text-xs font-bold text-white/90">{item.label}</span>
