@@ -19,7 +19,9 @@ export default function Settings() {
     school_name_ar: '',
     school_name_en: '',
     school_logo: '',
-    school_background_image: ''
+    school_background_image: '',
+    sidebar_logo: '',
+    sidebar_short_name: ''
   });
 
   const [newGatewayUser, setNewGatewayUser] = useState({ username: '', password: '' });
@@ -51,7 +53,9 @@ export default function Settings() {
         school_name_ar: existingSettings.school_name_ar || '',
         school_name_en: existingSettings.school_name_en || '',
         school_logo: existingSettings.school_logo || '',
-        school_background_image: existingSettings.school_background_image || ''
+        school_background_image: existingSettings.school_background_image || '',
+        sidebar_logo: existingSettings.sidebar_logo || '',
+        sidebar_short_name: existingSettings.sidebar_short_name || ''
       });
     }
   }, [existingSettings]);
@@ -305,6 +309,38 @@ export default function Settings() {
                       {isRTL ? "رفع صورة" : "Upload"}
                     </button>
                   </div>
+                </div>
+              </div>
+
+              {/* ── إعدادات السايدبار المختصر ── */}
+              <div className="border-t border-stone-100 pt-6 space-y-4">
+                <h4 className="font-black text-stone-900 flex items-center gap-2">
+                  <span className="h-6 w-6 rounded-lg bg-violet-100 text-violet-600 flex items-center justify-center text-xs">≡</span>
+                  {isRTL ? "إعدادات السايدبار (الشعار + الاسم المختصر)" : "Sidebar branding"}
+                </h4>
+                <p className="text-xs text-stone-500 -mt-2">{isRTL ? "ارفع شعار السايدبار واكتب كلمة مختصرة (مثلاً: المجد) — يظهر الشعار فوق والاسم تحته بتنسيق جميل" : "Upload sidebar logo and write a short name"}</p>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-stone-700 flex items-center gap-2">
+                    <ImageIcon size={16} className="text-violet-400" />
+                    {isRTL ? "شعار السايدبار" : "Sidebar logo"}
+                  </label>
+                  <div className="flex gap-2">
+                    <Input value={formData.sidebar_logo} readOnly placeholder={isRTL ? "لم يتم رفع شعار السايدبار" : "No sidebar logo"} className="h-12 bg-stone-50 border-stone-200 flex-1" dir="ltr" />
+                    <div className="relative">
+                      <input type="file" accept="image/*" onChange={(e) => handleFileUpload(e, 'sidebar_logo')} className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10" />
+                      <button type="button" className="h-12 px-4 rounded-xl bg-violet-600 text-white font-bold flex items-center gap-2 pointer-events-none">
+                        <Upload size={18} /> {isRTL ? "رفع" : "Upload"}
+                      </button>
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-stone-400">{isRTL ? "إن تركته فارغاً سيُستخدم شعار المدرسة العام" : "If empty, main school logo is used"}</p>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-stone-700">{isRTL ? "الاسم المختصر للسايدبار" : "Sidebar short name"}</label>
+                  <Input value={formData.sidebar_short_name} onChange={(e) => setFormData({...formData, sidebar_short_name: e.target.value})} placeholder={isRTL ? "مثال: المجد" : "e.g. Almajd"} className="h-12 bg-stone-50 border-stone-200 focus:bg-white" maxLength={20} />
+                  <p className="text-[11px] text-stone-400">{isRTL ? "كلمة واحدة مختصرة — تظهر تحت الشعار بخط جميل" : "One short word shown under logo"}</p>
                 </div>
               </div>
 

@@ -447,6 +447,8 @@ if (process.env.DATABASE_URL) {
     sql`ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS academic_year TEXT;`.catch(()=>{});
     sql`ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS school_stage TEXT;`.catch(()=>{});
     sql`ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS school_phone TEXT;`.catch(()=>{});
+    sql`ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS sidebar_logo TEXT;`.catch(()=>{});
+    sql`ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS sidebar_short_name TEXT;`.catch(()=>{});
   }).catch(err => {
     console.error('[neon] failed to verify/create system_settings table:', err.message);
   });
@@ -646,11 +648,11 @@ async function dbQuery(queryStr, params = []) {
 
 export function createApiHandler() {
   return async (req, res, next) => {
-    // Public settings (no auth) — للشعار والخلفية في Gateway/Landing
+    // Public settings (no auth) — للشعار والخلفية في Gateway/Landing + السايدبار المختصر
     if ((req.url === '/neon-db/public-settings' || req.url.startsWith('/neon-db/public-settings?')) && req.method === 'GET') {
       res.setHeader('Content-Type', 'application/json');
       try {
-        if (!sql) return res.end(JSON.stringify({ school_name_ar: 'مدارس عباد الرحمن التعليمية', school_name_en: 'Abad Al-Rahman Educational Schools', school_logo: '', school_background_image: 'https://images.unsplash.com/photo-1510519138101-570d1dcb3d8e?q=80&w=2000&auto=format&fit=crop' }));
+        if (!sql) return res.end(JSON.stringify({ school_name_ar: 'مدارس عباد الرحمن التعليمية', school_name_en: 'Abad Al-Rahman Educational Schools', school_logo: '', school_background_image: 'https://images.unsplash.com/photo-1510519138101-570d1dcb3d8e?q=80&w=2000&auto=format&fit=crop', sidebar_logo: '', sidebar_short_name: '' }));
         const rows = await dbQuery('SELECT * FROM system_settings ORDER BY created_at DESC LIMIT 1');
         const s = rows[0] || {};
         return res.end(JSON.stringify({
@@ -658,9 +660,11 @@ export function createApiHandler() {
           school_name_en: s.school_name_en || 'Abad Al-Rahman Educational Schools',
           school_logo: s.school_logo || '',
           school_background_image: s.school_background_image || 'https://images.unsplash.com/photo-1510519138101-570d1dcb3d8e?q=80&w=2000&auto=format&fit=crop',
+          sidebar_logo: s.sidebar_logo || s.school_logo || '',
+          sidebar_short_name: s.sidebar_short_name || '',
         }));
       } catch (e) {
-        return res.end(JSON.stringify({ school_name_ar: 'مدارس عباد الرحمن التعليمية', school_name_en: 'Abad Al-Rahman Educational Schools', school_logo: '', school_background_image: 'https://images.unsplash.com/photo-1510519138101-570d1dcb3d8e?q=80&w=2000&auto=format&fit=crop' }));
+        return res.end(JSON.stringify({ school_name_ar: 'مدارس عباد الرحمن التعليمية', school_name_en: 'Abad Al-Rahman Educational Schools', school_logo: '', school_background_image: 'https://images.unsplash.com/photo-1510519138101-570d1dcb3d8e?q=80&w=2000&auto=format&fit=crop', sidebar_logo: '', sidebar_short_name: '' }));
       }
     }
 
