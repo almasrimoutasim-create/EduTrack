@@ -35,13 +35,36 @@ const SIDEBAR_ITEMS = [
 export default function IndependentTeacherPortal() {
   const { language } = useLanguage();
   const isRTL = language === "ar";
-  const { logout } = useAuth();
+  const { logout, login, user } = useAuth();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get("tab") || "dashboard";
 
   const teacherId = localStorage.getItem("portal_user_id");
   const teacherName = localStorage.getItem("portal_user_name") || "";
+
+  // Login state for unauthenticated users
+  const [loginMode, setLoginMode] = useState(!teacherId);
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [loginError, setLoginError] = useState("");
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+
+  const handleTeacherLogin = async (e) => {
+    e.preventDefault();
+    setLoginLoading(true);
+    setLoginError("");
+    try {
+      await login("teacher", loginEmail.trim(), loginPassword);
+      setLoginMode(false);
+      window.location.reload();
+    } catch (err) {
+      setLoginError(err.message || (isRTL ? "فشل تسجيل الدخول" : "Login failed"));
+    } finally {
+      setLoginLoading(false);
+    }
+  };
 
   const setActiveTab = (tab) => setSearchParams({ tab });
 
@@ -106,6 +129,86 @@ export default function IndependentTeacherPortal() {
     submissions: submissions?.length || 0,
     pendingGrading: submissions?.filter(s => s.status === "submitted")?.length || 0,
   }), [students, assignments, exams, liveClasses, videos, subscriptions, submissions]);
+
+  // Login screen for unauthenticated users
+  if (loginMode || !teacherId) {
+    return (
+      <div className="min-h-screen bg-stone-50 flex items-center justify-center p-4" dir={isRTL ? "rtl" : "ltr"}>
+        <div className="w-full max-w-md">
+          <div className="bg-white rounded-[28px] shadow-xl p-8 border border-stone-200">
+            <div className="text-center mb-8">
+              <div className="h-16 w-16 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto mb-4">
+                <GraduationCap size={32} />
+              </div>
+              <h1 className="text-2xl font-black text-stone-900">
+                {isRTL ? "بوابة المعلم" : "Teacher Portal"}
+              </h1>
+              <p className="text-sm text-stone-500 mt-2">
+                {isRTL ? "سجّل الدخول لإدارة فصلك" : "Sign in to manage your class"}
+              </p>
+            </div>
+
+            <form onSubmit={handleTeacherLogin} className="space-y-4">
+              {loginError && (
+                <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm font-bold flex items-center gap-2">
+                  <AlertCircle size={16} />
+                  {loginError}
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-bold text-stone-700 mb-1.5">
+                  {isRTL ? "البريد الإلكتروني أو الرقم الوظيفي" : "Email or Employee ID"}
+                </label>
+                <input
+                  type="text"
+                  value={loginEmail}
+                  onChange={(e) => setLoginEmail(e.target.value)}
+                  placeholder={isRTL ? "أدخل البريد الإلكتروني أو الرقم الوظيفي" : "Enter email or employee ID"}
+                  className="w-full h-12 rounded-xl border-2 border-stone-200 bg-white px-4 text-sm font-bold focus:border-emerald-500 focus:ring-0 outline-none"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-stone-700 mb-1.5">
+                  {isRTL ? "كلمة المرور" : "Password"}
+                </label>
+                <div className="relative">
+                  <input
+                    type={showLoginPassword ? "text" : "password"}
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    placeholder={isRTL ? "أدخل كلمة المرور" : "Enter password"}
+                    className="w-full h-12 rounded-xl border-2 border-stone-200 bg-white px-4 pr-12 text-sm font-bold focus:border-emerald-500 focus:ring-0 outline-none"
+                    required
+                  />
+                  <button type="button" onClick={() => setShowLoginPassword(!showLoginPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600">
+                    {showLoginPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </div>
+
+              <button type="submit" disabled={loginLoading || !loginEmail || !loginPassword}
+                className="w-full h-12 rounded-xl bg-emerald-600 text-white font-black text-sm hover:bg-emerald-700 transition-all disabled:opacity-50 shadow-lg">
+                {loginLoading ? (isRTL ? "جاري الدخول..." : "Signing in...") : (isRTL ? "تسجيل الدخول" : "Sign In")}
+              </button>
+            </form>
+
+            <div className="mt-6 text-center space-y-3">
+              <Link to="/teacher-register" className="text-sm font-bold text-emerald-600 hover:text-emerald-700 block">
+                {isRTL ? "ليس لديك حساب؟ سجّل كمعلم جديد" : "No account? Register as a teacher"}
+              </Link>
+              <Link to="/" className="text-sm font-bold text-stone-500 hover:text-stone-700 block">
+                {isRTL ? "العودة للصفحة الرئيسية" : "Back to home"}
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-stone-50 flex" dir="rtl">
