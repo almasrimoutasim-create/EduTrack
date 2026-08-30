@@ -139,7 +139,7 @@ export default function RoleGate({ children }) {
   if (!isGatewayPassed) {
     return (
       <>
-        <a href="/" className="fixed top-4 right-4 z-50 h-9 px-4 rounded-xl bg-white/90 backdrop-blur border border-stone-200 text-stone-700 text-xs font-black flex items-center gap-1.5 shadow-md hover:bg-white">
+        <a href="/gateway" className="fixed top-4 right-4 z-50 h-9 px-4 rounded-xl bg-white/90 backdrop-blur border border-stone-200 text-stone-700 text-xs font-black flex items-center gap-1.5 shadow-md hover:bg-white">
           <ArrowLeft size={14} /> العودة للرئيسية
         </a>
         <Gateway />
@@ -151,7 +151,7 @@ export default function RoleGate({ children }) {
   if (!isAuthenticated) {
     return (
       <>
-        <a href="/" className="fixed top-4 right-4 z-50 h-9 px-4 rounded-xl bg-white/90 backdrop-blur border border-stone-200 text-stone-700 text-xs font-black flex items-center gap-1.5 shadow-md hover:bg-white">
+        <a href="/gateway" className="fixed top-4 right-4 z-50 h-9 px-4 rounded-xl bg-white/90 backdrop-blur border border-stone-200 text-stone-700 text-xs font-black flex items-center gap-1.5 shadow-md hover:bg-white">
           <ArrowLeft size={14} /> العودة للرئيسية
         </a>
         <RoleLogin />

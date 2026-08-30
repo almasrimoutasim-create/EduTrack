@@ -32,15 +32,11 @@ export default function BackToPortalButton({ className = "" }) {
       window.location.href = "/staff-portal";
       return;
     }
+    // إذا كان في الصفحة الرئيسية للبوابة، يرجع لصفحة اختيار البوابات
     if (currentPath === portalHome) {
-      localStorage.removeItem("portal_user");
-      localStorage.removeItem("portal_is_auth");
-      localStorage.removeItem("portal_jwt_token");
-      localStorage.removeItem("portal_role");
-      localStorage.removeItem("portal_user_id");
-      localStorage.removeItem("portal_user_name");
-      window.location.reload();
+      window.location.href = "/gateway";
     } else {
+      // يرجع خطوة للخلف (صفحة البوابة الحالية)
       window.location.href = portalHome;
     }
   };

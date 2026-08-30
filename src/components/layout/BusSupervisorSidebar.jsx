@@ -21,7 +21,7 @@ export default function BusSupervisorSidebar() {
     localStorage.removeItem("portal_user_id");
     localStorage.removeItem("portal_user_name");
     logout(false);
-    window.location.href = "/";
+    window.location.href = "/gateway";
   };
 
   const navGroups = [
@@ -144,14 +144,11 @@ export default function BusSupervisorSidebar() {
 
           {user?.role === "admin" && (
             <button
-              onClick={() => {
-                localStorage.setItem("portal_role", "admin");
-                window.location.href = "/";
-              }}
+              onClick={() => { window.location.href = "/gateway"; }}
               className="flex items-center gap-3 w-full px-4 py-3 text-sm font-bold text-blue-600 hover:bg-blue-50 rounded-2xl transition-all"
             >
               <ArrowLeft className={cn("h-5 w-5", isRTL ? "rotate-180" : "")} />
-              {isRTL ? "العودة للوحة الإدارة" : "Back to Admin"}
+              {isRTL ? "العودة للبوابات" : "Back to Portals"}
             </button>
           )}
 

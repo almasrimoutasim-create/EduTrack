@@ -71,7 +71,7 @@ export default function StudentPortal() {
     localStorage.removeItem("portal_user_id");
     localStorage.removeItem("portal_user_name");
     logout(false);
-    window.location.href = "/";
+    window.location.href = "/gateway";
   };
 
   // Queries
@@ -203,8 +203,8 @@ export default function StudentPortal() {
               <Link to="/student-register" className="text-sm font-bold text-blue-600 hover:text-blue-700 block">
                 {isRTL ? "ليس لديك حساب؟ سجّل كطالب جديد" : "No account? Register as a student"}
               </Link>
-              <Link to="/" className="text-sm font-bold text-stone-500 hover:text-stone-700 block">
-                {isRTL ? "العودة للصفحة الرئيسية" : "Back to home"}
+              <Link to="/gateway" className="text-sm font-bold text-stone-500 hover:text-stone-700 block">
+                {isRTL ? "العودة للبوابات" : "Back to portals"}
               </Link>
             </div>
           </div>

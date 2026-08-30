@@ -45,13 +45,7 @@ export default function AppLayout() {
     }
     // من محور الأقسام نفسه أو من بوابة رئيسية أخرى يرجع لاختيار البوابات
     if (currentPath === portalHome) {
-      localStorage.removeItem("portal_user");
-      localStorage.removeItem("portal_is_auth");
-      localStorage.removeItem("portal_jwt_token");
-      localStorage.removeItem("portal_role");
-      localStorage.removeItem("portal_user_id");
-      localStorage.removeItem("portal_user_name");
-      window.location.reload();
+      window.location.href = "/gateway";
     } else {
       window.location.href = portalHome;
     }

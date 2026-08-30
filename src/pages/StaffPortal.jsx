@@ -221,7 +221,7 @@ export default function StaffPortal() {
     localStorage.removeItem("portal_user_name");
     localStorage.removeItem("portal_is_auth");
     localStorage.removeItem("portal_jwt_token");
-    window.location.href = "/";
+    window.location.href = "/gateway";
   };
 
   const handleLogoutDept = () => {
@@ -338,14 +338,11 @@ export default function StaffPortal() {
             </div>
             {user?.role === "admin" ? (
               <button 
-                onClick={() => {
-                  localStorage.setItem("portal_role", "admin");
-                  window.location.href = "/";
-                }}
+                onClick={() => { window.location.href = "/gateway"; }}
                 className={`${btnOutline} h-10 px-4 rounded-xl text-xs`}
               >
                 <ArrowLeft size={14} className={isRTL ? "" : "rotate-180"} />
-                {isRTL ? "العودة للوحة الإدارة" : "Back to Admin"}
+                {isRTL ? "العودة للبوابات" : "Back to Portals"}
               </button>
             ) : (
               <button 
@@ -470,14 +467,11 @@ export default function StaffPortal() {
             </div>
             {user?.role === "admin" ? (
               <button 
-                onClick={() => {
-                  localStorage.setItem("portal_role", "admin");
-                  window.location.href = "/";
-                }}
+                onClick={() => { window.location.href = "/gateway"; }}
                 className={`${btnOutline} border-stone-750 bg-stone-800 text-stone-200 hover:bg-stone-700 h-10 px-4 rounded-xl text-xs`}
               >
                 <ArrowLeft size={14} className={isRTL ? "" : "rotate-180"} />
-                {isRTL ? "العودة للوحة الإدارة" : "Back to Admin"}
+                {isRTL ? "العودة للبوابات" : "Back to Portals"}
               </button>
             ) : (
               <button 

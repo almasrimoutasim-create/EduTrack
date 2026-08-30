@@ -242,12 +242,12 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('portal_gateway_passed');
 
     if (shouldRedirect) {
-      window.location.href = '/';
+      window.location.href = '/gateway';
     }
   };
 
   const navigateToLogin = () => {
-    window.location.href = '/';
+    window.location.href = '/gateway';
   };
 
   return (

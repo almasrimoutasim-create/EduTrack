@@ -400,7 +400,7 @@ export default function Sidebar() {
               localStorage.setItem("portal_role", "staff");
               window.location.href = "/staff-portal";
             } else {
-              window.location.href = "/";
+              window.location.href = "/gateway";
             }
           }}>
             {sidebarLogoUrl && !sidebarLogoError ? (

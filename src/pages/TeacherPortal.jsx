@@ -73,7 +73,7 @@ export default function TeacherPortal() {
     localStorage.removeItem("portal_user_id");
     localStorage.removeItem("portal_user_name");
     logout(false);
-    window.location.href = "/";
+    window.location.href = "/gateway";
   };
 
   const { data: classesQuery = [] } = useQuery({ 

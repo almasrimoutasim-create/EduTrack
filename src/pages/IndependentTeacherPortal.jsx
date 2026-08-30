@@ -73,7 +73,7 @@ export default function IndependentTeacherPortal() {
     localStorage.removeItem("portal_user_id");
     localStorage.removeItem("portal_user_name");
     logout(false);
-    window.location.href = "/";
+    window.location.href = "/gateway";
   };
 
   // Queries
@@ -200,8 +200,8 @@ export default function IndependentTeacherPortal() {
               <Link to="/teacher-register" className="text-sm font-bold text-emerald-600 hover:text-emerald-700 block">
                 {isRTL ? "ليس لديك حساب؟ سجّل كمعلم جديد" : "No account? Register as a teacher"}
               </Link>
-              <Link to="/" className="text-sm font-bold text-stone-500 hover:text-stone-700 block">
-                {isRTL ? "العودة للصفحة الرئيسية" : "Back to home"}
+              <Link to="/gateway" className="text-sm font-bold text-stone-500 hover:text-stone-700 block">
+                {isRTL ? "العودة للبوابات" : "Back to portals"}
               </Link>
             </div>
           </div>

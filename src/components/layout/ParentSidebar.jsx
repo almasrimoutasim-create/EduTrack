@@ -69,7 +69,7 @@ export default function ParentSidebar() {
     localStorage.removeItem("portal_user_id");
     localStorage.removeItem("portal_user_name");
     logout(false);
-    window.location.href = "/";
+    window.location.href = "/gateway";
   };
 
   const navGroups = [
