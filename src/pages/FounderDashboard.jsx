@@ -101,16 +101,38 @@ const FounderDashboard = () => {
   const pendingSchools = schools.filter((s) => s.subscription_status === "trial" || s.subscription_status === "pending").length;
   const expiredSchools = schools.filter((s) => s.subscription_status === "expired" || s.subscription_status === "inactive").length;
   const pendingRequests = requests.filter((r) => r.status === "pending" || !r.status).length;
+
+  // دالة لحساب السعر الشهري المكافئ للمدرسة (مع خصم 20% للسنوي)
+  const getMonthlyEquivalent = (school) => {
+    const plan = PLANS.find((p) => p.id === (school.plan || "professional"));
+    const basePrice = plan ? plan.price : 99;
+    if (school.billing_cycle === "yearly") {
+      // السنوي = السعر الشهري × 12 × 0.8 (خصم 20%) -> المكافئ الشهري = basePrice × 0.8
+      return Math.round(basePrice * 0.8);
+    }
+    return basePrice;
+  };
+
   const monthlyRevenue = schools.length
     ? schools.reduce((sum, s) => {
-        const plan = PLANS.find((p) => p.id === (s.plan || "professional"));
-        return sum + (plan ? plan.price : 99);
+        if (s.subscription_status !== "active") return sum;
+        return sum + getMonthlyEquivalent(s);
       }, 0)
     : 0;
   const annualRevenue = monthlyRevenue * 12;
   const starterCount = schools.filter(s => (s.plan || "professional") === "starter").length;
   const proCount = schools.filter(s => (s.plan || "professional") === "professional").length;
   const enterpriseCount = schools.filter(s => s.plan === "enterprise").length;
+
+  // تفاصيل الإيرادات حسب الدورة
+  const revenueBreakdown = {
+    monthly: schools.filter(s => s.subscription_status === "active" && s.billing_cycle === "monthly")
+      .reduce((sum, s) => sum + getMonthlyEquivalent(s), 0),
+    yearly: schools.filter(s => s.subscription_status === "active" && s.billing_cycle === "yearly")
+      .reduce((sum, s) => sum + getMonthlyEquivalent(s), 0),
+  };
+  const yearlySchoolsCount = schools.filter(s => s.subscription_status === "active" && s.billing_cycle === "yearly").length;
+  const monthlySchoolsCount = schools.filter(s => s.subscription_status === "active" && s.billing_cycle === "monthly").length;
 
   // expiring within 7 days
   const expiringSoon = schools.filter(s => {
@@ -618,20 +640,28 @@ const FounderDashboard = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {PLANS.map((p) => {
                 const count = p.id==="starter" ? starterCount : p.id==="professional" ? proCount : enterpriseCount;
+                const monthlyCount = schools.filter(s => s.subscription_status === "active" && s.plan === p.id && s.billing_cycle === "monthly").length;
+                const yearlyCount = schools.filter(s => s.subscription_status === "active" && s.plan === p.id && s.billing_cycle === "yearly").length;
                 return (
                 <div key={p.id} className={`relative rounded-2xl p-6 bg-gradient-to-br ${p.color} text-white shadow-lg`}>
                   {p.popular && <span className="absolute top-4 left-4 bg-white/20 text-white text-[10px] px-2 py-0.5 rounded-full">الأكثر رواجاً</span>}
                   <h3 className="text-lg font-bold">{p.name}</h3>
                   <p className="text-3xl font-extrabold mt-2">${p.price}<span className="text-sm font-normal opacity-80">/شهر</span></p>
                   <p className="text-xs opacity-90 mt-3">{p.desc}</p>
-                  <p className="mt-3 text-sm font-bold bg-white/20 rounded-lg px-3 py-1 inline-block">{count} مدرسة</p>
+                  <div className="mt-3 space-y-1 text-xs">
+                    <p className="bg-white/20 rounded-lg px-3 py-1 inline-block font-bold">{count} مدرسة إجمالاً</p>
+                    <div className="flex gap-2 text-[11px] opacity-90">
+                      <span className="bg-white/15 px-2 py-0.5 rounded">شهري: {monthlyCount}</span>
+                      <span className="bg-white/15 px-2 py-0.5 rounded">سنوي: {yearlyCount}</span>
+                    </div>
+                  </div>
                 </div>
               )})}
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-                <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2"><BarChart3 size={18} className="text-blue-500"/> رسم بياني للإيرادات الشهرية (تقديري)</h3>
+                <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2"><BarChart3 size={18} className="text-blue-500"/> رسم بياني للإيرادات الشهرية (مكافئ شهري)</h3>
                 <div className="flex items-end gap-2 h-32">
                   {[0.6,0.8,0.7,0.9,1,0.85].map((v,i)=> (
                     <div key={i} className="flex-1 flex flex-col items-center gap-1">
@@ -640,17 +670,20 @@ const FounderDashboard = () => {
                     </div>
                   ))}
                 </div>
-                <p className="text-xs text-slate-400 mt-2 text-center">الإيراد الشهري الحالي ${monthlyRevenue} — مبني على الخطط النشطة</p>
+                <p className="text-xs text-slate-400 mt-2 text-center">الإيراد الشهري المكافئ ${monthlyRevenue} — السنوي يُحسب بسعر مخفض 20%</p>
               </div>
               <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
                 <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2"><CircleDollarSign size={18} className="text-amber-500"/> ملخص الإيرادات</h3>
                 <div className="space-y-4 text-center">
-                  <div className="p-3 bg-emerald-50 rounded-xl"><p className="text-2xl font-extrabold text-emerald-700">${monthlyRevenue}</p><p className="text-xs text-slate-500">الإيراد الشهري المتوقع</p></div>
-                  <div className="p-3 bg-blue-50 rounded-xl"><p className="text-2xl font-extrabold text-blue-700">${annualRevenue}</p><p className="text-xs text-slate-500">الإيراد السنوي المتوقع</p></div>
-                  <div className="grid grid-cols-3 gap-2 text-xs">
-                    <div className="bg-slate-50 rounded-lg p-2"><p className="font-bold">{starterCount}</p><p className="text-slate-500">Starter</p></div>
-                    <div className="bg-blue-50 rounded-lg p-2"><p className="font-bold">{proCount}</p><p className="text-slate-500">Pro</p></div>
-                    <div className="bg-violet-50 rounded-lg p-2"><p className="font-bold">{enterpriseCount}</p><p className="text-slate-500">Enterprise</p></div>
+                  <div className="p-3 bg-emerald-50 rounded-xl"><p className="text-2xl font-extrabold text-emerald-700">${monthlyRevenue}</p><p className="text-xs text-slate-500">الإيراد الشهري المكافئ (MRR)</p></div>
+                  <div className="p-3 bg-blue-50 rounded-xl"><p className="text-2xl font-extrabold text-blue-700">${annualRevenue}</p><p className="text-xs text-slate-500">الإيراد السنوي المتوقع (ARR)</p></div>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="bg-emerald-50 rounded-lg p-2"><p className="font-bold text-emerald-700">${monthlySchoolsCount}</p><p className="text-slate-500">مدارس شهرية</p></div>
+                    <div className="bg-amber-50 rounded-lg p-2"><p className="font-bold text-amber-700">${yearlySchoolsCount}</p><p className="text-slate-500">مدارس سنوية</p></div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs mt-2">
+                    <div className="bg-blue-50 rounded-lg p-2"><p className="font-bold text-blue-700">${revenueBreakdown.monthly}</p><p className="text-slate-500">MRR من الشهري</p></div>
+                    <div className="bg-violet-50 rounded-lg p-2"><p className="font-bold text-violet-700">${revenueBreakdown.yearly}</p><p className="text-slate-500">MRR من السنوي (مخفّض)</p></div>
                   </div>
                 </div>
               </div>
