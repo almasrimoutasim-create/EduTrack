@@ -15,4 +15,4 @@ services:
       # Build-time URL the SPA bakes in to call the API (fixes the 400s).
       # Service is "edutrack" -> default onrender URL below; change if custom domain.
       - key: VITE_BASE44_APP_BASE_URL
-        value: https://edutrack.onrender.com
+        value: https://edutrack-ey49.onrender.com
