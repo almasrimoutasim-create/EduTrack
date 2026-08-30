@@ -498,6 +498,10 @@ if (process.env.DATABASE_URL) {
     )
   `.then(() => {
     console.log('[neon] registration_requests table verified/created');
+    sql`ALTER TABLE registration_requests ADD COLUMN IF NOT EXISTS school_name TEXT;`.catch(()=>{});
+    sql`ALTER TABLE registration_requests ADD COLUMN IF NOT EXISTS director_name TEXT;`.catch(()=>{});
+    sql`ALTER TABLE registration_requests ADD COLUMN IF NOT EXISTS country TEXT;`.catch(()=>{});
+    sql`ALTER TABLE registration_requests ADD COLUMN IF NOT EXISTS plan TEXT;`.catch(()=>{});
   }).catch(err => {
     console.error('[neon] failed to verify/create registration_requests table:', err.message);
   });
