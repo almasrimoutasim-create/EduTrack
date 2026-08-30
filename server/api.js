@@ -1102,6 +1102,29 @@ export function createApiHandler() {
       return res.end(JSON.stringify({ error: 'Webhook not found' }));
     }
 
+    // ── API routes for payment (require auth) ──
+    if (req.url.startsWith('/api/')) {
+      res.setHeader('Content-Type', 'application/json');
+      
+      // Verify JWT for API routes
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        res.statusCode = 401;
+        return res.end(JSON.stringify({ error: 'Unauthorized' }));
+      }
+      const token = authHeader.split(' ')[1];
+      let user;
+      try { user = jwt.verify(token, JWT_SECRET); } catch { res.statusCode = 401; return res.end(JSON.stringify({ error: 'Invalid token' })); }
+      req.user = user;
+
+      if (req.url === '/api/create-checkout-session' && req.method === 'POST') {
+        return handleCreateCheckoutSession(req, res, user);
+      }
+      
+      res.statusCode = 404;
+      return res.end(JSON.stringify({ error: 'API not found' }));
+    }
+
     if (!req.url.startsWith('/neon-db/entities/')) return next();
 
     res.setHeader('Content-Type', 'application/json');
@@ -1670,6 +1693,87 @@ async function handleManualRenew(req, res) {
     });
     res.end(JSON.stringify({ success: true }));
   } catch (e) {
+    res.statusCode = 500;
+    res.end(JSON.stringify({ error: e.message }));
+  }
+}
+
+async function handleCreateCheckoutSession(req, res, user) {
+  try {
+    const rawBody = await parseRawBody(req);
+    const { school_id, plan, billing_cycle, success_url, cancel_url } = JSON.parse(rawBody || '{}');
+    
+    // التحقق من أن المستخدم يملك هذه المدرسة
+    const userSchoolId = user.school_id || user.id;
+    if (school_id && school_id !== userSchoolId) {
+      res.statusCode = 403;
+      return res.end(JSON.stringify({ error: 'Forbidden: school_id mismatch' }));
+    }
+    const targetSchoolId = school_id || userSchoolId;
+    
+    if (!targetSchoolId) {
+      res.statusCode = 400;
+      return res.end(JSON.stringify({ error: 'No school_id' }));
+    }
+
+    // جلب بيانات المدرسة
+    const schoolRows = await sql`SELECT id, name, email, plan, billing_cycle FROM schools WHERE id = ${targetSchoolId}`.catch(()=>[]);
+    if (!schoolRows.length) {
+      res.statusCode = 404;
+      return res.end(JSON.stringify({ error: 'School not found' }));
+    }
+    const school = schoolRows[0];
+    const finalPlan = plan || school.plan || 'starter';
+    const finalCycle = billing_cycle || school.billing_cycle || 'monthly';
+    
+    // أسعار الخطط
+    const planPrices = { starter: 49, professional: 99, enterprise: 199 };
+    const basePrice = planPrices[finalPlan] || 99;
+    const amount = finalCycle === 'yearly' ? Math.round(basePrice * 12 * 0.8) : basePrice; // 20% خصم للسنوي
+
+    // التحقق من وجود Stripe
+    if (!STRIPE_SECRET) {
+      res.statusCode = 500;
+      return res.end(JSON.stringify({ error: 'Stripe not configured. Set STRIPE_SECRET_KEY.' }));
+    }
+
+    // إنشاء جلسة Stripe
+    const stripe = (await import('stripe')).default(STRIPE_SECRET);
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      mode: 'payment',
+      success_url: success_url || `${process.env.FRONTEND_URL || 'https://edutrack.app'}/renew-subscription?success=true`,
+      cancel_url: cancel_url || `${process.env.FRONTEND_URL || 'https://edutrack.app'}/renew-subscription?canceled=true`,
+      customer_email: school.email || undefined,
+      metadata: {
+        school_id: targetSchoolId,
+        plan: finalPlan,
+        billing_cycle: finalCycle,
+      },
+      line_items: [{
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: `EduTrack ${finalPlan.charAt(0).toUpperCase() + finalPlan.slice(1)} Plan`,
+            description: `${finalCycle === 'yearly' ? 'Annual' : 'Monthly'} subscription for ${school.name}`,
+            metadata: { school_id: targetSchoolId, plan: finalPlan, billing_cycle: finalCycle },
+          },
+          unit_amount: amount * 100, // Stripe uses cents
+        },
+        quantity: 1,
+      }],
+    });
+
+    // سجل الجلسة كمعلقة
+    await sql`
+      INSERT INTO subscription_payments (school_id, provider, provider_payment_id, provider_session_id, amount, currency, status, billing_cycle, plan, metadata)
+      VALUES (${targetSchoolId}, 'stripe', ${session.id}, ${session.id}, ${amount}, 'USD', 'pending', ${finalCycle}, ${finalPlan}, ${JSON.stringify({ stripe_session_id: session.id })})
+      ON CONFLICT (provider, provider_payment_id) DO UPDATE SET status = 'pending', updated_at = NOW()
+    `.catch(e => console.error('[checkout] insert failed:', e.message));
+
+    res.end(JSON.stringify({ url: session.url, session_id: session.id }));
+  } catch (e) {
+    console.error('[checkout] error:', e.message);
     res.statusCode = 500;
     res.end(JSON.stringify({ error: e.message }));
   }

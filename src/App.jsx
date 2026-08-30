@@ -80,6 +80,7 @@ import AcademicFiles from './pages/AcademicFiles';
 import StudentArchive from './pages/StudentArchive';
 import PrintResults from './pages/PrintResults';
 import PublicRegistration from './pages/PublicRegistration';
+import RenewSubscription from './pages/RenewSubscription';
 
 import LandingPage from './pages/LandingPage';
 import Gateway from './pages/Gateway';
@@ -168,6 +169,7 @@ const AuthenticatedApp = () => {
         <Route path="/counseling/cases" element={<CounselingCases />} />
         <Route path="/counseling/:id" element={<CounselingCaseDetail />} />
         <Route path="/bus-routes" element={<BusRouteManagement />} />
+        <Route path="/renew-subscription" element={<RenewSubscription />} />
       </Route>
       <Route path="/student-portal" element={<StudentPortal />} />
       <Route path="/teacher-portal" element={<TeacherPortal />} />
