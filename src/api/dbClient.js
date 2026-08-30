@@ -162,7 +162,10 @@ const entityNames = [
   'Expense', 'SalaryRecord', 'PurchaseOrder', 'Visitor',
   'StaffLeave', 'StaffContract', 'StaffEvaluation', 'StaffRequest',
   'Department', 'CareerLadder', 'StoreCategory', 'SalesOrder', 'SystemSetting', 'GatewayAccount', 'SystemAdmin', 'RegistrationRequest',
-  'School'
+  'School',
+  'TeacherOwnStudent', 'TeacherAssignment', 'TeacherExam',
+  'TeacherSubmission', 'TeacherLiveClass', 'ClassParticipant',
+  'TeacherYoutubeVideo', 'TeacherSubscription', 'CurriculumBook'
 ];
 
 const entities = {};

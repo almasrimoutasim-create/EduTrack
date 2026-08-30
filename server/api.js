@@ -523,7 +523,8 @@ if (process.env.DATABASE_URL) {
   // ── Multi-tenant: إضافة school_id لكل جدول مستأجر + فهرسة + RLS سيتم لاحقاً ──
   const TENANT_TABLES = [
     'students','teachers','attendance','subjects','library_books','financial_records',
-    'activity_posts','activity_comments','activity_chats','audit_logs','bus_drivers','bus_driver_reports','card_top_ups','class_schedules','donations','friend_requests','store_items','purchases','study_rooms','study_groups','study_group_posts','study_materials','student_awards','student_grades','student_reports','supervisors','staff_members','teacher_ratings','teacher_tasks','portal_access_configs','portal_groups','portal_group_messages','portal_notifications','private_messages','room_messages','room_videos','book_reviews','message_read_receipts','typing_indicators','fines','parent_link_requests','virtual_sessions','session_participants','official_announcements','counseling_cases','case_assessments','intervention_plans','follow_ups','case_visibility_logs','fee_structures','student_fees','fee_payments','activity_fees','student_activity_fees','student_wallet','wallet_transactions','hall_rentals','other_revenue','expenses','salary_records','purchase_orders','visitors','system_settings','system_admins'
+    'activity_posts','activity_comments','activity_chats','audit_logs','bus_drivers','bus_driver_reports','card_top_ups','class_schedules','donations','friend_requests','store_items','purchases','study_rooms','study_groups','study_group_posts','study_materials','student_awards','student_grades','student_reports','supervisors','staff_members','teacher_ratings','teacher_tasks','portal_access_configs','portal_groups','portal_group_messages','portal_notifications','private_messages','room_messages','room_videos','book_reviews','message_read_receipts','typing_indicators','fines','parent_link_requests','virtual_sessions','session_participants','official_announcements','counseling_cases','case_assessments','intervention_plans','follow_ups','case_visibility_logs','fee_structures','student_fees','fee_payments','activity_fees','student_activity_fees','student_wallet','wallet_transactions','hall_rentals','other_revenue','expenses','salary_records','purchase_orders','visitors','system_settings','system_admins',
+    'teacher_own_students','teacher_assignments','teacher_exams','teacher_submissions','teacher_live_classes','class_participants','teacher_youtube_videos','teacher_subscriptions','curriculum_books'
   ];
   TENANT_TABLES.forEach(tbl => {
     sql.query(`ALTER TABLE ${tbl} ADD COLUMN IF NOT EXISTS school_id UUID`).catch(err=>console.error(`[neon] add school_id to ${tbl}:`, err.message))
@@ -1184,6 +1185,173 @@ export function createApiHandler() {
       const TENANT_TABLES_SET = new Set(['students','teachers','attendance','subjects','library_books','financial_records','activity_posts','activity_comments','activity_chats','audit_logs','bus_drivers','bus_driver_reports','card_top_ups','class_schedules','donations','friend_requests','store_items','purchases','study_rooms','study_groups','study_group_posts','study_materials','student_awards','student_grades','student_reports','supervisors','staff_members','teacher_ratings','teacher_tasks','portal_access_configs','portal_groups','portal_group_messages','portal_notifications','private_messages','room_messages','room_videos','book_reviews','message_read_receipts','typing_indicators','fines','parent_link_requests','virtual_sessions','session_participants','official_announcements','counseling_cases','case_assessments','intervention_plans','follow_ups','case_visibility_logs','fee_structures','student_fees','fee_payments','activity_fees','student_activity_fees','student_wallet','wallet_transactions','hall_rentals','other_revenue','expenses','salary_records','purchase_orders','visitors','system_settings','system_admins']);
       const isTenantTable = TENANT_TABLES_SET.has(table);
       const tenantId = req.user?.school_id || null;
+
+      // ===== Independent Teacher Portal Tables =====
+      sql`
+        CREATE TABLE IF NOT EXISTS teacher_own_students (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          teacher_id UUID NOT NULL,
+          school_id UUID,
+          student_name TEXT NOT NULL,
+          student_email TEXT,
+          student_phone TEXT,
+          grade TEXT,
+          parent_name TEXT,
+          parent_phone TEXT,
+          parent_email TEXT,
+          status TEXT DEFAULT 'active',
+          joined_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        )
+      `.then(() => console.log('[neon] teacher_own_students table verified'))
+        .catch(err => console.error('[neon] teacher_own_students:', err.message));
+
+      sql`
+        CREATE TABLE IF NOT EXISTS teacher_assignments (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          teacher_id UUID NOT NULL,
+          school_id UUID,
+          title TEXT NOT NULL,
+          description TEXT,
+          subject TEXT,
+          grade TEXT,
+          due_date TIMESTAMP WITH TIME ZONE,
+          total_points INTEGER DEFAULT 100,
+          attachment_url TEXT,
+          status TEXT DEFAULT 'active',
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        )
+      `.then(() => console.log('[neon] teacher_assignments table verified'))
+        .catch(err => console.error('[neon] teacher_assignments:', err.message));
+
+      sql`
+        CREATE TABLE IF NOT EXISTS teacher_exams (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          teacher_id UUID NOT NULL,
+          school_id UUID,
+          title TEXT NOT NULL,
+          description TEXT,
+          subject TEXT,
+          grade TEXT,
+          duration_minutes INTEGER DEFAULT 60,
+          total_points INTEGER DEFAULT 100,
+          questions JSONB DEFAULT '[]',
+          due_date TIMESTAMP WITH TIME ZONE,
+          status TEXT DEFAULT 'active',
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        )
+      `.then(() => console.log('[neon] teacher_exams table verified'))
+        .catch(err => console.error('[neon] teacher_exams:', err.message));
+
+      sql`
+        CREATE TABLE IF NOT EXISTS teacher_submissions (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          teacher_id UUID NOT NULL,
+          assignment_id UUID,
+          exam_id UUID,
+          student_id UUID,
+          student_name TEXT,
+          school_id UUID,
+          answers JSONB DEFAULT '{}',
+          score NUMERIC,
+          feedback TEXT,
+          status TEXT DEFAULT 'submitted',
+          submitted_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          graded_at TIMESTAMP WITH TIME ZONE
+        )
+      `.then(() => console.log('[neon] teacher_submissions table verified'))
+        .catch(err => console.error('[neon] teacher_submissions:', err.message));
+
+      sql`
+        CREATE TABLE IF NOT EXISTS teacher_live_classes (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          teacher_id UUID NOT NULL,
+          school_id UUID,
+          title TEXT NOT NULL,
+          description TEXT,
+          subject TEXT,
+          grade TEXT,
+          scheduled_at TIMESTAMP WITH TIME ZONE,
+          duration_minutes INTEGER DEFAULT 60,
+          room_token TEXT,
+          room_url TEXT,
+          status TEXT DEFAULT 'scheduled',
+          max_students INTEGER DEFAULT 30,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        )
+      `.then(() => console.log('[neon] teacher_live_classes table verified'))
+        .catch(err => console.error('[neon] teacher_live_classes:', err.message));
+
+      sql`
+        CREATE TABLE IF NOT EXISTS class_participants (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          class_id UUID NOT NULL,
+          student_id UUID,
+          student_name TEXT,
+          school_id UUID,
+          joined_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          left_at TIMESTAMP WITH TIME ZONE
+        )
+      `.then(() => console.log('[neon] class_participants table verified'))
+        .catch(err => console.error('[neon] class_participants:', err.message));
+
+      sql`
+        CREATE TABLE IF NOT EXISTS teacher_youtube_videos (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          teacher_id UUID NOT NULL,
+          school_id UUID,
+          title TEXT NOT NULL,
+          description TEXT,
+          youtube_url TEXT NOT NULL,
+          thumbnail_url TEXT,
+          subject TEXT,
+          grade TEXT,
+          is_hidden BOOLEAN DEFAULT FALSE,
+          order_index INTEGER DEFAULT 0,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        )
+      `.then(() => console.log('[neon] teacher_youtube_videos table verified'))
+        .catch(err => console.error('[neon] teacher_youtube_videos:', err.message));
+
+      sql`
+        CREATE TABLE IF NOT EXISTS teacher_subscriptions (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          teacher_id UUID NOT NULL,
+          student_id UUID NOT NULL,
+          student_name TEXT,
+          student_email TEXT,
+          school_id UUID,
+          plan TEXT DEFAULT 'monthly',
+          amount NUMERIC DEFAULT 0,
+          status TEXT DEFAULT 'pending',
+          payment_method TEXT,
+          started_at TIMESTAMP WITH TIME ZONE,
+          expires_at TIMESTAMP WITH TIME ZONE,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        )
+      `.then(() => console.log('[neon] teacher_subscriptions table verified'))
+        .catch(err => console.error('[neon] teacher_subscriptions:', err.message));
+
+      sql`
+        CREATE TABLE IF NOT EXISTS curriculum_books (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          title TEXT NOT NULL,
+          title_ar TEXT,
+          subject TEXT NOT NULL,
+          grade TEXT NOT NULL,
+          author TEXT,
+          publisher TEXT,
+          year TEXT,
+          cover_url TEXT,
+          file_url TEXT,
+          description TEXT,
+          description_ar TEXT,
+          is_public BOOLEAN DEFAULT TRUE,
+          school_id UUID,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        )
+      `.then(() => console.log('[neon] curriculum_books table verified'))
+        .catch(err => console.error('[neon] curriculum_books:', err.message));
 
       // ===== LIST =====
       if (req.method === 'GET' && !entityId) {

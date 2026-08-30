@@ -80,7 +80,10 @@ import AcademicFiles from './pages/AcademicFiles';
 import StudentArchive from './pages/StudentArchive';
 import PrintResults from './pages/PrintResults';
 import PublicRegistration from './pages/PublicRegistration';
+import StudentRegister from './pages/StudentRegister';
 import RenewSubscription from './pages/RenewSubscription';
+import IndependentTeacherPortal from './pages/IndependentTeacherPortal';
+import EnhancedStudentPortal from './pages/EnhancedStudentPortal';
 
 import LandingPage from './pages/LandingPage';
 import Gateway from './pages/Gateway';
@@ -111,6 +114,7 @@ const AuthenticatedApp = () => {
       <Route path="/login" element={<RoleLogin />} />
       <Route path="/register" element={<PublicRegistration />} />
       <Route path="/registration" element={<PublicRegistration />} />
+      <Route path="/student-register" element={<StudentRegister />} />
       <Route element={<AppLayout />}>
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/admin-dashboard" element={<Dashboard />} />
@@ -172,7 +176,9 @@ const AuthenticatedApp = () => {
         <Route path="/renew-subscription" element={<RenewSubscription />} />
       </Route>
       <Route path="/student-portal" element={<StudentPortal />} />
+      <Route path="/student-panel" element={<EnhancedStudentPortal />} />
       <Route path="/teacher-portal" element={<TeacherPortal />} />
+      <Route path="/teacher-panel" element={<IndependentTeacherPortal />} />
       <Route path="/parent-portal" element={<ParentPortal />} />
       <Route path="/bus-supervisor" element={<BusSupervisorPortal />} />
       <Route path="/staff-portal" element={<StaffPortal />} />

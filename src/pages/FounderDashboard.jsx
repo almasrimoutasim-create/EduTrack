@@ -38,6 +38,7 @@ const NAV = [
   { id: "overview", label: "الرئيسية", icon: LayoutDashboard },
   { id: "schools", label: "إدارة المدارس", icon: Building2 },
   { id: "requests", label: "طلبات التسجيل", icon: FileText },
+  { id: "teacher-student-regs", label: "طلبات المعلمين والطلاب", icon: Users },
   { id: "subscriptions", label: "الاشتراكات والإيرادات", icon: CreditCard },
   { id: "support", label: "الدعم الفني", icon: LifeBuoy },
   { id: "settings", label: "إعدادات المنصة", icon: Settings },
@@ -73,6 +74,17 @@ const FounderDashboard = () => {
     },
   });
 
+  // ── Teacher/Student registration requests ──
+  const { data: teacherStudentRequests = [], isLoading: tsReqLoading } = useQuery({
+    queryKey: ["founder-teacher-student-regs"],
+    queryFn: async () => {
+      try {
+        const allReqs = await entities.RegistrationRequest.list("-created_at", 500);
+        return allReqs.filter(r => r.role_requested === "teacher" || r.role_requested === "student" || r.plan === "student_free" || r.plan === "teacher_free");
+      } catch { return []; }
+    },
+  });
+
   // ── Support tickets (localStorage) ──
   const [tickets, setTickets] = useState(() => {
     try { return JSON.parse(localStorage.getItem("founder_support_tickets")) || SUPPORT_SEED; }
@@ -101,6 +113,7 @@ const FounderDashboard = () => {
   const pendingSchools = schools.filter((s) => s.subscription_status === "trial" || s.subscription_status === "pending").length;
   const expiredSchools = schools.filter((s) => s.subscription_status === "expired" || s.subscription_status === "inactive").length;
   const pendingRequests = requests.filter((r) => r.status === "pending" || !r.status).length;
+  const pendingTeacherStudentReqs = teacherStudentRequests.filter((r) => r.status === "pending" || !r.status).length;
 
   // دالة لحساب السعر الشهري المكافئ للمدرسة (مع خصم 20% للسنوي)
   const getMonthlyEquivalent = (school) => {
@@ -398,6 +411,7 @@ const FounderDashboard = () => {
               <StatCard icon={Building2} label="إجمالي المدارس المشتركة" value={schools.length} tint="bg-blue-500" sub={`${activeSchools} نشطة • ${pendingSchools} معلقة • ${expiredSchools} منتهية`} />
               <StatCard icon={Users} label="المدارس حسب الحالة" value={`${activeSchools} / ${pendingSchools} / ${expiredSchools}`} tint="bg-emerald-500" sub="نشطة / معلقة / منتهية" />
               <StatCard icon={FileText} label="طلبات جديدة غير معالجة" value={pendingRequests} tint="bg-violet-500" sub={`من أصل ${requests.length} طلب`} />
+              <StatCard icon={Users} label="طلبات معلمين/طلاب" value={pendingTeacherStudentReqs} tint="bg-emerald-500" sub={`من أصل ${teacherStudentRequests.length} طلب`} />
               <StatCard icon={CircleDollarSign} label="الإيراد الشهري المتوقع" value={`$${monthlyRevenue}`} tint="bg-amber-500" sub={`السنوي $${annualRevenue}`} />
             </div>
 
@@ -631,6 +645,96 @@ const FounderDashboard = () => {
               </div>
             )}
             <p className="p-4 text-xs text-slate-400 bg-slate-50 border-t">عند القبول يتم إنشاء حساب المدرسة تلقائياً (جدول schools) وتفعيل الاشتراك.</p>
+          </div>
+        )}
+
+        {/* ───── 3️⃣ طلبات المعلمين والطلاب ───── */}
+        {section === "teacher-student-regs" && (
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="font-bold text-slate-900 flex items-center gap-2"><Users size={18} className="text-violet-500"/> طلبات تسجيل المعلمين والطلاب</h3>
+              <span className="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded-full font-bold">{teacherStudentRequests.length} طلب</span>
+            </div>
+            {tsReqLoading ? <p className="p-6 text-slate-500">جاري التحميل...</p> : teacherStudentRequests.length === 0 ? (
+              <div className="p-12 text-center">
+                <Users size={40} className="text-slate-200 mx-auto mb-3"/>
+                <p className="text-slate-500 font-bold">لا توجد طلبات معلمين أو طلاب بعد</p>
+                <p className="text-xs text-slate-400 mt-1">ستظهر هنا الطلبات التي تأتي من صفحات التسجيل العامة للمعلمين والطلاب</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50 text-slate-500">
+                  <tr>
+                    <th className="text-right p-4 font-semibold">الاسم</th>
+                    <th className="text-right p-4 font-semibold">النوع</th>
+                    <th className="text-right p-4 font-semibold">البريد</th>
+                    <th className="text-right p-4 font-semibold">الهاتف</th>
+                    <th className="text-right p-4 font-semibold">المدرسة / المدينة</th>
+                    <th className="text-right p-4 font-semibold">الصف / الملاحظات</th>
+                    <th className="text-right p-4 font-semibold">الحالة</th>
+                    <th className="text-right p-4 font-semibold">إجراء</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {teacherStudentRequests.map((r) => {
+                    const isTeacher = r.role_requested === "teacher";
+                    return (
+                    <tr key={r.id} className="border-t border-slate-100 hover:bg-slate-50">
+                      <td className="p-4">
+                        <p className="font-bold text-slate-900">{r.student_name || r.full_name || "-"}</p>
+                        {r.parent_name && <p className="text-xs text-slate-400">ولي الأمر: {r.parent_name}</p>}
+                      </td>
+                      <td className="p-4">
+                        <span className={`px-2 py-1 rounded-full text-xs font-bold ${isTeacher ? "bg-blue-100 text-blue-700" : "bg-emerald-100 text-emerald-700"}`}>
+                          {isTeacher ? "معلم" : "طالب"}
+                        </span>
+                      </td>
+                      <td className="p-4 text-slate-500" dir="ltr">{r.email || "-"}</td>
+                      <td className="p-4 text-slate-600 flex items-center gap-1" dir="ltr"><Phone size={12}/>{r.phone || "-"}</td>
+                      <td className="p-4 text-slate-600">
+                        <p>{r.school_name || "-"}</p>
+                        {r.city && <p className="text-xs text-slate-400">{r.city}</p>}
+                      </td>
+                      <td className="p-4 text-slate-600">
+                        {!isTeacher && r.grade && <p className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded inline-block font-bold">الصف: {r.grade}</p>}
+                        {r.notes && <p className="text-xs text-slate-400 mt-1 max-w-[150px] truncate" title={r.notes}>{r.notes}</p>}
+                      </td>
+                      <td className="p-4">
+                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${r.status === "approved" ? "bg-emerald-100 text-emerald-700" : r.status === "rejected" ? "bg-rose-100 text-rose-700" : r.status==="on_hold" ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-600"}`}>
+                          {r.status === "approved" ? "مقبول" : r.status === "rejected" ? "مرفوض" : r.status==="on_hold" ? "معلق" : "قيد الانتظار"}
+                        </span>
+                      </td>
+                      <td className="p-4">
+                        {r.status !== "approved" && r.status !== "rejected" ? (
+                          <div className="flex gap-1 flex-wrap">
+                            <button onClick={async () => {
+                              await entities.RegistrationRequest.update(r.id, { status: "approved" });
+                              toast.success(`تم قبول طلب ${isTeacher ? "المعلم" : "الطالب"}: ${r.student_name || r.full_name}`);
+                              queryClient.invalidateQueries({ queryKey: ["founder-teacher-student-regs"] });
+                            }} className="flex items-center gap-1 bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-emerald-700"><CheckCircle2 size={12}/> قبول</button>
+                            <button onClick={async () => {
+                              await entities.RegistrationRequest.update(r.id, { status: "rejected" });
+                              toast.success(`تم رفض الطلب`);
+                              queryClient.invalidateQueries({ queryKey: ["founder-teacher-student-regs"] });
+                            }} className="flex items-center gap-1 bg-rose-50 text-rose-700 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-rose-100"><XCircle size={12}/> رفض</button>
+                            <button onClick={async () => {
+                              await entities.RegistrationRequest.update(r.id, { status: "on_hold" });
+                              toast.success(`تم تعليق الطلب`);
+                              queryClient.invalidateQueries({ queryKey: ["founder-teacher-student-regs"] });
+                            }} className="flex items-center gap-1 bg-amber-50 text-amber-700 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-amber-100"><PauseCircle size={12}/> تعليق</button>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-slate-400">— تمت المعالجة</span>
+                        )}
+                      </td>
+                    </tr>
+                  )})}
+                </tbody>
+              </table>
+              </div>
+            )}
+            <p className="p-4 text-xs text-slate-400 bg-slate-50 border-t">هذه الطلبات تأتي من صفحات التسجيل العامة (/student-register و /public-registration). عند القبول، يمكن للمعلم/الطالب استخدام حسابه للدخول.</p>
           </div>
         )}
 

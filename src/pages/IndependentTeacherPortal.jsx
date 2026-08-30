@@ -1,0 +1,737 @@
+import React, { useState, useMemo } from "react";
+import { useSearchParams, Link } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { entities } from "@/api/dbClient";
+import { useLanguage } from "@/lib/LanguageContext";
+import { useAuth } from "@/lib/AuthContext";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Users, BookOpen, ClipboardCheck, Video, Calendar, BarChart3,
+  Plus, Search, LogOut, Settings, Bell, ChevronRight, ChevronDown,
+  CheckCircle2, AlertCircle, Clock, Eye, EyeOff, Trash2, Edit,
+  ExternalLink, Send, PlayCircle, FileText, Award, Star, Play,
+  GraduationCap, Copy, UserPlus, BookMarked, X, Download, MessageCircle
+} from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+
+const btnPrimary = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-bold transition-all bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer shadow-lg disabled:opacity-50";
+const btnOutline = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-bold transition-all border-2 border-stone-200 bg-white text-stone-700 hover:bg-stone-50 hover:border-stone-300 cursor-pointer";
+const btnDanger = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-bold transition-all bg-red-500 text-white hover:bg-red-600 cursor-pointer";
+
+const SIDEBAR_ITEMS = [
+  { id: "dashboard", icon: BarChart3, label: "لوحة التحكم", labelEn: "Dashboard" },
+  { id: "students", icon: Users, label: "طلابي", labelEn: "My Students" },
+  { id: "assignments", icon: ClipboardCheck, label: "الواجبات", labelEn: "Assignments" },
+  { id: "exams", icon: FileText, label: "الامتحانات", labelEn: "Exams" },
+  { id: "live", icon: Video, label: "الحصص المباشرة", labelEn: "Live Classes" },
+  { id: "videos", icon: PlayCircle, label: "فيديوهات يوتيوب", labelEn: "YouTube Videos" },
+  { id: "subscriptions", icon: Star, label: "طلبات الاشتراك", labelEn: "Subscriptions" },
+];
+
+export default function IndependentTeacherPortal() {
+  const { language } = useLanguage();
+  const isRTL = language === "ar";
+  const { logout } = useAuth();
+  const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") || "dashboard";
+
+  const teacherId = localStorage.getItem("portal_user_id");
+  const teacherName = localStorage.getItem("portal_user_name") || "";
+
+  const setActiveTab = (tab) => setSearchParams({ tab });
+
+  const handleLogout = () => {
+    localStorage.removeItem("portal_role");
+    localStorage.removeItem("portal_user_id");
+    localStorage.removeItem("portal_user_name");
+    logout(false);
+    window.location.href = "/";
+  };
+
+  // Queries
+  const { data: students = [] } = useQuery({
+    queryKey: ["teacher-own-students", teacherId],
+    queryFn: () => entities.TeacherOwnStudent.list("-created_at", { teacher_id: teacherId }),
+    enabled: !!teacherId,
+  });
+
+  const { data: assignments = [] } = useQuery({
+    queryKey: ["teacher-assignments", teacherId],
+    queryFn: () => entities.TeacherAssignment.list("-created_at", { teacher_id: teacherId }),
+    enabled: !!teacherId,
+  });
+
+  const { data: exams = [] } = useQuery({
+    queryKey: ["teacher-exams", teacherId],
+    queryFn: () => entities.TeacherExam.list("-created_at", { teacher_id: teacherId }),
+    enabled: !!teacherId,
+  });
+
+  const { data: liveClasses = [] } = useQuery({
+    queryKey: ["teacher-live-classes", teacherId],
+    queryFn: () => entities.TeacherLiveClass.list("-scheduled_at", { teacher_id: teacherId }),
+    enabled: !!teacherId,
+  });
+
+  const { data: videos = [] } = useQuery({
+    queryKey: ["teacher-youtube-videos", teacherId],
+    queryFn: () => entities.TeacherYoutubeVideo.list("-created_at", { teacher_id: teacherId }),
+    enabled: !!teacherId,
+  });
+
+  const { data: subscriptions = [] } = useQuery({
+    queryKey: ["teacher-subscriptions", teacherId],
+    queryFn: () => entities.TeacherSubscription.list("-created_at", { teacher_id: teacherId }),
+    enabled: !!teacherId,
+  });
+
+  const { data: submissions = [] } = useQuery({
+    queryKey: ["teacher-submissions", teacherId],
+    queryFn: () => entities.TeacherSubmission.list("-submitted_at", { teacher_id: teacherId }),
+    enabled: !!teacherId,
+  });
+
+  const stats = useMemo(() => ({
+    students: students?.length || 0,
+    assignments: assignments?.length || 0,
+    exams: exams?.length || 0,
+    liveClasses: liveClasses?.length || 0,
+    videos: videos?.length || 0,
+    pendingSubs: subscriptions?.filter(s => s.status === "pending")?.length || 0,
+    submissions: submissions?.length || 0,
+    pendingGrading: submissions?.filter(s => s.status === "submitted")?.length || 0,
+  }), [students, assignments, exams, liveClasses, videos, subscriptions, submissions]);
+
+  return (
+    <div className="min-h-screen bg-stone-50 flex" dir="rtl">
+      {/* Sidebar */}
+      <aside className="hidden lg:flex w-64 bg-white border-l border-stone-200 flex-col fixed inset-y-0 right-0 z-30">
+        <div className="p-4 border-b border-stone-100">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+              <GraduationCap size={20} />
+            </div>
+            <div>
+              <div className="font-black text-sm text-stone-900">بوابة المعلم</div>
+              <div className="text-xs text-stone-500 truncate max-w-[150px]">{teacherName}</div>
+            </div>
+          </div>
+        </div>
+        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
+          {SIDEBAR_ITEMS.map(item => (
+            <button key={item.id} onClick={() => setActiveTab(item.id)}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === item.id ? "bg-emerald-50 text-emerald-700" : "text-stone-600 hover:bg-stone-50"}`}>
+              <item.icon size={18} />
+              <span>{isRTL ? item.label : item.labelEn}</span>
+              {item.id === "subscriptions" && stats.pendingSubs > 0 && (
+                <span className="mr-auto bg-red-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">{stats.pendingSubs}</span>
+              )}
+            </button>
+          ))}
+        </nav>
+        <div className="p-3 border-t border-stone-100">
+          <button onClick={handleLogout} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-red-600 hover:bg-red-50 transition-all">
+            <LogOut size={18} /> خروج
+          </button>
+        </div>
+      </aside>
+
+      {/* Mobile Header */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-white border-b border-stone-200 h-14 flex items-center px-4 gap-3">
+        <GraduationCap size={20} className="text-emerald-600" />
+        <span className="font-black text-sm">{teacherName}</span>
+        <div className="mr-auto flex items-center gap-2">
+          {stats.pendingSubs > 0 && (
+            <span className="bg-red-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full">{stats.pendingSubs} طلب</span>
+          )}
+          <button onClick={handleLogout} className="text-red-600"><LogOut size={18} /></button>
+        </div>
+      </div>
+
+      {/* Mobile Bottom Nav */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-stone-200 h-16 flex items-center justify-around px-2">
+        {SIDEBAR_ITEMS.slice(0, 5).map(item => (
+          <button key={item.id} onClick={() => setActiveTab(item.id)}
+            className={`flex flex-col items-center gap-0.5 py-1 px-2 rounded-lg ${activeTab === item.id ? "text-emerald-600" : "text-stone-400"}`}>
+            <item.icon size={20} />
+            <span className="text-[10px] font-bold">{isRTL ? item.label.split(" ").pop() : item.labelEn.split(" ").pop()}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Main Content */}
+      <main className="flex-1 lg:mr-64 pt-14 lg:pt-0 pb-20 lg:pb-0">
+        <div className="max-w-6xl mx-auto p-4 md:p-6">
+          <AnimatePresence mode="wait">
+            {activeTab === "dashboard" && <DashboardTab key="dashboard" stats={stats} isRTL={isRTL} students={students} />}
+            {activeTab === "students" && <StudentsTab key="students" teacherId={teacherId} students={students} isRTL={isRTL} queryClient={queryClient} />}
+            {activeTab === "assignments" && <AssignmentsTab key="assignments" teacherId={teacherId} assignments={assignments} isRTL={isRTL} queryClient={queryClient} />}
+            {activeTab === "exams" && <ExamsTab key="exams" teacherId={teacherId} exams={exams} isRTL={isRTL} queryClient={queryClient} />}
+            {activeTab === "live" && <LiveClassesTab key="live" teacherId={teacherId} liveClasses={liveClasses} isRTL={isRTL} queryClient={queryClient} />}
+            {activeTab === "videos" && <VideosTab key="videos" teacherId={teacherId} videos={videos} isRTL={isRTL} queryClient={queryClient} />}
+            {activeTab === "subscriptions" && <SubscriptionsTab key="subs" teacherId={teacherId} subscriptions={subscriptions} isRTL={isRTL} queryClient={queryClient} />}
+          </AnimatePresence>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+// ─── Dashboard Tab ───
+function DashboardTab({ stats, isRTL, students }) {
+  const cards = [
+    { label: isRTL ? "الطلاب" : "Students", value: stats.students, icon: Users, color: "bg-blue-50 text-blue-600" },
+    { label: isRTL ? "الواجبات" : "Assignments", value: stats.assignments, icon: ClipboardCheck, color: "bg-amber-50 text-amber-600" },
+    { label: isRTL ? "الامتحانات" : "Exams", value: stats.exams, icon: FileText, color: "bg-purple-50 text-purple-600" },
+    { label: isRTL ? "الحصص المباشرة" : "Live Classes", value: stats.liveClasses, icon: Video, color: "bg-emerald-50 text-emerald-600" },
+    { label: isRTL ? "فيديوهات يوتيوب" : "YouTube Videos", value: stats.videos, icon: PlayCircle, color: "bg-red-50 text-red-600" },
+    { label: isRTL ? "طلبات اشتراك" : "Pending Subs", value: stats.pendingSubs, icon: Star, color: "bg-orange-50 text-orange-600" },
+    { label: isRTL ? "واجبات قيد التصحيح" : "Pending Grading", value: stats.pendingGrading, icon: Award, color: "bg-cyan-50 text-cyan-600" },
+  ];
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+      <h1 className="text-xl font-black text-stone-900 mb-4">{isRTL ? "لوحة التحكم" : "Dashboard"}</h1>
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+        {cards.map((c, i) => (
+          <Card key={i} className="p-4 rounded-2xl border-stone-100">
+            <div className={`h-10 w-10 rounded-xl ${c.color} flex items-center justify-center mb-3`}>
+              <c.icon size={18} />
+            </div>
+            <div className="text-2xl font-black text-stone-900">{c.value}</div>
+            <div className="text-xs text-stone-500 font-bold">{c.label}</div>
+          </Card>
+        ))}
+      </div>
+      {students?.length > 0 && (
+        <Card className="mt-4 p-4 rounded-2xl border-stone-100">
+          <h3 className="font-black text-sm mb-3">{isRTL ? "آخر الطلاب المسجلين" : "Recent Students"}</h3>
+          <div className="space-y-2">
+            {students.slice(0, 5).map(s => (
+              <div key={s.id} className="flex items-center gap-3 p-2 rounded-xl bg-stone-50">
+                <div className="h-8 w-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-black">
+                  {(s.student_name || "").charAt(0)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-bold text-stone-900 truncate">{s.student_name}</div>
+                  <div className="text-xs text-stone-500">{s.grade ? `الصف ${s.grade}` : ""}</div>
+                </div>
+                <Badge variant={s.status === "active" ? "default" : "secondary"} className="text-[10px]">{s.status === "active" ? "نشط" : s.status}</Badge>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+    </motion.div>
+  );
+}
+
+// ─── Students Tab ───
+function StudentsTab({ teacherId, students, isRTL, queryClient }) {
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState({ student_name: "", student_email: "", student_phone: "", grade: "", parent_name: "", parent_phone: "", parent_email: "" });
+  const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState("");
+
+  const filtered = students?.filter(s => !search || s.student_name?.toLowerCase().includes(search.toLowerCase())) || [];
+
+  const handleAdd = async () => {
+    if (!form.student_name.trim()) { toast.error(isRTL ? "أدخل اسم الطالب" : "Enter student name"); return; }
+    setLoading(true);
+    try {
+      await entities.TeacherOwnStudent.create({ ...form, teacher_id: teacherId, status: "active" });
+      queryClient.invalidateQueries({ queryKey: ["teacher-own-students"] });
+      setShowAdd(false);
+      setForm({ student_name: "", student_email: "", student_phone: "", grade: "", parent_name: "", parent_phone: "", parent_email: "" });
+      toast.success(isRTL ? "تم إضافة الطالب" : "Student added");
+    } catch (e) { toast.error(e.message); }
+    setLoading(false);
+  };
+
+  const handleDelete = async (id) => {
+    if (!confirm(isRTL ? "هل أنت متأكد من حذف هذا الطالب؟" : "Are you sure you want to delete this student?")) return;
+    try {
+      await entities.TeacherOwnStudent.delete(id);
+      queryClient.invalidateQueries({ queryKey: ["teacher-own-students"] });
+      toast.success(isRTL ? "تم الحذف" : "Deleted");
+    } catch (e) { toast.error(e.message); }
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-xl font-black">{isRTL ? "طلابي" : "My Students"}</h1>
+        <button onClick={() => setShowAdd(true)} className={btnPrimary}><Plus size={16} />{isRTL ? "إضافة طالب" : "Add Student"}</button>
+      </div>
+      <div className="mb-4"><Input placeholder={isRTL ? "بحث بالاسم..." : "Search by name..."} value={search} onChange={e => setSearch(e.target.value)} className="h-10 rounded-xl" prefix={<Search size={14} />} /></div>
+      <div className="grid gap-3">
+        {filtered.map(s => (
+          <Card key={s.id} className="p-4 rounded-2xl border-stone-100 flex items-center gap-4">
+            <div className="h-10 w-10 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-black text-sm shrink-0">
+              {(s.student_name || "").charAt(0)}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-bold text-stone-900">{s.student_name}</div>
+              <div className="text-xs text-stone-500">{s.student_email || ""} {s.grade ? `• الصف ${s.grade}` : ""}</div>
+              <div className="text-xs text-stone-400">{s.parent_name ? `ولي: ${s.parent_name}` : ""} {s.parent_phone ? `• ${s.parent_phone}` : ""}</div>
+            </div>
+            <Badge variant={s.status === "active" ? "default" : "secondary"} className="text-[10px] shrink-0">{s.status === "active" ? "نشط" : s.status}</Badge>
+            <button onClick={() => handleDelete(s.id)} className="text-red-500 hover:text-red-700 shrink-0"><Trash2 size={16} /></button>
+          </Card>
+        ))}
+        {filtered.length === 0 && <div className="text-center py-12 text-stone-400 text-sm">{isRTL ? "لا يوجد طلاب بعد" : "No students yet"}</div>}
+      </div>
+
+      <Dialog open={showAdd} onOpenChange={setShowAdd}>
+        <DialogContent className="max-w-md rounded-[24px]" dir="rtl">
+          <DialogHeader><DialogTitle className="font-black">{isRTL ? "إضافة طالب جديد" : "Add New Student"}</DialogTitle></DialogHeader>
+          <div className="space-y-3 p-1">
+            <Input placeholder={isRTL ? "اسم الطالب *" : "Student name *"} value={form.student_name} onChange={e => setForm({ ...form, student_name: e.target.value })} className="h-10 rounded-xl" />
+            <Input placeholder={isRTL ? "البريد الإلكتروني" : "Email"} value={form.student_email} onChange={e => setForm({ ...form, student_email: e.target.value })} className="h-10 rounded-xl" dir="ltr" />
+            <Input placeholder={isRTL ? "الهاتف" : "Phone"} value={form.student_phone} onChange={e => setForm({ ...form, student_phone: e.target.value })} className="h-10 rounded-xl" dir="ltr" />
+            <select value={form.grade} onChange={e => setForm({ ...form, grade: e.target.value })} className="h-10 rounded-xl border border-stone-200 bg-white px-3 text-sm w-full">
+              <option value="">{isRTL ? "الصف الدراسي" : "Grade"}</option>
+              {["1","2","3","4","5","6","7","8","9","10","11","12"].map(g => <option key={g} value={g}>{isRTL ? `الصف ${g}` : `Grade ${g}`}</option>)}
+            </select>
+            <div className="text-xs font-bold text-stone-500 pt-2">{isRTL ? "بيانات ولي الأمر" : "Parent Info"}</div>
+            <Input placeholder={isRTL ? "اسم ولي الأمر" : "Parent name"} value={form.parent_name} onChange={e => setForm({ ...form, parent_name: e.target.value })} className="h-10 rounded-xl" />
+            <Input placeholder={isRTL ? "هاتف ولي الأمر" : "Parent phone"} value={form.parent_phone} onChange={e => setForm({ ...form, parent_phone: e.target.value })} className="h-10 rounded-xl" dir="ltr" />
+          </div>
+          <DialogFooter className="gap-2">
+            <button onClick={() => setShowAdd(false)} className={btnOutline}>{isRTL ? "إلغاء" : "Cancel"}</button>
+            <button onClick={handleAdd} disabled={loading} className={btnPrimary}>{loading ? "..." : isRTL ? "إضافة" : "Add"}</button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </motion.div>
+  );
+}
+
+// ─── Assignments Tab ───
+function AssignmentsTab({ teacherId, assignments, isRTL, queryClient }) {
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState({ title: "", description: "", subject: "", grade: "", due_date: "", total_points: "100" });
+  const [loading, setLoading] = useState(false);
+
+  const handleAdd = async () => {
+    if (!form.title.trim()) { toast.error(isRTL ? "أدخل عنوان الواجب" : "Enter assignment title"); return; }
+    setLoading(true);
+    try {
+      await entities.TeacherAssignment.create({ ...form, teacher_id: teacherId, total_points: parseInt(form.total_points) || 100, status: "active" });
+      queryClient.invalidateQueries({ queryKey: ["teacher-assignments"] });
+      setShowAdd(false);
+      setForm({ title: "", description: "", subject: "", grade: "", due_date: "", total_points: "100" });
+      toast.success(isRTL ? "تم إضافة الواجب" : "Assignment added");
+    } catch (e) { toast.error(e.message); }
+    setLoading(false);
+  };
+
+  const handleDelete = async (id) => {
+    if (!confirm(isRTL ? "هل أنت متأكد؟" : "Are you sure?")) return;
+    try { await entities.TeacherAssignment.delete(id); queryClient.invalidateQueries({ queryKey: ["teacher-assignments"] }); toast.success(isRTL ? "تم الحذف" : "Deleted"); } catch (e) { toast.error(e.message); }
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-xl font-black">{isRTL ? "الواجبات" : "Assignments"}</h1>
+        <button onClick={() => setShowAdd(true)} className={btnPrimary}><Plus size={16} />{isRTL ? "واجب جديد" : "New Assignment"}</button>
+      </div>
+      <div className="grid gap-3">
+        {assignments?.map(a => (
+          <Card key={a.id} className="p-4 rounded-2xl border-stone-100">
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="text-sm font-black text-stone-900">{a.title}</div>
+                <div className="text-xs text-stone-500 mt-1">{a.description || ""}</div>
+                <div className="flex gap-2 mt-2 flex-wrap">
+                  {a.subject && <Badge className="text-[10px] bg-blue-50 text-blue-700">{a.subject}</Badge>}
+                  {a.grade && <Badge className="text-[10px] bg-purple-50 text-purple-700">{isRTL ? `صف ${a.grade}` : `Grade ${a.grade}`}</Badge>}
+                  {a.due_date && <Badge className="text-[10px] bg-amber-50 text-amber-700">{isRTL ? "التسليم" : "Due"}: {new Date(a.due_date).toLocaleDateString(isRTL ? "ar" : "en")}</Badge>}
+                  <Badge className="text-[10px] bg-stone-100 text-stone-600">{a.total_points} {isRTL ? "نقطة" : "pts"}</Badge>
+                </div>
+              </div>
+              <button onClick={() => handleDelete(a.id)} className="text-red-500 hover:text-red-700"><Trash2 size={16} /></button>
+            </div>
+          </Card>
+        ))}
+        {(!assignments || assignments.length === 0) && <div className="text-center py-12 text-stone-400 text-sm">{isRTL ? "لا يوجد واجبات" : "No assignments yet"}</div>}
+      </div>
+
+      <Dialog open={showAdd} onOpenChange={setShowAdd}>
+        <DialogContent className="max-w-md rounded-[24px]" dir="rtl">
+          <DialogHeader><DialogTitle className="font-black">{isRTL ? "واجب جديد" : "New Assignment"}</DialogTitle></DialogHeader>
+          <div className="space-y-3 p-1">
+            <Input placeholder={isRTL ? "عنوان الواجب *" : "Title *"} value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className="h-10 rounded-xl" />
+            <textarea placeholder={isRTL ? "الوصف" : "Description"} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="w-full h-20 rounded-xl border border-stone-200 p-3 text-sm" />
+            <div className="grid grid-cols-2 gap-2">
+              <Input placeholder={isRTL ? "المادة" : "Subject"} value={form.subject} onChange={e => setForm({ ...form, subject: e.target.value })} className="h-10 rounded-xl" />
+              <select value={form.grade} onChange={e => setForm({ ...form, grade: e.target.value })} className="h-10 rounded-xl border border-stone-200 bg-white px-3 text-sm">
+                <option value="">{isRTL ? "الصف" : "Grade"}</option>
+                {["1","2","3","4","5","6","7","8","9","10","11","12"].map(g => <option key={g} value={g}>{g}</option>)}
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Input type="datetime-local" value={form.due_date} onChange={e => setForm({ ...form, due_date: e.target.value })} className="h-10 rounded-xl" />
+              <Input type="number" placeholder={isRTL ? "النقاط" : "Points"} value={form.total_points} onChange={e => setForm({ ...form, total_points: e.target.value })} className="h-10 rounded-xl" />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <button onClick={() => setShowAdd(false)} className={btnOutline}>{isRTL ? "إلغاء" : "Cancel"}</button>
+            <button onClick={handleAdd} disabled={loading} className={btnPrimary}>{loading ? "..." : isRTL ? "إضافة" : "Add"}</button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </motion.div>
+  );
+}
+
+// ─── Exams Tab ───
+function ExamsTab({ teacherId, exams, isRTL, queryClient }) {
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState({ title: "", description: "", subject: "", grade: "", duration_minutes: "60", total_points: "100", questions: "[]" });
+  const [loading, setLoading] = useState(false);
+
+  const handleAdd = async () => {
+    if (!form.title.trim()) { toast.error(isRTL ? "أدخل عنوان الامتحان" : "Enter exam title"); return; }
+    setLoading(true);
+    try {
+      let questions = [];
+      try { questions = JSON.parse(form.questions); } catch { questions = []; }
+      await entities.TeacherExam.create({
+        ...form, teacher_id: teacherId,
+        duration_minutes: parseInt(form.duration_minutes) || 60,
+        total_points: parseInt(form.total_points) || 100,
+        questions, status: "active"
+      });
+      queryClient.invalidateQueries({ queryKey: ["teacher-exams"] });
+      setShowAdd(false);
+      toast.success(isRTL ? "تم إضافة الامتحان" : "Exam added");
+    } catch (e) { toast.error(e.message); }
+    setLoading(false);
+  };
+
+  const handleDelete = async (id) => {
+    if (!confirm(isRTL ? "هل أنت متأكد؟" : "Are you sure?")) return;
+    try { await entities.TeacherExam.delete(id); queryClient.invalidateQueries({ queryKey: ["teacher-exams"] }); toast.success(isRTL ? "تم الحذف" : "Deleted"); } catch (e) { toast.error(e.message); }
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-xl font-black">{isRTL ? "الامتحانات" : "Exams"}</h1>
+        <button onClick={() => setShowAdd(true)} className={btnPrimary}><Plus size={16} />{isRTL ? "امتحان جديد" : "New Exam"}</button>
+      </div>
+      <div className="grid gap-3">
+        {exams?.map(e => (
+          <Card key={e.id} className="p-4 rounded-2xl border-stone-100">
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="text-sm font-black text-stone-900">{e.title}</div>
+                <div className="text-xs text-stone-500 mt-1">{e.description || ""}</div>
+                <div className="flex gap-2 mt-2 flex-wrap">
+                  {e.subject && <Badge className="text-[10px] bg-blue-50 text-blue-700">{e.subject}</Badge>}
+                  {e.grade && <Badge className="text-[10px] bg-purple-50 text-purple-700">{isRTL ? `صف ${e.grade}` : `Grade ${e.grade}`}</Badge>}
+                  <Badge className="text-[10px] bg-amber-50 text-amber-700">{e.duration_minutes} {isRTL ? "دقيقة" : "min"}</Badge>
+                  <Badge className="text-[10px] bg-stone-100 text-stone-600">{e.total_points} {isRTL ? "نقطة" : "pts"}</Badge>
+                  {Array.isArray(e.questions) && <Badge className="text-[10px] bg-cyan-50 text-cyan-700">{e.questions.length} {isRTL ? "سؤال" : "Q"}</Badge>}
+                </div>
+              </div>
+              <button onClick={() => handleDelete(e.id)} className="text-red-500 hover:text-red-700"><Trash2 size={16} /></button>
+            </div>
+          </Card>
+        ))}
+        {(!exams || exams.length === 0) && <div className="text-center py-12 text-stone-400 text-sm">{isRTL ? "لا يوجد امتحانات" : "No exams yet"}</div>}
+      </div>
+
+      <Dialog open={showAdd} onOpenChange={setShowAdd}>
+        <DialogContent className="max-w-md rounded-[24px]" dir="rtl">
+          <DialogHeader><DialogTitle className="font-black">{isRTL ? "امتحان جديد" : "New Exam"}</DialogTitle></DialogHeader>
+          <div className="space-y-3 p-1">
+            <Input placeholder={isRTL ? "عنوان الامتحان *" : "Title *"} value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className="h-10 rounded-xl" />
+            <textarea placeholder={isRTL ? "الوصف" : "Description"} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="w-full h-16 rounded-xl border border-stone-200 p-3 text-sm" />
+            <div className="grid grid-cols-2 gap-2">
+              <Input placeholder={isRTL ? "المادة" : "Subject"} value={form.subject} onChange={e => setForm({ ...form, subject: e.target.value })} className="h-10 rounded-xl" />
+              <select value={form.grade} onChange={e => setForm({ ...form, grade: e.target.value })} className="h-10 rounded-xl border border-stone-200 bg-white px-3 text-sm">
+                <option value="">{isRTL ? "الصف" : "Grade"}</option>
+                {["1","2","3","4","5","6","7","8","9","10","11","12"].map(g => <option key={g} value={g}>{g}</option>)}
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Input type="number" placeholder={isRTL ? "المدة (دقيقة)" : "Duration (min)"} value={form.duration_minutes} onChange={e => setForm({ ...form, duration_minutes: e.target.value })} className="h-10 rounded-xl" />
+              <Input type="number" placeholder={isRTL ? "النقاط" : "Points"} value={form.total_points} onChange={e => setForm({ ...form, total_points: e.target.value })} className="h-10 rounded-xl" />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <button onClick={() => setShowAdd(false)} className={btnOutline}>{isRTL ? "إلغاء" : "Cancel"}</button>
+            <button onClick={handleAdd} disabled={loading} className={btnPrimary}>{loading ? "..." : isRTL ? "إضافة" : "Add"}</button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </motion.div>
+  );
+}
+
+// ─── Live Classes Tab ───
+function LiveClassesTab({ teacherId, liveClasses, isRTL, queryClient }) {
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState({ title: "", description: "", subject: "", grade: "", scheduled_at: "", duration_minutes: "60", max_students: "30" });
+  const [loading, setLoading] = useState(false);
+
+  const handleAdd = async () => {
+    if (!form.title.trim()) { toast.error(isRTL ? "أدخل عنوان الحصة" : "Enter class title"); return; }
+    setLoading(true);
+    try {
+      const roomToken = Math.random().toString(36).substring(2, 15);
+      await entities.TeacherLiveClass.create({
+        ...form, teacher_id: teacherId,
+        duration_minutes: parseInt(form.duration_minutes) || 60,
+        max_students: parseInt(form.max_students) || 30,
+        room_token: roomToken,
+        room_url: `/live/${roomToken}`,
+        status: "scheduled"
+      });
+      queryClient.invalidateQueries({ queryKey: ["teacher-live-classes"] });
+      setShowAdd(false);
+      toast.success(isRTL ? "تم إضافة الحصة" : "Class added");
+    } catch (e) { toast.error(e.message); }
+    setLoading(false);
+  };
+
+  const handleDelete = async (id) => {
+    if (!confirm(isRTL ? "هل أنت متأكد؟" : "Are you sure?")) return;
+    try { await entities.TeacherLiveClass.delete(id); queryClient.invalidateQueries({ queryKey: ["teacher-live-classes"] }); toast.success(isRTL ? "تم الحذف" : "Deleted"); } catch (e) { toast.error(e.message); }
+  };
+
+  const getStatusBadge = (status) => {
+    const map = { scheduled: { label: isRTL ? "مجدول" : "Scheduled", cls: "bg-blue-50 text-blue-700" }, live: { label: isRTL ? "مباشر" : "Live", cls: "bg-red-50 text-red-700 animate-pulse" }, ended: { label: isRTL ? "منتهي" : "Ended", cls: "bg-stone-100 text-stone-500" } };
+    const s = map[status] || map.scheduled;
+    return <Badge className={`text-[10px] ${s.cls}`}>{s.label}</Badge>;
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-xl font-black">{isRTL ? "الحصص المباشرة" : "Live Classes"}</h1>
+        <button onClick={() => setShowAdd(true)} className={btnPrimary}><Plus size={16} />{isRTL ? "حصة جديدة" : "New Class"}</button>
+      </div>
+      <div className="grid gap-3">
+        {liveClasses?.map(c => (
+          <Card key={c.id} className="p-4 rounded-2xl border-stone-100">
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <div className="text-sm font-black text-stone-900">{c.title}</div>
+                  {getStatusBadge(c.status)}
+                </div>
+                <div className="text-xs text-stone-500 mt-1">{c.description || ""}</div>
+                <div className="flex gap-2 mt-2 flex-wrap">
+                  {c.subject && <Badge className="text-[10px] bg-blue-50 text-blue-700">{c.subject}</Badge>}
+                  {c.grade && <Badge className="text-[10px] bg-purple-50 text-purple-700">{isRTL ? `صف ${c.grade}` : `Grade ${c.grade}`}</Badge>}
+                  {c.scheduled_at && <Badge className="text-[10px] bg-amber-50 text-amber-700"><Clock size={10} className="ml-1" />{new Date(c.scheduled_at).toLocaleString(isRTL ? "ar" : "en")}</Badge>}
+                  <Badge className="text-[10px] bg-stone-100 text-stone-600">{c.duration_minutes} {isRTL ? "دقيقة" : "min"}</Badge>
+                </div>
+                {c.room_token && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <code className="text-[10px] bg-stone-100 px-2 py-1 rounded-lg font-mono">{c.room_token}</code>
+                    <button onClick={() => { navigator.clipboard.writeText(c.room_token); toast.success(isRTL ? "تم النسخ" : "Copied"); }} className="text-stone-400 hover:text-stone-600"><Copy size={12} /></button>
+                  </div>
+                )}
+              </div>
+              <button onClick={() => handleDelete(c.id)} className="text-red-500 hover:text-red-700"><Trash2 size={16} /></button>
+            </div>
+          </Card>
+        ))}
+        {(!liveClasses || liveClasses.length === 0) && <div className="text-center py-12 text-stone-400 text-sm">{isRTL ? "لا يوجد حصص" : "No classes yet"}</div>}
+      </div>
+
+      <Dialog open={showAdd} onOpenChange={setShowAdd}>
+        <DialogContent className="max-w-md rounded-[24px]" dir="rtl">
+          <DialogHeader><DialogTitle className="font-black">{isRTL ? "حصة مباشرة جديدة" : "New Live Class"}</DialogTitle></DialogHeader>
+          <div className="space-y-3 p-1">
+            <Input placeholder={isRTL ? "عنوان الحصة *" : "Title *"} value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className="h-10 rounded-xl" />
+            <textarea placeholder={isRTL ? "الوصف" : "Description"} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="w-full h-16 rounded-xl border border-stone-200 p-3 text-sm" />
+            <div className="grid grid-cols-2 gap-2">
+              <Input placeholder={isRTL ? "المادة" : "Subject"} value={form.subject} onChange={e => setForm({ ...form, subject: e.target.value })} className="h-10 rounded-xl" />
+              <select value={form.grade} onChange={e => setForm({ ...form, grade: e.target.value })} className="h-10 rounded-xl border border-stone-200 bg-white px-3 text-sm">
+                <option value="">{isRTL ? "الصف" : "Grade"}</option>
+                {["1","2","3","4","5","6","7","8","9","10","11","12"].map(g => <option key={g} value={g}>{g}</option>)}
+              </select>
+            </div>
+            <Input type="datetime-local" value={form.scheduled_at} onChange={e => setForm({ ...form, scheduled_at: e.target.value })} className="h-10 rounded-xl" />
+            <div className="grid grid-cols-2 gap-2">
+              <Input type="number" placeholder={isRTL ? "المدة" : "Duration"} value={form.duration_minutes} onChange={e => setForm({ ...form, duration_minutes: e.target.value })} className="h-10 rounded-xl" />
+              <Input type="number" placeholder={isRTL ? "أقصى طلاب" : "Max students"} value={form.max_students} onChange={e => setForm({ ...form, max_students: e.target.value })} className="h-10 rounded-xl" />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <button onClick={() => setShowAdd(false)} className={btnOutline}>{isRTL ? "إلغاء" : "Cancel"}</button>
+            <button onClick={handleAdd} disabled={loading} className={btnPrimary}>{loading ? "..." : isRTL ? "إضافة" : "Add"}</button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </motion.div>
+  );
+}
+
+// ─── YouTube Videos Tab ───
+function VideosTab({ teacherId, videos, isRTL, queryClient }) {
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState({ title: "", description: "", youtube_url: "", subject: "", grade: "", is_hidden: false });
+  const [loading, setLoading] = useState(false);
+
+  const handleAdd = async () => {
+    if (!form.title.trim() || !form.youtube_url.trim()) { toast.error(isRTL ? "أدخل العنوان والرابط" : "Enter title and URL"); return; }
+    setLoading(true);
+    try {
+      await entities.TeacherYoutubeVideo.create({ ...form, teacher_id: teacherId, order_index: videos?.length || 0 });
+      queryClient.invalidateQueries({ queryKey: ["teacher-youtube-videos"] });
+      setShowAdd(false);
+      setForm({ title: "", description: "", youtube_url: "", subject: "", grade: "", is_hidden: false });
+      toast.success(isRTL ? "تم إضافة الفيديو" : "Video added");
+    } catch (e) { toast.error(e.message); }
+    setLoading(false);
+  };
+
+  const toggleHidden = async (id, current) => {
+    try {
+      await entities.TeacherYoutubeVideo.update(id, { is_hidden: !current });
+      queryClient.invalidateQueries({ queryKey: ["teacher-youtube-videos"] });
+    } catch (e) { toast.error(e.message); }
+  };
+
+  const handleDelete = async (id) => {
+    if (!confirm(isRTL ? "هل أنت متأكد؟" : "Are you sure?")) return;
+    try { await entities.TeacherYoutubeVideo.delete(id); queryClient.invalidateQueries({ queryKey: ["teacher-youtube-videos"] }); toast.success(isRTL ? "تم الحذف" : "Deleted"); } catch (e) { toast.error(e.message); }
+  };
+
+  const extractThumbnail = (url) => {
+    try {
+      const u = new URL(url.replace("youtu.be/", "youtube.com/watch?v="));
+      const vid = u.searchParams.get("v");
+      return vid ? `https://img.youtube.com/vi/${vid}/mqdefault.jpg` : null;
+    } catch { return null; }
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-xl font-black">{isRTL ? "فيديوهات يوتيوب" : "YouTube Videos"}</h1>
+        <button onClick={() => setShowAdd(true)} className={btnPrimary}><Plus size={16} />{isRTL ? "فيديو جديد" : "New Video"}</button>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {videos?.map(v => (
+          <Card key={v.id} className="rounded-2xl border-stone-100 overflow-hidden">
+            <div className="relative">
+              {extractThumbnail(v.youtube_url) ? (
+                <img src={extractThumbnail(v.youtube_url)} alt={v.title} className="w-full h-40 object-cover" />
+              ) : (
+                <div className="w-full h-40 bg-stone-200 flex items-center justify-center"><PlayCircle size={40} className="text-stone-400" /></div>
+              )}
+              {v.is_hidden && (
+                <div className="absolute top-2 right-2 bg-amber-500 text-white text-[10px] font-black px-2 py-1 rounded-full flex items-center gap-1">
+                  <EyeOff size={10} /> {isRTL ? "مخفي" : "Hidden"}
+                </div>
+              )}
+            </div>
+            <div className="p-3">
+              <div className="text-sm font-black text-stone-900">{v.title}</div>
+              <div className="text-xs text-stone-500 mt-1 line-clamp-2">{v.description || ""}</div>
+              <div className="flex gap-2 mt-2 flex-wrap">
+                {v.subject && <Badge className="text-[10px] bg-blue-50 text-blue-700">{v.subject}</Badge>}
+                {v.grade && <Badge className="text-[10px] bg-purple-50 text-purple-700">{isRTL ? `صف ${v.grade}` : `Grade ${v.grade}`}</Badge>}
+              </div>
+              <div className="flex items-center gap-2 mt-3">
+                <a href={v.youtube_url} target="_blank" rel="noopener noreferrer" className="flex-1 h-8 rounded-lg bg-red-50 text-red-600 text-xs font-bold flex items-center justify-center gap-1 hover:bg-red-100">
+                  <Play size={12} /> YouTube
+                </a>
+                <button onClick={() => toggleHidden(v.id, v.is_hidden)} className="h-8 px-3 rounded-lg bg-stone-100 text-stone-600 text-xs font-bold flex items-center gap-1 hover:bg-stone-200">
+                  {v.is_hidden ? <><Eye size={12} /> {isRTL ? "إظهار" : "Show"}</> : <><EyeOff size={12} /> {isRTL ? "إخفاء" : "Hide"}</>}
+                </button>
+                <button onClick={() => handleDelete(v.id)} className="h-8 px-3 rounded-lg bg-red-50 text-red-500 text-xs font-bold hover:bg-red-100"><Trash2 size={12} /></button>
+              </div>
+            </div>
+          </Card>
+        ))}
+        {(!videos || videos.length === 0) && <div className="text-center py-12 text-stone-400 text-sm col-span-2">{isRTL ? "لا يوجد فيديوهات" : "No videos yet"}</div>}
+      </div>
+
+      <Dialog open={showAdd} onOpenChange={setShowAdd}>
+        <DialogContent className="max-w-md rounded-[24px]" dir="rtl">
+          <DialogHeader><DialogTitle className="font-black">{isRTL ? "فيديو يوتيوب جديد" : "New YouTube Video"}</DialogTitle></DialogHeader>
+          <div className="space-y-3 p-1">
+            <Input placeholder={isRTL ? "عنوان الفيديو *" : "Title *"} value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className="h-10 rounded-xl" />
+            <Input placeholder="https://youtube.com/watch?v=..." value={form.youtube_url} onChange={e => setForm({ ...form, youtube_url: e.target.value })} className="h-10 rounded-xl" dir="ltr" />
+            <textarea placeholder={isRTL ? "الوصف" : "Description"} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="w-full h-16 rounded-xl border border-stone-200 p-3 text-sm" />
+            <div className="grid grid-cols-2 gap-2">
+              <Input placeholder={isRTL ? "المادة" : "Subject"} value={form.subject} onChange={e => setForm({ ...form, subject: e.target.value })} className="h-10 rounded-xl" />
+              <select value={form.grade} onChange={e => setForm({ ...form, grade: e.target.value })} className="h-10 rounded-xl border border-stone-200 bg-white px-3 text-sm">
+                <option value="">{isRTL ? "الصف" : "Grade"}</option>
+                {["1","2","3","4","5","6","7","8","9","10","11","12"].map(g => <option key={g} value={g}>{g}</option>)}
+              </select>
+            </div>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={form.is_hidden} onChange={e => setForm({ ...form, is_hidden: e.target.checked })} className="rounded" />
+              <span className="text-sm font-bold text-stone-700">{isRTL ? "مخفي عن الطلاب (معلمين فقط)" : "Hidden from students (teachers only)"}</span>
+            </label>
+          </div>
+          <DialogFooter className="gap-2">
+            <button onClick={() => setShowAdd(false)} className={btnOutline}>{isRTL ? "إلغاء" : "Cancel"}</button>
+            <button onClick={handleAdd} disabled={loading} className={btnPrimary}>{loading ? "..." : isRTL ? "إضافة" : "Add"}</button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </motion.div>
+  );
+}
+
+// ─── Subscriptions Tab ───
+function SubscriptionsTab({ teacherId, subscriptions, isRTL, queryClient }) {
+  const handleStatus = async (id, status) => {
+    try {
+      const now = new Date().toISOString();
+      const update = { status };
+      if (status === "approved") { update.started_at = now; update.expires_at = new Date(Date.now() + 30*24*60*60*1000).toISOString(); }
+      await entities.TeacherSubscription.update(id, update);
+      queryClient.invalidateQueries({ queryKey: ["teacher-subscriptions"] });
+      toast.success(status === "approved" ? (isRTL ? "تم قبول الاشتراك" : "Subscription approved") : (isRTL ? "تم رفض الاشتراك" : "Subscription rejected"));
+    } catch (e) { toast.error(e.message); }
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+      <h1 className="text-xl font-black mb-4">{isRTL ? "طلبات الاشتراك" : "Subscription Requests"}</h1>
+      <div className="grid gap-3">
+        {subscriptions?.map(s => (
+          <Card key={s.id} className="p-4 rounded-2xl border-stone-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm font-black text-stone-900">{s.student_name || "طالب"}</div>
+                <div className="text-xs text-stone-500">{s.student_email || ""}</div>
+                <div className="flex gap-2 mt-2">
+                  <Badge className={`text-[10px] ${s.status === "approved" ? "bg-emerald-50 text-emerald-700" : s.status === "rejected" ? "bg-red-50 text-red-700" : "bg-amber-50 text-amber-700"}`}>
+                    {s.status === "approved" ? (isRTL ? "مقبول" : "Approved") : s.status === "rejected" ? (isRTL ? "مرفوض" : "Rejected") : (isRTL ? "قيد المراجعة" : "Pending")}
+                  </Badge>
+                  {s.plan && <Badge className="text-[10px] bg-blue-50 text-blue-700">{s.plan}</Badge>}
+                  {s.amount > 0 && <Badge className="text-[10px] bg-purple-50 text-purple-700">${s.amount}</Badge>}
+                </div>
+              </div>
+              {s.status === "pending" && (
+                <div className="flex gap-2">
+                  <button onClick={() => handleStatus(s.id, "approved")} className="h-8 px-3 rounded-lg bg-emerald-500 text-white text-xs font-bold hover:bg-emerald-600 flex items-center gap-1"><CheckCircle2 size={12} /> {isRTL ? "قبول" : "Approve"}</button>
+                  <button onClick={() => handleStatus(s.id, "rejected")} className="h-8 px-3 rounded-lg bg-red-500 text-white text-xs font-bold hover:bg-red-600 flex items-center gap-1"><X size={12} /> {isRTL ? "رفض" : "Reject"}</button>
+                </div>
+              )}
+            </div>
+          </Card>
+        ))}
+        {(!subscriptions || subscriptions.length === 0) && <div className="text-center py-12 text-stone-400 text-sm">{isRTL ? "لا يوجد طلبات اشتراك" : "No subscription requests yet"}</div>}
+      </div>
+    </motion.div>
+  );
+}
