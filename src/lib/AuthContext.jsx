@@ -76,7 +76,7 @@ export const AuthProvider = ({ children }) => {
                 school_name_ar: publicData.school_name_ar || 'مدارس عباد الرحمن التعليمية',
                 school_name_en: publicData.school_name_en || 'Abad Al-Rahman Educational Schools',
                 school_logo: publicData.school_logo || '',
-                school_background_image: publicData.school_background_image || ''
+                school_background_image: publicData.school_background_image || 'https://images.unsplash.com/photo-1510519138101-570d1dcb3d8e?q=80&w=2000&auto=format&fit=crop'
               }
             };
             setAppPublicSettings(formatted);
@@ -99,7 +99,7 @@ export const AuthProvider = ({ children }) => {
               school_name_ar: dbSettings.school_name_ar || 'مدارس عباد الرحمن التعليمية',
               school_name_en: dbSettings.school_name_en || 'Abad Al-Rahman Educational Schools',
               school_logo: dbSettings.school_logo || '',
-              school_background_image: dbSettings.school_background_image || ''
+              school_background_image: dbSettings.school_background_image || 'https://images.unsplash.com/photo-1510519138101-570d1dcb3d8e?q=80&w=2000&auto=format&fit=crop'
             }
           };
           setAppPublicSettings(newSettings);

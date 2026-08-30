@@ -646,6 +646,24 @@ async function dbQuery(queryStr, params = []) {
 
 export function createApiHandler() {
   return async (req, res, next) => {
+    // Public settings (no auth) — للشعار والخلفية في Gateway/Landing
+    if ((req.url === '/neon-db/public-settings' || req.url.startsWith('/neon-db/public-settings?')) && req.method === 'GET') {
+      res.setHeader('Content-Type', 'application/json');
+      try {
+        if (!sql) return res.end(JSON.stringify({ school_name_ar: 'مدارس عباد الرحمن التعليمية', school_name_en: 'Abad Al-Rahman Educational Schools', school_logo: '', school_background_image: 'https://images.unsplash.com/photo-1510519138101-570d1dcb3d8e?q=80&w=2000&auto=format&fit=crop' }));
+        const rows = await dbQuery('SELECT * FROM system_settings ORDER BY created_at DESC LIMIT 1');
+        const s = rows[0] || {};
+        return res.end(JSON.stringify({
+          school_name_ar: s.school_name_ar || 'مدارس عباد الرحمن التعليمية',
+          school_name_en: s.school_name_en || 'Abad Al-Rahman Educational Schools',
+          school_logo: s.school_logo || '',
+          school_background_image: s.school_background_image || 'https://images.unsplash.com/photo-1510519138101-570d1dcb3d8e?q=80&w=2000&auto=format&fit=crop',
+        }));
+      } catch (e) {
+        return res.end(JSON.stringify({ school_name_ar: 'مدارس عباد الرحمن التعليمية', school_name_en: 'Abad Al-Rahman Educational Schools', school_logo: '', school_background_image: 'https://images.unsplash.com/photo-1510519138101-570d1dcb3d8e?q=80&w=2000&auto=format&fit=crop' }));
+      }
+    }
+
     // WebRTC STUN/TURN config
     if (req.url === '/neon-db/ice-config' || req.url === '/api/ice-config') {
       res.setHeader('Content-Type', 'application/json');

@@ -31,8 +31,11 @@ export default function Gateway() {
     return `${apiBase.replace(/\/$/, '')}${url.startsWith('/') ? '' : '/'}${url}`;
   };
 
-  const logoUrl = getFullImageUrl(settings.school_logo);
-  const backgroundUrl = getFullImageUrl(settings.school_background_image) || "https://images.unsplash.com/photo-1510519138101-570d1dcb3d8e?q=80&w=2000&auto=format&fit=crop";
+  const FALLBACK_BG = "https://images.unsplash.com/photo-1510519138101-570d1dcb3d8e?q=80&w=2000&auto=format&fit=crop";
+  const rawLogo = settings.school_logo || "";
+  const rawBg = settings.school_background_image || FALLBACK_BG;
+  const logoUrl = rawLogo ? getFullImageUrl(rawLogo) : "";
+  const backgroundUrl = getFullImageUrl(rawBg) || FALLBACK_BG;
 
   const handleLogin = async (e) => {
     e.preventDefault();
