@@ -110,7 +110,7 @@ export default function TeacherRegister() {
                 <li>✓ {isRTL ? "تستطيع استخدامها للدخول من بوابة المعلم على Landing Page" : "Use them to login from the Teacher Portal on the Landing Page"}</li>
               </ul>
             </div>
-            <button onClick={() => window.location.href = "/gateway"} className="w-full h-11 rounded-xl bg-stone-900 text-white font-bold text-sm hover:bg-black flex items-center justify-center gap-2">
+            <button onClick={() => window.location.href = "/"} className="w-full h-11 rounded-xl bg-stone-900 text-white font-bold text-sm hover:bg-black flex items-center justify-center gap-2">
               <ArrowLeft size={16} className={isRTL ? "" : "rotate-180"} />
               {isRTL ? "العودة للبوابات" : "Back to Portals"}
             </button>
@@ -192,7 +192,7 @@ export default function TeacherRegister() {
             </div>
 
             <div className="flex gap-3 pt-2">
-              <button type="button" onClick={() => window.location.href = "/gateway"} className="flex-1 h-11 rounded-xl border border-stone-200 bg-white font-bold text-sm hover:bg-stone-50">
+              <button type="button" onClick={() => window.location.href = "/"} className="flex-1 h-11 rounded-xl border border-stone-200 bg-white font-bold text-sm hover:bg-stone-50">
                 {isRTL ? "إلغاء" : "Cancel"}
               </button>
               <button type="submit" disabled={loading} className="flex-[2] h-11 rounded-xl bg-indigo-600 text-white font-black text-sm hover:bg-indigo-700 disabled:opacity-60 flex items-center justify-center gap-2">

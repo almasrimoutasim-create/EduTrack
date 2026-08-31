@@ -91,7 +91,7 @@ export default function PublicRegistration() {
             <p className="text-xs text-stone-400 bg-stone-50 rounded-xl p-3 mb-6">
               {isRTL ? "ستظهر مدرستكم في لوحة تحكم المؤسس وسيتم تفعيل اشتراككم بعد الموافقة. سيتواصل معكم فريق EduTrack عبر البريد والهاتف." : "Your school will appear in the founder dashboard and will be activated after approval. EduTrack will contact you by email/phone."}
             </p>
-            <button onClick={() => window.location.href = "/gateway"} className="w-full h-11 rounded-xl bg-stone-900 text-white font-bold text-sm hover:bg-black flex items-center justify-center gap-2">
+            <button onClick={() => window.location.href = "/"} className="w-full h-11 rounded-xl bg-stone-900 text-white font-bold text-sm hover:bg-black flex items-center justify-center gap-2">
               <ArrowLeft size={16} className={isRTL ? "" : "rotate-180"} />
               {isRTL ? "العودة للرئيسية" : "Back to Home"}
             </button>
@@ -182,7 +182,7 @@ export default function PublicRegistration() {
             </div>
 
             <div className="flex gap-3 pt-2">
-              <button type="button" onClick={() => window.location.href = "/gateway"} className="flex-1 h-11 rounded-xl border border-stone-200 bg-white font-bold text-sm hover:bg-stone-50">
+              <button type="button" onClick={() => window.location.href = "/"} className="flex-1 h-11 rounded-xl border border-stone-200 bg-white font-bold text-sm hover:bg-stone-50">
                 {isRTL ? "إلغاء" : "Cancel"}
               </button>
               <button type="submit" disabled={loading} className="flex-[2] h-11 rounded-xl bg-stone-900 text-white font-black text-sm hover:bg-black disabled:opacity-60 flex items-center justify-center gap-2">
