@@ -4,15 +4,18 @@ services:
     runtime: node
     plan: free
     buildCommand: npm install && npm run build
-    startCommand: npm start
+    startCommand: node server.js
+    healthCheckPath: /health
     envVars:
-      - key: NODE_VERSION
-        value: "20.18.0"
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
         sync: false
-      # Build-time URL the SPA bakes in to call the API (fixes the 400s).
-      # Service is "edutrack" -> default onrender URL below; change if custom domain.
-      - key: VITE_BASE44_APP_BASE_URL
-        value: https://edutrack-ey49.onrender.com
+      - key: JWT_SECRET
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: PAYMOB_HMAC_SECRET
+        sync: false
