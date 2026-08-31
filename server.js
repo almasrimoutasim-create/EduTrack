@@ -18,6 +18,7 @@ app.use(cors({
     'https://edu-track-smoky-two.vercel.app',
     'https://edu-track-f93fvpqkt-almasrimoutasim-creates-projects.vercel.app',
     /^https:\/\/.*\.vercel\.app$/,
+    'https://edutrack-ey49.onrender.com',
     'http://localhost:5173',
     'http://localhost:3000'
   ],
