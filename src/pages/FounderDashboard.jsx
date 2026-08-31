@@ -54,6 +54,12 @@ const FounderDashboard = () => {
   const [teacherPassword, setTeacherPassword] = useState("");
   const [approvingTeacher, setApprovingTeacher] = useState(false);
 
+  // ── Student Approval Modal ──
+  const [studentApproval, setStudentApproval] = useState(null); // { requestId, fullName, email }
+  const [studentUsername, setStudentUsername] = useState("");
+  const [studentPassword, setStudentPassword] = useState("");
+  const [approvingStudent, setApprovingStudent] = useState(false);
+
   const handleApproveTeacher = async () => {
     if (!teacherUsername.trim() || !teacherPassword.trim()) {
       toast.error("أدخل اسم المستخدم وكلمة المرور");
@@ -82,6 +88,37 @@ const FounderDashboard = () => {
       toast.error(err.message || "فشل إنشاء الحساب");
     } finally {
       setApprovingTeacher(false);
+    }
+  };
+
+  const handleApproveStudent = async () => {
+    if (!studentUsername.trim() || !studentPassword.trim()) {
+      toast.error("أدخل اسم المستخدم وكلمة المرور");
+      return;
+    }
+    setApprovingStudent(true);
+    try {
+      const apiBase = import.meta.env.VITE_BACKEND_URL || '';
+      const res = await fetch(`${apiBase}/api/approve-student`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          requestId: studentApproval.requestId,
+          username: studentUsername.trim(),
+          password: studentPassword.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed");
+      toast.success(`تم إنشاء حساب الطالب بنجاح — اسم المستخدم: ${studentUsername.trim()}`);
+      setStudentApproval(null);
+      setStudentUsername("");
+      setStudentPassword("");
+      queryClient.invalidateQueries({ queryKey: ["founder-teacher-student-regs"] });
+    } catch (err) {
+      toast.error(err.message || "فشل إنشاء الحساب");
+    } finally {
+      setApprovingStudent(false);
     }
   };
 
@@ -751,10 +788,9 @@ const FounderDashboard = () => {
                                 setTeacherUsername(r.email || "");
                                 setTeacherPassword("");
                               } else {
-                                entities.RegistrationRequest.update(r.id, { status: "approved" }).then(() => {
-                                  toast.success(`تم قبول طلب الطالب: ${r.student_name || r.full_name}`);
-                                  queryClient.invalidateQueries({ queryKey: ["founder-teacher-student-regs"] });
-                                });
+                                setStudentApproval({ requestId: r.id, fullName: r.student_name || r.full_name, email: r.email });
+                                setStudentUsername(r.email || "");
+                                setStudentPassword("");
                               }
                             }} className="flex items-center gap-1 bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-emerald-700"><CheckCircle2 size={12}/> قبول</button>
                             <button onClick={async () => {
@@ -1102,6 +1138,58 @@ const FounderDashboard = () => {
                 </button>
               </div>
               <p className="text-[11px] text-center text-slate-400 mt-3">اسم المستخدم هو الذي سيستخدمه المعلم للدخول من صفحة الهبوط.</p>
+            </div>
+          </div>
+        )}
+
+        {/* Student Approval Modal */}
+        {studentApproval && (
+          <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => setStudentApproval(null)}>
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+              <h3 className="text-lg font-black text-slate-900 mb-1">إنشاء حساب الطالب</h3>
+              <p className="text-sm text-slate-500 mb-4">
+                الموافقة على <span className="font-bold text-slate-800">{studentApproval.fullName}</span> — أدخل اسم المستخدم وكلمة المرور للدخول من بوابة الطالب.
+              </p>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">اسم المستخدم (Username)</label>
+                  <input
+                    type="text"
+                    value={studentUsername}
+                    onChange={e => setStudentUsername(e.target.value)}
+                    className="w-full h-11 rounded-xl border border-slate-200 px-4 text-sm font-bold focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none"
+                    placeholder="student_name"
+                    dir="ltr"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">كلمة المرور (Password)</label>
+                  <input
+                    type="text"
+                    value={studentPassword}
+                    onChange={e => setStudentPassword(e.target.value)}
+                    className="w-full h-11 rounded-xl border border-slate-200 px-4 text-sm font-bold focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none"
+                    placeholder="••••••••"
+                    dir="ltr"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2 mt-5">
+                <button
+                  onClick={handleApproveStudent}
+                  disabled={approvingStudent}
+                  className="flex-1 h-11 rounded-xl bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 inline-flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {approvingStudent ? "جارٍ الإنشاء..." : <><CheckCircle2 size={14}/> تأكيد الموافقة</>}
+                </button>
+                <button
+                  onClick={() => setStudentApproval(null)}
+                  className="h-11 px-4 rounded-xl bg-slate-100 font-bold text-sm hover:bg-slate-200"
+                >
+                  إلغاء
+                </button>
+              </div>
+              <p className="text-[11px] text-center text-slate-400 mt-3">اسم المستخدم هو الذي سيستخدمه الطالب للدخول من صفحة الهبوط.</p>
             </div>
           </div>
         )}

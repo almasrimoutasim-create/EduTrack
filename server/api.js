@@ -520,6 +520,47 @@ if (process.env.DATABASE_URL) {
     console.error('[neon] failed to verify/create registration_requests table:', err.message);
   });
 
+  // ── Independent Teacher Portal: جدول المعلمين المستقلين ──
+  sql`
+    CREATE TABLE IF NOT EXISTS teachers (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      full_name TEXT NOT NULL,
+      email TEXT,
+      employee_id TEXT,
+      phone TEXT,
+      subjects TEXT,
+      experience_years INTEGER,
+      bio TEXT,
+      status TEXT DEFAULT 'active',
+      portal_password TEXT,
+      school_id UUID,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `.then(() => console.log('[neon] teachers table verified'))
+    .catch(err => console.error('[neon] teachers:', err.message));
+
+  // ── Independent Student Portal: جدول الطلاب المستقلين ──
+  sql`
+    CREATE TABLE IF NOT EXISTS students (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      full_name TEXT NOT NULL,
+      user_email TEXT,
+      student_id TEXT,
+      phone TEXT,
+      grade TEXT,
+      parent_name TEXT,
+      parent_phone TEXT,
+      parent_email TEXT,
+      school_name TEXT,
+      city TEXT,
+      status TEXT DEFAULT 'active',
+      portal_password TEXT,
+      school_id UUID,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `.then(() => console.log('[neon] students table verified'))
+    .catch(err => console.error('[neon] students:', err.message));
+
   // ── Multi-tenant: إضافة school_id لكل جدول مستأجر + فهرسة + RLS سيتم لاحقاً ──
   const TENANT_TABLES = [
     'students','teachers','attendance','subjects','library_books','financial_records',
@@ -1675,6 +1716,62 @@ export function createApiHandler() {
           }));
         } catch (error) {
           console.error('[approve-teacher] error:', error);
+          res.statusCode = 500;
+          return res.end(JSON.stringify({ error: error.message }));
+        }
+      }
+
+      // ── POST /api/approve-student — الموافقة على تسجيل طالب + إنشاء حساب ──
+      if (req.url === '/api/approve-student' && req.method === 'POST') {
+        res.setHeader('Content-Type', 'application/json');
+        try {
+          const body = await parseBody(req);
+          const { requestId, username, password } = body;
+          if (!requestId || !username || !password) {
+            res.statusCode = 400;
+            return res.end(JSON.stringify({ error: 'requestId, username, and password are required' }));
+          }
+
+          const reqRows = await dbQuery(
+            `SELECT * FROM registration_requests WHERE id = $1 AND role_requested = 'student' AND status = 'pending'`,
+            [requestId]
+          );
+          if (reqRows.length === 0) {
+            res.statusCode = 404;
+            return res.end(JSON.stringify({ error: 'Registration request not found or already processed' }));
+          }
+          const reg = reqRows[0];
+
+          const existingStudent = await dbQuery(
+            `SELECT id FROM students WHERE user_email = $1 OR student_id = $1`,
+            [username]
+          );
+          if (existingStudent.length > 0) {
+            res.statusCode = 409;
+            return res.end(JSON.stringify({ error: 'Username already exists — choose a different one' }));
+          }
+
+          const studentId = crypto.randomUUID();
+          const hashedPassword = hashPassword(password);
+
+          await dbQuery(
+            `INSERT INTO students (id, full_name, user_email, student_id, phone, grade, parent_name, parent_phone, parent_email, school_name, city, status, portal_password, school_id, created_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'active', $12, NULL, NOW())`,
+            [studentId, reg.full_name, reg.email, username, reg.phone, reg.grade || null, reg.director_name || null, null, reg.email, reg.school_name || null, reg.country || null, hashedPassword]
+          );
+
+          await dbQuery(
+            `UPDATE registration_requests SET status = 'accepted', reviewed_at = NOW() WHERE id = $1`,
+            [requestId]
+          );
+
+          return res.end(JSON.stringify({
+            success: true,
+            studentId,
+            message: 'Student account created — credentials ready for login'
+          }));
+        } catch (error) {
+          console.error('[approve-student] error:', error);
           res.statusCode = 500;
           return res.end(JSON.stringify({ error: error.message }));
         }
