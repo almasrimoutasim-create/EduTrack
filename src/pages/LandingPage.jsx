@@ -2,10 +2,10 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/lib/LanguageContext";
-import { useAuth } from "@/lib/AuthContext";
+
 import {
   GraduationCap, ShieldCheck, Users, Wallet, ClipboardCheck, BarChart3,
-  Award, BookOpen, Lock, ArrowLeft, MessageCircle, Phone, CheckCircle2, Star, Sparkles, X, UserPlus, Mail, Video
+  Award, BookOpen, Lock, MessageCircle, Phone, CheckCircle2, Star, Sparkles, X, UserPlus, Mail, Video
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -14,14 +14,7 @@ const WHATSAPP_MSG = encodeURIComponent("مرحباً، أرغب في طلب ن�
 
 export default function LandingPage() {
   const { language } = useLanguage();
-  const { isAuthenticated, user } = useAuth();
   const isRTL = language === "ar";
-
-  const portalHome = (() => {
-    const role = localStorage.getItem("portal_role") || user?.role || "";
-    const map = { admin: "/admin-dashboard", teacher: "/teacher-portal", student: "/student-portal", parent: "/parent-portal", registrar: "/student-directory", hr: "/staff-control", accountant: "/finance", store: "/store", library: "/library", counselor: "/counseling" };
-    return map[role] || "/admin-dashboard";
-  })();
 
   const [selectedFeature, setSelectedFeature] = useState(null);
 
@@ -100,15 +93,9 @@ export default function LandingPage() {
             <Link to="/register" className="h-9 px-4 rounded-xl bg-white border-2 border-stone-200 text-stone-700 text-xs font-black hover:bg-stone-50 hover:border-stone-300 inline-flex items-center">
               {isRTL ? "تسجيل جديد" : "Register"}
             </Link>
-            {isAuthenticated ? (
-              <Link to={portalHome} className="h-9 px-4 rounded-xl bg-stone-900 text-white text-xs font-black hover:bg-black inline-flex items-center gap-1.5">
-                {isRTL ? "لوحة التحكم" : "Dashboard"}<ArrowLeft size={14} className={isRTL ? "" : "rotate-180"} />
-              </Link>
-            ) : (
-              <Link to="/gateway" className="h-9 px-4 rounded-xl border-2 border-stone-900 text-stone-900 text-xs font-black hover:bg-stone-900 hover:text-white inline-flex items-center">
-                {isRTL ? "تسجيل الدخول" : "Login"}
-              </Link>
-            )}
+            <Link to="/gateway" className="h-9 px-4 rounded-xl border-2 border-stone-900 text-stone-900 text-xs font-black hover:bg-stone-900 hover:text-white inline-flex items-center">
+              {isRTL ? "تسجيل الدخول" : "Login"}
+            </Link>
           </div>
         </div>
       </header>

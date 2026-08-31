@@ -16,11 +16,7 @@ const PLANS_DEFAULT = [
   { id: "enterprise", name: "Enterprise", price: 199, color: "from-violet-500 to-violet-600", desc: "شبكة مدارس وميزات غير محدودة" },
 ];
 
-const SUPPORT_SEED = [
-  { id: "t1", school: "مدرسة النور الأهلية", subject: "تعطل نظام الحضور", details: "لا يمكن تسجيل الحضور منذ الصباح، تظهر رسالة خطأ عند الحفظ.", priority: "high", status: "open", date: "2026-08-28", reply: "" },
-  { id: "t2", school: "أكاديمية المستقبل", subject: "طلب ترقية الباقة", details: "نرغب في الترقية من Starter إلى Professional، كيف يتم الدفع؟", priority: "medium", status: "open", date: "2026-08-29", reply: "" },
-  { id: "t3", school: "مدارس الرواد", subject: "استفسار عن الفواتير", details: "وصلتنا فاتورة مضاعفة هذا الشهر، نرجو المراجعة.", priority: "low", status: "open", date: "2026-08-30", reply: "" },
-];
+const SUPPORT_SEED = [];
 
 const SETTINGS_DEFAULT = {
   maintenance_mode: false,
@@ -847,12 +843,33 @@ const FounderDashboard = () => {
               <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
                 <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2"><BarChart3 size={18} className="text-blue-500"/> رسم بياني للإيرادات الشهرية (مكافئ شهري)</h3>
                 <div className="flex items-end gap-2 h-32">
-                  {[0.6,0.8,0.7,0.9,1,0.85].map((v,i)=> (
-                    <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                      <div className="w-full bg-gradient-to-t from-blue-500 to-violet-400 rounded-t-lg" style={{height: `${v*100}%`}}></div>
-                      <span className="text-[10px] text-slate-400">{["يناير","فبراير","مارس","أبريل","مايو","يونيو"][i]}</span>
-                    </div>
-                  ))}
+                  {(() => {
+                    const now = new Date();
+                    const months = [];
+                    for (let i = 5; i >= 0; i--) {
+                      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                      months.push({ label: d.toLocaleDateString('ar-EG', { month: 'short' }), key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` });
+                    }
+                    const monthlyData = months.map(m => {
+                      const activeInMonth = schools.filter(s => {
+                        if (s.subscription_status !== 'active') return false;
+                        const start = s.subscription_start_date || s.created_at;
+                        if (!start) return false;
+                        const sDate = new Date(start);
+                        const monthKey = `${sDate.getFullYear()}-${String(sDate.getMonth() + 1).padStart(2, '0')}`;
+                        return monthKey <= m.key;
+                      });
+                      return activeInMonth.reduce((sum, s) => sum + getMonthlyEquivalent(s), 0);
+                    });
+                    const maxVal = Math.max(...monthlyData, 1);
+                    return monthlyData.map((v, i) => (
+                      <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                        <div className="w-full bg-gradient-to-t from-blue-500 to-violet-400 rounded-t-lg" style={{ height: `${(v / maxVal) * 100}%` }}></div>
+                        <span className="text-[10px] text-slate-400">{months[i].label}</span>
+                        {v > 0 && <span className="text-[9px] font-bold text-slate-600">${v}</span>}
+                      </div>
+                    ));
+                  })()}
                 </div>
                 <p className="text-xs text-slate-400 mt-2 text-center">الإيراد الشهري المكافئ ${monthlyRevenue} — السنوي يُحسب بسعر مخفض 20%</p>
               </div>
