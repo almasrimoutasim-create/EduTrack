@@ -753,7 +753,7 @@ const FounderDashboard = () => {
                     <tr key={r.id} className="border-t border-slate-100 hover:bg-slate-50">
                       <td className="p-4">
                         <p className="font-bold text-slate-900">{r.student_name || r.full_name || "-"}</p>
-                        {r.parent_name && <p className="text-xs text-slate-400">ولي الأمر: {r.parent_name}</p>}
+                        {r.director_name && <p className="text-xs text-slate-400">ولي الأمر: {r.director_name}</p>}
                       </td>
                       <td className="p-4">
                         <span className={`px-2 py-1 rounded-full text-xs font-bold ${isTeacher ? "bg-blue-100 text-blue-700" : "bg-emerald-100 text-emerald-700"}`}>
@@ -764,7 +764,7 @@ const FounderDashboard = () => {
                       <td className="p-4 text-slate-600 flex items-center gap-1" dir="ltr"><Phone size={12}/>{r.phone || "-"}</td>
                       <td className="p-4 text-slate-600">
                         <p>{r.school_name || "-"}</p>
-                        {r.city && <p className="text-xs text-slate-400">{r.city}</p>}
+                        {r.country && <p className="text-xs text-slate-400">{r.country}</p>}
                       </td>
                       <td className="p-4 text-slate-600">
                         {!isTeacher && r.grade && <p className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded inline-block font-bold">الصف: {r.grade}</p>}
