@@ -31,8 +31,9 @@ app.use(cors({
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Mount Neon DB API routes FIRST (before static files)
-app.use(createApiHandler());
+// Serve built frontend static files FIRST (before API handler)
+app.use(express.static(path.join(__dirname, 'dist')));
+app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
 
 // Serve STUN configuration for WebRTC
 app.get('/api/ice-config', (_req, res) => {
@@ -47,9 +48,8 @@ app.get('/api/ice-config', (_req, res) => {
   });
 });
 
-// Serve built frontend static files
-app.use(express.static(path.join(__dirname, 'dist')));
-app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
+// Mount API routes AFTER static files
+app.use(createApiHandler());
 
 // Health check (useful for Render)
 app.get('/health', (_req, res) => {
