@@ -88,6 +88,9 @@ export default function LandingPage() {
             <a href="#contact" className="text-stone-600 hover:text-stone-900">{isRTL ? "تواصل معنا" : "Contact"}</a>
           </nav>
           <div className="flex items-center gap-2">
+            <Link to="/gateway" className="hidden sm:inline-flex h-9 px-4 rounded-xl bg-sky-600 text-white text-xs font-black hover:bg-sky-700 items-center gap-1.5 shadow-sm">
+              <GraduationCap size={14} />{isRTL ? "دخول المدرسة" : "School Login"}
+            </Link>
             <a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${WHATSAPP_MSG}`} target="_blank" rel="noopener noreferrer" className="hidden sm:inline-flex h-9 px-4 rounded-xl bg-emerald-600 text-white text-xs font-black hover:bg-emerald-700 items-center gap-1.5 shadow-sm">
               <MessageCircle size={14} />{isRTL ? "استفسار واتساب" : "WhatsApp"}
             </a>
@@ -118,8 +121,11 @@ export default function LandingPage() {
                 {isRTL ? "منصة EduTrack تغطي النتائج والشهادات السودانية، شؤون الطلاب، الرسوم، الحضور، والمزيد — بواجهة عربية احترافية وطباعة بجودة الوزارة." : "EduTrack covers results & Sudanese certificates, students, fees, attendance and more — with Arabic UI and ministry-grade print."}
               </p>
               <div className="mt-6 flex flex-wrap gap-3">
+                <Link to="/gateway" className="h-11 px-6 rounded-xl bg-sky-600 text-white font-black text-sm hover:bg-sky-700 inline-flex items-center gap-2 shadow-lg">
+                  <GraduationCap size={16} />{isRTL ? "دخول المدرسة" : "School Login"}
+                </Link>
                 <Link to="/register" className="h-11 px-6 rounded-xl bg-stone-900 text-white font-black text-sm hover:bg-black inline-flex items-center gap-2 shadow-lg">
-                  <GraduationCap size={16} />{isRTL ? "اطلب نسختك التجريبية الآن" : "Request Free Demo"}
+                  <Sparkles size={16} />{isRTL ? "اطلب نسختك التجريبية الآن" : "Request Free Demo"}
                 </Link>
                 <a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${WHATSAPP_MSG}`} target="_blank" rel="noopener noreferrer" className="h-11 px-6 rounded-xl bg-emerald-600 text-white font-black text-sm hover:bg-emerald-700 inline-flex items-center gap-2 shadow-lg">
                   <Phone size={16} />{isRTL ? "تواصل مع المبيعات" : "Contact Sales"}
