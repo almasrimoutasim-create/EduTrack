@@ -12,7 +12,7 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
-dist
+# dist  — NOT ignored; committed for Render deployment (no build step on server)
 dist-ssr
 *.local
 
