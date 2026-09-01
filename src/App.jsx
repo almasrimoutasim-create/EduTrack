@@ -112,6 +112,7 @@ const AuthenticatedApp = () => {
     <Routes>
       <Route path="/" element={<LandingPage />} />
       <Route path="/gateway" element={<Gateway />} />
+      <Route path="/gateway/:schoolSlug" element={<Gateway />} />
       <Route path="/login" element={<RoleLogin />} />
       <Route path="/register" element={<PublicRegistration />} />
       <Route path="/registration" element={<PublicRegistration />} />

@@ -18,15 +18,19 @@ class EntityClient {
 
   getHeaders() {
     const token = localStorage.getItem('portal_jwt_token') || localStorage.getItem('jwt_token') || localStorage.getItem('auth_token') || localStorage.getItem('token');
-    // للقراءة العامة لإعدادات النظام نسمح بدون توكن، لكن للكتابة نرسل التوكن إن وجد
-    if (this.entityName === 'SystemSetting') {
-      return token ? { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` } : { 'Content-Type': 'application/json' };
+    const isFounder = localStorage.getItem('founder_auth') === 'true';
+    /** @type {Record<string, string>} */
+    const headers = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
     }
-    // طلبات التسجيل: الإنشاء عام بدون توكن، القراءة/التعديل تتطلب توكن
-    if (this.entityName === 'RegistrationRequest') {
-      return token ? { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` } : { 'Content-Type': 'application/json' };
+    if (isFounder) {
+      headers['X-Founder-Auth'] = 'true';
     }
-    return token ? { 'Authorization': `Bearer ${token}` } : {};
+    if (this.entityName === 'SystemSetting' || this.entityName === 'RegistrationRequest' || this.entityName === 'School') {
+      headers['Content-Type'] = 'application/json';
+    }
+    return headers;
   }
 
   async list(order = '-created_at', filtersOrLimit = null, limitOrOffset = null, offset = null) {

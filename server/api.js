@@ -516,6 +516,12 @@ if (process.env.DATABASE_URL) {
     sql`ALTER TABLE registration_requests ADD COLUMN IF NOT EXISTS director_name TEXT;`.catch(()=>{});
     sql`ALTER TABLE registration_requests ADD COLUMN IF NOT EXISTS country TEXT;`.catch(()=>{});
     sql`ALTER TABLE registration_requests ADD COLUMN IF NOT EXISTS plan TEXT;`.catch(()=>{});
+    sql`ALTER TABLE registration_requests ADD COLUMN IF NOT EXISTS billing_cycle TEXT;`.catch(()=>{});
+    sql`ALTER TABLE registration_requests ADD COLUMN IF NOT EXISTS subjects TEXT;`.catch(()=>{});
+    sql`ALTER TABLE registration_requests ADD COLUMN IF NOT EXISTS experience_years TEXT;`.catch(()=>{});
+    sql`ALTER TABLE registration_requests ADD COLUMN IF NOT EXISTS bio TEXT;`.catch(()=>{});
+    sql`ALTER TABLE registration_requests ADD COLUMN IF NOT EXISTS grade TEXT;`.catch(()=>{});
+    sql`ALTER TABLE registration_requests ADD COLUMN IF NOT EXISTS notes TEXT;`.catch(()=>{});
   }).catch(err => {
     console.error('[neon] failed to verify/create registration_requests table:', err.message);
   });
@@ -586,6 +592,16 @@ if (process.env.DATABASE_URL) {
       await sql.query(`ALTER TABLE schools ADD COLUMN IF NOT EXISTS director_name TEXT`).catch(()=>{});
       await sql.query(`ALTER TABLE schools ADD COLUMN IF NOT EXISTS email TEXT`).catch(()=>{});
       await sql.query(`ALTER TABLE schools ADD COLUMN IF NOT EXISTS phone TEXT`).catch(()=>{});
+      await sql.query(`ALTER TABLE schools ADD COLUMN IF NOT EXISTS slug TEXT`).catch(()=>{});
+      await sql.query(`ALTER TABLE schools ADD COLUMN IF NOT EXISTS domain_subdomain TEXT`).catch(()=>{});
+      await sql.query(`ALTER TABLE schools ADD COLUMN IF NOT EXISTS logo_url TEXT`).catch(()=>{});
+      await sql.query(`ALTER TABLE schools ADD COLUMN IF NOT EXISTS background_image TEXT`).catch(()=>{});
+      await sql.query(`ALTER TABLE schools ADD COLUMN IF NOT EXISTS gateway_username TEXT`).catch(()=>{});
+      await sql.query(`ALTER TABLE schools ADD COLUMN IF NOT EXISTS gateway_password TEXT`).catch(()=>{});
+      await sql.query(`CREATE INDEX IF NOT EXISTS idx_schools_slug ON schools(slug)`).catch(()=>{});
+      // ترحيل الـ slug للمدارس الموجودة
+      await sql.query(`UPDATE schools SET slug = 'main-school' WHERE (slug IS NULL OR slug = '') AND (name LIKE '%عباد الرحمن%' OR name_ar LIKE '%عباد الرحمن%')`).catch(()=>{});
+      await sql.query(`UPDATE schools SET slug = 'school-' || SUBSTRING(id::text, 1, 8) WHERE slug IS NULL OR slug = ''`).catch(()=>{});
       // تشخيص أعمدة schools
       try {
         const cols = await sql.query(`SELECT column_name FROM information_schema.columns WHERE table_name='schools'`);
@@ -894,7 +910,152 @@ export function createApiHandler() {
       }
     }
 
-    // Intercept Gateway login endpoint
+    // Intercept School Public Info by Slug (No Auth)
+    if ((req.url.startsWith('/neon-db/public-school/') || req.url.startsWith('/api/public-school/')) && req.method === 'GET') {
+      res.setHeader('Content-Type', 'application/json');
+      try {
+        const rawSlug = req.url.replace(/^\/(neon-db|api)\/public-school\//, '').split('?')[0];
+        const slug = decodeURIComponent(rawSlug).trim();
+        if (!slug) {
+          res.statusCode = 400;
+          return res.end(JSON.stringify({ error: 'Slug is required' }));
+        }
+
+        const rows = await dbQuery(
+          `SELECT id, name, name_ar, name_en, logo_url, background_image, country, plan, subscription_status, slug, domain_subdomain, expires_at 
+           FROM schools 
+           WHERE (slug = $1 OR domain_subdomain = $1 OR id::text = $1)
+           LIMIT 1`,
+          [slug]
+        );
+
+        if (rows.length === 0) {
+          res.statusCode = 404;
+          return res.end(JSON.stringify({ error: 'المدرسة غير مسجلة أو الرابط غير صحيح' }));
+        }
+
+        const s = rows[0];
+        return res.end(JSON.stringify({
+          success: true,
+          school: {
+            id: s.id,
+            name: s.name_ar || s.name || s.name_en,
+            name_ar: s.name_ar || s.name,
+            name_en: s.name_en || s.name,
+            slug: s.slug || s.domain_subdomain || s.id,
+            logo_url: s.logo_url || '',
+            background_image: s.background_image || '',
+            country: s.country || 'السودان',
+            subscription_status: s.subscription_status || 'active',
+            plan: s.plan || 'professional',
+            expires_at: s.expires_at
+          }
+        }));
+      } catch (e) {
+        res.statusCode = 500;
+        return res.end(JSON.stringify({ error: e.message }));
+      }
+    }
+
+    // Intercept Dedicated School Gateway login endpoint
+    if ((req.url === '/neon-db/auth/school-gateway' || req.url === '/api/auth/school-gateway') && req.method === 'POST') {
+      res.setHeader('Content-Type', 'application/json');
+      try {
+        const body = await parseBody(req);
+        const { slug, username, password } = body;
+        if (!slug || !username || !password) {
+          res.statusCode = 400;
+          return res.end(JSON.stringify({ error: 'المدرسة واسم المستخدم وكلمة المرور مطلوبة' }));
+        }
+
+        const schoolRows = await dbQuery(
+          `SELECT * FROM schools WHERE (slug = $1 OR domain_subdomain = $1 OR id::text = $1) LIMIT 1`,
+          [slug.trim()]
+        );
+        if (schoolRows.length === 0) {
+          res.statusCode = 404;
+          return res.end(JSON.stringify({ error: 'المدرسة غير موجودة أو الرابط غير صالح' }));
+        }
+        const school = schoolRows[0];
+
+        if (school.subscription_status === 'inactive' || school.subscription_status === 'expired') {
+          res.statusCode = 403;
+          return res.end(JSON.stringify({ error: 'اشتراك هذه المدرسة معلق أو منتهي الصلاحية. يرجى التواصل مع إدارة منصة EduTrack.' }));
+        }
+
+        // 1. Check system_admins for this school
+        const adminRows = await dbQuery(
+          `SELECT * FROM system_admins WHERE school_id = $1 AND (LOWER(email) = LOWER($2) OR LOWER(username) = LOWER($2) OR LOWER(full_name) = LOWER($2)) LIMIT 1`,
+          [school.id, username.trim()]
+        );
+
+        let authenticatedAdmin = null;
+        if (adminRows.length > 0) {
+          const adminRow = adminRows[0];
+          if (adminRow.password && bcrypt.compareSync(password, adminRow.password)) {
+            authenticatedAdmin = adminRow;
+          } else if (adminRow.portal_password && (adminRow.portal_password === password || bcrypt.compareSync(password, adminRow.portal_password))) {
+            authenticatedAdmin = adminRow;
+          }
+        }
+
+        // 2. Check if username matches school email or director
+        if (!authenticatedAdmin && school.email && school.email.toLowerCase() === username.trim().toLowerCase()) {
+          const anyAdmin = await dbQuery(`SELECT * FROM system_admins WHERE school_id = $1 LIMIT 1`, [school.id]);
+          if (anyAdmin.length > 0 && anyAdmin[0].password && bcrypt.compareSync(password, anyAdmin[0].password)) {
+            authenticatedAdmin = anyAdmin[0];
+          }
+        }
+
+        // 3. Fallback: Check gateway_accounts if any
+        if (!authenticatedAdmin) {
+          const gwRows = await dbQuery('SELECT * FROM gateway_accounts WHERE username = $1', [username.trim()]);
+          if (gwRows.length > 0 && bcrypt.compareSync(password, gwRows[0].password)) {
+            authenticatedAdmin = {
+              id: 'gw-' + school.id,
+              full_name: school.director_name || school.name,
+              email: school.email || username.trim(),
+              role: 'admin',
+              school_id: school.id
+            };
+          }
+        }
+
+        if (!authenticatedAdmin) {
+          res.statusCode = 401;
+          return res.end(JSON.stringify({ error: 'اسم المستخدم أو كلمة المرور غير صحيحة لهذه المدرسة' }));
+        }
+
+        const user = {
+          id: authenticatedAdmin.id,
+          full_name: authenticatedAdmin.full_name || school.director_name || school.name,
+          email: authenticatedAdmin.email || school.email,
+          role: 'admin',
+          school_id: school.id,
+          school_name: school.name_ar || school.name
+        };
+
+        const token = jwt.sign(user, JWT_SECRET, { expiresIn: '24h' });
+
+        return res.end(JSON.stringify({
+          success: true,
+          user,
+          token,
+          school: {
+            id: school.id,
+            name: school.name_ar || school.name,
+            slug: school.slug || school.domain_subdomain || school.id,
+            plan: school.plan
+          }
+        }));
+      } catch (error) {
+        console.error('[school-gateway] error:', error);
+        res.statusCode = 500;
+        return res.end(JSON.stringify({ error: error.message }));
+      }
+    }
+
+    // Intercept Gateway login endpoint (legacy / fallback)
     if (req.url === '/neon-db/auth/gateway' && req.method === 'POST') {
       res.setHeader('Content-Type', 'application/json');
       try {
@@ -1144,6 +1305,153 @@ export function createApiHandler() {
       return res.end(JSON.stringify({ error: 'Webhook not found' }));
     }
 
+    // ── Approve Student Endpoint (Founder action) ──
+    if ((req.url === '/api/approve-student' || req.url === '/neon-db/approve-student') && req.method === 'POST') {
+      res.setHeader('Content-Type', 'application/json');
+      try {
+        const body = await parseBody(req);
+        const { requestId, username, password } = body;
+        if (!requestId || !username || !password) {
+          res.statusCode = 400;
+          return res.end(JSON.stringify({ error: 'requestId, username, and password are required' }));
+        }
+
+        const reqRows = await dbQuery('SELECT * FROM registration_requests WHERE id = $1', [requestId]);
+        if (reqRows.length === 0) {
+          res.statusCode = 404;
+          return res.end(JSON.stringify({ error: 'Request not found' }));
+        }
+        const reg = reqRows[0];
+
+        const hashedPassword = hashPassword(password);
+        const studentId = `STU-${Date.now().toString().slice(-6)}`;
+
+        // Check if student already exists with this user_email
+        const existing = await dbQuery('SELECT id FROM students WHERE user_email = $1', [username.trim().toLowerCase()]);
+        if (existing.length > 0) {
+          await dbQuery(
+            `UPDATE students 
+             SET full_name = $1, phone = $2, grade = $3, parent_name = $4, parent_phone = $5, parent_email = $6, school_name = $7, city = $8, portal_password = $9, status = 'active'
+             WHERE user_email = $10`,
+            [
+              reg.full_name || 'طالب',
+              reg.phone || null,
+              reg.grade || null,
+              reg.director_name || null,
+              reg.phone || null,
+              reg.email || null,
+              reg.school_name || null,
+              reg.country || null,
+              hashedPassword,
+              username.trim().toLowerCase()
+            ]
+          );
+        } else {
+          await dbQuery(
+            `INSERT INTO students (full_name, user_email, student_id, phone, grade, parent_name, parent_phone, parent_email, school_name, city, status, portal_password)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'active', $11)`,
+            [
+              reg.full_name || 'طالب جديد',
+              username.trim().toLowerCase(),
+              studentId,
+              reg.phone || null,
+              reg.grade || null,
+              reg.director_name || null,
+              reg.phone || null,
+              reg.email || null,
+              reg.school_name || null,
+              reg.country || null,
+              hashedPassword
+            ]
+          );
+        }
+
+        // Update registration request
+        await dbQuery(
+          `UPDATE registration_requests 
+           SET status = 'approved', username_generated = $1, reviewed_at = CURRENT_TIMESTAMP
+           WHERE id = $2`,
+          [username.trim(), requestId]
+        );
+
+        return res.end(JSON.stringify({ success: true, message: 'Student approved successfully', studentId }));
+      } catch (error) {
+        console.error('[approve-student] error:', error);
+        res.statusCode = 500;
+        return res.end(JSON.stringify({ error: error.message }));
+      }
+    }
+
+    // ── Approve Teacher Endpoint (Founder action) ──
+    if ((req.url === '/api/approve-teacher' || req.url === '/neon-db/approve-teacher') && req.method === 'POST') {
+      res.setHeader('Content-Type', 'application/json');
+      try {
+        const body = await parseBody(req);
+        const { requestId, username, password } = body;
+        if (!requestId || !username || !password) {
+          res.statusCode = 400;
+          return res.end(JSON.stringify({ error: 'requestId, username, and password are required' }));
+        }
+
+        const reqRows = await dbQuery('SELECT * FROM registration_requests WHERE id = $1', [requestId]);
+        if (reqRows.length === 0) {
+          res.statusCode = 404;
+          return res.end(JSON.stringify({ error: 'Request not found' }));
+        }
+        const reg = reqRows[0];
+
+        const hashedPassword = hashPassword(password);
+        const empId = `TCH-${Date.now().toString().slice(-6)}`;
+
+        const existing = await dbQuery('SELECT id FROM teachers WHERE email = $1', [username.trim().toLowerCase()]);
+        if (existing.length > 0) {
+          await dbQuery(
+            `UPDATE teachers 
+             SET full_name = $1, phone = $2, subjects = $3, experience_years = $4, bio = $5, portal_password = $6, status = 'active'
+             WHERE email = $7`,
+            [
+              reg.full_name || 'معلم',
+              reg.phone || null,
+              reg.subjects || null,
+              parseInt(reg.experience_years) || null,
+              reg.bio || null,
+              hashedPassword,
+              username.trim().toLowerCase()
+            ]
+          );
+        } else {
+          await dbQuery(
+            `INSERT INTO teachers (full_name, email, employee_id, phone, subjects, experience_years, bio, status, portal_password)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, 'active', $8)`,
+            [
+              reg.full_name || 'معلم جديد',
+              username.trim().toLowerCase(),
+              empId,
+              reg.phone || null,
+              reg.subjects || null,
+              parseInt(reg.experience_years) || null,
+              reg.bio || null,
+              hashedPassword
+            ]
+          );
+        }
+
+        // Update registration request
+        await dbQuery(
+          `UPDATE registration_requests 
+           SET status = 'approved', username_generated = $1, reviewed_at = CURRENT_TIMESTAMP
+           WHERE id = $2`,
+          [username.trim(), requestId]
+        );
+
+        return res.end(JSON.stringify({ success: true, message: 'Teacher approved successfully', empId }));
+      } catch (error) {
+        console.error('[approve-teacher] error:', error);
+        res.statusCode = 500;
+        return res.end(JSON.stringify({ error: error.message }));
+      }
+    }
+
     // ── API routes for payment (require auth) ──
     if (req.url.startsWith('/api/')) {
       res.setHeader('Content-Type', 'application/json');
@@ -1171,16 +1479,19 @@ export function createApiHandler() {
 
     res.setHeader('Content-Type', 'application/json');
 
-    // Parse entity early to allow public registration + founder cross-tenant reads
+    // Parse entity early to allow public registration + founder cross-tenant operations
     const earlyUrlParts = req.url.split('?');
     const earlyPath = earlyUrlParts[0];
     const earlyMatch = earlyPath.match(/^\/neon-db\/entities\/([^\/]+)(?:\/(.+))?$/);
     const earlyEntity = earlyMatch ? earlyMatch[1] : null;
     const isPublicRegistrationPost = earlyEntity === 'RegistrationRequest' && req.method === 'POST';
-    const isFounderPublicRead = (earlyEntity === 'School' || earlyEntity === 'RegistrationRequest') && req.method === 'GET';
+    const isFounderAuth = req.headers['x-founder-auth'] === 'true';
+    const isFounderEntity = earlyEntity === 'School' || earlyEntity === 'RegistrationRequest';
+    const isFounderPublicRead = isFounderEntity && req.method === 'GET';
+    const isFounderEntityAction = isFounderAuth && isFounderEntity;
     const authHeader = req.headers.authorization;
-    // Founder (بدون JWT) يسمح له بقراءة المدارس والطلبات عبر /founder-dashboard — يرى الكل
-    const allowWithoutAuth = isPublicRegistrationPost || isFounderPublicRead;
+    // Founder (سواء بـ header خاص أو عام) يسمح له بالوصول للطلبات والمدارس
+    const allowWithoutAuth = isPublicRegistrationPost || isFounderPublicRead || isFounderEntityAction;
 
     // JWT Authentication Middleware
     if (!allowWithoutAuth) {
@@ -1482,9 +1793,10 @@ export function createApiHandler() {
       // ===== CREATE =====
       if (req.method === 'POST') {
         const body = await parseBody(req);
-        // Multi-tenant: حقن school_id تلقائياً
-        if (isTenantTable && tenantId && !body.school_id) {
-          body.school_id = tenantId;
+        // Multi-tenant: حقن school_id تلقائياً (الأولوية لـ req.user school_id)
+        const tenantIdFromUser = req.user?.school_id;
+        if (isTenantTable && tenantIdFromUser && !body.school_id) {
+          body.school_id = tenantIdFromUser;
         }
         
         if (body.portal_password !== undefined) {

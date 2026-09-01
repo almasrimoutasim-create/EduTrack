@@ -7,7 +7,7 @@ import {
   LogOut, CheckCircle2, XCircle, Bell, School as SchoolIcon, TrendingUp,
   Users, CircleDollarSign, RefreshCw, Eye, Plus, Clock, AlertTriangle,
   BarChart3, MessageCircle, Save, Download, KeyRound, PauseCircle, Timer,
-  MapPin, Calendar, Phone, Mail, Crown, Zap, Shield, Copy, Printer, Send, UserPlus, Lock, Link2, ExternalLink
+  MapPin, Calendar, Phone, Mail, Crown, Zap, Shield, Copy, Printer, Send, UserPlus, Lock, Link2, ExternalLink, GraduationCap, Trash2
 } from "lucide-react";
 
 const PLANS_DEFAULT = [
@@ -42,19 +42,27 @@ const NAV = [
 
 const FounderDashboard = () => {
   const [section, setSection] = useState("overview");
+  const [reqFilter, setReqFilter] = useState("all"); // "all" | "schools" | "students" | "teachers"
+  const [viewRequestDetail, setViewRequestDetail] = useState(null);
   const queryClient = useQueryClient();
 
   // ── Teacher Approval Modal ──
-  const [teacherApproval, setTeacherApproval] = useState(null); // { requestId, fullName, email }
+  const [teacherApproval, setTeacherApproval] = useState(null); // { requestId, fullName, email, data }
   const [teacherUsername, setTeacherUsername] = useState("");
   const [teacherPassword, setTeacherPassword] = useState("");
   const [approvingTeacher, setApprovingTeacher] = useState(false);
 
   // ── Student Approval Modal ──
-  const [studentApproval, setStudentApproval] = useState(null); // { requestId, fullName, email }
+  const [studentApproval, setStudentApproval] = useState(null); // { requestId, fullName, email, data }
   const [studentUsername, setStudentUsername] = useState("");
   const [studentPassword, setStudentPassword] = useState("");
   const [approvingStudent, setApprovingStudent] = useState(false);
+
+  // ── School Approval Modal ──
+  const [schoolApproval, setSchoolApproval] = useState(null);
+  const [schoolUsername, setSchoolUsername] = useState("");
+  const [schoolPassword, setSchoolPassword] = useState("");
+  const [approvingSchool, setApprovingSchool] = useState(false);
 
   const handleApproveTeacher = async () => {
     if (!teacherUsername.trim() || !teacherPassword.trim()) {
@@ -66,7 +74,7 @@ const FounderDashboard = () => {
       const apiBase = import.meta.env.VITE_BACKEND_URL || '';
       const res = await fetch(`${apiBase}/api/approve-teacher`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-Founder-Auth": "true" },
         body: JSON.stringify({
           requestId: teacherApproval.requestId,
           username: teacherUsername.trim(),
@@ -79,6 +87,7 @@ const FounderDashboard = () => {
       setTeacherApproval(null);
       setTeacherUsername("");
       setTeacherPassword("");
+      queryClient.invalidateQueries({ queryKey: ["founder-registrations"] });
       queryClient.invalidateQueries({ queryKey: ["founder-teacher-student-regs"] });
     } catch (err) {
       toast.error(err.message || "فشل إنشاء الحساب");
@@ -97,7 +106,7 @@ const FounderDashboard = () => {
       const apiBase = import.meta.env.VITE_BACKEND_URL || '';
       const res = await fetch(`${apiBase}/api/approve-student`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-Founder-Auth": "true" },
         body: JSON.stringify({
           requestId: studentApproval.requestId,
           username: studentUsername.trim(),
@@ -110,6 +119,7 @@ const FounderDashboard = () => {
       setStudentApproval(null);
       setStudentUsername("");
       setStudentPassword("");
+      queryClient.invalidateQueries({ queryKey: ["founder-registrations"] });
       queryClient.invalidateQueries({ queryKey: ["founder-teacher-student-regs"] });
     } catch (err) {
       toast.error(err.message || "فشل إنشاء الحساب");
@@ -220,7 +230,7 @@ const FounderDashboard = () => {
   // expiring within 7 days
   const expiringSoon = schools.filter(s => {
     if (!s.expires_at) return s.subscription_status === "trial";
-    const diff = new Date(s.expires_at) - new Date();
+    const diff = new Date(s.expires_at).getTime() - Date.now();
     return diff > 0 && diff < 7 * 24 * 60 * 60 * 1000;
   });
 
@@ -229,7 +239,7 @@ const FounderDashboard = () => {
 
   // ── Mutations ──
   const updateSchool = useMutation({
-    mutationFn: ({ id, status }) => entities.School.update(id, { subscription_status: status }),
+    mutationFn: async ({ id, status }) => entities.School.update(id, { subscription_status: status }),
     onSuccess: () => {
       toast.success("تم تحديث حالة الاشتراك");
       queryClient.invalidateQueries({ queryKey: ["founder-schools"] });
@@ -238,7 +248,7 @@ const FounderDashboard = () => {
   });
 
   const createSchool = useMutation({
-    mutationFn: (data) => entities.School.create(data),
+    mutationFn: async (data) => entities.School.create(data),
     onSuccess: () => {
       toast.success("تمت إضافة المدرسة بنجاح");
       queryClient.invalidateQueries({ queryKey: ["founder-schools"] });
@@ -247,15 +257,58 @@ const FounderDashboard = () => {
   });
 
   const updateRequest = useMutation({
-    mutationFn: ({ id, status }) => entities.RegistrationRequest.update(id, { status }),
+    mutationFn: async ({ id, status }) => entities.RegistrationRequest.update(id, { status }),
     onSuccess: () => {
       toast.success("تم تحديث الطلب");
       queryClient.invalidateQueries({ queryKey: ["founder-registrations"] });
+      queryClient.invalidateQueries({ queryKey: ["founder-teacher-student-regs"] });
     },
     onError: () => toast.error("تعذر تحديث الطلب"),
   });
 
-  // ── حالة بطاقة التسليم (بعد القبول)
+  const deleteRequest = useMutation({
+    mutationFn: async (id) => entities.RegistrationRequest.delete(id),
+    onSuccess: () => {
+      toast.success("تم حذف الطلب");
+      setViewRequestDetail(null);
+      queryClient.invalidateQueries({ queryKey: ["founder-registrations"] });
+      queryClient.invalidateQueries({ queryKey: ["founder-teacher-student-regs"] });
+    },
+    onError: () => toast.error("تعذر حذف الطلب"),
+  });
+
+  const deleteSchool = useMutation({
+    mutationFn: async (id) => entities.School.delete(id),
+    onSuccess: () => {
+      toast.success("تم حذف المدرسة بنجاح");
+      queryClient.invalidateQueries({ queryKey: ["founder-schools"] });
+    },
+    onError: (e) => toast.error(e.message || "فشل حذف المدرسة"),
+  });
+
+  // state للتحقق من حذف مدرسة
+  const [confirmDeleteSchool, setConfirmDeleteSchool] = useState(null); // school object
+  // state لبيانات حساب المدير المحملة للمدرسة المفتوحة
+  const [schoolAdminData, setSchoolAdminData] = useState(null); // { email, password } or null
+  const [schoolAdminLoading, setSchoolAdminLoading] = useState(false);
+
+  // جلب بيانات مدير المدرسة عند فتح المودال
+  const loadSchoolAdminData = async (school) => {
+    setSchoolAdminLoading(true);
+    setSchoolAdminData(null);
+    try {
+      const admins = await entities.SystemAdmin.filter({ school_id: school.id });
+      if (admins && admins.length > 0) {
+        setSchoolAdminData({ email: admins[0].email, password: admins[0].portal_password || '***مخفية***' });
+      } else {
+        setSchoolAdminData({ email: school.email || '—', password: 'لم يتم إنشاء حساب بعد' });
+      }
+    } catch (e) {
+      setSchoolAdminData({ email: school.email || '—', password: 'تعذّر جلب البيانات' });
+    } finally {
+      setSchoolAdminLoading(false);
+    }
+  };
   const [delivery, setDelivery] = useState(null); // { school, adminEmail, password, loginUrl }
 
   const genPassword = (len = 10) => {
@@ -271,8 +324,18 @@ const FounderDashboard = () => {
     return planId === 'starter' ? 30 : planId === 'professional' ? 30 : 30; // افتراضياً شهرياً
   };
 
+  const generateSchoolSlug = (name) => {
+    if (!name) return `school-${Date.now().toString().slice(-4)}`;
+    const clean = name
+      .toLowerCase()
+      .replace(/[^\u0621-\u064Aa-z0-9\s-]/g, '')
+      .trim()
+      .replace(/\s+/g, '-');
+    return clean || `school-${Date.now().toString().slice(-4)}`;
+  };
+
   // ── قبول الطلب مع إنشاء مدرسة + حساب مدير + بطاقة تسليم
-  const acceptRequest = async (r) => {
+  const acceptRequest = async (r, credentials = {}) => {
     try {
       const schoolName = r.school_name || r.full_name || "مدرسة جديدة";
       const plan = r.plan || r.role_requested || "starter";
@@ -280,8 +343,10 @@ const FounderDashboard = () => {
       const planMap = { admin: "starter", teacher: "starter", student: "starter" };
       const finalPlan = ["starter","professional","enterprise"].includes(plan) ? plan : (planMap[plan] || "starter");
       const schoolEmail = (r.email || "").trim().toLowerCase();
+      const adminUsername = (credentials.username || schoolEmail).trim().toLowerCase();
       const directorName = r.director_name || r.full_name || "مدير المدرسة";
-      const rawPassword = genPassword(10);
+      const rawPassword = credentials.password || genPassword(10);
+      const schoolSlug = generateSchoolSlug(schoolName);
 
       const startDate = new Date();
       const endDate = new Date(startDate);
@@ -292,6 +357,8 @@ const FounderDashboard = () => {
         name: schoolName,
         name_ar: schoolName,
         name_en: schoolName,
+        slug: schoolSlug,
+        domain_subdomain: schoolSlug,
         director_name: directorName,
         email: schoolEmail || null,
         phone: r.phone || null,
@@ -304,11 +371,12 @@ const FounderDashboard = () => {
       });
 
       // 2) إنشاء حساب مدير المدرسة وربطه بالمستأجر
-      if (schoolEmail) {
+      if (adminUsername) {
         try {
           await entities.SystemAdmin.create({
             full_name: directorName,
-            email: schoolEmail,
+            email: adminUsername,
+            username: adminUsername,
             portal_password: rawPassword,
             role: "admin",
             school_id: newSchool.id || newSchool._id,
@@ -327,17 +395,45 @@ const FounderDashboard = () => {
       queryClient.invalidateQueries({ queryKey: ["founder-registrations"] });
 
       // 3) إظهار بطاقة التسليم
-      if (schoolEmail) {
+      if (adminUsername) {
         const origin = window.location.origin;
+        const targetSlug = newSchool.slug || schoolSlug || newSchool.id;
         setDelivery({
-          school: { id: newSchool.id || newSchool._id, name: schoolName, plan: finalPlan, billing_cycle: billingCycle, email: schoolEmail, director: directorName, phone: r.phone || "", subscription_start_date: startDate.toISOString(), expires_at: endDate.toISOString() },
-          adminEmail: schoolEmail,
+          school: { id: newSchool.id || newSchool._id, name: schoolName, plan: finalPlan, billing_cycle: billingCycle, email: schoolEmail, director: directorName, phone: r.phone || "", subscription_start_date: startDate.toISOString(), expires_at: endDate.toISOString(), slug: targetSlug },
+          adminEmail: adminUsername,
           password: rawPassword,
-          loginUrl: `${origin}/role-login`,
+          loginUrl: `${origin}/gateway/${targetSlug}`,
         });
       }
     } catch (e) {
       toast.error(e.message || "فشل القبول");
+    }
+  };
+
+  const openSchoolApproval = (request) => {
+    setSchoolApproval(request);
+    setSchoolUsername((request.email || "").trim().toLowerCase());
+    setSchoolPassword(genPassword(10));
+  };
+
+  const handleApproveSchool = async () => {
+    if (!schoolApproval) return;
+    if (!schoolUsername.trim() || !schoolPassword.trim()) {
+      toast.error("أدخل اسم المستخدم وكلمة المرور");
+      return;
+    }
+    setApprovingSchool(true);
+    try {
+      await acceptRequest(schoolApproval, {
+        username: schoolUsername.trim(),
+        password: schoolPassword.trim(),
+      });
+      setSchoolApproval(null);
+      setSchoolUsername("");
+      setSchoolPassword("");
+      setViewRequestDetail(null);
+    } finally {
+      setApprovingSchool(false);
     }
   };
 
@@ -388,14 +484,66 @@ const FounderDashboard = () => {
         toast.success("تم إنشاء حساب المدير");
       }
       const origin = window.location.origin;
+      const targetSlug = school.slug || school.domain_subdomain || school.id;
       setDelivery({
-        school: { id: school.id, name: school.name, plan: school.plan, billing_cycle: school.billing_cycle || 'monthly', email, director: school.director_name || school.name, phone: school.phone || "", subscription_start_date: school.subscription_start_date, expires_at: school.expires_at },
+        school: { id: school.id, name: school.name, plan: school.plan, billing_cycle: school.billing_cycle || 'monthly', email, director: school.director_name || school.name, phone: school.phone || "", subscription_start_date: school.subscription_start_date, expires_at: school.expires_at, slug: targetSlug },
         adminEmail: email,
         password: rawPassword,
-        loginUrl: `${origin}/role-login`,
+        loginUrl: `${origin}/gateway/${targetSlug}`,
       });
     } catch (e) {
       toast.error(e.message || "فشل إنشاء/تحديث حساب المدير");
+    }
+  };
+
+  // ── استخراج بيانات الدخول لطلب مقبول مسبقاً ──
+  const showDeliveryForRequest = async (r) => {
+    try {
+      const schoolEmail = (r.email || '').trim().toLowerCase();
+      // ابحث عن المدرسة المقابلة للطلب
+      const matchedSchool = schools.find(
+        (s) =>
+          (schoolEmail && s.email && s.email.toLowerCase() === schoolEmail) ||
+          (r.school_name && s.name && s.name.trim() === r.school_name.trim())
+      );
+      if (!matchedSchool) {
+        toast.error('لم يتم العثور على مدرسة مرتبطة بهذا الطلب — تأكد من أن الطلب تم قبوله وإنشاء المدرسة');
+        return;
+      }
+      // جلب بيانات المدير الحالية من قاعدة البيانات
+      const apiBase = import.meta.env.VITE_BACKEND_URL || '';
+      let existingPassword = '***مخفية***';
+      try {
+        const admins = await entities.SystemAdmin.filter({ school_id: matchedSchool.id });
+        if (admins && admins.length > 0) {
+          // كلمة المرور محجوبة بعد التخزين — نعطي خياراً لإعادة التعيين
+          existingPassword = admins[0].portal_password || '***';
+        }
+      } catch (e) {
+        console.warn('fetch admin failed', e);
+      }
+      const origin = window.location.origin;
+      const targetSlug = matchedSchool.slug || matchedSchool.domain_subdomain || matchedSchool.id;
+      setDelivery({
+        school: {
+          id: matchedSchool.id,
+          name: matchedSchool.name,
+          plan: matchedSchool.plan,
+          billing_cycle: matchedSchool.billing_cycle || 'monthly',
+          email: schoolEmail || matchedSchool.email || '',
+          director: matchedSchool.director_name || r.director_name || r.full_name || '',
+          phone: matchedSchool.phone || r.phone || '',
+          subscription_start_date: matchedSchool.subscription_start_date,
+          expires_at: matchedSchool.expires_at,
+          slug: targetSlug,
+        },
+        adminEmail: schoolEmail || matchedSchool.email || '',
+        password: existingPassword,
+        loginUrl: `${origin}/gateway/${targetSlug}`,
+        isRetrieved: true, // علامة: هذه بيانات مسترجعة لا منشأة حديثاً
+      });
+    } catch (e) {
+      toast.error(e.message || 'فشل استرجاع بيانات التسليم');
     }
   };
 
@@ -590,7 +738,7 @@ const FounderDashboard = () => {
                         </td>
                         <td className="p-4">
                           {s.expires_at ? (
-                            <span className={new Date(s.expires_at) < new Date() ? 'text-rose-600 font-bold' : new Date(s.expires_at) - new Date() < 7*24*60*60*1000 ? 'text-amber-600 font-bold' : 'text-emerald-600'}>
+                            <span className={new Date(s.expires_at).getTime() < Date.now() ? 'text-rose-600 font-bold' : new Date(s.expires_at).getTime() - Date.now() < 7*24*60*60*1000 ? 'text-amber-600 font-bold' : 'text-emerald-600'}>
                               {new Date(s.expires_at).toLocaleDateString('ar-EG')}
                             </span>
                           ) : <span className="text-slate-400">—</span>}
@@ -605,11 +753,13 @@ const FounderDashboard = () => {
                           </select>
                         </td>
                         <td className="p-4 flex gap-1 flex-wrap">
+                          <a href={`/gateway/${s.slug || s.domain_subdomain || s.id}`} target="_blank" rel="noreferrer" title="فتح بوابة المدرسة" className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-900 text-white text-xs font-bold hover:bg-black"><ExternalLink size={12}/> البوابة</a>
                           <button onClick={()=>updateSchool.mutate({id:s.id, status:"active"})} className="px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-bold hover:bg-emerald-100">تفعيل</button>
                           <button onClick={()=>updateSchool.mutate({id:s.id, status:"inactive"})} className="px-2 py-1 rounded-lg bg-amber-50 text-amber-700 text-xs font-bold hover:bg-amber-100">تعليق</button>
                           <button onClick={()=>renewSubscription(s)} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-blue-600 text-white text-xs font-bold hover:bg-blue-700"><RefreshCw size={12}/> تجديد</button>
                           <button onClick={()=>createAdminForSchool(s)} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-violet-600 text-white text-xs font-bold hover:bg-violet-700"><KeyRound size={12}/> حساب المدير</button>
-                          <button onClick={()=>setViewSchool(s)} className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200"><Eye size={14}/></button>
+                          <button onClick={()=>{ setViewSchool(s); loadSchoolAdminData(s); }} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-blue-50 text-blue-700 text-xs font-bold" title="تفاصيل المدرسة"><Eye size={13}/> التفاصيل</button>
+                          <button onClick={()=>setConfirmDeleteSchool(s)} className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600" title="حذف المدرسة"><Trash2 size={14}/></button>
                         </td>
                       </tr>
                     ))}
@@ -620,25 +770,150 @@ const FounderDashboard = () => {
             </div>
             {/* View dialog */}
             {viewSchool && (
-              <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={()=>setViewSchool(null)}>
-                <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-xl" onClick={e=>e.stopPropagation()}>
-                  <h3 className="font-extrabold text-lg mb-4 flex items-center gap-2"><Building2 size={18}/> تفاصيل المدرسة</h3>
-                  <div className="space-y-3 text-sm">
-                    <div className="flex justify-between"><span className="text-slate-500">الاسم</span><b>{viewSchool.name}</b></div>
-                    <div className="flex justify-between"><span className="text-slate-500">البلد</span><b>{viewSchool.country}</b></div>
-                    <div className="flex justify-between"><span className="text-slate-500">المدير</span><b>{viewSchool.director_name || "-"}</b></div>
-                    <div className="flex justify-between"><span className="text-slate-500">البريد</span><b>{viewSchool.email || "-"}</b></div>
-                    <div className="flex justify-between"><span className="text-slate-500">الهاتف</span><b>{viewSchool.phone || "-"}</b></div>
-                    <div className="flex justify-between"><span className="text-slate-500">الخطة</span><b>{viewSchool.plan}</b></div>
-                    <div className="flex justify-between"><span className="text-slate-500">دورة الفوترة</span><b>{viewSchool.billing_cycle === 'yearly' ? 'سنوي' : 'شهري'}</b></div>
-                    <div className="flex justify-between"><span className="text-slate-500">الحالة</span><b>{viewSchool.subscription_status}</b></div>
-                    <div className="flex justify-between"><span className="text-slate-500">تاريخ الانضمام</span><b>{viewSchool.created_at ? new Date(viewSchool.created_at).toLocaleString('ar-EG') : "-"}</b></div>
-                    <div className="flex justify-between"><span className="text-slate-500">بدء الاشتراك</span><b>{viewSchool.subscription_start_date ? new Date(viewSchool.subscription_start_date).toLocaleDateString('ar-EG') : "—"}</b></div>
-                    {viewSchool.expires_at && <div className="flex justify-between"><span className="text-slate-500">ينتهي في</span><b className={new Date(viewSchool.expires_at) < new Date() ? 'text-rose-600' : new Date(viewSchool.expires_at) - new Date() < 7*24*60*60*1000 ? 'text-amber-600' : 'text-emerald-600'}>{new Date(viewSchool.expires_at).toLocaleDateString('ar-EG')}</b></div>}
+              <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={()=>{ setViewSchool(null); setSchoolAdminData(null); }}>
+                <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden" onClick={e=>e.stopPropagation()} dir="rtl">
+                  {/* هيدر المودال */}
+                  <div className="bg-gradient-to-br from-slate-800 to-slate-900 p-5 text-white flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-11 h-11 rounded-xl bg-white/15 flex items-center justify-center">
+                        <Building2 size={20} className="text-white"/>
+                      </div>
+                      <div>
+                        <h3 className="font-extrabold text-base">{viewSchool.name}</h3>
+                        <p className="text-xs text-slate-300">{viewSchool.country || '—'} • {viewSchool.plan || 'starter'} • {viewSchool.subscription_status}</p>
+                      </div>
+                    </div>
+                    <button onClick={()=>{ setViewSchool(null); setSchoolAdminData(null); }} className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-white/10">✕</button>
                   </div>
-                  <div className="flex gap-2 mt-4">
-                    <button onClick={()=>renewSubscription(viewSchool)} className="flex-1 h-10 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-700"><RefreshCw size={14}/> تجديد</button>
-                    <button onClick={()=>setViewSchool(null)} className="flex-1 h-10 rounded-xl bg-slate-900 text-white font-bold">إغلاق</button>
+
+                  <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
+                    {/* بيانات البوابة */}
+                    <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-blue-700 flex items-center gap-1"><Link2 size={13}/> رابط البوابة الخاص بالمدرسة</span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={()=>{ const url=`${window.location.origin}/gateway/${viewSchool.slug||viewSchool.domain_subdomain||viewSchool.id}`; navigator.clipboard.writeText(url); toast.success('تم نسخ رابط البوابة'); }}
+                            className="text-xs font-bold text-blue-600 hover:underline inline-flex items-center gap-1"
+                          ><Copy size={12}/> نسخ</button>
+                          <a href={`/gateway/${viewSchool.slug||viewSchool.domain_subdomain||viewSchool.id}`} target="_blank" rel="noreferrer" className="text-xs font-bold text-blue-600 hover:underline inline-flex items-center gap-1"><ExternalLink size={12}/> فتح</a>
+                        </div>
+                      </div>
+                      <div className="bg-white border border-blue-200 rounded-xl px-3 py-2 font-mono text-sm text-blue-900 font-bold break-all" dir="ltr">
+                        {`${window.location.origin}/gateway/${viewSchool.slug||viewSchool.domain_subdomain||viewSchool.id}`}
+                      </div>
+                    </div>
+
+                    {/* بيانات حساب المدير */}
+                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-700 flex items-center gap-1"><KeyRound size={13}/> بيانات حساب مدير المدرسة</span>
+                        {schoolAdminLoading && <span className="text-xs text-slate-400">جاري التحميل...</span>}
+                      </div>
+
+                      {schoolAdminData ? (
+                        <div className="space-y-2">
+                          {/* اسم المستخدم */}
+                          <div className="bg-white border border-slate-200 rounded-xl p-3">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-xs font-bold text-slate-500 flex items-center gap-1"><Mail size={12}/> اسم المستخدم / البريد</span>
+                              <button onClick={()=>{ navigator.clipboard.writeText(schoolAdminData.email); toast.success('تم نسخ اسم المستخدم'); }} className="text-xs font-bold text-slate-500 hover:underline inline-flex items-center gap-1"><Copy size={11}/> نسخ</button>
+                            </div>
+                            <p className="text-sm font-bold font-mono text-slate-900" dir="ltr">{schoolAdminData.email}</p>
+                          </div>
+                          {/* كلمة المرور */}
+                          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-xs font-bold text-amber-700 flex items-center gap-1"><Lock size={12}/> كلمة المرور</span>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={async () => {
+                                    const newPw = genPassword(10);
+                                    try {
+                                      const admins = await entities.SystemAdmin.filter({ school_id: viewSchool.id });
+                                      if (admins && admins.length > 0) {
+                                        await entities.SystemAdmin.update(admins[0].id, { portal_password: newPw });
+                                        setSchoolAdminData(prev => ({ ...prev, password: newPw }));
+                                        toast.success('تم إعادة تعيين كلمة المرور — انسخها');
+                                      } else {
+                                        toast.error('لا يوجد حساب مدير لهذه المدرسة');
+                                      }
+                                    } catch(e) { toast.error('فشل إعادة التعيين'); }
+                                  }}
+                                  className="text-xs font-bold text-violet-700 hover:underline inline-flex items-center gap-1"
+                                ><RefreshCw size={11}/> إعادة تعيين</button>
+                                <button onClick={()=>{ navigator.clipboard.writeText(schoolAdminData.password); toast.success('تم نسخ كلمة المرور'); }} className="text-xs font-bold text-amber-700 hover:underline inline-flex items-center gap-1"><Copy size={11}/> نسخ</button>
+                              </div>
+                            </div>
+                            <p className="text-base font-black font-mono tracking-wider text-amber-900" dir="ltr">{schoolAdminData.password}</p>
+                          </div>
+                        </div>
+                      ) : !schoolAdminLoading ? (
+                        <div className="text-center py-3">
+                          <p className="text-sm text-slate-400">لا يوجد حساب مدير منشأ لهذه المدرسة</p>
+                          <button onClick={()=>createAdminForSchool(viewSchool)} className="mt-2 text-xs font-bold text-violet-600 hover:underline inline-flex items-center gap-1"><KeyRound size={12}/> إنشاء حساب المدير</button>
+                        </div>
+                      ) : null}
+                    </div>
+
+                    {/* بيانات الاشتراك */}
+                    <div className="bg-white border border-slate-200 rounded-2xl p-4 text-sm space-y-2">
+                      <p className="text-xs font-bold text-slate-600 mb-2">تفاصيل الاشتراك</p>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="bg-slate-50 rounded-lg p-2"><p className="text-slate-400">المدير</p><p className="font-bold text-slate-800">{viewSchool.director_name || '—'}</p></div>
+                        <div className="bg-slate-50 rounded-lg p-2"><p className="text-slate-400">الهاتف</p><p className="font-bold text-slate-800">{viewSchool.phone || '—'}</p></div>
+                        <div className="bg-slate-50 rounded-lg p-2"><p className="text-slate-400">بدء الاشتراك</p><p className="font-bold text-slate-800">{viewSchool.subscription_start_date ? new Date(viewSchool.subscription_start_date).toLocaleDateString('ar-EG') : '—'}</p></div>
+                        <div className="bg-slate-50 rounded-lg p-2"><p className="text-slate-400">انتهاء الاشتراك</p><p className={`font-bold ${viewSchool.expires_at && new Date(viewSchool.expires_at).getTime() < Date.now() ? 'text-rose-600' : 'text-emerald-700'}`}>{viewSchool.expires_at ? new Date(viewSchool.expires_at).toLocaleDateString('ar-EG') : '—'}</p></div>
+                        <div className="bg-slate-50 rounded-lg p-2"><p className="text-slate-400">الدورة</p><p className="font-bold text-slate-800">{viewSchool.billing_cycle === 'yearly' ? 'سنوي' : 'شهري'}</p></div>
+                        <div className="bg-slate-50 rounded-lg p-2"><p className="text-slate-400">الخطة</p><p className="font-bold text-slate-800">{viewSchool.plan || 'starter'}</p></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* أزرار المودال */}
+                  <div className="p-4 border-t border-slate-100 flex gap-2">
+                    <button
+                      onClick={() => renewSubscription(viewSchool)}
+                      className="flex-1 h-10 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 inline-flex items-center justify-center gap-1.5"
+                    ><RefreshCw size={13}/> تجديد</button>
+                    <button
+                      onClick={() => { setConfirmDeleteSchool(viewSchool); setViewSchool(null); setSchoolAdminData(null); }}
+                      className="h-10 px-4 rounded-xl bg-rose-50 text-rose-700 font-bold text-sm hover:bg-rose-100 inline-flex items-center justify-center gap-1.5"
+                    ><Trash2 size={13}/> حذف</button>
+                    <button
+                      onClick={() => { setViewSchool(null); setSchoolAdminData(null); }}
+                      className="flex-1 h-10 rounded-xl bg-slate-900 text-white font-bold text-sm hover:bg-black"
+                    >إغلاق</button>
+                  </div>
+                </div>
+              </div>
+            )}
+            {/* تأكيد حذف المدرسة */}
+            {confirmDeleteSchool && (
+              <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[55] p-4" onClick={()=>setConfirmDeleteSchool(null)}>
+                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6" onClick={e=>e.stopPropagation()} dir="rtl">
+                  <div className="w-12 h-12 rounded-2xl bg-rose-100 flex items-center justify-center mx-auto mb-4">
+                    <Trash2 size={22} className="text-rose-600"/>
+                  </div>
+                  <h3 className="text-center font-extrabold text-lg text-slate-900">تأكيد حذف المدرسة</h3>
+                  <p className="text-center text-sm text-slate-500 mt-1 mb-4">
+                    سيتم حذف مدرسة <b className="text-slate-900">{confirmDeleteSchool.name}</b> بشكل نهائي. هذا الإجراء لا يمكن التراجع عنه.
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={async () => {
+                        await deleteSchool.mutateAsync(confirmDeleteSchool.id);
+                        setConfirmDeleteSchool(null);
+                      }}
+                      disabled={deleteSchool.isPending}
+                      className="flex-1 h-11 rounded-xl bg-rose-600 text-white font-bold text-sm hover:bg-rose-700 disabled:opacity-50 inline-flex items-center justify-center gap-2"
+                    >
+                      {deleteSchool.isPending ? 'جاري الحذف...' : <><Trash2 size={14}/> تأكيد الحذف</>}
+                    </button>
+                    <button
+                      onClick={() => setConfirmDeleteSchool(null)}
+                      className="flex-1 h-11 rounded-xl bg-slate-100 font-bold text-sm hover:bg-slate-200"
+                    >إلغاء</button>
                   </div>
                 </div>
               </div>
@@ -668,53 +943,206 @@ const FounderDashboard = () => {
         )}
 
         {/* ───── 3️⃣ طلبات التسجيل ───── */}
+        {/* ───── 3️⃣ طلبات التسجيل ───── */}
         {section === "requests" && (
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-            {reqLoading ? <p className="p-6 text-slate-500">جاري التحميل...</p> : requests.length === 0 ? <p className="p-6 text-slate-500 text-center">لا توجد طلبات تسجيل.</p> : (
-              <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-slate-50 text-slate-500">
-                  <tr>
-                    <th className="text-right p-4 font-semibold">اسم المدرسة</th>
-                    <th className="text-right p-4 font-semibold">المسؤول</th>
-                    <th className="text-right p-4 font-semibold">الهاتف</th>
-                    <th className="text-right p-4 font-semibold">البريد</th>
-                    <th className="text-right p-4 font-semibold">الخطة المطلوبة</th>
-                    <th className="text-right p-4 font-semibold">الحالة</th>
-                    <th className="text-right p-4 font-semibold">إجراء</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {requests.map((r) => (
-                    <tr key={r.id} className="border-t border-slate-100 hover:bg-slate-50">
-                      <td className="p-4 font-bold text-slate-900">{r.school_name || r.full_name}</td>
-                      <td className="p-4 text-slate-600">{r.director_name || r.full_name || "-"}</td>
-                      <td className="p-4 text-slate-600 flex items-center gap-1"><Phone size={12}/>{r.phone || "-"}</td>
-                      <td className="p-4 text-slate-500">{r.email || "-"}</td>
-                      <td className="p-4"><span className="px-2 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700">{r.plan || r.role_requested || "starter"}</span></td>
-                      <td className="p-4">
-                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${r.status === "approved" ? "bg-emerald-100 text-emerald-700" : r.status === "rejected" ? "bg-rose-100 text-rose-700" : r.status==="on_hold" ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-600"}`}>
-                          {r.status === "approved" ? "مقبول" : r.status === "rejected" ? "مرفوض" : r.status==="on_hold" ? "معلق" : "قيد الانتظار"}
-                        </span>
-                      </td>
-                      <td className="p-4">
-                        {r.status !== "approved" && r.status !== "rejected" ? (
-                          <div className="flex gap-1 flex-wrap">
-                            <button onClick={() => acceptRequest(r)} className="flex items-center gap-1 bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-emerald-700"><CheckCircle2 size={12}/> قبول</button>
-                            <button onClick={() => updateRequest.mutate({ id: r.id, status: "rejected" })} className="flex items-center gap-1 bg-rose-50 text-rose-700 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-rose-100"><XCircle size={12}/> رفض</button>
-                            <button onClick={() => updateRequest.mutate({ id: r.id, status: "on_hold" })} className="flex items-center gap-1 bg-amber-50 text-amber-700 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-amber-100"><PauseCircle size={12}/> تعليق</button>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-slate-400">— تمت المعالجة</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          <div className="space-y-4">
+            {/* Filter Sub-Tabs */}
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-slate-200 shadow-sm">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <button
+                  onClick={() => setReqFilter("all")}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${reqFilter === "all" ? "bg-slate-900 text-white shadow" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
+                >
+                  جميع الطلبات ({requests.length})
+                </button>
+                <button
+                  onClick={() => setReqFilter("schools")}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1 ${reqFilter === "schools" ? "bg-blue-600 text-white shadow" : "bg-blue-50 text-blue-700 hover:bg-blue-100"}`}
+                >
+                  <Building2 size={13}/> طلبات المدارس ({requests.filter(r => r.role_requested !== 'student' && r.role_requested !== 'teacher' && r.plan !== 'student_free' && r.plan !== 'teacher_free').length})
+                </button>
+                <button
+                  onClick={() => setReqFilter("students")}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1 ${reqFilter === "students" ? "bg-emerald-600 text-white shadow" : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"}`}
+                >
+                  <Users size={13}/> طلبات الطلاب ({requests.filter(r => r.role_requested === 'student' || r.plan === 'student_free').length})
+                </button>
+                <button
+                  onClick={() => setReqFilter("teachers")}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1 ${reqFilter === "teachers" ? "bg-indigo-600 text-white shadow" : "bg-indigo-50 text-indigo-700 hover:bg-indigo-100"}`}
+                >
+                  <GraduationCap size={13}/> طلبات المعلمين ({requests.filter(r => r.role_requested === 'teacher' || r.plan === 'teacher_free').length})
+                </button>
               </div>
-            )}
-            <p className="p-4 text-xs text-slate-400 bg-slate-50 border-t">عند القبول يتم إنشاء حساب المدرسة تلقائياً (جدول schools) وتفعيل الاشتراك.</p>
+              <button
+                onClick={() => {
+                  queryClient.invalidateQueries({ queryKey: ["founder-registrations"] });
+                  queryClient.invalidateQueries({ queryKey: ["founder-teacher-student-regs"] });
+                  toast.success("تم تحديث قائمة الطلبات");
+                }}
+                className="text-xs font-bold text-slate-500 hover:text-slate-900 flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50"
+              >
+                <RefreshCw size={12}/> تحديث
+              </button>
+            </div>
+
+            {/* Requests Table */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+              {(() => {
+                const filteredReqs = requests.filter(r => {
+                  const isStudent = r.role_requested === 'student' || r.plan === 'student_free';
+                  const isTeacher = r.role_requested === 'teacher' || r.plan === 'teacher_free';
+                  const isSchool = !isStudent && !isTeacher;
+                  if (reqFilter === "schools") return isSchool;
+                  if (reqFilter === "students") return isStudent;
+                  if (reqFilter === "teachers") return isTeacher;
+                  return true;
+                });
+
+                if (reqLoading) return <p className="p-8 text-slate-500 text-center">جاري التحميل...</p>;
+                if (filteredReqs.length === 0) {
+                  return (
+                    <div className="p-12 text-center">
+                      <FileText size={40} className="text-slate-200 mx-auto mb-3"/>
+                      <p className="text-slate-600 font-bold">لا توجد طلبات في هذا القسم حالياً</p>
+                      <p className="text-xs text-slate-400 mt-1">تظهر هنا الطلبات فور إرسالها من صفحة الهبوط أو صفحات التسجيل</p>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-slate-50 text-slate-500">
+                        <tr>
+                          <th className="text-right p-4 font-semibold">مقدم الطلب</th>
+                          <th className="text-right p-4 font-semibold">النوع / الخطة</th>
+                          <th className="text-right p-4 font-semibold">البريد / الهاتف</th>
+                          <th className="text-right p-4 font-semibold">المدينة / المدرسة</th>
+                          <th className="text-right p-4 font-semibold">التاريخ</th>
+                          <th className="text-right p-4 font-semibold">الحالة</th>
+                          <th className="text-right p-4 font-semibold">إجراءات</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredReqs.map((r) => {
+                          const isStudent = r.role_requested === "student" || r.plan === "student_free";
+                          const isTeacher = r.role_requested === "teacher" || r.plan === "teacher_free";
+                          const isSchool = !isStudent && !isTeacher;
+
+                          return (
+                            <tr key={r.id} className="border-t border-slate-100 hover:bg-slate-50">
+                              <td className="p-4">
+                                <p className="font-bold text-slate-900">{r.full_name || r.school_name || r.student_name || "-"}</p>
+                                {isStudent && r.director_name && <p className="text-xs text-slate-500">ولي الأمر: {r.director_name}</p>}
+                                {isSchool && r.director_name && <p className="text-xs text-slate-500">المسؤول: {r.director_name}</p>}
+                                {r.grade && <span className="inline-block mt-1 text-[10px] bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded">الصف: {r.grade}</span>}
+                              </td>
+                              <td className="p-4">
+                                {isStudent && <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">طالب مستقل</span>}
+                                {isTeacher && <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-100 text-indigo-800">معلم مستقل</span>}
+                                {isSchool && <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800">مدرسة ({r.plan || "starter"})</span>}
+                              </td>
+                              <td className="p-4 text-slate-600">
+                                <p className="text-xs font-mono" dir="ltr">{r.email || "-"}</p>
+                                <p className="text-xs font-mono text-slate-500 mt-0.5 flex items-center gap-1" dir="ltr"><Phone size={11}/>{r.phone || "-"}</p>
+                              </td>
+                              <td className="p-4 text-slate-600">
+                                <p className="text-xs font-medium">{r.school_name || "-"}</p>
+                                <p className="text-[11px] text-slate-400">{r.country || "السودان"}</p>
+                              </td>
+                              <td className="p-4 text-xs text-slate-400">
+                                {r.created_at ? new Date(r.created_at).toLocaleDateString('ar-EG') : "-"}
+                              </td>
+                              <td className="p-4">
+                                <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${r.status === "approved" ? "bg-emerald-100 text-emerald-700" : r.status === "rejected" ? "bg-rose-100 text-rose-700" : r.status==="on_hold" ? "bg-amber-100 text-amber-700" : "bg-amber-50 text-amber-700 border border-amber-200"}`}>
+                                  {r.status === "approved" ? "مقبول ✓" : r.status === "rejected" ? "مرفوض ✕" : r.status==="on_hold" ? "معلق ⏸" : "قيد الانتظار ⏳"}
+                                </span>
+                              </td>
+                              <td className="p-4">
+                                <div className="flex gap-1.5 flex-wrap items-center">
+                                  <button
+                                    onClick={() => setViewRequestDetail(r)}
+                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold"
+                                    title="عرض كل التفاصيل"
+                                  >
+                                    <Eye size={13}/> التفاصيل
+                                  </button>
+
+                                  {r.status !== "approved" && r.status !== "rejected" ? (
+                                    <>
+                                      <button
+                                        onClick={() => {
+                                          if (isStudent) {
+                                            setStudentApproval({ requestId: r.id, fullName: r.full_name || r.student_name, email: r.email, data: r });
+                                            setStudentUsername(r.email ? r.email.split('@')[0] : `student_${Date.now().toString().slice(-4)}`);
+                                            setStudentPassword(genPassword(8));
+                                          } else if (isTeacher) {
+                                            setTeacherApproval({ requestId: r.id, fullName: r.full_name, email: r.email, data: r });
+                                            setTeacherUsername(r.email ? r.email.split('@')[0] : `teacher_${Date.now().toString().slice(-4)}`);
+                                            setTeacherPassword(genPassword(8));
+                                          } else {
+                                            openSchoolApproval(r);
+                                          }
+                                        }}
+                                        className="flex items-center gap-1 bg-emerald-600 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold hover:bg-emerald-700 shadow-sm"
+                                      >
+                                        <CheckCircle2 size={13}/> قبول
+                                      </button>
+                                      <button
+                                        onClick={async () => {
+                                          await entities.RegistrationRequest.update(r.id, { status: "rejected" });
+                                          toast.success("تم رفض الطلب");
+                                          queryClient.invalidateQueries({ queryKey: ["founder-registrations"] });
+                                          queryClient.invalidateQueries({ queryKey: ["founder-teacher-student-regs"] });
+                                        }}
+                                        className="flex items-center gap-1 bg-rose-50 text-rose-700 px-2 py-1.5 rounded-lg text-xs font-bold hover:bg-rose-100"
+                                      >
+                                        <XCircle size={13}/> رفض
+                                      </button>
+                                      <button
+                                        onClick={async () => {
+                                          await entities.RegistrationRequest.update(r.id, { status: "on_hold" });
+                                          toast.success("تم تعليق الطلب");
+                                          queryClient.invalidateQueries({ queryKey: ["founder-registrations"] });
+                                          queryClient.invalidateQueries({ queryKey: ["founder-teacher-student-regs"] });
+                                        }}
+                                        className="flex items-center gap-1 bg-amber-50 text-amber-700 px-2 py-1.5 rounded-lg text-xs font-bold hover:bg-amber-100"
+                                      >
+                                        <PauseCircle size={13}/> تعليق
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      {/* زر استخراج بيانات الدخول للطلبات المقبولة من نوع مدرسة */}
+                                      {r.status === 'approved' && !isStudent && !isTeacher && (
+                                        <button
+                                          onClick={() => showDeliveryForRequest(r)}
+                                          className="flex items-center gap-1 bg-violet-600 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold hover:bg-violet-700 shadow-sm"
+                                          title="استخراج بيانات الدخول والرابط المخصص"
+                                        >
+                                          <KeyRound size={13}/> بيانات الدخول
+                                        </button>
+                                      )}
+                                      {(r.status === 'rejected' || r.status === 'on_hold' || (r.status === 'approved' && (isStudent || isTeacher))) && (
+                                        <span className="text-xs text-slate-400 font-medium">تمت المعالجة</span>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })()}
+              <div className="p-3 text-xs text-slate-500 bg-slate-50 border-t flex items-center justify-between">
+                <span>يتم تحديث الطلبات تلقائياً فور تسجيل الطالب أو المعلم أو المدرسة من صفحات التسجيل العامة.</span>
+              </div>
+            </div>
           </div>
         )}
 
@@ -725,7 +1153,7 @@ const FounderDashboard = () => {
               <h3 className="font-bold text-slate-900 flex items-center gap-2"><Users size={18} className="text-violet-500"/> طلبات تسجيل المعلمين والطلاب</h3>
               <span className="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded-full font-bold">{teacherStudentRequests.length} طلب</span>
             </div>
-            {tsReqLoading ? <p className="p-6 text-slate-500">جاري التحميل...</p> : teacherStudentRequests.length === 0 ? (
+            {tsReqLoading ? <p className="p-6 text-slate-500 text-center">جاري التحميل...</p> : teacherStudentRequests.length === 0 ? (
               <div className="p-12 text-center">
                 <Users size={40} className="text-slate-200 mx-auto mb-3"/>
                 <p className="text-slate-500 font-bold">لا توجد طلبات معلمين أو طلاب بعد</p>
@@ -748,15 +1176,15 @@ const FounderDashboard = () => {
                 </thead>
                 <tbody>
                   {teacherStudentRequests.map((r) => {
-                    const isTeacher = r.role_requested === "teacher";
+                    const isTeacher = r.role_requested === "teacher" || r.plan === "teacher_free";
                     return (
                     <tr key={r.id} className="border-t border-slate-100 hover:bg-slate-50">
                       <td className="p-4">
-                        <p className="font-bold text-slate-900">{r.student_name || r.full_name || "-"}</p>
+                        <p className="font-bold text-slate-900">{r.full_name || r.student_name || "-"}</p>
                         {r.director_name && <p className="text-xs text-slate-400">ولي الأمر: {r.director_name}</p>}
                       </td>
                       <td className="p-4">
-                        <span className={`px-2 py-1 rounded-full text-xs font-bold ${isTeacher ? "bg-blue-100 text-blue-700" : "bg-emerald-100 text-emerald-700"}`}>
+                        <span className={`px-2 py-1 rounded-full text-xs font-bold ${isTeacher ? "bg-indigo-100 text-indigo-700" : "bg-emerald-100 text-emerald-700"}`}>
                           {isTeacher ? "معلم" : "طالب"}
                         </span>
                       </td>
@@ -776,33 +1204,45 @@ const FounderDashboard = () => {
                         </span>
                       </td>
                       <td className="p-4">
-                        {r.status !== "approved" && r.status !== "rejected" ? (
-                          <div className="flex gap-1 flex-wrap">
-                            <button onClick={() => {
-                              if (isTeacher) {
-                                setTeacherApproval({ requestId: r.id, fullName: r.student_name || r.full_name, email: r.email });
-                                setTeacherUsername(r.email || "");
-                                setTeacherPassword("");
-                              } else {
-                                setStudentApproval({ requestId: r.id, fullName: r.student_name || r.full_name, email: r.email });
-                                setStudentUsername(r.email || "");
-                                setStudentPassword("");
-                              }
-                            }} className="flex items-center gap-1 bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-emerald-700"><CheckCircle2 size={12}/> قبول</button>
-                            <button onClick={async () => {
-                              await entities.RegistrationRequest.update(r.id, { status: "rejected" });
-                              toast.success(`تم رفض الطلب`);
-                              queryClient.invalidateQueries({ queryKey: ["founder-teacher-student-regs"] });
-                            }} className="flex items-center gap-1 bg-rose-50 text-rose-700 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-rose-100"><XCircle size={12}/> رفض</button>
-                            <button onClick={async () => {
-                              await entities.RegistrationRequest.update(r.id, { status: "on_hold" });
-                              toast.success(`تم تعليق الطلب`);
-                              queryClient.invalidateQueries({ queryKey: ["founder-teacher-student-regs"] });
-                            }} className="flex items-center gap-1 bg-amber-50 text-amber-700 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-amber-100"><PauseCircle size={12}/> تعليق</button>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-slate-400">— تمت المعالجة</span>
-                        )}
+                        <div className="flex gap-1 flex-wrap items-center">
+                          <button
+                            onClick={() => setViewRequestDetail(r)}
+                            className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600"
+                            title="عرض كل التفاصيل"
+                          >
+                            <Eye size={14}/>
+                          </button>
+
+                          {r.status !== "approved" && r.status !== "rejected" ? (
+                            <>
+                              <button onClick={() => {
+                                if (isTeacher) {
+                                  setTeacherApproval({ requestId: r.id, fullName: r.full_name || r.student_name, email: r.email, data: r });
+                                  setTeacherUsername(r.email ? r.email.split('@')[0] : `teacher_${Date.now().toString().slice(-4)}`);
+                                  setTeacherPassword(genPassword(8));
+                                } else {
+                                  setStudentApproval({ requestId: r.id, fullName: r.full_name || r.student_name, email: r.email, data: r });
+                                  setStudentUsername(r.email ? r.email.split('@')[0] : `student_${Date.now().toString().slice(-4)}`);
+                                  setStudentPassword(genPassword(8));
+                                }
+                              }} className="flex items-center gap-1 bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-emerald-700"><CheckCircle2 size={12}/> قبول</button>
+                              <button onClick={async () => {
+                                await entities.RegistrationRequest.update(r.id, { status: "rejected" });
+                                toast.success(`تم رفض الطلب`);
+                                queryClient.invalidateQueries({ queryKey: ["founder-registrations"] });
+                                queryClient.invalidateQueries({ queryKey: ["founder-teacher-student-regs"] });
+                              }} className="flex items-center gap-1 bg-rose-50 text-rose-700 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-rose-100"><XCircle size={12}/> رفض</button>
+                              <button onClick={async () => {
+                                await entities.RegistrationRequest.update(r.id, { status: "on_hold" });
+                                toast.success(`تم تعليق الطلب`);
+                                queryClient.invalidateQueries({ queryKey: ["founder-registrations"] });
+                                queryClient.invalidateQueries({ queryKey: ["founder-teacher-student-regs"] });
+                              }} className="flex items-center gap-1 bg-amber-50 text-amber-700 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-amber-100"><PauseCircle size={12}/> تعليق</button>
+                            </>
+                          ) : (
+                            <span className="text-xs text-slate-400">— تمت المعالجة</span>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   )})}
@@ -810,7 +1250,7 @@ const FounderDashboard = () => {
               </table>
               </div>
             )}
-            <p className="p-4 text-xs text-slate-400 bg-slate-50 border-t">هذه الطلبات تأتي من صفحات التسجيل العامة (/student-register و /public-registration). عند القبول، يمكن للمعلم/الطالب استخدام حسابه للدخول.</p>
+            <p className="p-4 text-xs text-slate-400 bg-slate-50 border-t">هذه الطلبات تأتي من صفحات التسجيل العامة (/student-register و /teacher-register). عند القبول، يتم تفعيل الحساب فوراً.</p>
           </div>
         )}
 
@@ -1033,40 +1473,69 @@ const FounderDashboard = () => {
         {delivery && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[60] p-4" onClick={()=>setDelivery(null)}>
             <div className="bg-white rounded-[28px] max-w-lg w-full shadow-2xl overflow-hidden" onClick={e=>e.stopPropagation()} dir="rtl">
-              <div className="bg-gradient-to-br from-violet-600 via-blue-600 to-emerald-500 p-6 text-white">
+              <div className={`bg-gradient-to-br ${delivery.isRetrieved ? 'from-violet-700 via-indigo-600 to-blue-500' : 'from-violet-600 via-blue-600 to-emerald-500'} p-6 text-white`}>
                 <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center mb-3"><KeyRound className="text-white" size={24}/></div>
-<h3 className="text-xl font-black">تم إنشاء اشتراك المدرسة ✅</h3>
-                <p className="text-sm text-white/90 mt-1">سلّم هذه البيانات للمسؤول — كل بيانات المدرسة معزولة تلقائياً</p>
+                <h3 className="text-xl font-black">{delivery.isRetrieved ? 'بيانات دخول المدرسة 🔑' : 'تم إنشاء اشتراك المدرسة ✅'}</h3>
+                <p className="text-sm text-white/90 mt-1">{delivery.isRetrieved ? 'بيانات الدخول الخاصة بالمدرسة — يمكنك إرسالها في أي وقت' : 'سلّم هذه البيانات للمسؤول — كل بيانات المدرسة معزولة تلقائياً'}</p>
                 <p className="text-xs bg-white/15 rounded-lg px-3 py-1.5 mt-3 inline-block">{delivery.school.name} • باقة {delivery.school.plan} • {delivery.school.billing_cycle === 'yearly' ? 'سنوي' : 'شهري'}</p>
               </div>
               <div className="p-6 space-y-4">
                 <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 space-y-3">
                   <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 text-xs font-bold text-slate-500"><Link2 size={14}/> رابط الدخول</div>
-                    <button onClick={()=>{navigator.clipboard.writeText(delivery.loginUrl); toast.success("تم نسخ الرابط");}} className="text-xs font-bold text-blue-600 hover:underline inline-flex items-center gap-1"><Copy size={12}/> نسخ</button>
+                    <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
+                      <Link2 size={14} className="text-emerald-600"/> 
+                      <span>رابط بوابة المدرسة المخصصة (Gateway URL)</span>
+                    </div>
+                    <button onClick={()=>{navigator.clipboard.writeText(delivery.loginUrl); toast.success("تم نسخ رابط البوابة بنجاح");}} className="text-xs font-bold text-blue-600 hover:underline inline-flex items-center gap-1"><Copy size={12}/> نسخ الرابط</button>
                   </div>
                   <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm font-mono text-slate-800" dir="ltr">
-                    <span className="flex-1 truncate">{delivery.loginUrl}</span>
+                    <span className="flex-1 truncate font-bold text-emerald-800">{delivery.loginUrl}</span>
                     <a href={delivery.loginUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline"><ExternalLink size={14}/></a>
                   </div>
-                  <p className="text-[11px] text-slate-400">يختار المدير: <b>الإدارة</b> → يدخل البريد وكلمة المرور</p>
+                  <p className="text-[11px] text-slate-500">هذا الرابط خاص بمدرستكم ويعرض شعارها واسمها تلقائياً، ويدخل المدير مباشرة عبره إلى لوحة التحكم.</p>
                 </div>
 
                 <div className="grid grid-cols-1 gap-3">
                   <div className="bg-white border border-slate-200 rounded-2xl p-4">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-500 flex items-center gap-1"><Mail size={14}/> البريد / اسم المستخدم</span>
-                      <button onClick={()=>{navigator.clipboard.writeText(delivery.adminEmail); toast.success("تم نسخ البريد");}} className="text-xs font-bold text-blue-600 hover:underline inline-flex items-center gap-1"><Copy size={12}/> نسخ</button>
+                      <span className="text-xs font-bold text-slate-500 flex items-center gap-1"><Mail size={14}/> اسم المستخدم / البريد</span>
+                      <button onClick={()=>{navigator.clipboard.writeText(delivery.adminEmail); toast.success("تم نسخ اسم المستخدم");}} className="text-xs font-bold text-blue-600 hover:underline inline-flex items-center gap-1"><Copy size={12}/> نسخ</button>
                     </div>
                     <p className="mt-1 text-sm font-bold text-slate-900 font-mono" dir="ltr">{delivery.adminEmail}</p>
                   </div>
                   <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-amber-700 flex items-center gap-1"><Lock size={14}/> كلمة المرور المؤقتة</span>
-                      <button onClick={()=>{navigator.clipboard.writeText(delivery.password); toast.success("تم نسخ كلمة المرور");}} className="text-xs font-bold text-amber-700 hover:underline inline-flex items-center gap-1"><Copy size={12}/> نسخ</button>
+                      <span className="text-xs font-bold text-amber-700 flex items-center gap-1"><Lock size={14}/> كلمة المرور {delivery.isRetrieved ? '' : 'المؤقتة'}</span>
+                      <div className="flex items-center gap-2">
+                        {delivery.isRetrieved && (
+                          <button
+                            onClick={async () => {
+                              const newPw = genPassword(10);
+                              try {
+                                const admins = await entities.SystemAdmin.filter({ school_id: delivery.school.id });
+                                if (admins && admins.length > 0) {
+                                  await entities.SystemAdmin.update(admins[0].id, { portal_password: newPw });
+                                  setDelivery(prev => ({ ...prev, password: newPw, isRetrieved: false }));
+                                  toast.success('تم إعادة تعيين كلمة المرور — انسخها الآن');
+                                } else {
+                                  toast.error('لم يتم العثور على حساب المدير');
+                                }
+                              } catch(e) { toast.error('فشل إعادة التعيين'); }
+                            }}
+                            className="text-xs font-bold text-violet-700 hover:underline inline-flex items-center gap-1"
+                          >
+                            <RefreshCw size={11}/> إعادة تعيين
+                          </button>
+                        )}
+                        <button onClick={()=>{navigator.clipboard.writeText(delivery.password); toast.success('تم نسخ كلمة المرور');}} className="text-xs font-bold text-amber-700 hover:underline inline-flex items-center gap-1"><Copy size={12}/> نسخ</button>
+                      </div>
                     </div>
                     <p className="mt-1 text-base font-black text-amber-900 font-mono tracking-wider" dir="ltr">{delivery.password}</p>
-                    <p className="text-[11px] text-amber-700 mt-1">يُنصح بتغييرها بعد أول دخول — لا تُخزن كنص واضح بعد التسليم</p>
+                    {delivery.isRetrieved ? (
+                      <p className="text-[11px] text-amber-700 mt-1">كلمة المرور الحالية — إذا غيّرها المدير لن تُعرض هنا. استخدم زر «إعادة تعيين» لتوليد كلمة مرور جديدة وإرسالها.</p>
+                    ) : (
+                      <p className="text-[11px] text-amber-700 mt-1">يُنصح بتغييرها بعد أول دخول — لا تُخزن كنص واضح بعد التسليم</p>
+                    )}
                   </div>
                 </div>
 
@@ -1075,23 +1544,23 @@ const FounderDashboard = () => {
                 </div>
 
                 <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 text-xs leading-relaxed text-blue-900">
-                  <b>ماذا يستطيع المدير الآن؟</b> تسجيل دخول → إنشاء المعلمين/الطلاب/أولياء الأمور → كلهم يُربطون تلقائياً بـ <b>{delivery.school.name}</b> ولا يرون أي مدرسة أخرى. الاشتراك: <b>{delivery.school.plan}</b> — حالته <b>نشط</b> ويمكنك تعليقه من تبويب المدارس.
+                  <b>ماذا يستطيع المدير الآن؟</b> الدخول عبر الرابط المخصص للمدرسة أعلاه → إدارة الطلاب والمعلمين والشؤون المالية والمناهج الخاصة بمدرسته بكل أمان وعزل كامل.
                 </div>
 
                 <div className="flex gap-2">
                   <button onClick={()=>{
                     const cycle = delivery.school.billing_cycle === 'yearly' ? 'سنوي' : 'شهري';
-                    const msg = `مرحباً ${delivery.school.director} 👋\nتم تفعيل اشتراك مدرستكم *${delivery.school.name}* على منصة EduTrack\n\n🔗 رابط الدخول: ${delivery.loginUrl}\nاختر: الإدارة\n👤 البريد: ${delivery.adminEmail}\n🔑 كلمة المرور: ${delivery.password}\n\nالخطة: ${delivery.school.plan} (${cycle})\nبدء الاشتراك: ${delivery.school.subscription_start_date ? new Date(delivery.school.subscription_start_date).toLocaleDateString('ar-EG') : 'اليوم'}\nينتهي في: ${delivery.school.expires_at ? new Date(delivery.school.expires_at).toLocaleDateString('ar-EG') : '—'}\n\nيرجى تغيير كلمة المرور بعد أول دخول.`;
+                    const msg = `مرحباً ${delivery.school.director} 👋\nتم تفعيل اشتراك مدرستكم *${delivery.school.name}* على منصة EduTrack بنجاح! 🏫\n\n🔗 رابط بوابة الدخول الخاصة بمدرستكم:\n${delivery.loginUrl}\n\n👤 اسم المستخدم: ${delivery.adminEmail}\n🔑 كلمة المرور: ${delivery.password}\n\nالخطة: ${delivery.school.plan} (${cycle})\nينتهي الاشتراك في: ${delivery.school.expires_at ? new Date(delivery.school.expires_at).toLocaleDateString('ar-EG') : '—'}\n\nيرجى الدخول عبر الرابط المخصص لمدرستكم وتغيير كلمة المرور بعد أول دخول.`;
                     const url = `https://wa.me/${(delivery.school.phone||"").replace(/[^0-9]/g,"")}?text=${encodeURIComponent(msg)}`;
                     if((delivery.school.phone||"").trim()) window.open(url, "_blank");
                     else { navigator.clipboard.writeText(msg); toast.success("تم نسخ رسالة الواتساب — الصقها يدوياً"); }
-                  }} className="flex-1 h-11 rounded-xl bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 inline-flex items-center justify-center gap-2"><Send size={16}/> إرسال واتساب</button>
+                  }} className="flex-1 h-11 rounded-xl bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 inline-flex items-center justify-center gap-2 shadow-sm"><Send size={16}/> إرسال عبر واتساب</button>
                   <button onClick={()=>{
                     const cycle = delivery.school.billing_cycle === 'yearly' ? 'سنوي' : 'شهري';
-                    const subject = `بيانات دخول EduTrack — ${delivery.school.name}`;
-                    const body = `مرحباً ${delivery.school.director},\n\nتم تفعيل اشتراك مدرستكم ${delivery.school.name} (باقة ${delivery.school.plan} - ${cycle}).\n\nرابط الدخول: ${delivery.loginUrl}\nاختر: الإدارة\nالبريد: ${delivery.adminEmail}\nكلمة المرور: ${delivery.password}\n\nبدء الاشتراك: ${delivery.school.subscription_start_date ? new Date(delivery.school.subscription_start_date).toLocaleDateString('ar-EG') : 'اليوم'}\nينتهي في: ${delivery.school.expires_at ? new Date(delivery.school.expires_at).toLocaleDateString('ar-EG') : '—'}\n\nيرجى تغيير كلمة المرور بعد أول دخول.\n`;
+                    const subject = `بيانات الدخول ورابط البوابة — ${delivery.school.name} (EduTrack)`;
+                    const body = `مرحباً ${delivery.school.director},\n\nتم تفعيل اشتراك مدرستكم ${delivery.school.name} على منصة EduTrack (باقة ${delivery.school.plan} - ${cycle}).\n\n🔗 رابط بوابة الدخول الخاصة بمدرستكم:\n${delivery.loginUrl}\n\n👤 اسم المستخدم: ${delivery.adminEmail}\n🔑 كلمة المرور: ${delivery.password}\n\nينتهي الاشتراك في: ${delivery.school.expires_at ? new Date(delivery.school.expires_at).toLocaleDateString('ar-EG') : '—'}\n\nيرجى الدخول وتغيير كلمة المرور بعد أول تسجيل دخول.\n`;
                     window.location.href = `mailto:${delivery.adminEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-                  }} className="flex-1 h-11 rounded-xl border border-slate-200 bg-white font-bold text-sm hover:bg-slate-50 inline-flex items-center justify-center gap-2"><Mail size={16}/> إرسال بريد</button>
+                  }} className="flex-1 h-11 rounded-xl border border-slate-200 bg-white font-bold text-sm hover:bg-slate-50 inline-flex items-center justify-center gap-2"><Mail size={16}/> إرسال عبر بريد</button>
                 </div>
                 <div className="flex gap-2">
                   <button onClick={()=>window.print()} className="flex-1 h-10 rounded-xl border border-slate-200 bg-white font-bold text-sm hover:bg-slate-50 inline-flex items-center justify-center gap-2"><Printer size={16}/> طباعة</button>
@@ -1103,6 +1572,191 @@ const FounderDashboard = () => {
                 <button onClick={()=>setDelivery(null)} className="w-full h-10 rounded-xl bg-slate-100 font-bold text-sm hover:bg-slate-200">إغلاق — تم التسليم</button>
                 <p className="text-[11px] text-center text-slate-400">نصيحة: سلّم كلمة المرور مرة واحدة فقط. المدير يغيّرها، ويمكنك إعادة تعيينها لاحقاً من إدارة المدارس بزر "حساب المدير".</p>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Details View Modal */}
+        {viewRequestDetail && (
+          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setViewRequestDetail(null)}>
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center font-bold">
+                    <FileText size={20}/>
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-base text-slate-900">تفاصيل طلب التسجيل</h3>
+                    <p className="text-xs text-slate-500">معرف الطلب: <span className="font-mono">{viewRequestDetail.id}</span></p>
+                  </div>
+                </div>
+                <button onClick={() => setViewRequestDetail(null)} className="text-slate-400 hover:text-slate-700 p-1.5 rounded-lg hover:bg-slate-100">
+                  ✕
+                </button>
+              </div>
+
+              <div className="space-y-3 text-sm">
+                <div className="grid grid-cols-2 gap-3 bg-slate-50 p-4 rounded-2xl">
+                  <div>
+                    <span className="text-xs text-slate-400 block font-semibold">نوع الطلب</span>
+                    <span className="font-bold text-slate-800">
+                      {viewRequestDetail.role_requested === "student" || viewRequestDetail.plan === "student_free" ? "طالب مستقل 🎓" :
+                       viewRequestDetail.role_requested === "teacher" || viewRequestDetail.plan === "teacher_free" ? "معلم مستقل 👨‍🏫" :
+                       `مدرسة (${viewRequestDetail.plan || "starter"}) 🏫`}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-xs text-slate-400 block font-semibold">حالة الطلب</span>
+                    <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-bold ${viewRequestDetail.status === "approved" ? "bg-emerald-100 text-emerald-700" : viewRequestDetail.status === "rejected" ? "bg-rose-100 text-rose-700" : viewRequestDetail.status === "on_hold" ? "bg-amber-100 text-amber-700" : "bg-blue-100 text-blue-700"}`}>
+                      {viewRequestDetail.status === "approved" ? "مقبول" : viewRequestDetail.status === "rejected" ? "مرفوض" : viewRequestDetail.status === "on_hold" ? "معلق" : "قيد الانتظار"}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="space-y-2 p-1">
+                  <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">الاسم الكامل</span><b className="text-slate-900">{viewRequestDetail.full_name || viewRequestDetail.student_name || viewRequestDetail.school_name || "-"}</b></div>
+                  {viewRequestDetail.director_name && <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">ولي الأمر / المدير</span><b className="text-slate-900">{viewRequestDetail.director_name}</b></div>}
+                  <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">البريد الإلكتروني</span><b className="text-slate-900 font-mono text-xs" dir="ltr">{viewRequestDetail.email || "-"}</b></div>
+                  <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">رقم الهاتف</span><b className="text-slate-900 font-mono text-xs" dir="ltr">{viewRequestDetail.phone || "-"}</b></div>
+                  {viewRequestDetail.grade && <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">الصف الدراسي</span><b className="text-emerald-700 font-bold">{viewRequestDetail.grade}</b></div>}
+                  {viewRequestDetail.school_name && <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">المدرسة</span><b className="text-slate-900">{viewRequestDetail.school_name}</b></div>}
+                  <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">المدينة / الدولة</span><b className="text-slate-900">{viewRequestDetail.country || "السودان"}</b></div>
+                  {viewRequestDetail.subjects && <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">المواد الدراسية</span><b className="text-slate-900">{viewRequestDetail.subjects}</b></div>}
+                  {viewRequestDetail.experience_years && <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">سنوات الخبرة</span><b className="text-slate-900">{viewRequestDetail.experience_years} سنوات</b></div>}
+                  {viewRequestDetail.created_at && <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">تاريخ تقديم الطلب</span><b className="text-slate-700">{new Date(viewRequestDetail.created_at).toLocaleString('ar-EG')}</b></div>}
+                </div>
+
+                {viewRequestDetail.notes && (
+                  <div className="bg-amber-50/70 border border-amber-100 p-3.5 rounded-2xl mt-2">
+                    <span className="text-xs font-bold text-amber-900 block mb-1">ملاحظات مقدم الطلب:</span>
+                    <p className="text-xs text-amber-800 leading-relaxed whitespace-pre-wrap">{viewRequestDetail.notes}</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-2 mt-6 flex-wrap">
+                {(() => {
+                  const isStudent = viewRequestDetail.role_requested === "student" || viewRequestDetail.plan === "student_free";
+                  const isTeacher = viewRequestDetail.role_requested === "teacher" || viewRequestDetail.plan === "teacher_free";
+                  const isSchool = !isStudent && !isTeacher;
+                  const isOpen = viewRequestDetail.status !== "approved" && viewRequestDetail.status !== "rejected";
+
+                  return (
+                    <>
+                      {isOpen && (
+                        <button
+                          onClick={() => {
+                            if (isStudent) {
+                              setStudentApproval({ requestId: viewRequestDetail.id, fullName: viewRequestDetail.full_name || viewRequestDetail.student_name, email: viewRequestDetail.email, data: viewRequestDetail });
+                              setStudentUsername(viewRequestDetail.email ? viewRequestDetail.email.split('@')[0] : `student_${Date.now().toString().slice(-4)}`);
+                              setStudentPassword(genPassword(8));
+                            } else if (isTeacher) {
+                              setTeacherApproval({ requestId: viewRequestDetail.id, fullName: viewRequestDetail.full_name, email: viewRequestDetail.email, data: viewRequestDetail });
+                              setTeacherUsername(viewRequestDetail.email ? viewRequestDetail.email.split('@')[0] : `teacher_${Date.now().toString().slice(-4)}`);
+                              setTeacherPassword(genPassword(8));
+                            } else {
+                              openSchoolApproval(viewRequestDetail);
+                            }
+                          }}
+                          className="flex-1 min-w-[140px] h-11 rounded-xl bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 inline-flex items-center justify-center gap-2"
+                        >
+                          <CheckCircle2 size={16}/> قبول
+                        </button>
+                      )}
+                      {isOpen && (
+                        <button
+                          onClick={() => updateRequest.mutate({ id: viewRequestDetail.id, status: "rejected" })}
+                          className="flex-1 min-w-[120px] h-11 rounded-xl bg-rose-50 text-rose-700 font-bold text-sm hover:bg-rose-100 inline-flex items-center justify-center gap-2"
+                        >
+                          <XCircle size={16}/> رفض
+                        </button>
+                      )}
+                      {viewRequestDetail.status === 'approved' && isSchool && (
+                        <button
+                          onClick={() => { showDeliveryForRequest(viewRequestDetail); setViewRequestDetail(null); }}
+                          className="flex-1 min-w-[180px] h-11 rounded-xl bg-violet-600 text-white font-bold text-sm hover:bg-violet-700 inline-flex items-center justify-center gap-2"
+                        >
+                          <KeyRound size={16}/> استخراج بيانات الدخول والرابط
+                        </button>
+                      )}
+                      <button
+                        onClick={() => deleteRequest.mutate(viewRequestDetail.id)}
+                        disabled={deleteRequest.isPending}
+                        className="h-11 px-4 rounded-xl bg-red-600 text-white font-bold text-sm hover:bg-red-700 disabled:opacity-50 inline-flex items-center justify-center gap-2"
+                      >
+                        <Trash2 size={16}/> {deleteRequest.isPending ? "جاري الحذف..." : "حذف الطلب"}
+                      </button>
+                    </>
+                  );
+                })()}
+                <button
+                  onClick={() => setViewRequestDetail(null)}
+                  className="flex-1 min-w-[110px] h-11 rounded-xl bg-slate-900 text-white font-bold text-sm hover:bg-black"
+                >
+                  إغلاق
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* School Approval Modal */}
+        {schoolApproval && (
+          <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => setSchoolApproval(null)}>
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6" onClick={e => e.stopPropagation()} dir="rtl">
+              <h3 className="text-lg font-black text-slate-900 mb-1">إنشاء حساب المدرسة</h3>
+              <p className="text-sm text-slate-500 mb-4">
+                الموافقة على <span className="font-bold text-slate-800">{schoolApproval.school_name || schoolApproval.full_name || "طلب مدرسة"}</span> — أدخل اسم المستخدم وكلمة المرور التي سترسل للمدير مع رابط البوابة.
+              </p>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">اسم المستخدم</label>
+                  <input
+                    type="text"
+                    value={schoolUsername}
+                    onChange={e => setSchoolUsername(e.target.value)}
+                    className="w-full h-11 rounded-xl border border-slate-200 px-4 text-sm font-bold focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none"
+                    placeholder="admin@school.com"
+                    dir="ltr"
+                  />
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-bold text-slate-600">كلمة المرور</label>
+                    <button
+                      type="button"
+                      onClick={() => setSchoolPassword(genPassword(10))}
+                      className="text-xs text-emerald-600 hover:underline font-bold flex items-center gap-1"
+                    >
+                      <RefreshCw size={11}/> توليد عشوائي
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    value={schoolPassword}
+                    onChange={e => setSchoolPassword(e.target.value)}
+                    className="w-full h-11 rounded-xl border border-slate-200 px-4 text-sm font-bold focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none font-mono"
+                    placeholder="••••••••••"
+                    dir="ltr"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2 mt-5">
+                <button
+                  onClick={handleApproveSchool}
+                  disabled={approvingSchool}
+                  className="flex-1 h-11 rounded-xl bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 inline-flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {approvingSchool ? "جارٍ الإنشاء..." : <><CheckCircle2 size={14}/> تأكيد وإنشاء الرابط</>}
+                </button>
+                <button
+                  onClick={() => setSchoolApproval(null)}
+                  className="h-11 px-4 rounded-xl bg-slate-100 font-bold text-sm hover:bg-slate-200"
+                >
+                  إلغاء
+                </button>
+              </div>
+              <p className="text-[11px] text-center text-slate-400 mt-3">بعد التأكيد ستظهر بطاقة تحتوي رابط البوابة واسم المستخدم وكلمة المرور مع زر الإرسال عبر البريد الإلكتروني.</p>
             </div>
           </div>
         )}
@@ -1128,12 +1782,21 @@ const FounderDashboard = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1">كلمة المرور (Password)</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-bold text-slate-600">كلمة المرور (Password)</label>
+                    <button
+                      type="button"
+                      onClick={() => setTeacherPassword(genPassword(8))}
+                      className="text-xs text-indigo-600 hover:underline font-bold flex items-center gap-1"
+                    >
+                      <RefreshCw size={11}/> توليد عشوائي
+                    </button>
+                  </div>
                   <input
                     type="text"
                     value={teacherPassword}
                     onChange={e => setTeacherPassword(e.target.value)}
-                    className="w-full h-11 rounded-xl border border-slate-200 px-4 text-sm font-bold focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none"
+                    className="w-full h-11 rounded-xl border border-slate-200 px-4 text-sm font-bold focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none font-mono"
                     placeholder="••••••••"
                     dir="ltr"
                   />
@@ -1180,12 +1843,21 @@ const FounderDashboard = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1">كلمة المرور (Password)</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-bold text-slate-600">كلمة المرور (Password)</label>
+                    <button
+                      type="button"
+                      onClick={() => setStudentPassword(genPassword(8))}
+                      className="text-xs text-emerald-600 hover:underline font-bold flex items-center gap-1"
+                    >
+                      <RefreshCw size={11}/> توليد عشوائي
+                    </button>
+                  </div>
                   <input
                     type="text"
                     value={studentPassword}
                     onChange={e => setStudentPassword(e.target.value)}
-                    className="w-full h-11 rounded-xl border border-slate-200 px-4 text-sm font-bold focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none"
+                    className="w-full h-11 rounded-xl border border-slate-200 px-4 text-sm font-bold focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none font-mono"
                     placeholder="••••••••"
                     dir="ltr"
                   />
@@ -1228,3 +1900,5 @@ const Toggle = ({ label, desc, checked, onChange }) => (
 );
 
 export default FounderDashboard;
+
+

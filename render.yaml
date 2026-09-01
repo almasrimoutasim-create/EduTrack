@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: edutrack
+    name: edutrack-ub8f
     runtime: node
     plan: free
     buildCommand: npm install && npm run build

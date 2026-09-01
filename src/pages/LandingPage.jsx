@@ -84,17 +84,16 @@ export default function LandingPage() {
           </Link>
           <nav className="hidden md:flex items-center gap-6 text-sm font-bold">
             <a href="#features" className="text-stone-600 hover:text-stone-900">{isRTL ? "مميزات المنصة" : "Features"}</a>
-            <Link to="/gateway" className="text-stone-600 hover:text-stone-900">{isRTL ? "بوابات الدخول" : "Portals"}</Link>
+            <a href="#plans" className="text-stone-600 hover:text-stone-900">{isRTL ? "الباقات والأسعار" : "Pricing"}</a>
+            <a href="#contact" className="text-stone-600 hover:text-stone-900">{isRTL ? "تواصل معنا" : "Contact"}</a>
           </nav>
           <div className="flex items-center gap-2">
-            <a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${WHATSAPP_MSG}`} target="_blank" rel="noopener noreferrer" className="hidden sm:inline-flex h-9 px-4 rounded-xl bg-emerald-600 text-white text-xs font-black hover:bg-emerald-700 items-center gap-1.5">
-              <MessageCircle size={14} />{isRTL ? "اطلب نسختك الآن" : "Request Your Copy"}
+            <a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${WHATSAPP_MSG}`} target="_blank" rel="noopener noreferrer" className="hidden sm:inline-flex h-9 px-4 rounded-xl bg-emerald-600 text-white text-xs font-black hover:bg-emerald-700 items-center gap-1.5 shadow-sm">
+              <MessageCircle size={14} />{isRTL ? "استفسار واتساب" : "WhatsApp"}
             </a>
-            <Link to="/register" className="h-9 px-4 rounded-xl bg-white border-2 border-stone-200 text-stone-700 text-xs font-black hover:bg-stone-50 hover:border-stone-300 inline-flex items-center">
-              {isRTL ? "تسجيل جديد" : "Register"}
-            </Link>
-            <Link to="/gateway" className="h-9 px-4 rounded-xl border-2 border-stone-900 text-stone-900 text-xs font-black hover:bg-stone-900 hover:text-white inline-flex items-center">
-              {isRTL ? "تسجيل الدخول" : "Login"}
+            <Link to="/register" className="h-9 px-5 rounded-xl bg-stone-900 text-white text-xs font-black hover:bg-black inline-flex items-center gap-1.5 shadow-md">
+              <Sparkles size={13} className="text-amber-400" />
+              {isRTL ? "طلب نسخة تجريبية" : "Request Demo"}
             </Link>
           </div>
         </div>
@@ -119,18 +118,15 @@ export default function LandingPage() {
                 {isRTL ? "منصة EduTrack تغطي النتائج والشهادات السودانية، شؤون الطلاب، الرسوم، الحضور، والمزيد — بواجهة عربية احترافية وطباعة بجودة الوزارة." : "EduTrack covers results & Sudanese certificates, students, fees, attendance and more — with Arabic UI and ministry-grade print."}
               </p>
               <div className="mt-6 flex flex-wrap gap-3">
-                <Link to="/gateway" className="h-11 px-6 rounded-xl bg-stone-900 text-white font-black text-sm hover:bg-black inline-flex items-center gap-2 shadow-lg">
-                  <Lock size={16} />{isRTL ? "تسجيل دخول المدرسة" : "School Login"}
-                </Link>
-                <Link to="/register" className="h-11 px-6 rounded-xl bg-white border-2 border-stone-900 text-stone-900 font-black text-sm hover:bg-stone-50 inline-flex items-center gap-2 shadow-sm">
-                  <GraduationCap size={16} />{isRTL ? "تسجيل جديد" : "New Registration"}
+                <Link to="/register" className="h-11 px-6 rounded-xl bg-stone-900 text-white font-black text-sm hover:bg-black inline-flex items-center gap-2 shadow-lg">
+                  <GraduationCap size={16} />{isRTL ? "اطلب نسختك التجريبية الآن" : "Request Free Demo"}
                 </Link>
                 <a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${WHATSAPP_MSG}`} target="_blank" rel="noopener noreferrer" className="h-11 px-6 rounded-xl bg-emerald-600 text-white font-black text-sm hover:bg-emerald-700 inline-flex items-center gap-2 shadow-lg">
-                  <Phone size={16} />{isRTL ? "تواصل عبر الواتساب" : "WhatsApp Us"}
+                  <Phone size={16} />{isRTL ? "تواصل مع المبيعات" : "Contact Sales"}
                 </a>
               </div>
               <div className="mt-4 flex items-center gap-3 text-xs text-stone-500">
-                <span className="flex items-center gap-1"><CheckCircle2 size={14} className="text-emerald-500" />{isRTL ? "دعم فني" : "Local support"}</span>
+                <span className="flex items-center gap-1"><CheckCircle2 size={14} className="text-emerald-500" />{isRTL ? "دعم فني مخصص" : "Local support"}</span>
                 <span className="flex items-center gap-1"><ShieldCheck size={14} className="text-sky-500" />{isRTL ? "آمن ومشفّر" : "Secure"}</span>
               </div>
             </motion.div>
@@ -375,9 +371,9 @@ export default function LandingPage() {
               <h4 className="font-black text-white text-sm mb-3">{isRTL ? "روابط سريعة" : "Quick Links"}</h4>
               <ul className="space-y-2 text-sm">
                 <li><a href="#features" className="hover:text-white text-stone-400">{isRTL ? "مميزات المنصة" : "Features"}</a></li>
-                <li><Link to="/gateway" className="hover:text-white text-stone-400">{isRTL ? "بوابات الدخول" : "Portals"}</Link></li>
-                <li><Link to="/register" className="hover:text-white text-stone-400">{isRTL ? "تسجيل جديد" : "Register"}</Link></li>
-                <li><a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${WHATSAPP_MSG}`} target="_blank" rel="noopener noreferrer" className="hover:text-white text-stone-400">{isRTL ? "اطلب نسختك" : "Request Copy"}</a></li>
+                <li><a href="#plans" className="hover:text-white text-stone-400">{isRTL ? "الباقات والأسعار" : "Pricing"}</a></li>
+                <li><Link to="/register" className="hover:text-white text-stone-400">{isRTL ? "طلب اشتراك مدرسة" : "Register School"}</Link></li>
+                <li><a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${WHATSAPP_MSG}`} target="_blank" rel="noopener noreferrer" className="hover:text-white text-stone-400">{isRTL ? "تواصل مباشر واتساب" : "WhatsApp"}</a></li>
               </ul>
             </div>
             <div>
