@@ -35,6 +35,8 @@ const NAV = [
   { id: "schools", label: "إدارة المدارس", icon: Building2 },
   { id: "requests", label: "طلبات التسجيل", icon: FileText },
   { id: "teacher-student-regs", label: "طلبات المعلمين والطلاب", icon: Users },
+  { id: "teachers", label: "إدارة المعلمين", icon: GraduationCap },
+  { id: "students", label: "إدارة الطلاب", icon: Users },
   { id: "subscriptions", label: "الاشتراكات والإيرادات", icon: CreditCard },
   { id: "support", label: "الدعم الفني", icon: LifeBuoy },
   { id: "settings", label: "إعدادات المنصة", icon: Settings },
@@ -165,6 +167,24 @@ const FounderDashboard = () => {
     },
   });
 
+  // ── All approved teachers (from teachers table) ──
+  const { data: allTeachers = [], isLoading: teachersLoading } = useQuery({
+    queryKey: ["founder-teachers"],
+    queryFn: async () => {
+      try { return await entities.Teacher.list("-created_at", 1000); }
+      catch { return []; }
+    },
+  });
+
+  // ── All approved students (from students table) ──
+  const { data: allStudents = [], isLoading: studentsLoading } = useQuery({
+    queryKey: ["founder-students"],
+    queryFn: async () => {
+      try { return await entities.Student.list("-created_at", 1000); }
+      catch { return []; }
+    },
+  });
+
   // ── Support tickets (localStorage) ──
   const [tickets, setTickets] = useState(() => {
     try { return JSON.parse(localStorage.getItem("founder_support_tickets")) || SUPPORT_SEED; }
@@ -237,6 +257,21 @@ const FounderDashboard = () => {
   const last5Requests = [...requests].slice(0, 5);
   const last5Schools = [...schools].slice(0, 5);
 
+  // ── Teacher/Student filtered lists ──
+  const filteredTeachers = allTeachers.filter(t => {
+    const matchSearch = !teacherSearch || t.full_name?.toLowerCase().includes(teacherSearch.toLowerCase()) || t.email?.toLowerCase().includes(teacherSearch.toLowerCase()) || t.employee_id?.toLowerCase().includes(teacherSearch.toLowerCase());
+    const matchStatus = teacherStatusFilter === "all" || t.status === teacherStatusFilter;
+    return matchSearch && matchStatus;
+  });
+  const activeTeachers = allTeachers.filter(t => t.status === "active").length;
+
+  const filteredStudents = allStudents.filter(s => {
+    const matchSearch = !studentSearch || s.full_name?.toLowerCase().includes(studentSearch.toLowerCase()) || s.user_email?.toLowerCase().includes(studentSearch.toLowerCase()) || s.student_id?.toLowerCase().includes(studentSearch.toLowerCase()) || s.phone?.includes(studentSearch);
+    const matchStatus = studentStatusFilter === "all" || s.status === studentStatusFilter;
+    return matchSearch && matchStatus;
+  });
+  const activeStudents = allStudents.filter(s => s.status === "active").length;
+
   // ── Mutations ──
   const updateSchool = useMutation({
     mutationFn: async ({ id, status }) => entities.School.update(id, { subscription_status: status }),
@@ -284,6 +319,44 @@ const FounderDashboard = () => {
       queryClient.invalidateQueries({ queryKey: ["founder-schools"] });
     },
     onError: (e) => toast.error(e.message || "فشل حذف المدرسة"),
+  });
+
+  // ── Teacher management mutations ──
+  const updateTeacher = useMutation({
+    mutationFn: async ({ id, status }) => entities.Teacher.update(id, { status }),
+    onSuccess: () => {
+      toast.success("تم تحديث حالة المعلم");
+      queryClient.invalidateQueries({ queryKey: ["founder-teachers"] });
+    },
+    onError: () => toast.error("تعذر تحديث الحالة"),
+  });
+
+  const deleteTeacher = useMutation({
+    mutationFn: async (id) => entities.Teacher.delete(id),
+    onSuccess: () => {
+      toast.success("تم حذف المعلم بنجاح");
+      queryClient.invalidateQueries({ queryKey: ["founder-teachers"] });
+    },
+    onError: (e) => toast.error(e.message || "فشل حذف المعلم"),
+  });
+
+  // ── Student management mutations ──
+  const updateStudent = useMutation({
+    mutationFn: async ({ id, status }) => entities.Student.update(id, { status }),
+    onSuccess: () => {
+      toast.success("تم تحديث حالة الطالب");
+      queryClient.invalidateQueries({ queryKey: ["founder-students"] });
+    },
+    onError: () => toast.error("تعذر تحديث الحالة"),
+  });
+
+  const deleteStudent = useMutation({
+    mutationFn: async (id) => entities.Student.delete(id),
+    onSuccess: () => {
+      toast.success("تم حذف الطالب بنجاح");
+      queryClient.invalidateQueries({ queryKey: ["founder-students"] });
+    },
+    onError: (e) => toast.error(e.message || "فشل حذف الطالب"),
   });
 
   // state للتحقق من حذف مدرسة
@@ -496,6 +569,42 @@ const FounderDashboard = () => {
     }
   };
 
+  // ── جلب بيانات حساب المعلم ──
+  const loadTeacherAccountData = async (teacher) => {
+    setTeacherAccountLoading(true);
+    setTeacherAccountData(null);
+    try {
+      setTeacherAccountData({
+        email: teacher.email || '—',
+        password: teacher.portal_password || '***مخفية***',
+        employee_id: teacher.employee_id || '—',
+        status: teacher.status || 'active',
+      });
+    } catch (e) {
+      setTeacherAccountData({ email: teacher.email || '—', password: 'تعذّر جلب البيانات' });
+    } finally {
+      setTeacherAccountLoading(false);
+    }
+  };
+
+  // ── جلب بيانات حساب الطالب ──
+  const loadStudentAccountData = async (student) => {
+    setStudentAccountLoading(true);
+    setStudentAccountData(null);
+    try {
+      setStudentAccountData({
+        email: student.user_email || '—',
+        password: student.portal_password || '***مخفية***',
+        student_id: student.student_id || '—',
+        status: student.status || 'active',
+      });
+    } catch (e) {
+      setStudentAccountData({ email: student.user_email || '—', password: 'تعذّر جلب البيانات' });
+    } finally {
+      setStudentAccountLoading(false);
+    }
+  };
+
   // ── استخراج بيانات الدخول لطلب مقبول مسبقاً ──
   const showDeliveryForRequest = async (r) => {
     try {
@@ -551,6 +660,22 @@ const FounderDashboard = () => {
   const [showAdd, setShowAdd] = useState(false);
   const [newSchool, setNewSchool] = useState({ name: "", country: "السودان", plan: "starter", billing_cycle: "monthly", email: "", phone: "", director_name: "" });
   const [viewSchool, setViewSchool] = useState(null);
+
+  // ── Teacher management states ──
+  const [teacherSearch, setTeacherSearch] = useState("");
+  const [teacherStatusFilter, setTeacherStatusFilter] = useState("all");
+  const [viewTeacher, setViewTeacher] = useState(null);
+  const [teacherAccountData, setTeacherAccountData] = useState(null);
+  const [teacherAccountLoading, setTeacherAccountLoading] = useState(false);
+  const [confirmDeleteTeacher, setConfirmDeleteTeacher] = useState(null);
+
+  // ── Student management states ──
+  const [studentSearch, setStudentSearch] = useState("");
+  const [studentStatusFilter, setStudentStatusFilter] = useState("all");
+  const [viewStudent, setViewStudent] = useState(null);
+  const [studentAccountData, setStudentAccountData] = useState(null);
+  const [studentAccountLoading, setStudentAccountLoading] = useState(false);
+  const [confirmDeleteStudent, setConfirmDeleteStudent] = useState(null);
 
   // ── Password change ──
   const [pw, setPw] = useState({ cur: "", next: "", confirm: "" });
@@ -1254,7 +1379,305 @@ const FounderDashboard = () => {
           </div>
         )}
 
-        {/* ───── 4️⃣ الاشتراكات والإيرادات ───── */}
+        {/* ───── 4️⃣ إدارة المعلمين ───── */}
+        {section === "teachers" && (
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+              <div className="flex items-center gap-3">
+                <p className="text-sm text-slate-500">إجمالي {allTeachers.length} معلم — <span className="font-bold text-emerald-600">{activeTeachers} نشط</span></p>
+                <select value={teacherStatusFilter} onChange={(e)=>setTeacherStatusFilter(e.target.value)} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold">
+                  <option value="all">الكل</option>
+                  <option value="active">نشط</option>
+                  <option value="suspended">معلق</option>
+                  <option value="expired">منتهي</option>
+                </select>
+              </div>
+              <input value={teacherSearch} onChange={(e)=>setTeacherSearch(e.target.value)} placeholder="بحث بالاسم أو البريد أو الرقم الوظيفي..." className="w-full sm:w-64 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"/>
+            </div>
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+              {teachersLoading ? <p className="p-6 text-slate-500">جاري التحميل...</p> : filteredTeachers.length === 0 ? (
+                <div className="p-12 text-center">
+                  <GraduationCap size={40} className="text-slate-200 mx-auto mb-3"/>
+                  <p className="text-slate-500 font-bold">{allTeachers.length === 0 ? "لا يوجد معلمين مسجلين بعد" : "لا توجد نتائج مطابقة للبحث"}</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50 text-slate-500">
+                    <tr>
+                      <th className="text-right p-4 font-semibold">اسم المعلم</th>
+                      <th className="text-right p-4 font-semibold">الرقم الوظيفي</th>
+                      <th className="text-right p-4 font-semibold">البريد</th>
+                      <th className="text-right p-4 font-semibold">الهاتف</th>
+                      <th className="text-right p-4 font-semibold">المواد</th>
+                      <th className="text-right p-4 font-semibold">الخبرة</th>
+                      <th className="text-right p-4 font-semibold">تاريخ الانضمام</th>
+                      <th className="text-right p-4 font-semibold">الحالة</th>
+                      <th className="text-right p-4 font-semibold">إجراءات</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredTeachers.map((t) => (
+                      <tr key={t.id} className="border-t border-slate-100 hover:bg-slate-50">
+                        <td className="p-4">
+                          <p className="font-bold text-slate-900">{t.full_name || "-"}</p>
+                          {t.bio && <p className="text-xs text-slate-400 max-w-[180px] truncate" title={t.bio}>{t.bio}</p>}
+                        </td>
+                        <td className="p-4 text-slate-500">{t.employee_id || "—"}</td>
+                        <td className="p-4 text-slate-500" dir="ltr">{t.email || "—"}</td>
+                        <td className="p-4 text-slate-600" dir="ltr">{t.phone || "—"}</td>
+                        <td className="p-4 text-slate-600">{t.subjects || "—"}</td>
+                        <td className="p-4 text-slate-500">{t.experience_years ? `${t.experience_years} سنة` : "—"}</td>
+                        <td className="p-4 text-slate-500">{t.created_at ? new Date(t.created_at).toLocaleDateString('ar-EG') : "—"}</td>
+                        <td className="p-4">
+                          <select value={t.status || "active"} onChange={(e)=>updateTeacher.mutate({id:t.id, status:e.target.value})} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold">
+                            <option value="active">نشط</option>
+                            <option value="suspended">معلق</option>
+                            <option value="expired">منتهي</option>
+                          </select>
+                        </td>
+                        <td className="p-4 flex gap-1 flex-wrap">
+                          <button onClick={()=>{ setViewTeacher(t); loadTeacherAccountData(t); }} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-violet-600 text-white text-xs font-bold hover:bg-violet-700"><KeyRound size={12}/> حساب المعلم</button>
+                          <button onClick={()=>updateTeacher.mutate({id:t.id, status:"active"})} className="px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-bold hover:bg-emerald-100">تفعيل</button>
+                          <button onClick={()=>updateTeacher.mutate({id:t.id, status:"suspended"})} className="px-2 py-1 rounded-lg bg-amber-50 text-amber-700 text-xs font-bold hover:bg-amber-100">تعليق</button>
+                          <button onClick={()=>setViewTeacher(t)} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-blue-50 text-blue-700 text-xs font-bold" title="تفاصيل المعلم"><Eye size={13}/> التفاصيل</button>
+                          <button onClick={()=>setConfirmDeleteTeacher(t)} className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600" title="حذف المعلم"><Trash2 size={14}/></button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                </div>
+              )}
+            </div>
+
+            {/* Teacher account modal */}
+            {viewTeacher && (
+              <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={()=>{ setViewTeacher(null); setTeacherAccountData(null); }}>
+                <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden" onClick={e=>e.stopPropagation()} dir="rtl">
+                  <div className="bg-gradient-to-br from-violet-600 to-indigo-700 p-5 text-white flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-11 h-11 rounded-xl bg-white/15 flex items-center justify-center"><GraduationCap size={20}/></div>
+                      <div>
+                        <h3 className="font-extrabold text-base">{viewTeacher.full_name}</h3>
+                        <p className="text-xs text-violet-200">{viewTeacher.employee_id || "—"} • {viewTeacher.email || "—"}</p>
+                      </div>
+                    </div>
+                    <button onClick={()=>{ setViewTeacher(null); setTeacherAccountData(null); }} className="text-violet-300 hover:text-white p-1.5 rounded-lg hover:bg-white/10">✕</button>
+                  </div>
+                  <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
+                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-700 flex items-center gap-1"><KeyRound size={13}/> بيانات حساب المعلم</span>
+                        {teacherAccountLoading && <span className="text-xs text-slate-400">جاري التحميل...</span>}
+                      </div>
+                      {teacherAccountData && (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between bg-white border border-slate-200 rounded-xl px-3 py-2">
+                            <span className="text-xs text-slate-500">البريد / اسم المستخدم</span>
+                            <span className="font-bold text-sm text-slate-900" dir="ltr">{teacherAccountData.email}</span>
+                          </div>
+                          <div className="flex items-center justify-between bg-white border border-slate-200 rounded-xl px-3 py-2">
+                            <span className="text-xs text-slate-500">كلمة المرور</span>
+                            <span className="font-mono font-bold text-sm text-slate-900">{teacherAccountData.password}</span>
+                          </div>
+                          <div className="flex items-center justify-between bg-white border border-slate-200 rounded-xl px-3 py-2">
+                            <span className="text-xs text-slate-500">الحالة</span>
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${viewTeacher.status==='active'?'bg-emerald-100 text-emerald-700':viewTeacher.status==='suspended'?'bg-amber-100 text-amber-700':'bg-rose-100 text-rose-700'}`}>{viewTeacher.status==='active'?'نشط':viewTeacher.status==='suspended'?'معلق':'منتهي'}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 space-y-2">
+                      <span className="text-xs font-bold text-blue-700 flex items-center gap-1"><UserPlus size={13}/> بيانات شخصية</span>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="bg-white rounded-xl px-3 py-2"><span className="text-slate-400">المواد:</span> <span className="font-bold">{viewTeacher.subjects || "—"}</span></div>
+                        <div className="bg-white rounded-xl px-3 py-2"><span className="text-slate-400">الخبرة:</span> <span className="font-bold">{viewTeacher.experience_years ? `${viewTeacher.experience_years} سنة` : "—"}</span></div>
+                        <div className="bg-white rounded-xl px-3 py-2"><span className="text-slate-400">الهاتف:</span> <span className="font-bold" dir="ltr">{viewTeacher.phone || "—"}</span></div>
+                        <div className="bg-white rounded-xl px-3 py-2"><span className="text-slate-400">تاريخ الانضمام:</span> <span className="font-bold">{viewTeacher.created_at ? new Date(viewTeacher.created_at).toLocaleDateString('ar-EG') : "—"}</span></div>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={()=>updateTeacher.mutate({id:viewTeacher.id, status:viewTeacher.status==='active'?'suspended':'active'})} className={`flex-1 h-11 rounded-xl font-bold text-sm ${viewTeacher.status==='active'?'bg-amber-50 text-amber-700 hover:bg-amber-100':'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'}`}>{viewTeacher.status==='active'?'تعليق':'تفعيل'}</button>
+                      <button onClick={()=>{ setConfirmDeleteTeacher(viewTeacher); setViewTeacher(null); }} className="flex-1 h-11 rounded-xl bg-rose-50 text-rose-700 font-bold text-sm hover:bg-rose-100">حذف المعلم</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Delete teacher confirmation */}
+            {confirmDeleteTeacher && (
+              <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={()=>setConfirmDeleteTeacher(null)}>
+                <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 text-center" onClick={e=>e.stopPropagation()} dir="rtl">
+                  <div className="w-14 h-14 rounded-full bg-rose-100 flex items-center justify-center mx-auto mb-4"><Trash2 size={24} className="text-rose-600"/></div>
+                  <h3 className="font-extrabold text-lg text-slate-900 mb-2">تأكيد حذف المعلم</h3>
+                  <p className="text-sm text-slate-500 mb-5">هل أنت متأكد من حذف <strong>{confirmDeleteTeacher.full_name}</strong>؟ لا يمكن التراجع عن هذا الإجراء.</p>
+                  <div className="flex gap-2">
+                    <button onClick={()=>setConfirmDeleteTeacher(null)} className="flex-1 h-11 rounded-xl bg-slate-100 font-bold text-sm hover:bg-slate-200">إلغاء</button>
+                    <button onClick={()=>{ deleteTeacher.mutate(confirmDeleteTeacher.id); setConfirmDeleteTeacher(null); }} className="flex-1 h-11 rounded-xl bg-rose-600 text-white font-bold text-sm hover:bg-rose-700">حذف</button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ───── 5️⃣ إدارة الطلاب ───── */}
+        {section === "students" && (
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+              <div className="flex items-center gap-3">
+                <p className="text-sm text-slate-500">إجمالي {allStudents.length} طالب — <span className="font-bold text-emerald-600">{activeStudents} نشط</span></p>
+                <select value={studentStatusFilter} onChange={(e)=>setStudentStatusFilter(e.target.value)} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold">
+                  <option value="all">الكل</option>
+                  <option value="active">نشط</option>
+                  <option value="suspended">معلق</option>
+                  <option value="expired">منتهي</option>
+                </select>
+              </div>
+              <input value={studentSearch} onChange={(e)=>setStudentSearch(e.target.value)} placeholder="بحث بالاسم أو البريد أو الرقم أو الهاتف..." className="w-full sm:w-64 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"/>
+            </div>
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+              {studentsLoading ? <p className="p-6 text-slate-500">جاري التحميل...</p> : filteredStudents.length === 0 ? (
+                <div className="p-12 text-center">
+                  <Users size={40} className="text-slate-200 mx-auto mb-3"/>
+                  <p className="text-slate-500 font-bold">{allStudents.length === 0 ? "لا يوجد طلاب مسجلين بعد" : "لا توجد نتائج مطابقة للبحث"}</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50 text-slate-500">
+                    <tr>
+                      <th className="text-right p-4 font-semibold">اسم الطالب</th>
+                      <th className="text-right p-4 font-semibold">الرقم الطلابي</th>
+                      <th className="text-right p-4 font-semibold">البريد</th>
+                      <th className="text-right p-4 font-semibold">الهاتف</th>
+                      <th className="text-right p-4 font-semibold">الصف</th>
+                      <th className="text-right p-4 font-semibold">ولي الأمر</th>
+                      <th className="text-right p-4 font-semibold">المدرسة / المدينة</th>
+                      <th className="text-right p-4 font-semibold">تاريخ الانضمام</th>
+                      <th className="text-right p-4 font-semibold">الحالة</th>
+                      <th className="text-right p-4 font-semibold">إجراءات</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredStudents.map((s) => (
+                      <tr key={s.id} className="border-t border-slate-100 hover:bg-slate-50">
+                        <td className="p-4">
+                          <p className="font-bold text-slate-900">{s.full_name || "-"}</p>
+                        </td>
+                        <td className="p-4 text-slate-500">{s.student_id || "—"}</td>
+                        <td className="p-4 text-slate-500" dir="ltr">{s.user_email || "—"}</td>
+                        <td className="p-4 text-slate-600" dir="ltr">{s.phone || "—"}</td>
+                        <td className="p-4"><span className="px-2 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700">{s.grade || "—"}</span></td>
+                        <td className="p-4 text-slate-600">
+                          <p>{s.parent_name || "—"}</p>
+                          {s.parent_phone && <p className="text-xs text-slate-400" dir="ltr">{s.parent_phone}</p>}
+                        </td>
+                        <td className="p-4 text-slate-600">
+                          <p>{s.school_name || "—"}</p>
+                          {s.city && <p className="text-xs text-slate-400">{s.city}</p>}
+                        </td>
+                        <td className="p-4 text-slate-500">{s.created_at ? new Date(s.created_at).toLocaleDateString('ar-EG') : "—"}</td>
+                        <td className="p-4">
+                          <select value={s.status || "active"} onChange={(e)=>updateStudent.mutate({id:s.id, status:e.target.value})} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold">
+                            <option value="active">نشط</option>
+                            <option value="suspended">معلق</option>
+                            <option value="expired">منتهي</option>
+                          </select>
+                        </td>
+                        <td className="p-4 flex gap-1 flex-wrap">
+                          <button onClick={()=>{ setViewStudent(s); loadStudentAccountData(s); }} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-violet-600 text-white text-xs font-bold hover:bg-violet-700"><KeyRound size={12}/> حساب الطالب</button>
+                          <button onClick={()=>updateStudent.mutate({id:s.id, status:"active"})} className="px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-bold hover:bg-emerald-100">تفعيل</button>
+                          <button onClick={()=>updateStudent.mutate({id:s.id, status:"suspended"})} className="px-2 py-1 rounded-lg bg-amber-50 text-amber-700 text-xs font-bold hover:bg-amber-100">تعليق</button>
+                          <button onClick={()=>setViewStudent(s)} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-blue-50 text-blue-700 text-xs font-bold" title="تفاصيل الطالب"><Eye size={13}/> التفاصيل</button>
+                          <button onClick={()=>setConfirmDeleteStudent(s)} className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600" title="حذف الطالب"><Trash2 size={14}/></button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                </div>
+              )}
+            </div>
+
+            {/* Student account modal */}
+            {viewStudent && (
+              <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={()=>{ setViewStudent(null); setStudentAccountData(null); }}>
+                <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden" onClick={e=>e.stopPropagation()} dir="rtl">
+                  <div className="bg-gradient-to-br from-emerald-600 to-teal-700 p-5 text-white flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-11 h-11 rounded-xl bg-white/15 flex items-center justify-center"><Users size={20}/></div>
+                      <div>
+                        <h3 className="font-extrabold text-base">{viewStudent.full_name}</h3>
+                        <p className="text-xs text-emerald-200">{viewStudent.student_id || "—"} • {viewStudent.user_email || "—"}</p>
+                      </div>
+                    </div>
+                    <button onClick={()=>{ setViewStudent(null); setStudentAccountData(null); }} className="text-emerald-300 hover:text-white p-1.5 rounded-lg hover:bg-white/10">✕</button>
+                  </div>
+                  <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
+                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-700 flex items-center gap-1"><KeyRound size={13}/> بيانات حساب الطالب</span>
+                        {studentAccountLoading && <span className="text-xs text-slate-400">جاري التحميل...</span>}
+                      </div>
+                      {studentAccountData && (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between bg-white border border-slate-200 rounded-xl px-3 py-2">
+                            <span className="text-xs text-slate-500">البريد / اسم المستخدم</span>
+                            <span className="font-bold text-sm text-slate-900" dir="ltr">{studentAccountData.email}</span>
+                          </div>
+                          <div className="flex items-center justify-between bg-white border border-slate-200 rounded-xl px-3 py-2">
+                            <span className="text-xs text-slate-500">كلمة المرور</span>
+                            <span className="font-mono font-bold text-sm text-slate-900">{studentAccountData.password}</span>
+                          </div>
+                          <div className="flex items-center justify-between bg-white border border-slate-200 rounded-xl px-3 py-2">
+                            <span className="text-xs text-slate-500">الحالة</span>
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${viewStudent.status==='active'?'bg-emerald-100 text-emerald-700':viewStudent.status==='suspended'?'bg-amber-100 text-amber-700':'bg-rose-100 text-rose-700'}`}>{viewStudent.status==='active'?'نشط':viewStudent.status==='suspended'?'معلق':'منتهي'}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 space-y-2">
+                      <span className="text-xs font-bold text-blue-700 flex items-center gap-1"><GraduationCap size={13}/> بيانات الطالب</span>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="bg-white rounded-xl px-3 py-2"><span className="text-slate-400">الصف:</span> <span className="font-bold">{viewStudent.grade || "—"}</span></div>
+                        <div className="bg-white rounded-xl px-3 py-2"><span className="text-slate-400">الهاتف:</span> <span className="font-bold" dir="ltr">{viewStudent.phone || "—"}</span></div>
+                        <div className="bg-white rounded-xl px-3 py-2"><span className="text-slate-400">المدرسة:</span> <span className="font-bold">{viewStudent.school_name || "—"}</span></div>
+                        <div className="bg-white rounded-xl px-3 py-2"><span className="text-slate-400">المدينة:</span> <span className="font-bold">{viewStudent.city || "—"}</span></div>
+                        <div className="bg-white rounded-xl px-3 py-2"><span className="text-slate-400">ولي الأمر:</span> <span className="font-bold">{viewStudent.parent_name || "—"}</span></div>
+                        <div className="bg-white rounded-xl px-3 py-2"><span className="text-slate-400">هاتف ولي الأمر:</span> <span className="font-bold" dir="ltr">{viewStudent.parent_phone || "—"}</span></div>
+                        <div className="bg-white rounded-xl px-3 py-2"><span className="text-slate-400">تاريخ الانضمام:</span> <span className="font-bold">{viewStudent.created_at ? new Date(viewStudent.created_at).toLocaleDateString('ar-EG') : "—"}</span></div>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={()=>updateStudent.mutate({id:viewStudent.id, status:viewStudent.status==='active'?'suspended':'active'})} className={`flex-1 h-11 rounded-xl font-bold text-sm ${viewStudent.status==='active'?'bg-amber-50 text-amber-700 hover:bg-amber-100':'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'}`}>{viewStudent.status==='active'?'تعليق':'تفعيل'}</button>
+                      <button onClick={()=>{ setConfirmDeleteStudent(viewStudent); setViewStudent(null); }} className="flex-1 h-11 rounded-xl bg-rose-50 text-rose-700 font-bold text-sm hover:bg-rose-100">حذف الطالب</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Delete student confirmation */}
+            {confirmDeleteStudent && (
+              <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={()=>setConfirmDeleteStudent(null)}>
+                <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 text-center" onClick={e=>e.stopPropagation()} dir="rtl">
+                  <div className="w-14 h-14 rounded-full bg-rose-100 flex items-center justify-center mx-auto mb-4"><Trash2 size={24} className="text-rose-600"/></div>
+                  <h3 className="font-extrabold text-lg text-slate-900 mb-2">تأكيد حذف الطالب</h3>
+                  <p className="text-sm text-slate-500 mb-5">هل أنت متأكد من حذف <strong>{confirmDeleteStudent.full_name}</strong>؟ لا يمكن التراجع عن هذا الإجراء.</p>
+                  <div className="flex gap-2">
+                    <button onClick={()=>setConfirmDeleteStudent(null)} className="flex-1 h-11 rounded-xl bg-slate-100 font-bold text-sm hover:bg-slate-200">إلغاء</button>
+                    <button onClick={()=>{ deleteStudent.mutate(confirmDeleteStudent.id); setConfirmDeleteStudent(null); }} className="flex-1 h-11 rounded-xl bg-rose-600 text-white font-bold text-sm hover:bg-rose-700">حذف</button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ───── 6️⃣ الاشتراكات والإيرادات ───── */}
         {section === "subscriptions" && (
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
