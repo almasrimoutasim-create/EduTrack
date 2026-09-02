@@ -19,7 +19,7 @@ export default function AppLayout() {
   const portalRole = localStorage.getItem("portal_role") || user?.role || "admin";
 
   const PORTAL_HOMES = {
-    admin: "/", teacher: "/teacher-portal", student: "/student-portal", parent: "/parent-portal",
+    admin: "/login", teacher: "/teacher-portal", student: "/student-portal", parent: "/parent-portal",
     bus: "/staff-portal", bus_supervisor: "/staff-portal", staff: "/staff-portal", registrar: "/staff-portal",
     hr: "/staff-portal", accountant: "/staff-portal", store: "/staff-portal", store_keeper: "/staff-portal", library: "/library",
     security: "/staff-portal", counselor: "/staff-portal", counseling: "/staff-portal", support: "/staff-portal",
