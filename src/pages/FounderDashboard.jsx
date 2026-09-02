@@ -1906,8 +1906,18 @@ const FounderDashboard = () => {
                     <FileText size={20}/>
                   </div>
                   <div>
-                    <h3 className="font-extrabold text-base text-slate-900">تفاصيل طلب التسجيل</h3>
-                    <p className="text-xs text-slate-500">معرف الطلب: <span className="font-mono">{viewRequestDetail.id}</span></p>
+                    {(() => {
+                      const isSt = viewRequestDetail.role_requested === "student" || viewRequestDetail.plan === "student_free";
+                      const isTe = viewRequestDetail.role_requested === "teacher" || viewRequestDetail.plan === "teacher_free";
+                      return (
+                        <>
+                          <h3 className="font-extrabold text-base text-slate-900">
+                            {isSt ? "تفاصيل طلب الطالب" : isTe ? "تفاصيل طلب المعلم" : "تفاصيل طلب المدرسة"}
+                          </h3>
+                          <p className="text-xs text-slate-500">معرف الطلب: <span className="font-mono">{viewRequestDetail.id}</span></p>
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
                 <button onClick={() => setViewRequestDetail(null)} className="text-slate-400 hover:text-slate-700 p-1.5 rounded-lg hover:bg-slate-100">
@@ -1933,18 +1943,58 @@ const FounderDashboard = () => {
                   </div>
                 </div>
 
-                <div className="space-y-2 p-1">
-                  <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">الاسم الكامل</span><b className="text-slate-900">{viewRequestDetail.full_name || viewRequestDetail.student_name || viewRequestDetail.school_name || "-"}</b></div>
-                  {viewRequestDetail.director_name && <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">ولي الأمر / المدير</span><b className="text-slate-900">{viewRequestDetail.director_name}</b></div>}
-                  <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">البريد الإلكتروني</span><b className="text-slate-900 font-mono text-xs" dir="ltr">{viewRequestDetail.email || "-"}</b></div>
-                  <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">رقم الهاتف</span><b className="text-slate-900 font-mono text-xs" dir="ltr">{viewRequestDetail.phone || "-"}</b></div>
-                  {viewRequestDetail.grade && <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">الصف الدراسي</span><b className="text-emerald-700 font-bold">{viewRequestDetail.grade}</b></div>}
-                  {viewRequestDetail.school_name && <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">المدرسة</span><b className="text-slate-900">{viewRequestDetail.school_name}</b></div>}
-                  <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">المدينة / الدولة</span><b className="text-slate-900">{viewRequestDetail.country || "السودان"}</b></div>
-                  {viewRequestDetail.subjects && <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">المواد الدراسية</span><b className="text-slate-900">{viewRequestDetail.subjects}</b></div>}
-                  {viewRequestDetail.experience_years && <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">سنوات الخبرة</span><b className="text-slate-900">{viewRequestDetail.experience_years} سنوات</b></div>}
-                  {viewRequestDetail.created_at && <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">تاريخ تقديم الطلب</span><b className="text-slate-700">{new Date(viewRequestDetail.created_at).toLocaleString('ar-EG')}</b></div>}
-                </div>
+                {(() => {
+                  const r = viewRequestDetail;
+                  const isStudent = r.role_requested === "student" || r.plan === "student_free";
+                  const isTeacher = r.role_requested === "teacher" || r.plan === "teacher_free";
+                  const isSchool = !isStudent && !isTeacher;
+
+                  if (isSchool) {
+                    return (
+                      <div className="space-y-2 p-1">
+                        <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">اسم المدرسة</span><b className="text-slate-900">{r.school_name || r.full_name || "-"}</b></div>
+                        {r.director_name && <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">مدير المدرسة</span><b className="text-slate-900">{r.director_name}</b></div>}
+                        <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">البريد الإلكتروني</span><b className="text-slate-900 font-mono text-xs" dir="ltr">{r.email || "-"}</b></div>
+                        <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">رقم الهاتف</span><b className="text-slate-900 font-mono text-xs" dir="ltr">{r.phone || "-"}</b></div>
+                        {r.plan && <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">الباقة المطلوبة</span><b className="text-violet-700 font-bold">{r.plan === "starter" ? " starters 🟢" : r.plan === "professional" ? "Professional 🟡" : r.plan === "enterprise" ? "Enterprise 🔴" : r.plan}</b></div>}
+                        {r.billing_cycle && <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">نوع الفوترة</span><b className="text-slate-900">{r.billing_cycle === "monthly" ? "شهري" : r.billing_cycle === "yearly" ? "سنوي" : r.billing_cycle}</b></div>}
+                        <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">الدولة</span><b className="text-slate-900">{r.country || "السودان"}</b></div>
+                        {r.created_at && <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">تاريخ تقديم الطلب</span><b className="text-slate-700">{new Date(r.created_at).toLocaleString('ar-EG')}</b></div>}
+                      </div>
+                    );
+                  }
+
+                  if (isStudent) {
+                    return (
+                      <div className="space-y-2 p-1">
+                        <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">اسم الطالب</span><b className="text-slate-900">{r.full_name || "-"}</b></div>
+                        {r.director_name && <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">ولي الأمر</span><b className="text-slate-900">{r.director_name}</b></div>}
+                        <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">البريد الإلكتروني (ولي الأمر)</span><b className="text-slate-900 font-mono text-xs" dir="ltr">{r.email || "-"}</b></div>
+                        <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">رقم هاتف ولي الأمر</span><b className="text-slate-900 font-mono text-xs" dir="ltr">{r.phone || "-"}</b></div>
+                        {r.grade && <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">الصف الدراسي</span><b className="text-emerald-700 font-bold">{r.grade}</b></div>}
+                        {r.school_name && <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">المدرسة</span><b className="text-slate-900">{r.school_name}</b></div>}
+                        <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">المدينة</span><b className="text-slate-900">{r.country || "السودان"}</b></div>
+                        {r.created_at && <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">تاريخ تقديم الطلب</span><b className="text-slate-700">{new Date(r.created_at).toLocaleString('ar-EG')}</b></div>}
+                      </div>
+                    );
+                  }
+
+                  if (isTeacher) {
+                    return (
+                      <div className="space-y-2 p-1">
+                        <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">اسم المعلم</span><b className="text-slate-900">{r.full_name || "-"}</b></div>
+                        <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">البريد الإلكتروني</span><b className="text-slate-900 font-mono text-xs" dir="ltr">{r.email || "-"}</b></div>
+                        <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">رقم الهاتف</span><b className="text-slate-900 font-mono text-xs" dir="ltr">{r.phone || "-"}</b></div>
+                        {r.school_name && <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">المدرسة</span><b className="text-slate-900">{r.school_name}</b></div>}
+                        {r.subjects && <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">المواد الدراسية</span><b className="text-slate-900">{r.subjects}</b></div>}
+                        {r.experience_years && <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">سنوات الخبرة</span><b className="text-slate-900">{r.experience_years} سنوات</b></div>}
+                        {r.bio && <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">نبذة شخصية</span><b className="text-slate-900">{r.bio}</b></div>}
+                        <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">المدينة</span><b className="text-slate-900">{r.country || "السودان"}</b></div>
+                        {r.created_at && <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">تاريخ تقديم الطلب</span><b className="text-slate-700">{new Date(r.created_at).toLocaleString('ar-EG')}</b></div>}
+                      </div>
+                    );
+                  }
+                })()}
 
                 {viewRequestDetail.notes && (
                   <div className="bg-amber-50/70 border border-amber-100 p-3.5 rounded-2xl mt-2">
