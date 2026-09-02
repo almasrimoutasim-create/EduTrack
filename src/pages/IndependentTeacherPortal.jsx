@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { useSearchParams, Link } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { entities } from "@/api/dbClient";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useAuth } from "@/lib/AuthContext";
@@ -14,7 +14,8 @@ import {
   Plus, Search, LogOut, Settings, Bell, ChevronRight, ChevronDown,
   CheckCircle2, AlertCircle, Clock, Eye, EyeOff, Trash2, Edit,
   ExternalLink, Send, PlayCircle, FileText, Award, Star, Play,
-  GraduationCap, Copy, UserPlus, BookMarked, X, Download, MessageCircle
+  GraduationCap, Copy, UserPlus, BookMarked, X, Download, MessageCircle,
+  UserCheck, RefreshCw, Check
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
@@ -30,6 +31,7 @@ const SIDEBAR_ITEMS = [
   { id: "live", icon: Video, label: "الحصص المباشرة", labelEn: "Live Classes" },
   { id: "videos", icon: PlayCircle, label: "فيديوهات يوتيوب", labelEn: "YouTube Videos" },
   { id: "subscriptions", icon: Star, label: "طلبات الاشتراك", labelEn: "Subscriptions" },
+  { id: "bonds", icon: UserCheck, label: "ربط الطلاب", labelEn: "Student Bonds" },
 ];
 
 export default function IndependentTeacherPortal() {
@@ -119,6 +121,24 @@ export default function IndependentTeacherPortal() {
     enabled: !!teacherId,
   });
 
+  const { data: bonds = [] } = useQuery({
+    queryKey: ["teacher-bonds", teacherId],
+    queryFn: () => fetch(`/api/teacher-bonds?teacherId=${teacherId}`).then(r => r.json()),
+    enabled: !!teacherId,
+  });
+
+  const approveBondMutation = useMutation({
+    mutationFn: (bondId) => fetch("/api/teacher-bond-approve", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ bondId }) }).then(r => r.json()),
+    onSuccess: () => { toast.success(isRTL ? "تم قبول ربط الطالب" : "Student bond approved"); queryClient.invalidateQueries({ queryKey: ["teacher-bonds"] }); },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const rejectBondMutation = useMutation({
+    mutationFn: (bondId) => fetch("/api/teacher-bond-reject", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ bondId }) }).then(r => r.json()),
+    onSuccess: () => { toast.success(isRTL ? "تم رفض ربط الطالب" : "Student bond rejected"); queryClient.invalidateQueries({ queryKey: ["teacher-bonds"] }); },
+    onError: (err) => toast.error(err.message),
+  });
+
   const stats = useMemo(() => ({
     students: students?.length || 0,
     assignments: assignments?.length || 0,
@@ -128,7 +148,8 @@ export default function IndependentTeacherPortal() {
     pendingSubs: subscriptions?.filter(s => s.status === "pending")?.length || 0,
     submissions: submissions?.length || 0,
     pendingGrading: submissions?.filter(s => s.status === "submitted")?.length || 0,
-  }), [students, assignments, exams, liveClasses, videos, subscriptions, submissions]);
+    pendingBonds: bonds?.filter(b => b.status === "pending")?.length || 0,
+  }), [students, assignments, exams, liveClasses, videos, subscriptions, submissions, bonds]);
 
   // Login screen for unauthenticated users
   if (loginMode || !teacherId) {
@@ -234,6 +255,9 @@ export default function IndependentTeacherPortal() {
               {item.id === "subscriptions" && stats.pendingSubs > 0 && (
                 <span className="mr-auto bg-red-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">{stats.pendingSubs}</span>
               )}
+              {item.id === "bonds" && stats.pendingBonds > 0 && (
+                <span className="mr-auto bg-indigo-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">{stats.pendingBonds}</span>
+              )}
             </button>
           ))}
         </nav>
@@ -278,6 +302,7 @@ export default function IndependentTeacherPortal() {
             {activeTab === "live" && <LiveClassesTab key="live" teacherId={teacherId} liveClasses={liveClasses} isRTL={isRTL} queryClient={queryClient} />}
             {activeTab === "videos" && <VideosTab key="videos" teacherId={teacherId} videos={videos} isRTL={isRTL} queryClient={queryClient} />}
             {activeTab === "subscriptions" && <SubscriptionsTab key="subs" teacherId={teacherId} subscriptions={subscriptions} isRTL={isRTL} queryClient={queryClient} />}
+            {activeTab === "bonds" && <BondsTab key="bonds" bonds={bonds} isRTL={isRTL} approveBond={approveBondMutation.mutate} rejectBond={rejectBondMutation.mutate} approveLoading={approveBondMutation.isPending} rejectLoading={rejectBondMutation.isPending} />}
           </AnimatePresence>
         </div>
       </main>
@@ -834,6 +859,91 @@ function SubscriptionsTab({ teacherId, subscriptions, isRTL, queryClient }) {
           </Card>
         ))}
         {(!subscriptions || subscriptions.length === 0) && <div className="text-center py-12 text-stone-400 text-sm">{isRTL ? "لا يوجد طلبات اشتراك" : "No subscription requests yet"}</div>}
+      </div>
+    </motion.div>
+  );
+}
+
+// ─── Student Bonds Tab ───
+function BondsTab({ bonds, isRTL, approveBond, rejectBond, approveLoading, rejectLoading }) {
+  const pendingBonds = bonds?.filter(b => b.status === "pending") || [];
+  const processedBonds = bonds?.filter(b => b.status !== "pending") || [];
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+      <h1 className="text-xl font-black text-stone-900 mb-4 flex items-center gap-2">
+        <UserCheck size={22} className="text-indigo-600" /> {isRTL ? "ربط الطلاب" : "Student Bonds"}
+      </h1>
+
+      {/* Pending Requests */}
+      <div className="mb-6">
+        <h2 className="text-sm font-bold text-stone-700 mb-3 flex items-center gap-2">
+          <Clock size={14} className="text-orange-500" />
+          {isRTL ? "طلبات معلقة" : "Pending Requests"} ({pendingBonds.length})
+        </h2>
+        {pendingBonds.length === 0 ? (
+          <Card className="p-6 rounded-2xl border-stone-100 text-center">
+            <CheckCircle2 size={36} className="text-stone-300 mx-auto mb-2" />
+            <div className="text-sm font-bold text-stone-500">{isRTL ? "لا توجد طلبات معلقة" : "No pending requests"}</div>
+          </Card>
+        ) : (
+          <div className="space-y-3">
+            {pendingBonds.map(bond => (
+              <Card key={bond.id} className="p-4 rounded-2xl border-stone-100">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center">
+                      <GraduationCap size={18} />
+                    </div>
+                    <div>
+                      <div className="font-bold text-sm text-stone-900">{bond.student_name || isRTL ? "طالب" : "Student"}</div>
+                      <div className="text-xs text-stone-500">{bond.student_email || bond.student_id}</div>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => approveBond(bond.id)} disabled={approveLoading}
+                      className="h-8 px-3 rounded-lg bg-emerald-500 text-white text-xs font-bold hover:bg-emerald-600 flex items-center gap-1 disabled:opacity-50">
+                      <Check size={12} /> {isRTL ? "قبول" : "Approve"}
+                    </button>
+                    <button onClick={() => rejectBond(bond.id)} disabled={rejectLoading}
+                      className="h-8 px-3 rounded-lg bg-red-500 text-white text-xs font-bold hover:bg-red-600 flex items-center gap-1 disabled:opacity-50">
+                      <X size={12} /> {isRTL ? "رفض" : "Reject"}
+                    </button>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Processed Bonds */}
+      <div>
+        <h2 className="text-sm font-bold text-stone-700 mb-3 flex items-center gap-2">
+          <RefreshCw size={14} className="text-blue-500" />
+          {isRTL ? "طلبات معالجة" : "Processed Requests"} ({processedBonds.length})
+        </h2>
+        <div className="space-y-2">
+          {processedBonds.map(bond => (
+            <Card key={bond.id} className="p-4 rounded-2xl border-stone-100 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${bond.status === "approved" ? "bg-emerald-100 text-emerald-600" : "bg-red-100 text-red-600"}`}>
+                  {bond.status === "approved" ? <CheckCircle2 size={14} /> : <X size={14} />}
+                </div>
+                <div>
+                  <div className="font-bold text-sm text-stone-900">{bond.student_name || isRTL ? "طالب" : "Student"}</div>
+                  <div className="text-xs text-stone-500">{bond.student_email}</div>
+                </div>
+              </div>
+              <Badge className={`text-[10px] ${bond.status === "approved" ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>
+                {bond.status === "approved" ? (isRTL ? "مقبول" : "Approved") : (isRTL ? "مرفوض" : "Rejected")}
+              </Badge>
+            </Card>
+          ))}
+          {processedBonds.length === 0 && (
+            <div className="text-center py-6 text-stone-400 text-sm">{isRTL ? "لا توجد طلبات معالجة بعد" : "No processed requests yet"}</div>
+          )}
+        </div>
       </div>
     </motion.div>
   );

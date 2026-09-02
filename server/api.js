@@ -674,6 +674,46 @@ if (process.env.DATABASE_URL) {
   sql`CREATE INDEX IF NOT EXISTS idx_subscription_notifications_school_id ON subscription_notifications(school_id)`.catch(()=>{});
   sql`CREATE INDEX IF NOT EXISTS idx_subscription_notifications_status ON subscription_notifications(status)`.catch(()=>{});
 
+  // Auto-create teacher_subscription_requests table
+  sql`
+    CREATE TABLE IF NOT EXISTS teacher_subscription_requests (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      teacher_name TEXT NOT NULL,
+      teacher_email TEXT NOT NULL,
+      teacher_phone TEXT,
+      plan_type TEXT NOT NULL DEFAULT 'monthly',
+      amount NUMERIC DEFAULT 0,
+      receipt_url TEXT,
+      status TEXT NOT NULL DEFAULT 'pending',
+      founder_notes TEXT,
+      school_id UUID,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `.then(() => console.log('[neon] teacher_subscription_requests table verified/created'))
+    .catch(err => console.error('[neon] teacher_subscription_requests:', err.message));
+
+  // Auto-create student_teacher_bonds table
+  sql`
+    CREATE TABLE IF NOT EXISTS student_teacher_bonds (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      student_id UUID NOT NULL,
+      student_name TEXT NOT NULL,
+      student_email TEXT,
+      teacher_id UUID NOT NULL,
+      teacher_name TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      request_message TEXT,
+      receipt_url TEXT,
+      portal_username TEXT,
+      portal_password TEXT,
+      school_id UUID,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `.then(() => console.log('[neon] student_teacher_bonds table verified/created'))
+    .catch(err => console.error('[neon] student_teacher_bonds:', err.message));
+
 }
 
 // Map entity names to table names
@@ -1447,6 +1487,165 @@ export function createApiHandler() {
         return res.end(JSON.stringify({ success: true, message: 'Teacher approved successfully', empId }));
       } catch (error) {
         console.error('[approve-teacher] error:', error);
+        res.statusCode = 500;
+        return res.end(JSON.stringify({ error: error.message }));
+      }
+    }
+
+    // ── Teacher Subscription Request ──
+    if (req.url === '/api/teacher-subscription-request' && req.method === 'POST') {
+      res.setHeader('Content-Type', 'application/json');
+      try {
+        const body = await parseBody(req);
+        const { teacherName, teacherEmail, teacherPhone, planType, amount, receiptFile, receiptName } = body;
+        if (!teacherName || !teacherEmail) {
+          res.statusCode = 400;
+          return res.end(JSON.stringify({ error: 'teacherName and teacherEmail are required' }));
+        }
+
+        let receiptUrl = null;
+        if (receiptFile) {
+          const fs = await import('fs');
+          const pathMod = await import('path');
+          const uploadDir = pathMod.join(process.cwd(), 'public', 'uploads');
+          if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+          const buffer = Buffer.from(receiptFile, 'base64');
+          const safeName = `${Date.now()}_${(receiptName || 'receipt').replace(/[^a-zA-Z0-9.\-_]/g, '_')}`;
+          const filePath = pathMod.join(uploadDir, safeName);
+          fs.writeFileSync(filePath, buffer);
+          receiptUrl = `/uploads/${safeName}`;
+        }
+
+        const result = await dbQuery(
+          `INSERT INTO teacher_subscription_requests (teacher_name, teacher_email, teacher_phone, plan_type, amount, receipt_url)
+           VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+          [teacherName, teacherEmail, teacherPhone || null, planType || 'monthly', amount || 0, receiptUrl]
+        );
+        return res.end(JSON.stringify({ success: true, id: result[0].id }));
+      } catch (error) {
+        console.error('[teacher-subscription-request] error:', error);
+        res.statusCode = 500;
+        return res.end(JSON.stringify({ error: error.message }));
+      }
+    }
+
+    // ── Student Bond Request ──
+    if (req.url === '/api/student-bond-request' && req.method === 'POST') {
+      res.setHeader('Content-Type', 'application/json');
+      try {
+        const body = await parseBody(req);
+        const { studentId, studentName, studentEmail, teacherId, teacherName, requestMessage, receiptFile, receiptName } = body;
+        if (!studentId || !studentName || !teacherId || !teacherName) {
+          res.statusCode = 400;
+          return res.end(JSON.stringify({ error: 'studentId, studentName, teacherId, and teacherName are required' }));
+        }
+
+        let receiptUrl = null;
+        if (receiptFile) {
+          const fs = await import('fs');
+          const pathMod = await import('path');
+          const uploadDir = pathMod.join(process.cwd(), 'public', 'uploads');
+          if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+          const buffer = Buffer.from(receiptFile, 'base64');
+          const safeName = `${Date.now()}_${(receiptName || 'receipt').replace(/[^a-zA-Z0-9.\-_]/g, '_')}`;
+          const filePath = pathMod.join(uploadDir, safeName);
+          fs.writeFileSync(filePath, buffer);
+          receiptUrl = `/uploads/${safeName}`;
+        }
+
+        const result = await dbQuery(
+          `INSERT INTO student_teacher_bonds (student_id, student_name, student_email, teacher_id, teacher_name, status, request_message, receipt_url)
+           VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7) RETURNING id`,
+          [studentId, studentName, studentEmail || null, teacherId, teacherName, requestMessage || null, receiptUrl]
+        );
+        return res.end(JSON.stringify({ success: true, id: result[0].id }));
+      } catch (error) {
+        console.error('[student-bond-request] error:', error);
+        res.statusCode = 500;
+        return res.end(JSON.stringify({ error: error.message }));
+      }
+    }
+
+    // ── Teacher Bond Approve ──
+    if (req.url === '/api/teacher-bond-approve' && req.method === 'POST') {
+      res.setHeader('Content-Type', 'application/json');
+      try {
+        const body = await parseBody(req);
+        const { bondId, portalUsername, portalPassword } = body;
+        if (!bondId) {
+          res.statusCode = 400;
+          return res.end(JSON.stringify({ error: 'bondId is required' }));
+        }
+
+        const hashedPw = hashPassword(portalPassword);
+        await dbQuery(
+          `UPDATE student_teacher_bonds SET status = 'approved', portal_username = $1, portal_password = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3`,
+          [portalUsername || null, hashedPw, bondId]
+        );
+        return res.end(JSON.stringify({ success: true }));
+      } catch (error) {
+        console.error('[teacher-bond-approve] error:', error);
+        res.statusCode = 500;
+        return res.end(JSON.stringify({ error: error.message }));
+      }
+    }
+
+    // ── Teacher Bond Reject ──
+    if (req.url === '/api/teacher-bond-reject' && req.method === 'POST') {
+      res.setHeader('Content-Type', 'application/json');
+      try {
+        const body = await parseBody(req);
+        const { bondId, reason } = body;
+        if (!bondId) {
+          res.statusCode = 400;
+          return res.end(JSON.stringify({ error: 'bondId is required' }));
+        }
+
+        await dbQuery(
+          `UPDATE student_teacher_bonds SET status = 'rejected', founder_notes = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+          [reason || null, bondId]
+        );
+        return res.end(JSON.stringify({ success: true }));
+      } catch (error) {
+        console.error('[teacher-bond-reject] error:', error);
+        res.statusCode = 500;
+        return res.end(JSON.stringify({ error: error.message }));
+      }
+    }
+
+    // ── Get Teacher Bonds ──
+    if (req.url.startsWith('/api/teacher-bonds') && req.method === 'GET') {
+      res.setHeader('Content-Type', 'application/json');
+      try {
+        const urlObj = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+        const teacherId = urlObj.searchParams.get('teacherId');
+        if (!teacherId) {
+          res.statusCode = 400;
+          return res.end(JSON.stringify({ error: 'teacherId query parameter is required' }));
+        }
+
+        const bonds = await dbQuery(
+          `SELECT * FROM student_teacher_bonds WHERE teacher_id = $1 ORDER BY created_at DESC`,
+          [teacherId]
+        );
+        return res.end(JSON.stringify({ success: true, bonds }));
+      } catch (error) {
+        console.error('[teacher-bonds] error:', error);
+        res.statusCode = 500;
+        return res.end(JSON.stringify({ error: error.message }));
+      }
+    }
+
+    // ── Get Teacher Subscription Requests ──
+    if (req.url === '/api/teacher-subscription-requests' && req.method === 'GET') {
+      res.setHeader('Content-Type', 'application/json');
+      try {
+        const requests = await dbQuery(
+          `SELECT * FROM teacher_subscription_requests ORDER BY created_at DESC`
+        );
+        return res.end(JSON.stringify({ success: true, requests }));
+      } catch (error) {
+        console.error('[teacher-subscription-requests] error:', error);
         res.statusCode = 500;
         return res.end(JSON.stringify({ error: error.message }));
       }

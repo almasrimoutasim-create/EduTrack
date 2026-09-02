@@ -13,7 +13,8 @@ import {
   Users, BookOpen, ClipboardCheck, Video, Calendar, BarChart3,
   Search, LogOut, ChevronRight, Clock, Eye, EyeOff, PlayCircle, FileText,
   Award, Star, Play, GraduationCap, Send, BookMarked, Download,
-  CheckCircle2, AlertCircle, MessageCircle, X, ExternalLink, Copy, Check
+  CheckCircle2, AlertCircle, MessageCircle, X, ExternalLink, Copy, Check,
+  UserCheck
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
@@ -22,6 +23,7 @@ const btnOutline = "inline-flex items-center justify-center gap-2 whitespace-now
 
 const SIDEBAR_ITEMS = [
   { id: "dashboard", icon: BarChart3, label: "لوحة التحكم", labelEn: "Dashboard" },
+  { id: "my-teacher", icon: UserCheck, label: "معلمي", labelEn: "My Teacher" },
   { id: "teachers", icon: Users, label: "معلمون", labelEn: "Teachers" },
   { id: "assignments", icon: ClipboardCheck, label: "الواجبات", labelEn: "Assignments" },
   { id: "exams", icon: FileText, label: "الامتحانات", labelEn: "Exams" },
@@ -267,6 +269,7 @@ export default function StudentPortal() {
         <div className="max-w-6xl mx-auto p-4 md:p-6">
           <AnimatePresence mode="wait">
             {activeTab === "dashboard" && <DashboardTab key="dashboard" stats={stats} isRTL={isRTL} />}
+            {activeTab === "my-teacher" && <MyTeacherTab key="my-teacher" approvedTeachers={approvedTeachers} pendingSubs={pendingSubs} studentId={studentId} isRTL={isRTL} queryClient={queryClient} />}
             {activeTab === "teachers" && <TeachersTab key="teachers" studentId={studentId} subscriptions={subscriptions} approvedTeachers={approvedTeachers} pendingSubs={pendingSubs} isRTL={isRTL} queryClient={queryClient} />}
             {activeTab === "assignments" && <AssignmentsTab key="assignments" assignments={allAssignments} mySubmissions={mySubmissions} studentId={studentId} isRTL={isRTL} queryClient={queryClient} />}
             {activeTab === "exams" && <ExamsTab key="exams" exams={allExams} mySubmissions={mySubmissions} studentId={studentId} isRTL={isRTL} queryClient={queryClient} />}
@@ -763,6 +766,139 @@ function CurriculumTab({ books, isRTL }) {
           </Card>
         )}
       </div>
+    </motion.div>
+  );
+}
+
+// ─── My Teacher Tab ───
+function MyTeacherTab({ approvedTeachers, pendingSubs, studentId, isRTL, queryClient }) {
+  const { data: myBonds = [] } = useQuery({
+    queryKey: ["student-bonds", studentId],
+    queryFn: () => fetch(`/api/teacher-bonds?studentId=${studentId}`).then(r => r.json()),
+    enabled: !!studentId,
+  });
+
+  const approvedBondTeachers = myBonds?.filter(b => b.status === "approved") || [];
+  const pendingBondRequests = myBonds?.filter(b => b.status === "pending") || [];
+  const hasApprovedTeacher = approvedTeachers?.length > 0 || approvedBondTeachers.length > 0;
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+      <h1 className="text-xl font-black text-stone-900 mb-4 flex items-center gap-2">
+        <UserCheck size={22} className="text-indigo-600" /> {isRTL ? "معلمي" : "My Teacher"}
+      </h1>
+
+      {/* No teacher assigned state */}
+      {!hasApprovedTeacher && (
+        <Card className="p-8 rounded-2xl border-stone-100 text-center mb-6">
+          <div className="h-16 w-16 rounded-2xl bg-indigo-100 text-indigo-600 flex items-center justify-center mx-auto mb-4">
+            <UserCheck size={32} />
+          </div>
+          <h2 className="text-lg font-black text-stone-900 mb-2">{isRTL ? "لم يتم تعيين معلم لك بعد" : "No teacher assigned yet"}</h2>
+          <p className="text-sm text-stone-500 mb-4 max-w-md mx-auto">
+            {isRTL ? "يمكنك ربط حسابك بمعلم عن طريق الذهاب إلى قسم المعلمين وإرسال طلب اشتراك" : "You can connect with a teacher by going to the Teachers section and sending a subscription request"}
+          </p>
+        </Card>
+      )}
+
+      {/* Approved Teachers */}
+      {hasApprovedTeacher && (
+        <div className="mb-6">
+          <h2 className="text-sm font-bold text-stone-700 mb-3 flex items-center gap-2">
+            <CheckCircle2 size={14} className="text-emerald-500" />
+            {isRTL ? "معلمون مسجلون" : "Enrolled Teachers"} ({approvedTeachers.length + approvedBondTeachers.length})
+          </h2>
+          <div className="space-y-3">
+            {approvedTeachers.map(sub => (
+              <Card key={sub.id} className="p-4 rounded-2xl border-stone-100">
+                <div className="flex items-center gap-3">
+                  <div className="h-12 w-12 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                    <GraduationCap size={22} />
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-bold text-sm text-stone-900">{sub.teacher_name || isRTL ? "معلم" : "Teacher"}</div>
+                    <div className="text-xs text-stone-500">{sub.subject || isRTL ? "غير محدد" : "Not specified"}</div>
+                    <Badge className="mt-1 text-[10px] bg-emerald-50 text-emerald-700">{isRTL ? "مقبول ✓" : "Approved ✓"}</Badge>
+                  </div>
+                  <div className="flex gap-2">
+                    {sub.teacher_id && (
+                      <>
+                        <a href={`tel:${sub.teacher_phone || ""}`} className="h-8 px-3 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 flex items-center gap-1">
+                          <MessageCircle size={12} /> {isRTL ? "تواصل" : "Contact"}
+                        </a>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </Card>
+            ))}
+            {approvedBondTeachers.map(bond => (
+              <Card key={bond.id} className="p-4 rounded-2xl border-stone-100">
+                <div className="flex items-center gap-3">
+                  <div className="h-12 w-12 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center">
+                    <GraduationCap size={22} />
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-bold text-sm text-stone-900">{bond.teacher_name || isRTL ? "معلم" : "Teacher"}</div>
+                    <div className="text-xs text-stone-500">{bond.teacher_email}</div>
+                    <Badge className="mt-1 text-[10px] bg-indigo-50 text-indigo-700">{isRTL ? "ربط مباشر ✓" : "Bonded ✓"}</Badge>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Pending Bond Requests */}
+      {pendingBondRequests.length > 0 && (
+        <div>
+          <h2 className="text-sm font-bold text-stone-700 mb-3 flex items-center gap-2">
+            <Clock size={14} className="text-orange-500" />
+            {isRTL ? "طلبات انتظار الموافقة" : "Pending Approval"} ({pendingBondRequests.length})
+          </h2>
+          <div className="space-y-2">
+            {pendingBondRequests.map(bond => (
+              <Card key={bond.id} className="p-4 rounded-2xl border-stone-100 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="h-8 w-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center">
+                    <Clock size={14} />
+                  </div>
+                  <div>
+                    <div className="font-bold text-sm text-stone-900">{bond.teacher_name || isRTL ? "معلم" : "Teacher"}</div>
+                    <div className="text-xs text-stone-500">{bond.teacher_email}</div>
+                  </div>
+                </div>
+                <Badge className="text-[10px] bg-orange-50 text-orange-700">{isRTL ? "بانتظار الموافقة" : "Awaiting Approval"}</Badge>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Blocked features teaser */}
+      {!hasApprovedTeacher && (
+        <div className="mt-6">
+          <h3 className="text-sm font-bold text-stone-700 mb-3">{isRTL ? "الميزات المتاحة بعد التعيين" : "Features Available After Assignment"}</h3>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+            {[
+              { icon: ClipboardCheck, label: isRTL ? "الواجبات" : "Assignments", locked: true },
+              { icon: FileText, label: isRTL ? "الامتحانات" : "Exams", locked: true },
+              { icon: Video, label: isRTL ? "الحصص المباشرة" : "Live Classes", locked: true },
+              { icon: PlayCircle, label: isRTL ? "فيديوهات يوتيوب" : "YouTube Videos", locked: true },
+              { icon: BookMarked, label: isRTL ? "الكتب الدراسية" : "Curriculum", locked: false },
+            ].map((f, i) => (
+              <div key={i} className={`p-3 rounded-xl border ${f.locked ? "border-stone-200 bg-stone-50 opacity-60" : "border-stone-100 bg-white"}`}>
+                <div className="flex items-center gap-2">
+                  <f.icon size={14} className={f.locked ? "text-stone-400" : "text-blue-600"} />
+                  <span className={`text-xs font-bold ${f.locked ? "text-stone-400" : "text-stone-700"}`}>{f.label}</span>
+                </div>
+                {f.locked && <div className="text-[9px] text-stone-400 mt-1">🔒 {isRTL ? "يتطلب تعيين معلم" : "Requires teacher assignment"}</div>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 }

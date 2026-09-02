@@ -88,6 +88,8 @@ import EnhancedStudentPortal from './pages/EnhancedStudentPortal';
 
 import LandingPage from './pages/LandingPage';
 import Gateway from './pages/Gateway';
+import TeacherLogin from './pages/TeacherLogin';
+import StudentLogin from './pages/StudentLogin';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -113,6 +115,8 @@ const AuthenticatedApp = () => {
       <Route path="/" element={<LandingPage />} />
       <Route path="/gateway" element={<Gateway />} />
       <Route path="/gateway/:schoolSlug" element={<Gateway />} />
+      <Route path="/teacher-login" element={<TeacherLogin />} />
+      <Route path="/student-login" element={<StudentLogin />} />
       <Route path="/login" element={<RoleLogin />} />
       <Route path="/register" element={<PublicRegistration />} />
       <Route path="/registration" element={<PublicRegistration />} />

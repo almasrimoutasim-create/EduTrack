@@ -36,6 +36,8 @@ export default function TeacherRegister() {
     experience_years: "",
     bio: "",
     notes: "",
+    subscription_plan: "free",
+    receipt_file: null,
   });
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -68,7 +70,7 @@ export default function TeacherRegister() {
         email: form.email.trim().toLowerCase(),
         phone: form.phone.trim(),
         country: form.city.trim() || "السودان",
-        plan: "teacher_free",
+        plan: form.subscription_plan === "free" ? "teacher_free" : form.subscription_plan === "monthly" ? "teacher_monthly" : "teacher_yearly",
         role_requested: "teacher",
         school_name: form.school_name.trim() || null,
         subjects: form.subjects.join(", ") || null,
@@ -186,6 +188,36 @@ export default function TeacherRegister() {
               <label className="text-xs font-bold text-stone-600 flex items-center gap-1"><AlertCircle size={12}/> {isRTL ? "ملاحظات إضافية" : "Additional notes"}</label>
               <textarea value={form.notes} onChange={e => update("notes", e.target.value)} placeholder={isRTL ? "أي معلومات إضافية تود مشاركتها..." : "Any additional information you'd like to share..."} rows={2} className="w-full rounded-xl border border-stone-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/10" />
             </div>
+
+            {/* Subscription Plan */}
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-stone-600 flex items-center gap-1"><Star size={12}/> {isRTL ? "باقة الاشتراك" : "Subscription Plan"}</label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {[
+                  { id: "free", label: isRTL ? "مجاني" : "Free", price: isRTL ? "مجاني" : "Free", desc: isRTL ? "وصول أساسي للمنصة" : "Basic platform access", color: "stone" },
+                  { id: "monthly", label: isRTL ? "شهري" : "Monthly", price: "$15/شهر", desc: isRTL ? "كامل المميزات + دعم فني" : "Full features + support", color: "indigo" },
+                  { id: "yearly", label: isRTL ? "سنوي" : "Yearly", price: "$120/سنة", desc: isRTL ? "خصم 33% + أولوية" : "33% discount + priority", color: "emerald" },
+                ].map(plan => (
+                  <button key={plan.id} type="button" onClick={() => update("subscription_plan", plan.id)}
+                    className={`relative p-3 rounded-xl border-2 text-right transition-all ${form.subscription_plan === plan.id ? `border-${plan.color}-500 bg-${plan.color}-50` : "border-stone-200 bg-white hover:border-stone-300"}`}>
+                    {plan.id === "yearly" && <span className="absolute -top-2 -left-2 bg-emerald-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full">{isRTL ? "خصم 33%" : "33% OFF"}</span>}
+                    <div className="font-black text-sm text-stone-900">{plan.label}</div>
+                    <div className="text-xs font-bold text-indigo-600 mt-0.5">{plan.price}</div>
+                    <div className="text-[10px] text-stone-500 mt-0.5">{plan.desc}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Payment Receipt Upload */}
+            {form.subscription_plan !== "free" && (
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-stone-600 flex items-center gap-1"><Award size={12}/> {isRTL ? "إيصال الدفع (اختياري)" : "Payment Receipt (optional)"}</label>
+                <input type="file" accept="image/*,application/pdf" onChange={e => update("receipt_file", e.target.files[0])}
+                  className="w-full rounded-xl border border-stone-200 bg-white p-3 text-sm file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-indigo-600 file:text-white file:text-xs file:font-bold file:cursor-pointer" />
+                <p className="text-[10px] text-stone-400">{isRTL ? "ارفع صورة أو PDF للإيصال لتسريع الموافقة" : "Upload receipt image or PDF to speed up approval"}</p>
+              </div>
+            )}
 
             <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 text-xs text-amber-800 flex gap-2">
               <Award size={14} className="shrink-0 mt-0.5"/> <span>{isRTL ? "بعد الموافقة من إدارة المنصة، تحصل على: ① اسم مستخدم وكلمة مرور ② إدارة طلابك وتتبع تقدمهم ③ إنشاء واجبات وامتحانات ④ حصص مباشرة وفيديوهات يوتيوب ⑤ متابعة اشتراكات الطلاب" : "After platform approval, you get: ① Username & password ② Manage your students & track progress ③ Create assignments & exams ④ Live classes & YouTube videos ⑤ Student subscription management"}</span>
