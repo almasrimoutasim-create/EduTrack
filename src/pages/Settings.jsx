@@ -103,6 +103,8 @@ export default function Settings() {
     saveMutation.mutate();
   };
 
+  const BRANDING_FIELDS = ['school_logo', 'school_background_image'];
+
   const handleFileUpload = async (e, field) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -114,7 +116,25 @@ export default function Settings() {
 
     const reader = new FileReader();
     reader.onload = async (event) => {
-      const base64Data = event.target.result.split(',')[1];
+      const fullDataUri = event.target.result;
+
+      // For branding fields (logo, background): compress + store as base64 data URI in DB
+      // This avoids Render's ephemeral filesystem — images persist across deploys
+      if (BRANDING_FIELDS.includes(field)) {
+        try {
+          const toastId = toast.loading(isRTL ? 'جاري ضغط الصورة...' : 'Compressing image...');
+          const compressed = await compressImage(fullDataUri, field === 'school_background_image' ? 1200 : 600);
+          setFormData(prev => ({ ...prev, [field]: compressed }));
+          toast.success(isRTL ? 'تم حفظ الصورة بنجاح' : 'Image saved', { id: toastId });
+        } catch (err) {
+          toast.error(isRTL ? 'فشل معالجة الصورة' : 'Failed to process image');
+          console.error(err);
+        }
+        return;
+      }
+
+      // Other fields: upload to server filesystem
+      const base64Data = fullDataUri.split(',')[1];
       try {
         const toastId = toast.loading(isRTL ? 'جاري رفع الملف...' : 'Uploading file...');
         const apiBase = import.meta.env.VITE_BACKEND_URL || '';
@@ -139,11 +159,34 @@ export default function Settings() {
           throw new Error(data.error);
         }
       } catch (err) {
-        toast.error(isRTL ? 'فشل رفع الملف' : 'Upload failed', { id: toastId });
+        toast.error(isRTL ? 'فشل رفع الملف' : 'Upload failed');
         console.error(err);
       }
     };
     reader.readAsDataURL(file);
+  };
+
+  // Compress image to target max width, returns base64 data URI
+  const compressImage = (dataUri, maxWidth) => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let w = img.width;
+        let h = img.height;
+        if (w > maxWidth) {
+          h = (h * maxWidth) / w;
+          w = maxWidth;
+        }
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', 0.7));
+      };
+      img.onerror = reject;
+      img.src = dataUri;
+    });
   };
 
   const createGatewayMutation = useMutation({
