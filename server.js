@@ -24,7 +24,7 @@ app.use(cors({
     'http://localhost:3000'
   ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Founder-Auth']
 }));
 
 // ⚠️ هام جداً: إضافة محلل بيانات الـ JSON لقراءة الطلبات القادمة من الواجهة الأمامية (مثل تسجيل الدخول)
@@ -54,6 +54,46 @@ app.use(createApiHandler());
 // Health check (useful for Render)
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString() });
+});
+
+// Debug: verify DATABASE_URL and registration_requests table
+app.get('/api/debug/db-health', async (_req, res) => {
+  try {
+    const { default: sql } = await import('./server/db.js');
+    const dbUrl = process.env.DATABASE_URL ? 'SET (length=' + process.env.DATABASE_URL.length + ')' : 'NOT SET';
+    
+    // Check registration_requests table
+    let tableExists = false;
+    let columns = [];
+    let rowCount = 0;
+    let sampleRows = [];
+    try {
+      const t = await sql`SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'registration_requests') as exists`;
+      tableExists = t[0]?.exists;
+      if (tableExists) {
+        const cols = await sql`SELECT column_name FROM information_schema.columns WHERE table_name = 'registration_requests' ORDER BY ordinal_position`;
+        columns = cols.map(c => c.column_name);
+        const cnt = await sql`SELECT count(*)::int as cnt FROM registration_requests`;
+        rowCount = cnt[0]?.cnt || 0;
+        sampleRows = await sql`SELECT id, full_name, email, school_name, director_name, plan, role_requested, status, created_at FROM registration_requests ORDER BY created_at DESC LIMIT 5`;
+      }
+    } catch (e) {
+      return res.json({ status: 'error', phase: 'table_check', error: e.message, databaseUrl: dbUrl });
+    }
+
+    res.json({
+      status: 'ok',
+      databaseUrl: dbUrl,
+      registration_requests: {
+        exists: tableExists,
+        columns,
+        rowCount,
+        sampleRows,
+      }
+    });
+  } catch (err) {
+    res.json({ status: 'error', error: err.message });
+  }
 });
 
 // SPA fallback for client-side routing

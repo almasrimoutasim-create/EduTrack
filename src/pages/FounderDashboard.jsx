@@ -144,7 +144,7 @@ const FounderDashboard = () => {
     queryKey: ["founder-schools"],
     queryFn: async () => {
       try { return await entities.School.list("-created_at", 1000); }
-      catch { return []; }
+      catch (err) { console.error("[FounderDashboard] School.list failed:", err); return []; }
     },
   });
 
@@ -153,7 +153,7 @@ const FounderDashboard = () => {
     queryKey: ["founder-registrations"],
     queryFn: async () => {
       try { return await entities.RegistrationRequest.list("-created_at", 200); }
-      catch { return []; }
+      catch (err) { console.error("[FounderDashboard] RegistrationRequest.list failed:", err); return []; }
     },
   });
 
@@ -162,7 +162,7 @@ const FounderDashboard = () => {
     queryKey: ["founder-teachers"],
     queryFn: async () => {
       try { return await entities.Teacher.list("-created_at", 1000); }
-      catch { return []; }
+      catch (err) { console.error("[FounderDashboard] Teacher.list failed:", err); return []; }
     },
   });
 
@@ -171,7 +171,7 @@ const FounderDashboard = () => {
     queryKey: ["founder-students"],
     queryFn: async () => {
       try { return await entities.Student.list("-created_at", 1000); }
-      catch { return []; }
+      catch (err) { console.error("[FounderDashboard] Student.list failed:", err); return []; }
     },
   });
 
@@ -182,7 +182,7 @@ const FounderDashboard = () => {
       try {
         const allReqs = await entities.RegistrationRequest.list("-created_at", 500);
         return allReqs.filter(r => r.role_requested === "teacher" || r.role_requested === "student" || r.plan === "student_free" || r.plan === "teacher_free");
-      } catch { return []; }
+      } catch (err) { console.error("[FounderDashboard] teacherStudentRequests failed:", err); return []; }
     },
   });
 

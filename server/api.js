@@ -847,7 +847,7 @@ function sanitizeColumn(col) {
 // All queries use sql.query() for dynamic table/column names
 async function dbQuery(queryStr, params = []) {
   if (!sql) {
-    console.warn('[neon] No DATABASE_URL configured, skipping query');
+    console.error('[neon] CRITICAL: DATABASE_URL is not configured. All DB queries return empty. Set DATABASE_URL in Render dashboard env vars.');
     return [];
   }
   return sql.query(queryStr, params);
@@ -1971,6 +1971,10 @@ export function createApiHandler() {
         
         const q = `SELECT * FROM ${table} ${whereClause} ORDER BY ${orderColumn} ${orderDir} LIMIT $${limitParam} OFFSET $${offsetParam}`;
         const rows = await dbQuery(q, finalValues);
+        if (!rows) {
+          console.error(`[neon] SELECT from ${table} returned null — DATABASE_URL may be missing`);
+          return res.end(JSON.stringify([]));
+        }
         return res.end(JSON.stringify(rows));
       }
 
@@ -2055,6 +2059,12 @@ export function createApiHandler() {
         const values = keys.map(k => body[k]);
         const q = `INSERT INTO ${table} (${columns}) VALUES (${placeholders}) RETURNING *`;
         const rows = await dbQuery(q, values);
+
+        if (!rows || rows.length === 0) {
+          console.error(`[neon] INSERT into ${table} returned no rows — DATABASE_URL may be missing or query failed`);
+          res.statusCode = 500;
+          return res.end(JSON.stringify({ error: 'Database not configured or INSERT failed. Check DATABASE_URL in Render env vars.' }));
+        }
 
         // Hook: Update corresponding student_fees row when a fee_payment is recorded
         if (rows.length > 0 && table === 'fee_payments') {
