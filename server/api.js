@@ -1700,7 +1700,7 @@ export function createApiHandler() {
     const earlyEntity = earlyMatch ? earlyMatch[1] : null;
     const isPublicRegistrationPost = earlyEntity === 'RegistrationRequest' && req.method === 'POST';
     const isFounderAuth = req.headers['x-founder-auth'] === 'true';
-    const isFounderEntity = earlyEntity === 'School' || earlyEntity === 'RegistrationRequest';
+    const isFounderEntity = earlyEntity === 'School' || earlyEntity === 'RegistrationRequest' || earlyEntity === 'SystemAdmin';
     const isFounderPublicRead = isFounderEntity && req.method === 'GET';
     const isFounderEntityAction = isFounderAuth && isFounderEntity;
     const authHeader = req.headers.authorization;
