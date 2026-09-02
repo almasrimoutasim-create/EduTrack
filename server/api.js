@@ -885,6 +885,29 @@ export function createApiHandler() {
       }
     }
 
+    // Update school branding (logo_url, background_image) from admin Settings page
+    if ((req.url === '/neon-db/update-school-branding' || req.url === '/api/update-school-branding') && req.method === 'POST') {
+      res.setHeader('Content-Type', 'application/json');
+      try {
+        if (!sql) {
+          res.statusCode = 500;
+          return res.end(JSON.stringify({ error: 'Database not configured' }));
+        }
+        const body = await parseBody(req);
+        const { school_id, logo_url, background_image } = body;
+        if (!school_id) {
+          res.statusCode = 400;
+          return res.end(JSON.stringify({ error: 'school_id is required' }));
+        }
+        await sql`UPDATE schools SET logo_url = ${logo_url || ''}, background_image = ${background_image || ''} WHERE id = ${school_id}`;
+        return res.end(JSON.stringify({ success: true }));
+      } catch (e) {
+        console.error('[update-school-branding]', e);
+        res.statusCode = 500;
+        return res.end(JSON.stringify({ error: e.message }));
+      }
+    }
+
     // WebRTC STUN/TURN config
     if (req.url === '/neon-db/ice-config' || req.url === '/api/ice-config') {
       res.setHeader('Content-Type', 'application/json');

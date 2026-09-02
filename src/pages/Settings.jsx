@@ -62,10 +62,29 @@ export default function Settings() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      // Save to SystemSetting
       if (existingSettings?.id) {
-        return await entities.SystemSetting.update(existingSettings.id, formData);
+        await entities.SystemSetting.update(existingSettings.id, formData);
       } else {
-        return await entities.SystemSetting.create(formData);
+        await entities.SystemSetting.create(formData);
+      }
+      // Also update schools table branding (for Gateway page)
+      const schoolId = localStorage.getItem('portal_school_id');
+      if (schoolId) {
+        try {
+          const apiBase = (import.meta.env.VITE_BACKEND_URL || '').replace(/\/$/, '');
+          await fetch(`${apiBase}/neon-db/update-school-branding`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              school_id: schoolId,
+              logo_url: formData.school_logo,
+              background_image: formData.school_background_image
+            })
+          });
+        } catch (e) {
+          console.error('Failed to update school branding:', e);
+        }
       }
     },
     onSuccess: async () => {

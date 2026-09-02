@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useLanguage } from "@/lib/LanguageContext";
 import { motion, AnimatePresence } from "framer-motion";
-import { Lock, Eye, EyeOff, AlertCircle, Building2, ArrowRight, ArrowLeft, Sparkles, ShieldCheck, CheckCircle2, Search } from "lucide-react";
+import { Lock, Eye, EyeOff, AlertCircle, Building2, ArrowRight, ArrowLeft, Sparkles, CheckCircle2, Search } from "lucide-react";
 import { Card } from "@/components/ui/card";
 
 export default function Gateway() {
@@ -278,52 +278,47 @@ export default function Gateway() {
         className="absolute inset-0 z-0 bg-cover bg-center transition-all duration-700"
         style={{
           backgroundImage: `url('${backgroundUrl}')`,
-          filter: "blur(6px) brightness(0.55)",
-          transform: "scale(1.06)",
+          filter: "blur(8px) brightness(0.45)",
+          transform: "scale(1.1)",
         }}
       />
-      <div className="absolute inset-0 z-0 bg-black/40 mix-blend-multiply" />
+      <div className="absolute inset-0 z-0 bg-gradient-to-b from-black/30 via-black/50 to-black/70" />
 
       <motion.div
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, type: "spring" }}
-        className="w-full max-w-md relative z-10"
+        className="w-full max-w-sm relative z-10"
       >
-        <Card className="rounded-[32px] bg-white/95 backdrop-blur-xl border border-white/30 shadow-[0_30px_70px_-15px_rgba(0,0,0,0.6)] overflow-hidden">
+        <Card className="rounded-3xl bg-white/95 backdrop-blur-xl border-0 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.5)] overflow-hidden">
           {/* Header & School Branding */}
-          <div className="p-8 pb-4 text-center flex flex-col items-center border-b border-stone-100/80">
+          <div className="px-8 pt-8 pb-5 text-center flex flex-col items-center">
             {schoolData.logo_url ? (
               <img
                 src={schoolData.logo_url}
                 alt={schoolName}
-                className="h-20 w-auto mb-3 object-contain drop-shadow-md max-h-20"
+                className="h-16 w-auto mb-3 object-contain drop-shadow-md max-h-16 rounded-xl"
                 onError={(e) => {
                   e.currentTarget.style.display = "none";
                 }}
               />
             ) : (
-              <div className="h-16 w-16 rounded-2xl bg-stone-900 text-white flex items-center justify-center mb-3 shadow-xl">
-                <Building2 size={30} className="text-emerald-400" />
+              <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-stone-800 to-stone-900 text-white flex items-center justify-center mb-3 shadow-lg">
+                <Building2 size={26} className="text-emerald-400" />
               </div>
             )}
 
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-100 text-[11px] font-bold text-emerald-700 mb-2">
-              <ShieldCheck size={12} />
-              <span>{isRTL ? "بوابة رسمية معتمدة" : "Verified School Gateway"}</span>
-            </div>
-
-            <h1 className="text-2xl font-black text-stone-900 mb-1 leading-tight">
+            <h1 className="text-xl font-extrabold text-stone-900 mb-1 leading-tight tracking-tight">
               {schoolName}
             </h1>
-            <p className="text-stone-500 text-xs font-medium">
-              {isRTL ? "لوحة الإدارة والتحكم الأكاديمي" : "School Management & Control Portal"}
+            <p className="text-stone-400 text-[11px] font-medium">
+              {isRTL ? "لوحة الإدارة والتحكم" : "Management Portal"}
             </p>
           </div>
 
           {/* Form */}
-          <div className="p-8 pt-6">
-            <form onSubmit={handleLogin} className="space-y-4">
+          <div className="px-8 pb-8 pt-2">
+            <form onSubmit={handleLogin} className="space-y-3.5">
               <AnimatePresence mode="wait">
                 {loginError && (
                   <motion.div
@@ -332,17 +327,17 @@ export default function Gateway() {
                     exit={{ opacity: 0, height: 0 }}
                     className="overflow-hidden"
                   >
-                    <div className="flex items-start gap-2.5 p-3.5 rounded-2xl bg-rose-50 border border-rose-100 text-rose-600 mb-2">
-                      <AlertCircle className="shrink-0 mt-0.5" size={16} />
-                      <p className="text-xs font-bold leading-relaxed">{loginError}</p>
+                    <div className="flex items-start gap-2.5 p-3 rounded-xl bg-rose-50 border border-rose-100 text-rose-600 mb-1">
+                      <AlertCircle className="shrink-0 mt-0.5" size={15} />
+                      <p className="text-[12px] font-bold leading-relaxed">{loginError}</p>
                     </div>
                   </motion.div>
                 )}
               </AnimatePresence>
 
-              <div className="space-y-1.5">
-                <label className="block text-[11px] font-black uppercase tracking-wider text-stone-500">
-                  {isRTL ? "اسم المستخدم أو البريد الإلكتروني" : "Username or Email"}
+              <div className="space-y-1">
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-stone-400 px-1">
+                  {isRTL ? "اسم المستخدم" : "Username"}
                 </label>
                 <input
                   type="text"
@@ -350,13 +345,13 @@ export default function Gateway() {
                   autoFocus
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder={isRTL ? "أدخل اسم المستخدم المرسل من الإدارة" : "Enter username or email"}
-                  className="w-full h-13 rounded-2xl border-2 border-stone-100 bg-stone-50/70 text-sm font-bold text-stone-900 px-4 placeholder-stone-400 focus:outline-none focus:border-stone-900 focus:bg-white transition-all text-start"
+                  placeholder={isRTL ? "اسم المستخدم" : "Username"}
+                  className="w-full h-11 rounded-xl border border-stone-200 bg-stone-50/80 text-[13px] font-semibold text-stone-900 px-3.5 placeholder-stone-400 focus:outline-none focus:border-stone-800 focus:bg-white transition-all text-start"
                 />
               </div>
 
-              <div className="space-y-1.5">
-                <label className="block text-[11px] font-black uppercase tracking-wider text-stone-500">
+              <div className="space-y-1">
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-stone-400 px-1">
                   {isRTL ? "كلمة المرور" : "Password"}
                 </label>
                 <div className="relative">
@@ -366,17 +361,17 @@ export default function Gateway() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full h-13 rounded-2xl border-2 border-stone-100 bg-stone-50/70 text-sm font-bold text-stone-900 px-4 placeholder-stone-400 focus:outline-none focus:border-stone-900 focus:bg-white transition-all text-start"
-                    style={{ paddingInlineEnd: "3.2rem" }}
+                    className="w-full h-11 rounded-xl border border-stone-200 bg-stone-50/80 text-[13px] font-semibold text-stone-900 px-3.5 placeholder-stone-400 focus:outline-none focus:border-stone-800 focus:bg-white transition-all text-start"
+                    style={{ paddingInlineEnd: "2.8rem" }}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className={`absolute inset-y-0 flex items-center justify-center text-stone-400 hover:text-stone-700 w-11 h-11 my-auto cursor-pointer transition-colors ${
+                    className={`absolute inset-y-0 flex items-center justify-center text-stone-400 hover:text-stone-700 w-10 cursor-pointer transition-colors ${
                       isRTL ? "left-1" : "right-1"
                     }`}
                   >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
               </div>
@@ -384,25 +379,22 @@ export default function Gateway() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full h-13 mt-2 rounded-2xl bg-stone-900 text-white font-black text-sm tracking-wide hover:bg-black hover:scale-[1.01] active:scale-[0.99] disabled:opacity-70 disabled:scale-100 transition-all cursor-pointer flex items-center justify-center gap-2 shadow-xl shadow-stone-900/20"
+                className="w-full h-11 mt-1 rounded-xl bg-stone-900 text-white font-extrabold text-[13px] tracking-wide hover:bg-black hover:scale-[1.01] active:scale-[0.99] disabled:opacity-70 disabled:scale-100 transition-all cursor-pointer flex items-center justify-center gap-2 shadow-lg shadow-stone-900/25"
               >
                 {submitting ? (
                   <>
-                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    <span>{isRTL ? "جاري التحقق والدخول..." : "Verifying..."}</span>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>{isRTL ? "جاري التحقق..." : "Verifying..."}</span>
                   </>
                 ) : (
-                  <>
-                    <Lock size={16} />
-                    <span>{isRTL ? "دخول إلى لوحة إدارة المدرسة" : "Login to School Dashboard"}</span>
-                  </>
+                  <span>{isRTL ? "دخول" : "Login"}</span>
                 )}
               </button>
 
-              <div className="pt-4 mt-4 border-t border-stone-100 flex items-center justify-between text-xs text-stone-500">
-                <span className="font-mono text-[11px] text-stone-400">ID: {schoolData.slug || schoolSlug}</span>
-                <Link to="/" className="text-stone-600 hover:text-stone-900 font-bold">
-                  {isRTL ? "منصة EduTrack" : "EduTrack Platform"}
+              <div className="pt-3 mt-3 border-t border-stone-100 flex items-center justify-between text-[11px] text-stone-400">
+                <span className="font-mono">{schoolData.slug || schoolSlug}</span>
+                <Link to="/" className="text-stone-500 hover:text-stone-800 font-bold transition-colors">
+                  {isRTL ? "EduTrack" : "EduTrack"}
                 </Link>
               </div>
             </form>
