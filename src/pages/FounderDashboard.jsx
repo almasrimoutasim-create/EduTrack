@@ -453,6 +453,7 @@ const FounderDashboard = () => {
             full_name: directorName,
             email: adminUsername,
             username: adminUsername,
+            password: rawPassword,
             portal_password: rawPassword,
             role: "admin",
             school_id: newSchool.id || newSchool._id,
@@ -546,12 +547,14 @@ const FounderDashboard = () => {
       try { existing = await entities.SystemAdmin.filter({ email }); } catch (e) { console.warn('filter failed', e); }
       if (existing && existing.length > 0) {
         const admin = existing[0];
-        await entities.SystemAdmin.update(admin.id, { portal_password: rawPassword, school_id: school.id, status: "active" });
+        await entities.SystemAdmin.update(admin.id, { password: rawPassword, portal_password: rawPassword, school_id: school.id, status: "active" });
         toast.success("تمت إعادة تعيين كلمة مرور المدير");
       } else {
         await entities.SystemAdmin.create({
           full_name: school.director_name || school.name,
           email,
+          username: email,
+          password: rawPassword,
           portal_password: rawPassword,
           role: "admin",
           school_id: school.id,
