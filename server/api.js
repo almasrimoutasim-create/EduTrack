@@ -1676,6 +1676,11 @@ export function createApiHandler() {
 
     if (!req.url.startsWith('/neon-db/entities/')) return next();
 
+    // DEBUG: Log all RegistrationRequest traffic to trace browser submissions
+    if (req.url.includes('RegistrationRequest')) {
+      console.log(`[DEBUG-REG] ${req.method} ${req.url} | origin=${req.headers.origin} | x-founder-auth=${req.headers['x-founder-auth']} | content-type=${req.headers['content-type']}`);
+    }
+
     res.setHeader('Content-Type', 'application/json');
 
     // Parse entity early to allow public registration + founder cross-tenant operations
@@ -1975,6 +1980,9 @@ export function createApiHandler() {
           console.error(`[neon] SELECT from ${table} returned null — DATABASE_URL may be missing`);
           return res.end(JSON.stringify([]));
         }
+        if (table === 'registration_requests') {
+          console.log(`[DEBUG-REG] LIST OK: ${rows.length} rows returned`);
+        }
         return res.end(JSON.stringify(rows));
       }
 
@@ -2093,6 +2101,9 @@ export function createApiHandler() {
         }
 
         res.statusCode = 201;
+        if (table === 'registration_requests') {
+          console.log(`[DEBUG-REG] INSERT OK: id=${rows[0].id} email=${rows[0].email} school=${rows[0].school_name} plan=${rows[0].plan}`);
+        }
         return res.end(JSON.stringify(rows[0]));
       }
 
