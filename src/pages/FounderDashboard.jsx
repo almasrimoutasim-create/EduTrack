@@ -34,7 +34,6 @@ const NAV = [
   { id: "overview", label: "الرئيسية", icon: LayoutDashboard },
   { id: "schools", label: "إدارة المدارس", icon: Building2 },
   { id: "requests", label: "طلبات التسجيل", icon: FileText },
-  { id: "teacher-student-regs", label: "طلبات المعلمين والطلاب", icon: Users },
   { id: "teachers", label: "إدارة المعلمين", icon: GraduationCap },
   { id: "students", label: "إدارة الطلاب", icon: Users },
   { id: "subscriptions", label: "الاشتراكات والإيرادات", icon: CreditCard },
@@ -90,7 +89,8 @@ const FounderDashboard = () => {
       setTeacherUsername("");
       setTeacherPassword("");
       queryClient.invalidateQueries({ queryKey: ["founder-registrations"] });
-      queryClient.invalidateQueries({ queryKey: ["founder-teacher-student-regs"] });
+
+
     } catch (err) {
       toast.error(err.message || "فشل إنشاء الحساب");
     } finally {
@@ -122,7 +122,8 @@ const FounderDashboard = () => {
       setStudentUsername("");
       setStudentPassword("");
       queryClient.invalidateQueries({ queryKey: ["founder-registrations"] });
-      queryClient.invalidateQueries({ queryKey: ["founder-teacher-student-regs"] });
+
+
     } catch (err) {
       toast.error(err.message || "فشل إنشاء الحساب");
     } finally {
@@ -153,17 +154,6 @@ const FounderDashboard = () => {
     queryFn: async () => {
       try { return await entities.RegistrationRequest.list("-created_at", 200); }
       catch { return []; }
-    },
-  });
-
-  // ── Teacher/Student registration requests ──
-  const { data: teacherStudentRequests = [], isLoading: tsReqLoading } = useQuery({
-    queryKey: ["founder-teacher-student-regs"],
-    queryFn: async () => {
-      try {
-        const allReqs = await entities.RegistrationRequest.list("-created_at", 500);
-        return allReqs.filter(r => r.role_requested === "teacher" || r.role_requested === "student" || r.plan === "student_free" || r.plan === "teacher_free");
-      } catch { return []; }
     },
   });
 
@@ -296,7 +286,8 @@ const FounderDashboard = () => {
     onSuccess: () => {
       toast.success("تم تحديث الطلب");
       queryClient.invalidateQueries({ queryKey: ["founder-registrations"] });
-      queryClient.invalidateQueries({ queryKey: ["founder-teacher-student-regs"] });
+
+
     },
     onError: () => toast.error("تعذر تحديث الطلب"),
   });
@@ -307,7 +298,8 @@ const FounderDashboard = () => {
       toast.success("تم حذف الطلب");
       setViewRequestDetail(null);
       queryClient.invalidateQueries({ queryKey: ["founder-registrations"] });
-      queryClient.invalidateQueries({ queryKey: ["founder-teacher-student-regs"] });
+
+
     },
     onError: () => toast.error("تعذر حذف الطلب"),
   });
@@ -1068,7 +1060,6 @@ const FounderDashboard = () => {
         )}
 
         {/* ───── 3️⃣ طلبات التسجيل ───── */}
-        {/* ───── 3️⃣ طلبات التسجيل ───── */}
         {section === "requests" && (
           <div className="space-y-4">
             {/* Filter Sub-Tabs */}
@@ -1102,7 +1093,8 @@ const FounderDashboard = () => {
               <button
                 onClick={() => {
                   queryClient.invalidateQueries({ queryKey: ["founder-registrations"] });
-                  queryClient.invalidateQueries({ queryKey: ["founder-teacher-student-regs"] });
+            
+
                   toast.success("تم تحديث قائمة الطلبات");
                 }}
                 className="text-xs font-bold text-slate-500 hover:text-slate-900 flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50"
@@ -1219,7 +1211,8 @@ const FounderDashboard = () => {
                                           await entities.RegistrationRequest.update(r.id, { status: "rejected" });
                                           toast.success("تم رفض الطلب");
                                           queryClient.invalidateQueries({ queryKey: ["founder-registrations"] });
-                                          queryClient.invalidateQueries({ queryKey: ["founder-teacher-student-regs"] });
+                                    
+
                                         }}
                                         className="flex items-center gap-1 bg-rose-50 text-rose-700 px-2 py-1.5 rounded-lg text-xs font-bold hover:bg-rose-100"
                                       >
@@ -1230,7 +1223,8 @@ const FounderDashboard = () => {
                                           await entities.RegistrationRequest.update(r.id, { status: "on_hold" });
                                           toast.success("تم تعليق الطلب");
                                           queryClient.invalidateQueries({ queryKey: ["founder-registrations"] });
-                                          queryClient.invalidateQueries({ queryKey: ["founder-teacher-student-regs"] });
+                                    
+
                                         }}
                                         className="flex items-center gap-1 bg-amber-50 text-amber-700 px-2 py-1.5 rounded-lg text-xs font-bold hover:bg-amber-100"
                                       >
@@ -1268,114 +1262,6 @@ const FounderDashboard = () => {
                 <span>يتم تحديث الطلبات تلقائياً فور تسجيل الطالب أو المعلم أو المدرسة من صفحات التسجيل العامة.</span>
               </div>
             </div>
-          </div>
-        )}
-
-        {/* ───── 3️⃣ طلبات المعلمين والطلاب ───── */}
-        {section === "teacher-student-regs" && (
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-            <div className="p-4 border-b border-slate-100 flex items-center justify-between">
-              <h3 className="font-bold text-slate-900 flex items-center gap-2"><Users size={18} className="text-violet-500"/> طلبات تسجيل المعلمين والطلاب</h3>
-              <span className="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded-full font-bold">{teacherStudentRequests.length} طلب</span>
-            </div>
-            {tsReqLoading ? <p className="p-6 text-slate-500 text-center">جاري التحميل...</p> : teacherStudentRequests.length === 0 ? (
-              <div className="p-12 text-center">
-                <Users size={40} className="text-slate-200 mx-auto mb-3"/>
-                <p className="text-slate-500 font-bold">لا توجد طلبات معلمين أو طلاب بعد</p>
-                <p className="text-xs text-slate-400 mt-1">ستظهر هنا الطلبات التي تأتي من صفحات التسجيل العامة للمعلمين والطلاب</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-slate-50 text-slate-500">
-                  <tr>
-                    <th className="text-right p-4 font-semibold">الاسم</th>
-                    <th className="text-right p-4 font-semibold">النوع</th>
-                    <th className="text-right p-4 font-semibold">البريد</th>
-                    <th className="text-right p-4 font-semibold">الهاتف</th>
-                    <th className="text-right p-4 font-semibold">المدرسة / المدينة</th>
-                    <th className="text-right p-4 font-semibold">الصف / الملاحظات</th>
-                    <th className="text-right p-4 font-semibold">الحالة</th>
-                    <th className="text-right p-4 font-semibold">إجراء</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {teacherStudentRequests.map((r) => {
-                    const isTeacher = r.role_requested === "teacher" || r.plan === "teacher_free";
-                    return (
-                    <tr key={r.id} className="border-t border-slate-100 hover:bg-slate-50">
-                      <td className="p-4">
-                        <p className="font-bold text-slate-900">{r.full_name || r.student_name || "-"}</p>
-                        {r.director_name && <p className="text-xs text-slate-400">ولي الأمر: {r.director_name}</p>}
-                      </td>
-                      <td className="p-4">
-                        <span className={`px-2 py-1 rounded-full text-xs font-bold ${isTeacher ? "bg-indigo-100 text-indigo-700" : "bg-emerald-100 text-emerald-700"}`}>
-                          {isTeacher ? "معلم" : "طالب"}
-                        </span>
-                      </td>
-                      <td className="p-4 text-slate-500" dir="ltr">{r.email || "-"}</td>
-                      <td className="p-4 text-slate-600 flex items-center gap-1" dir="ltr"><Phone size={12}/>{r.phone || "-"}</td>
-                      <td className="p-4 text-slate-600">
-                        <p>{r.school_name || "-"}</p>
-                        {r.country && <p className="text-xs text-slate-400">{r.country}</p>}
-                      </td>
-                      <td className="p-4 text-slate-600">
-                        {!isTeacher && r.grade && <p className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded inline-block font-bold">الصف: {r.grade}</p>}
-                        {r.notes && <p className="text-xs text-slate-400 mt-1 max-w-[150px] truncate" title={r.notes}>{r.notes}</p>}
-                      </td>
-                      <td className="p-4">
-                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${r.status === "approved" ? "bg-emerald-100 text-emerald-700" : r.status === "rejected" ? "bg-rose-100 text-rose-700" : r.status==="on_hold" ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-600"}`}>
-                          {r.status === "approved" ? "مقبول" : r.status === "rejected" ? "مرفوض" : r.status==="on_hold" ? "معلق" : "قيد الانتظار"}
-                        </span>
-                      </td>
-                      <td className="p-4">
-                        <div className="flex gap-1 flex-wrap items-center">
-                          <button
-                            onClick={() => setViewRequestDetail(r)}
-                            className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600"
-                            title="عرض كل التفاصيل"
-                          >
-                            <Eye size={14}/>
-                          </button>
-
-                          {r.status !== "approved" && r.status !== "rejected" ? (
-                            <>
-                              <button onClick={() => {
-                                if (isTeacher) {
-                                  setTeacherApproval({ requestId: r.id, fullName: r.full_name || r.student_name, email: r.email, data: r });
-                                  setTeacherUsername(r.email ? r.email.split('@')[0] : `teacher_${Date.now().toString().slice(-4)}`);
-                                  setTeacherPassword(genPassword(8));
-                                } else {
-                                  setStudentApproval({ requestId: r.id, fullName: r.full_name || r.student_name, email: r.email, data: r });
-                                  setStudentUsername(r.email ? r.email.split('@')[0] : `student_${Date.now().toString().slice(-4)}`);
-                                  setStudentPassword(genPassword(8));
-                                }
-                              }} className="flex items-center gap-1 bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-emerald-700"><CheckCircle2 size={12}/> قبول</button>
-                              <button onClick={async () => {
-                                await entities.RegistrationRequest.update(r.id, { status: "rejected" });
-                                toast.success(`تم رفض الطلب`);
-                                queryClient.invalidateQueries({ queryKey: ["founder-registrations"] });
-                                queryClient.invalidateQueries({ queryKey: ["founder-teacher-student-regs"] });
-                              }} className="flex items-center gap-1 bg-rose-50 text-rose-700 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-rose-100"><XCircle size={12}/> رفض</button>
-                              <button onClick={async () => {
-                                await entities.RegistrationRequest.update(r.id, { status: "on_hold" });
-                                toast.success(`تم تعليق الطلب`);
-                                queryClient.invalidateQueries({ queryKey: ["founder-registrations"] });
-                                queryClient.invalidateQueries({ queryKey: ["founder-teacher-student-regs"] });
-                              }} className="flex items-center gap-1 bg-amber-50 text-amber-700 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-amber-100"><PauseCircle size={12}/> تعليق</button>
-                            </>
-                          ) : (
-                            <span className="text-xs text-slate-400">— تمت المعالجة</span>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  )})}
-                </tbody>
-              </table>
-              </div>
-            )}
-            <p className="p-4 text-xs text-slate-400 bg-slate-50 border-t">هذه الطلبات تأتي من صفحات التسجيل العامة (/student-register و /teacher-register). عند القبول، يتم تفعيل الحساب فوراً.</p>
           </div>
         )}
 
@@ -1775,7 +1661,7 @@ const FounderDashboard = () => {
           </div>
         )}
 
-        {/* ───── 5️⃣ الدعم الفني ───── */}
+        {/* ───── 7️⃣ الدعم الفني ───── */}
         {section === "support" && (
           <div className="space-y-4">
             {tickets.length === 0 ? <p className="text-slate-500">لا توجد تذاكر دعم.</p> : (
@@ -1813,7 +1699,7 @@ const FounderDashboard = () => {
           </div>
         )}
 
-        {/* ───── 6️⃣ إعدادات المنصة ───── */}
+        {/* ───── 8️⃣ إعدادات المنصة ───── */}
         {section === "settings" && (
           <div className="space-y-6 max-w-3xl">
             {/* أسعار الخطط */}
