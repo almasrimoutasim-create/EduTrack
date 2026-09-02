@@ -247,28 +247,25 @@ export default function LandingPage() {
         </Dialog>
       </section>
 
-      {/* Student Registration CTA */}
+      {/* School Registration CTA */}
       <section className="max-w-7xl mx-auto px-4 md:px-6 py-6">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-gradient-to-r from-emerald-600 via-teal-600 to-sky-600 rounded-[28px] p-6 md:p-8 text-white shadow-xl">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-gradient-to-r from-stone-800 via-stone-900 to-black rounded-[28px] p-6 md:p-8 text-white shadow-xl">
           <div className="grid md:grid-cols-2 gap-8 items-center">
             <div>
               <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur rounded-full px-4 py-2 text-sm font-bold">
-                <UserPlus size={16} /> {isRTL ? "بوابة الطالب المستقل" : "Independent Student Portal"}
+                <ShieldCheck size={16} /> {isRTL ? "بوابة المدرسة" : "School Portal"}
               </div>
               <h3 className="mt-3 text-2xl md:text-3xl font-black leading-tight">
-                {isRTL ? "سجل طالبك الآن — وصول فوري للمنهج السوداني" : "Register your student — Instant access to Sudanese curriculum"}
+                {isRTL ? "أدر مدرستك بالكامل — نتائج، رسوم، حضور، وتقارير" : "Manage your entire school — results, fees, attendance & reports"}
               </h3>
               <p className="mt-2 text-white/90 leading-relaxed">
-                {isRTL ? "أي طالب يمكنه التسجيل مجاناً للوصول إلى كتب المنهج السوداني المعتمدة، وحل الواجبات، ومتابعة الدروس. للاشتراك مع معلم خاص والدروس المباشرة، يرسل طلب اشتراك من داخل البوابة." : "Any student can register free for Sudanese curriculum books, assignments, and lessons. To join a private teacher for live classes, send a subscription request from within the portal."}
+                {isRTL ? "لوحة تحكم شاملة للمديرين: إدارة الطلاب والمعلمين، النتائج والشهادات السودانية، الرسوم المالية، الحضور والغياب، والتقارير الذكية. كل ما تحتاجه لإدارة مدرستك في مكان واحد." : "Comprehensive admin dashboard: manage students & teachers, Sudanese results & certificates, financial fees, attendance, and smart reports. Everything you need in one place."}
               </p>
               <div className="mt-5 flex flex-wrap gap-3">
-                <Link to="/student-register" className="h-11 px-6 rounded-xl bg-white/20 border border-white/30 text-white font-black text-sm hover:bg-white/30 inline-flex items-center gap-2">
-                  <UserPlus size={16} /> {isRTL ? "تسجيل طالب جديد (مجاني)" : "Register Student (Free)"}
+                <Link to="/register" className="h-11 px-6 rounded-xl bg-white text-stone-900 font-black text-sm hover:bg-white/90 inline-flex items-center gap-2 shadow-lg">
+                  <Sparkles size={16} /> {isRTL ? "طلب نسخة تجريبية" : "Request Demo"}
                 </Link>
-                <Link to="/student-panel" className="h-11 px-6 rounded-xl bg-white text-emerald-700 font-black text-sm hover:bg-white/90 inline-flex items-center gap-2 shadow-lg">
-                  <BookOpen size={16} /> {isRTL ? "دخول بوابة الطالب" : "Open Student Portal"}
-                </Link>
-                <a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("مرحباً، أريد تسجيل طالب في منصة EduTrack. كيف أبدأ؟")}`} target="_blank" rel="noopener noreferrer" className="h-11 px-6 rounded-xl bg-white/20 border border-white/30 text-white font-black text-sm hover:bg-white/30 inline-flex items-center gap-2">
+                <a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${WHATSAPP_MSG}`} target="_blank" rel="noopener noreferrer" className="h-11 px-6 rounded-xl bg-white/20 border border-white/30 text-white font-black text-sm hover:bg-white/30 inline-flex items-center gap-2">
                   <MessageCircle size={16} /> {isRTL ? "استفسار عبر الواتساب" : "WhatsApp Inquiry"}
                 </a>
               </div>
@@ -277,15 +274,15 @@ export default function LandingPage() {
               <div className="bg-white/10 backdrop-blur rounded-[24px] p-2 border border-white/20">
                 <div className="grid grid-cols-3 gap-2">
                   {[
-                    { icon: BookOpen, label: isRTL ? "كتب المنهج" : "Curriculum Books" },
-                    { icon: ClipboardCheck, label: isRTL ? "واجبات وامتحانات" : "Assignments & Exams" },
-                    { icon: Star, label: isRTL ? "شهادات معتمدة" : "Certified Certificates" },
-                    { icon: Users, label: isRTL ? "تواصل مع معلمين" : "Connect Teachers" },
-                    { icon: Award, label: isRTL ? "متابعة تقديرات" : "Track Grades" },
-                    { icon: ShieldCheck, label: isRTL ? "آمن ومحمي" : "Secure & Safe" },
+                    { icon: Award, label: isRTL ? "النتائج والشهادات" : "Results & Certificates" },
+                    { icon: Users, label: isRTL ? "إدارة الطلاب والمعلمين" : "Students & Teachers" },
+                    { icon: Wallet, label: isRTL ? "الرسوم المالية" : "Financial Fees" },
+                    { icon: ClipboardCheck, label: isRTL ? "الحضور والغياب" : "Attendance" },
+                    { icon: BarChart3, label: isRTL ? "التقارير الذكية" : "Smart Reports" },
+                    { icon: Lock, label: isRTL ? "أمان وصلاحيات" : "Security & Roles" },
                   ].map((item, i) => (
                     <div key={i} className="bg-white/5 rounded-xl p-3 text-center hover:bg-white/10 transition-colors">
-                      <div className="h-8 w-8 rounded-lg bg-emerald-500 text-white flex items-center justify-center mx-auto mb-2">
+                      <div className="h-8 w-8 rounded-lg bg-white/20 text-white flex items-center justify-center mx-auto mb-2">
                         <item.icon size={16} />
                       </div>
                       <span className="text-xs font-bold text-white/90">{item.label}</span>
@@ -337,6 +334,57 @@ export default function LandingPage() {
                   ].map((item, i) => (
                     <div key={i} className="bg-white/5 rounded-xl p-3 text-center hover:bg-white/10 transition-colors">
                       <div className="h-8 w-8 rounded-lg bg-indigo-500 text-white flex items-center justify-center mx-auto mb-2">
+                        <item.icon size={16} />
+                      </div>
+                      <span className="text-xs font-bold text-white/90">{item.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      </section>
+
+      {/* Student Registration CTA */}
+      <section className="max-w-7xl mx-auto px-4 md:px-6 py-6">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-gradient-to-r from-emerald-600 via-teal-600 to-sky-600 rounded-[28px] p-6 md:p-8 text-white shadow-xl">
+          <div className="grid md:grid-cols-2 gap-8 items-center">
+            <div>
+              <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur rounded-full px-4 py-2 text-sm font-bold">
+                <UserPlus size={16} /> {isRTL ? "بوابة الطالب المستقل" : "Independent Student Portal"}
+              </div>
+              <h3 className="mt-3 text-2xl md:text-3xl font-black leading-tight">
+                {isRTL ? "سجل طالبك الآن — وصول فوري للمنهج السوداني" : "Register your student — Instant access to Sudanese curriculum"}
+              </h3>
+              <p className="mt-2 text-white/90 leading-relaxed">
+                {isRTL ? "أي طالب يمكنه التسجيل مجاناً للوصول إلى كتب المنهج السوداني المعتمدة، وحل الواجبات، ومتابعة الدروس. للاشتراك مع معلم خاص والدروس المباشرة، يرسل طلب اشتراك من داخل البوابة." : "Any student can register free for Sudanese curriculum books, assignments, and lessons. To join a private teacher for live classes, send a subscription request from within the portal."}
+              </p>
+              <div className="mt-5 flex flex-wrap gap-3">
+                <Link to="/student-register" className="h-11 px-6 rounded-xl bg-white/20 border border-white/30 text-white font-black text-sm hover:bg-white/30 inline-flex items-center gap-2">
+                  <UserPlus size={16} /> {isRTL ? "تسجيل طالب جديد (مجاني)" : "Register Student (Free)"}
+                </Link>
+                <Link to="/student-panel" className="h-11 px-6 rounded-xl bg-white text-emerald-700 font-black text-sm hover:bg-white/90 inline-flex items-center gap-2 shadow-lg">
+                  <BookOpen size={16} /> {isRTL ? "دخول بوابة الطالب" : "Open Student Portal"}
+                </Link>
+                <a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("مرحباً، أريد تسجيل طالب في منصة EduTrack. كيف أبدأ؟")}`} target="_blank" rel="noopener noreferrer" className="h-11 px-6 rounded-xl bg-white/20 border border-white/30 text-white font-black text-sm hover:bg-white/30 inline-flex items-center gap-2">
+                  <MessageCircle size={16} /> {isRTL ? "استفسار عبر الواتساب" : "WhatsApp Inquiry"}
+                </a>
+              </div>
+            </div>
+            <div className="relative">
+              <div className="bg-white/10 backdrop-blur rounded-[24px] p-2 border border-white/20">
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { icon: BookOpen, label: isRTL ? "كتب المنهج" : "Curriculum Books" },
+                    { icon: ClipboardCheck, label: isRTL ? "واجبات وامتحانات" : "Assignments & Exams" },
+                    { icon: Star, label: isRTL ? "شهادات معتمدة" : "Certified Certificates" },
+                    { icon: Users, label: isRTL ? "تواصل مع معلمين" : "Connect Teachers" },
+                    { icon: Award, label: isRTL ? "متابعة تقديرات" : "Track Grades" },
+                    { icon: ShieldCheck, label: isRTL ? "آمن ومحمي" : "Secure & Safe" },
+                  ].map((item, i) => (
+                    <div key={i} className="bg-white/5 rounded-xl p-3 text-center hover:bg-white/10 transition-colors">
+                      <div className="h-8 w-8 rounded-lg bg-emerald-500 text-white flex items-center justify-center mx-auto mb-2">
                         <item.icon size={16} />
                       </div>
                       <span className="text-xs font-bold text-white/90">{item.label}</span>
