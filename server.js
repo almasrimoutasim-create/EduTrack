@@ -94,6 +94,30 @@ app.get('/api/debug/db-health', async (_req, res) => {
   }
 });
 
+// Debug: test INSERT into registration_requests directly
+app.post('/api/debug/test-registration', async (req, res) => {
+  try {
+    const { neon } = await import('./server/db_compat.js');
+    const sql = neon(process.env.DATABASE_URL);
+    if (!sql) return res.json({ status: 'error', error: 'DATABASE_URL not set' });
+    
+    const body = req.body;
+    const fullName = body.full_name || 'Test User';
+    const email = body.email || 'test@example.com';
+    const schoolName = body.school_name || 'Test School';
+    const directorName = body.director_name || 'Test Director';
+    const plan = body.plan || 'starter';
+    const country = body.country || 'العراق';
+    const phone = body.phone || '000000000';
+    
+    const rows = await sql`INSERT INTO registration_requests (full_name, email, school_name, director_name, plan, country, phone, role_requested, status) VALUES (${fullName}, ${email}, ${schoolName}, ${directorName}, ${plan}, ${country}, ${phone}, 'school_admin', 'pending') RETURNING *`;
+    
+    res.json({ status: 'ok', inserted: rows[0] });
+  } catch (err) {
+    res.json({ status: 'error', error: err.message, stack: err.stack });
+  }
+});
+
 // Mount API routes AFTER static files
 app.use(createApiHandler());
 
