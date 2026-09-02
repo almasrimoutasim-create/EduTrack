@@ -400,7 +400,8 @@ export default function Sidebar() {
               localStorage.setItem("portal_role", "staff");
               window.location.href = "/staff-portal";
             } else {
-              window.location.href = "/gateway";
+              const slug = localStorage.getItem("portal_school_slug");
+              window.location.href = slug ? `/gateway/${slug}` : "/gateway";
             }
           }}>
             {sidebarLogoUrl && !sidebarLogoError ? (
@@ -546,6 +547,16 @@ export default function Sidebar() {
             >
               <ArrowLeft className={cn("h-5 w-5", isRTL ? "rotate-180" : "")} />
               {isRTL ? "بوابة الموظفين" : "Staff Hub"}
+            </button>
+          )}
+
+          {portalRole === "admin" && (
+            <button
+              onClick={() => { window.location.href = "/login"; }}
+              className="flex items-center gap-3 w-full px-4 py-3 text-sm font-bold text-emerald-600 hover:bg-emerald-50 rounded-2xl transition-all"
+            >
+              <Layers className={cn("h-5 w-5", isRTL ? "rotate-180" : "")} />
+              {isRTL ? "بوابة البوابات" : "Portals"}
             </button>
           )}
           

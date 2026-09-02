@@ -107,6 +107,7 @@ export default function Gateway() {
       localStorage.setItem("portal_user_name", loggedUser.full_name || schoolData?.name || "مدير المدرسة");
       localStorage.setItem("portal_is_auth", "true");
       localStorage.setItem("portal_gateway_passed", "true");
+      localStorage.setItem("portal_school_slug", schoolSlug);
       if (data.school?.id) {
         localStorage.setItem("portal_school_id", data.school.id);
       }

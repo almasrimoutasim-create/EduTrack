@@ -242,7 +242,9 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('portal_gateway_passed');
 
     if (shouldRedirect) {
-      window.location.href = '/gateway';
+      const slug = localStorage.getItem('portal_school_slug');
+      localStorage.removeItem('portal_school_slug');
+      window.location.href = slug ? `/gateway/${slug}` : '/gateway';
     }
   };
 
