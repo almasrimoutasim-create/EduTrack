@@ -13,7 +13,7 @@ export default function Settings() {
   const { language } = useLanguage();
   const isRTL = language === 'ar';
   const queryClient = useQueryClient();
-  const { checkAppState } = useAuth();
+  const { user, checkAppState } = useAuth();
 
   const [formData, setFormData] = useState({
     school_name_ar: '',
@@ -69,7 +69,7 @@ export default function Settings() {
         await entities.SystemSetting.create(formData);
       }
       // Also update schools table branding (for Gateway page)
-      const schoolId = localStorage.getItem('portal_school_id');
+      const schoolId = localStorage.getItem('portal_school_id') || user?.school_id;
       if (schoolId) {
         try {
           const apiBase = (import.meta.env.VITE_BACKEND_URL || '').replace(/\/$/, '');

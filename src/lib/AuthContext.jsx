@@ -178,6 +178,9 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('portal_user_id', loggedUser.id);
       localStorage.setItem('portal_user_name', loggedUser.full_name);
       localStorage.setItem('portal_is_auth', 'true');
+      if (loggedUser.school_id) {
+        localStorage.setItem('portal_school_id', loggedUser.school_id);
+      }
       if (data.token) {
         localStorage.setItem('portal_jwt_token', data.token);
       }
