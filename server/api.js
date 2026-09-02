@@ -406,7 +406,7 @@ if (process.env.DATABASE_URL) {
   sql`
     CREATE TABLE IF NOT EXISTS system_admins (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      email TEXT UNIQUE NOT NULL,
+      email TEXT NOT NULL,
       password TEXT NOT NULL,
       full_name TEXT NOT NULL DEFAULT 'System Admin',
       created_by TEXT,
@@ -414,6 +414,16 @@ if (process.env.DATABASE_URL) {
     )
   `.then(async () => {
     console.log('[neon] system_admins table verified/created');
+    // Add missing columns if they don't exist (migration)
+    await sql`ALTER TABLE system_admins ADD COLUMN IF NOT EXISTS username TEXT`.catch(()=>{});
+    await sql`ALTER TABLE system_admins ADD COLUMN IF NOT EXISTS school_id UUID`.catch(()=>{});
+    await sql`ALTER TABLE system_admins ADD COLUMN IF NOT EXISTS portal_password TEXT`.catch(()=>{});
+    await sql`ALTER TABLE system_admins ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'admin'`.catch(()=>{});
+    await sql`ALTER TABLE system_admins ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active'`.catch(()=>{});
+    await sql`ALTER TABLE system_admins ADD COLUMN IF NOT EXISTS portal_username TEXT`.catch(()=>{});
+    console.log('[neon] system_admins columns migrated');
+    // Remove UNIQUE constraint on email if it exists (multiple schools may share admin email)
+    await sql`ALTER TABLE system_admins DROP CONSTRAINT IF EXISTS system_admins_email_key`.catch(()=>{});
     const rows = await sql`SELECT COUNT(*) FROM system_admins`;
     if (rows[0].count === '0') {
       const hashed = bcrypt.hashSync('admin123', 10);
