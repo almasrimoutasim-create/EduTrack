@@ -175,6 +175,17 @@ const FounderDashboard = () => {
     },
   });
 
+  // ── Teacher/Student registration requests (from registration_requests table) ──
+  const { data: teacherStudentRequests = [], isLoading: tsReqLoading } = useQuery({
+    queryKey: ["founder-teacher-student-regs"],
+    queryFn: async () => {
+      try {
+        const allReqs = await entities.RegistrationRequest.list("-created_at", 500);
+        return allReqs.filter(r => r.role_requested === "teacher" || r.role_requested === "student" || r.plan === "student_free" || r.plan === "teacher_free");
+      } catch { return []; }
+    },
+  });
+
   // ── Support tickets (localStorage) ──
   const [tickets, setTickets] = useState(() => {
     try { return JSON.parse(localStorage.getItem("founder_support_tickets")) || SUPPORT_SEED; }
