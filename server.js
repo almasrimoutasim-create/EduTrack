@@ -48,21 +48,19 @@ app.get('/api/ice-config', (_req, res) => {
   });
 });
 
-// Mount API routes AFTER static files
-app.use(createApiHandler());
-
-// Health check (useful for Render)
+// Health check (useful for Render) — before API handler so it's not intercepted
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString() });
 });
 
-// Debug: verify DATABASE_URL and registration_requests table
+// Debug: verify DATABASE_URL and registration_requests table (must be before API handler)
 app.get('/api/debug/db-health', async (_req, res) => {
   try {
-    const { default: sql } = await import('./server/db.js');
+    const { neon } = await import('./server/db_compat.js');
     const dbUrl = process.env.DATABASE_URL ? 'SET (length=' + process.env.DATABASE_URL.length + ')' : 'NOT SET';
+    const sql = neon(process.env.DATABASE_URL);
+    if (!sql) return res.json({ status: 'error', error: 'DATABASE_URL not set' });
     
-    // Check registration_requests table
     let tableExists = false;
     let columns = [];
     let rowCount = 0;
@@ -95,6 +93,9 @@ app.get('/api/debug/db-health', async (_req, res) => {
     res.json({ status: 'error', error: err.message });
   }
 });
+
+// Mount API routes AFTER static files
+app.use(createApiHandler());
 
 // SPA fallback for client-side routing
 app.get('*', (req, res) => {
