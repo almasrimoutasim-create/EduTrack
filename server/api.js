@@ -700,8 +700,16 @@ if (process.env.DATABASE_URL) {
       created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     )
-  `.then(() => console.log('[neon] teacher_subscription_requests table verified/created'))
-    .catch(err => console.error('[neon] teacher_subscription_requests:', err.message));
+  `.then(async () => {
+    console.log('[neon] teacher_subscription_requests table verified/created');
+    // Migration: add trial and approval columns
+    await sql`ALTER TABLE teacher_subscription_requests ADD COLUMN IF NOT EXISTS trial_start_date TIMESTAMP WITH TIME ZONE`.catch(()=>{});
+    await sql`ALTER TABLE teacher_subscription_requests ADD COLUMN IF NOT EXISTS trial_end_date TIMESTAMP WITH TIME ZONE`.catch(()=>{});
+    await sql`ALTER TABLE teacher_subscription_requests ADD COLUMN IF NOT EXISTS approved_at TIMESTAMP WITH TIME ZONE`.catch(()=>{});
+    await sql`ALTER TABLE teacher_subscription_requests ADD COLUMN IF NOT EXISTS activated_at TIMESTAMP WITH TIME ZONE`.catch(()=>{});
+    await sql`ALTER TABLE teacher_subscription_requests ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP WITH TIME ZONE`.catch(()=>{});
+    console.log('[neon] teacher_subscription_requests columns migrated');
+  }).catch(err => console.error('[neon] teacher_subscription_requests:', err.message));
 
   // Auto-create student_teacher_bonds table
   sql`
@@ -723,6 +731,35 @@ if (process.env.DATABASE_URL) {
     )
   `.then(() => console.log('[neon] student_teacher_bonds table verified/created'))
     .catch(err => console.error('[neon] student_teacher_bonds:', err.message));
+
+  // Auto-create subscription_pricing table
+  sql`
+    CREATE TABLE IF NOT EXISTS subscription_pricing (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      plan_name TEXT NOT NULL,
+      plan_name_ar TEXT,
+      plan_type TEXT NOT NULL DEFAULT 'teacher',
+      price_monthly NUMERIC DEFAULT 0,
+      price_yearly NUMERIC DEFAULT 0,
+      currency TEXT DEFAULT 'EGP',
+      trial_days INTEGER DEFAULT 30,
+      features JSONB DEFAULT '[]',
+      is_active BOOLEAN DEFAULT true,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `.then(async () => {
+    console.log('[neon] subscription_pricing table verified/created');
+    // Seed default teacher pricing if empty
+    const rows = await sql`SELECT COUNT(*) FROM subscription_pricing`;
+    if (rows[0].count === '0') {
+      await sql`INSERT INTO subscription_pricing (plan_name, plan_name_ar, plan_type, price_monthly, price_yearly, currency, trial_days, features) VALUES
+        ('teacher_monthly', 'اشتراك شهري للمعلم', 'teacher', 49000, 0, 'EGP', 30, '[" إدارة طلاب غير محدودة", "واجبات وامتحانات", "بث مباشر", "فيديوهات يوتيوب"]'),
+        ('teacher_yearly', 'اشتراك سنوي للمعلم', 'teacher', 0, 350000, 'EGP', 30, '[" إدارة طلاب غير محدودة", "واجبات وامتحانات", "بث مباشر", "فيديوهات يوتيوب", "خصم 41%"]')
+      `;
+      console.log('[neon] seeded default teacher pricing plans');
+    }
+  }).catch(err => console.error('[neon] subscription_pricing:', err.message));
 
 }
 
@@ -2337,6 +2374,149 @@ export function createApiHandler() {
           }));
         } catch (error) {
           console.error('[approve-student] error:', error);
+          res.statusCode = 500;
+          return res.end(JSON.stringify({ error: error.message }));
+        }
+      }
+
+      // ── GET /api/subscription-pricing — List pricing plans ──
+      if (req.url === '/api/subscription-pricing' && req.method === 'GET') {
+        res.setHeader('Content-Type', 'application/json');
+        try {
+          const rows = await dbQuery('SELECT * FROM subscription_pricing WHERE is_active = true ORDER BY price_monthly ASC, price_yearly ASC');
+          return res.end(JSON.stringify(rows));
+        } catch (error) {
+          console.error('[subscription-pricing] GET error:', error);
+          res.statusCode = 500;
+          return res.end(JSON.stringify({ error: error.message }));
+        }
+      }
+
+      // ── POST /api/subscription-pricing — Create/update pricing plan (founder) ──
+      if (req.url === '/api/subscription-pricing' && req.method === 'POST') {
+        res.setHeader('Content-Type', 'application/json');
+        try {
+          const body = await parseBody(req);
+          const { id, plan_name, plan_name_ar, plan_type, price_monthly, price_yearly, currency, trial_days, features, is_active } = body;
+          if (!plan_name) {
+            res.statusCode = 400;
+            return res.end(JSON.stringify({ error: 'plan_name is required' }));
+          }
+          if (id) {
+            // Update existing
+            const result = await dbQuery(
+              `UPDATE subscription_pricing SET plan_name=$1, plan_name_ar=$2, plan_type=$3, price_monthly=$4, price_yearly=$5, currency=$6, trial_days=$7, features=$8, is_active=$9, updated_at=NOW() WHERE id=$10 RETURNING *`,
+              [plan_name, plan_name_ar || null, plan_type || 'teacher', price_monthly || 0, price_yearly || 0, currency || 'EGP', trial_days || 30, JSON.stringify(features || []), is_active !== false, id]
+            );
+            if (result.length === 0) {
+              res.statusCode = 404;
+              return res.end(JSON.stringify({ error: 'Plan not found' }));
+            }
+            return res.end(JSON.stringify(result[0]));
+          } else {
+            // Create new
+            const result = await dbQuery(
+              `INSERT INTO subscription_pricing (plan_name, plan_name_ar, plan_type, price_monthly, price_yearly, currency, trial_days, features, is_active) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+              [plan_name, plan_name_ar || null, plan_type || 'teacher', price_monthly || 0, price_yearly || 0, currency || 'EGP', trial_days || 30, JSON.stringify(features || []), is_active !== false]
+            );
+            return res.end(JSON.stringify(result[0]));
+          }
+        } catch (error) {
+          console.error('[subscription-pricing] POST error:', error);
+          res.statusCode = 500;
+          return res.end(JSON.stringify({ error: error.message }));
+        }
+      }
+
+      // ── DELETE /api/subscription-pricing/:id — Delete pricing plan ──
+      if (req.url?.startsWith('/api/subscription-pricing/') && req.method === 'DELETE') {
+        res.setHeader('Content-Type', 'application/json');
+        try {
+          const planId = req.url.split('/api/subscription-pricing/')[1];
+          await dbQuery('UPDATE subscription_pricing SET is_active = false, updated_at = NOW() WHERE id = $1', [planId]);
+          return res.end(JSON.stringify({ success: true }));
+        } catch (error) {
+          console.error('[subscription-pricing] DELETE error:', error);
+          res.statusCode = 500;
+          return res.end(JSON.stringify({ error: error.message }));
+        }
+      }
+
+      // ── GET /api/teacher-subscription-requests — List all teacher subscription requests (founder) ──
+      if (req.url === '/api/teacher-subscription-requests' && req.method === 'GET') {
+        res.setHeader('Content-Type', 'application/json');
+        try {
+          const rows = await dbQuery('SELECT * FROM teacher_subscription_requests ORDER BY created_at DESC');
+          return res.end(JSON.stringify(rows));
+        } catch (error) {
+          console.error('[teacher-subscription-requests] GET error:', error);
+          res.statusCode = 500;
+          return res.end(JSON.stringify({ error: error.message }));
+        }
+      }
+
+      // ── POST /api/teacher-subscription-requests/:id/approve — Approve teacher subscription with trial ──
+      if (req.url?.startsWith('/api/teacher-subscription-requests/') && req.url.endsWith('/approve') && req.method === 'POST') {
+        res.setHeader('Content-Type', 'application/json');
+        try {
+          const requestId = req.url.split('/api/teacher-subscription-requests/')[1].split('/')[0];
+          const body = await parseBody(req);
+          const { trial_days, founder_notes, is_trial } = body;
+
+          const rows = await dbQuery('SELECT * FROM teacher_subscription_requests WHERE id = $1', [requestId]);
+          if (rows.length === 0) {
+            res.statusCode = 404;
+            return res.end(JSON.stringify({ error: 'Request not found' }));
+          }
+
+          const request = rows[0];
+          const trialDuration = trial_days || 30;
+          const now = new Date();
+          const trialEnd = new Date(now);
+          trialEnd.setDate(trialEnd.getDate() + trialDuration);
+
+          if (is_trial) {
+            // Approve with free trial
+            await dbQuery(
+              `UPDATE teacher_subscription_requests SET status = 'trial_active', trial_start_date = $1, trial_end_date = $2, approved_at = NOW(), founder_notes = $3, updated_at = NOW() WHERE id = $4`,
+              [now.toISOString(), trialEnd.toISOString(), founder_notes || `Free trial for ${trialDuration} days`, requestId]
+            );
+          } else {
+            // Approve paid subscription
+            const expiresAt = new Date(now);
+            if (request.plan_type === 'yearly') expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+            else expiresAt.setMonth(expiresAt.getMonth() + 1);
+
+            await dbQuery(
+              `UPDATE teacher_subscription_requests SET status = 'active', approved_at = NOW(), activated_at = NOW(), expires_at = $1, founder_notes = $2, updated_at = NOW() WHERE id = $3`,
+              [expiresAt.toISOString(), founder_notes || 'Paid subscription activated', requestId]
+            );
+          }
+
+          return res.end(JSON.stringify({ success: true, message: is_trial ? 'Trial activated' : 'Subscription activated' }));
+        } catch (error) {
+          console.error('[teacher-subscription-requests] approve error:', error);
+          res.statusCode = 500;
+          return res.end(JSON.stringify({ error: error.message }));
+        }
+      }
+
+      // ── POST /api/teacher-subscription-requests/:id/reject — Reject teacher subscription ──
+      if (req.url?.startsWith('/api/teacher-subscription-requests/') && req.url.endsWith('/reject') && req.method === 'POST') {
+        res.setHeader('Content-Type', 'application/json');
+        try {
+          const requestId = req.url.split('/api/teacher-subscription-requests/')[1].split('/')[0];
+          const body = await parseBody(req);
+          const { founder_notes } = body;
+
+          await dbQuery(
+            `UPDATE teacher_subscription_requests SET status = 'rejected', founder_notes = $1, updated_at = NOW() WHERE id = $2`,
+            [founder_notes || 'Rejected by founder', requestId]
+          );
+
+          return res.end(JSON.stringify({ success: true, message: 'Request rejected' }));
+        } catch (error) {
+          console.error('[teacher-subscription-requests] reject error:', error);
           res.statusCode = 500;
           return res.end(JSON.stringify({ error: error.message }));
         }

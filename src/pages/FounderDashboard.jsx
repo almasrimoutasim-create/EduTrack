@@ -37,6 +37,8 @@ const NAV = [
   { id: "teachers", label: "إدارة المعلمين", icon: GraduationCap },
   { id: "students", label: "إدارة الطلاب", icon: Users },
   { id: "subscriptions", label: "الاشتراكات والإيرادات", icon: CreditCard },
+  { id: "teacher-pricing", label: "أسعار المعلمين", icon: Crown },
+  { id: "teacher-sub-requests", label: "طلبات اشتراكات المعلمين", icon: Timer },
   { id: "support", label: "الدعم الفني", icon: LifeBuoy },
   { id: "settings", label: "إعدادات المنصة", icon: Settings },
 ];
@@ -131,6 +133,108 @@ const FounderDashboard = () => {
     }
   };
 
+  // ── Teacher subscription approval handler ──
+  const handleApproveTeacherSub = async (requestId, isTrial = false) => {
+    setProcessingTeacherSub(requestId);
+    try {
+      const apiBase = import.meta.env.VITE_BACKEND_URL || '';
+      const res = await fetch(`${apiBase}/api/teacher-subscription-requests/${requestId}/approve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Founder-Auth": "true" },
+        body: JSON.stringify({
+          trial_days: approveTrialDays,
+          founder_notes: approveFounderNotes,
+          is_trial: isTrial
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed");
+      toast.success(isTrial ? "تم تفعيل الفترة التجريبية بنجاح" : "تم تفعيل الاشتراك بنجاح");
+      setViewTeacherSubDetail(null);
+      setApproveFounderNotes("");
+      setApproveTrialDays(30);
+      refetchTeacherSub();
+    } catch (err) {
+      toast.error(err.message || "فشل تفعيل الاشتراك");
+    } finally {
+      setProcessingTeacherSub(null);
+    }
+  };
+
+  // ── Teacher subscription rejection handler ──
+  const handleRejectTeacherSub = async (requestId) => {
+    setProcessingTeacherSub(requestId);
+    try {
+      const apiBase = import.meta.env.VITE_BACKEND_URL || '';
+      const res = await fetch(`${apiBase}/api/teacher-subscription-requests/${requestId}/reject`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Founder-Auth": "true" },
+        body: JSON.stringify({ founder_notes: approveFounderNotes || "مرفوض من المؤسس" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed");
+      toast.success("تم رفض الطلب");
+      setViewTeacherSubDetail(null);
+      setApproveFounderNotes("");
+      refetchTeacherSub();
+    } catch (err) {
+      toast.error(err.message || "فشل رفض الطلب");
+    } finally {
+      setProcessingTeacherSub(null);
+    }
+  };
+
+  // ── Pricing plan save handler ──
+  const handleSavePricingPlan = async () => {
+    if (!newPlan.plan_name.trim()) {
+      toast.error("أدخل اسم الخطة");
+      return;
+    }
+    setPricingLoading(true);
+    try {
+      const apiBase = import.meta.env.VITE_BACKEND_URL || '';
+      const payload = { ...newPlan };
+      if (editingPlan) payload.id = editingPlan.id;
+      const res = await fetch(`${apiBase}/api/subscription-pricing`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Founder-Auth": "true" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed");
+      toast.success(editingPlan ? "تم تحديث الخطة" : "تم إنشاء الخطة");
+      setShowAddPlan(false);
+      setEditingPlan(null);
+      setNewPlan({ plan_name: "", plan_name_ar: "", plan_type: "teacher", price_monthly: 0, price_yearly: 0, currency: "EGP", trial_days: 30, features: [] });
+      // Refetch pricing
+      const freshRes = await fetch(`${apiBase}/api/subscription-pricing`);
+      const freshData = await freshRes.json();
+      setPricingPlans(freshData);
+    } catch (err) {
+      toast.error(err.message || "فشل حفظ الخطة");
+    } finally {
+      setPricingLoading(false);
+    }
+  };
+
+  // ── Pricing plan delete handler ──
+  const handleDeletePricingPlan = async (planId) => {
+    try {
+      const apiBase = import.meta.env.VITE_BACKEND_URL || '';
+      const res = await fetch(`${apiBase}/api/subscription-pricing/${planId}`, {
+        method: "DELETE",
+        headers: { "X-Founder-Auth": "true" },
+      });
+      if (!res.ok) throw new Error("Failed");
+      toast.success("تم حذف الخطة");
+      const freshRes = await fetch(`${apiBase}/api/subscription-pricing`);
+      const freshData = await freshRes.json();
+      setPricingPlans(freshData);
+    } catch (err) {
+      toast.error(err.message || "فشل حذف الخطة");
+    }
+  };
+
   const logout = () => {
     localStorage.removeItem("founder_auth");
     localStorage.removeItem("founder_email");
@@ -183,6 +287,32 @@ const FounderDashboard = () => {
         const allReqs = await entities.RegistrationRequest.list("-created_at", 500);
         return allReqs.filter(r => r.role_requested === "teacher" || r.role_requested === "student" || r.plan === "student_free" || r.plan === "teacher_free");
       } catch (err) { console.error("[FounderDashboard] teacherStudentRequests failed:", err); return []; }
+    },
+  });
+
+  // ── Subscription pricing plans ──
+  const { data: subscriptionPricing = [], isLoading: pricingFetching } = useQuery({
+    queryKey: ["founder-subscription-pricing"],
+    queryFn: async () => {
+      try {
+        const apiBase = import.meta.env.VITE_BACKEND_URL || '';
+        const res = await fetch(`${apiBase}/api/subscription-pricing`);
+        if (!res.ok) throw new Error('Failed to fetch pricing');
+        return await res.json();
+      } catch (err) { console.error("[FounderDashboard] pricing fetch failed:", err); return []; }
+    },
+  });
+
+  // ── Teacher subscription requests ──
+  const { data: teacherSubscriptionRequests = [], isLoading: teacherSubFetching, refetch: refetchTeacherSub } = useQuery({
+    queryKey: ["founder-teacher-sub-requests"],
+    queryFn: async () => {
+      try {
+        const apiBase = import.meta.env.VITE_BACKEND_URL || '';
+        const res = await fetch(`${apiBase}/api/teacher-subscription-requests`);
+        if (!res.ok) throw new Error('Failed to fetch teacher subscription requests');
+        return await res.json();
+      } catch (err) { console.error("[FounderDashboard] teacherSubRequests fetch failed:", err); return []; }
     },
   });
 
@@ -685,6 +815,25 @@ const FounderDashboard = () => {
 
   // ── Password change ──
   const [pw, setPw] = useState({ cur: "", next: "", confirm: "" });
+
+  // ── Teacher pricing management states ──
+  const [pricingPlans, setPricingPlans] = useState([]);
+  const [pricingLoading, setPricingLoading] = useState(false);
+  const [showAddPlan, setShowAddPlan] = useState(false);
+  const [editingPlan, setEditingPlan] = useState(null);
+  const [newPlan, setNewPlan] = useState({
+    plan_name: "", plan_name_ar: "", plan_type: "teacher",
+    price_monthly: 0, price_yearly: 0, currency: "EGP", trial_days: 30, features: []
+  });
+
+  // ── Teacher subscription requests states ──
+  const [teacherSubRequests, setTeacherSubRequests] = useState([]);
+  const [teacherSubLoading, setTeacherSubLoading] = useState(false);
+  const [teacherSubFilter, setTeacherSubFilter] = useState("all"); // all, pending, trial_active, active, rejected
+  const [viewTeacherSubDetail, setViewTeacherSubDetail] = useState(null);
+  const [approveTrialDays, setApproveTrialDays] = useState(30);
+  const [approveFounderNotes, setApproveFounderNotes] = useState("");
+  const [processingTeacherSub, setProcessingTeacherSub] = useState(null);
 
   const StatCard = ({ icon: Ic, label, value, sub, tint }) => (
     <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
@@ -1675,6 +1824,179 @@ const FounderDashboard = () => {
           </div>
         )}
 
+        {/* ───── 6.1️⃣ أسعار المعلمين ───── */}
+        {section === "teacher-pricing" && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-extrabold text-slate-900">إدارة أسعار اشتراكات المعلمين</h3>
+              <button onClick={() => { setShowAddPlan(true); setEditingPlan(null); setNewPlan({ plan_name: "", plan_name_ar: "", plan_type: "teacher", price_monthly: 0, price_yearly: 0, currency: "EGP", trial_days: 30, features: [] }); }} className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-blue-700 transition-all">
+                <Plus size={16} /> إضافة خطة جديدة
+              </button>
+            </div>
+
+            {/* Pricing Plans Table */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200">
+                    <th className="text-right p-4 text-sm font-bold text-slate-700">الخطة</th>
+                    <th className="text-center p-4 text-sm font-bold text-slate-700">النوع</th>
+                    <th className="text-center p-4 text-sm font-bold text-slate-700">السعر الشهري (EGP)</th>
+                    <th className="text-center p-4 text-sm font-bold text-slate-700">السعر السنوي (EGP)</th>
+                    <th className="text-center p-4 text-sm font-bold text-slate-700">أيام التجربة</th>
+                    <th className="text-center p-4 text-sm font-bold text-slate-700">الحالة</th>
+                    <th className="text-center p-4 text-sm font-bold text-slate-700">إجراءات</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {subscriptionPricing.length === 0 ? (
+                    <tr><td colSpan="7" className="p-8 text-center text-slate-400">لا توجد خطط أسعار بعد</td></tr>
+                  ) : subscriptionPricing.map(plan => (
+                    <tr key={plan.id} className="border-b border-slate-100 hover:bg-slate-50">
+                      <td className="p-4">
+                        <div className="font-bold text-sm text-slate-900">{plan.plan_name_ar || plan.plan_name}</div>
+                        <div className="text-xs text-slate-400">{plan.plan_name}</div>
+                      </td>
+                      <td className="p-4 text-center">
+                        <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">{plan.plan_type === 'teacher' ? 'معلم' : 'طالب'}</span>
+                      </td>
+                      <td className="p-4 text-center font-bold text-slate-900">{plan.price_monthly ? Number(plan.price_monthly).toLocaleString('ar-EG') : "—"}</td>
+                      <td className="p-4 text-center font-bold text-slate-900">{plan.price_yearly ? Number(plan.price_yearly).toLocaleString('ar-EG') : "—"}</td>
+                      <td className="p-4 text-center text-sm text-slate-600">{plan.trial_days || 30} يوم</td>
+                      <td className="p-4 text-center">
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${plan.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                          {plan.is_active ? 'نشطة' : 'غير نشطة'}
+                        </span>
+                      </td>
+                      <td className="p-4 text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <button onClick={() => { setEditingPlan(plan); setNewPlan({ plan_name: plan.plan_name, plan_name_ar: plan.plan_name_ar || "", plan_type: plan.plan_type || "teacher", price_monthly: plan.price_monthly || 0, price_yearly: plan.price_yearly || 0, currency: plan.currency || "EGP", trial_days: plan.trial_days || 30, features: plan.features || [] }); setShowAddPlan(true); }} className="text-blue-600 hover:bg-blue-50 p-1.5 rounded-lg" title="تعديل">
+                            <KeyRound size={14} />
+                          </button>
+                          <button onClick={() => { if(window.confirm("هل أنت متأكد من حذف هذه الخطة؟")) handleDeletePricingPlan(plan.id); }} className="text-rose-600 hover:bg-rose-50 p-1.5 rounded-lg" title="حذف">
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Default plans quick view */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-6 text-white shadow-lg">
+                <div className="flex items-center gap-2 mb-3"><Calendar size={20} /><h4 className="font-bold text-lg">الخطة الشهرية</h4></div>
+                <p className="text-3xl font-extrabold mb-2">49,000 <span className="text-sm font-normal opacity-80">EGP/شهر</span></p>
+                <p className="text-xs opacity-90">اشتراك شهري لمعلم واحد مع 30 يوم تجربة مجانية</p>
+              </div>
+              <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl p-6 text-white shadow-lg relative">
+                <span className="absolute top-4 left-4 bg-white/20 text-white text-[10px] px-2 py-0.5 rounded-full">خصم 41%</span>
+                <div className="flex items-center gap-2 mb-3"><Crown size={20} /><h4 className="font-bold text-lg">الخطة السنوية</h4></div>
+                <p className="text-3xl font-extrabold mb-2">350,000 <span className="text-sm font-normal opacity-80">EGP/سنة</span></p>
+                <p className="text-xs opacity-90">اشتراك سنوي مع 30 يوم تجربة مجانية وخصم كبير</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ───── 6.2️⃣ طلبات اشتراكات المعلمين ───── */}
+        {section === "teacher-sub-requests" && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-extrabold text-slate-900">طلبات اشتراكات المعلمين</h3>
+              <div className="flex items-center gap-2">
+                <button onClick={() => refetchTeacherSub()} className="bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 hover:bg-slate-200 transition-all">
+                  <RefreshCw size={13} /> تحديث
+                </button>
+              </div>
+            </div>
+
+            {/* Filter buttons */}
+            <div className="flex items-center gap-2 flex-wrap">
+              {[
+                { id: "all", label: "الكل", count: teacherSubscriptionRequests.length },
+                { id: "pending", label: "قيد المراجعة", count: teacherSubscriptionRequests.filter(r => r.status === "pending").length },
+                { id: "trial_active", label: "تجربة نشطة", count: teacherSubscriptionRequests.filter(r => r.status === "trial_active").length },
+                { id: "active", label: "اشتراك نشط", count: teacherSubscriptionRequests.filter(r => r.status === "active").length },
+                { id: "rejected", label: "مرفوض", count: teacherSubscriptionRequests.filter(r => r.status === "rejected").length },
+              ].map(f => (
+                <button key={f.id} onClick={() => setTeacherSubFilter(f.id)} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${teacherSubFilter === f.id ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
+                  {f.label} ({f.count})
+                </button>
+              ))}
+            </div>
+
+            {/* Requests table */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+              {teacherSubFetching ? (
+                <div className="p-8 text-center"><RefreshCw className="animate-spin mx-auto text-blue-500" size={24} /><p className="text-sm text-slate-500 mt-2">جاري التحميل...</p></div>
+              ) : (
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-200">
+                      <th className="text-right p-4 text-sm font-bold text-slate-700">المعلم</th>
+                      <th className="text-center p-4 text-sm font-bold text-slate-700">الهاتف</th>
+                      <th className="text-center p-4 text-sm font-bold text-slate-700">الخطة</th>
+                      <th className="text-center p-4 text-sm font-bold text-slate-700">المبلغ</th>
+                      <th className="text-center p-4 text-sm font-bold text-slate-700">الحالة</th>
+                      <th className="text-center p-4 text-sm font-bold text-slate-700">التاريخ</th>
+                      <th className="text-center p-4 text-sm font-bold text-slate-700">إجراءات</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(() => {
+                      const filtered = teacherSubFilter === "all" 
+                        ? teacherSubscriptionRequests 
+                        : teacherSubscriptionRequests.filter(r => r.status === teacherSubFilter);
+                      if (filtered.length === 0) {
+                        return <tr><td colSpan="7" className="p-8 text-center text-slate-400">لا توجد طلبات</td></tr>;
+                      }
+                      return filtered.map(req => (
+                        <tr key={req.id} className="border-b border-slate-100 hover:bg-slate-50">
+                          <td className="p-4">
+                            <div className="font-bold text-sm text-slate-900">{req.teacher_name}</div>
+                            <div className="text-xs text-slate-400">{req.teacher_email}</div>
+                          </td>
+                          <td className="p-4 text-center text-sm text-slate-600">{req.teacher_phone || "—"}</td>
+                          <td className="p-4 text-center">
+                            <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
+                              {req.plan_type === 'monthly' ? 'شهري' : req.plan_type === 'yearly' ? 'سنوي' : req.plan_type}
+                            </span>
+                          </td>
+                          <td className="p-4 text-center font-bold text-slate-900">{req.amount ? Number(req.amount).toLocaleString('ar-EG') : "مجاني"}</td>
+                          <td className="p-4 text-center">
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                              req.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                              req.status === 'trial_active' ? 'bg-blue-100 text-blue-700' :
+                              req.status === 'active' ? 'bg-emerald-100 text-emerald-700' :
+                              req.status === 'rejected' ? 'bg-rose-100 text-rose-700' :
+                              'bg-slate-100 text-slate-500'
+                            }`}>
+                              {req.status === 'pending' ? 'قيد المراجعة' :
+                               req.status === 'trial_active' ? 'تجربة نشطة' :
+                               req.status === 'active' ? 'اشتراك نشط' :
+                               req.status === 'rejected' ? 'مرفوض' :
+                               req.status === 'expired' ? 'منتهي' : req.status}
+                            </span>
+                          </td>
+                          <td className="p-4 text-center text-xs text-slate-500">{req.created_at ? new Date(req.created_at).toLocaleDateString('ar-EG') : "—"}</td>
+                          <td className="p-4 text-center">
+                            <button onClick={() => setViewTeacherSubDetail(req)} className="text-blue-600 hover:bg-blue-50 p-1.5 rounded-lg" title="عرض التفاصيل">
+                              <Eye size={14} />
+                            </button>
+                          </td>
+                        </tr>
+                      ));
+                    })()}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* ───── 7️⃣ الدعم الفني ───── */}
         {section === "support" && (
           <div className="space-y-4">
@@ -2068,6 +2390,146 @@ const FounderDashboard = () => {
                 >
                   إغلاق
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ───── Add/Edit Pricing Plan Modal ───── */}
+        {showAddPlan && (
+          <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => { setShowAddPlan(false); setEditingPlan(null); }}>
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6" onClick={e => e.stopPropagation()} dir="rtl">
+              <h3 className="text-lg font-black text-slate-900 mb-1">{editingPlan ? "تعديل الخطة" : "إضافة خطة جديدة"}</h3>
+              <p className="text-sm text-slate-500 mb-4">{editingPlan ? "تحديث بيانات الخطة" : "إنشاء خطة اشتراك جديدة للمعلمين"}</p>
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">اسم الخطة (إنجليزي)</label>
+                    <input type="text" value={newPlan.plan_name} onChange={e => setNewPlan({...newPlan, plan_name: e.target.value})} className="w-full h-10 rounded-xl border border-slate-200 px-3 text-sm font-bold focus:border-blue-500 outline-none" placeholder="e.g. teacher_monthly" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">اسم الخطة (عربي)</label>
+                    <input type="text" value={newPlan.plan_name_ar} onChange={e => setNewPlan({...newPlan, plan_name_ar: e.target.value})} className="w-full h-10 rounded-xl border border-slate-200 px-3 text-sm font-bold focus:border-blue-500 outline-none" placeholder="مثال: خطة المعلم الشهرية" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">النوع</label>
+                    <select value={newPlan.plan_type} onChange={e => setNewPlan({...newPlan, plan_type: e.target.value})} className="w-full h-10 rounded-xl border border-slate-200 px-3 text-sm font-bold focus:border-blue-500 outline-none">
+                      <option value="teacher">معلم</option>
+                      <option value="student">طالب</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">العملة</label>
+                    <select value={newPlan.currency} onChange={e => setNewPlan({...newPlan, currency: e.target.value})} className="w-full h-10 rounded-xl border border-slate-200 px-3 text-sm font-bold focus:border-blue-500 outline-none">
+                      <option value="EGP">جنيه مصري</option>
+                      <option value="USD">دولار أمريكي</option>
+                      <option value="SUD">جنيه سوداني</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">أيام التجربة</label>
+                    <input type="number" value={newPlan.trial_days} onChange={e => setNewPlan({...newPlan, trial_days: parseInt(e.target.value) || 0})} className="w-full h-10 rounded-xl border border-slate-200 px-3 text-sm font-bold focus:border-blue-500 outline-none" min="0" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">السعر الشهري</label>
+                    <input type="number" value={newPlan.price_monthly} onChange={e => setNewPlan({...newPlan, price_monthly: parseFloat(e.target.value) || 0})} className="w-full h-10 rounded-xl border border-slate-200 px-3 text-sm font-bold focus:border-blue-500 outline-none" min="0" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">السعر السنوي</label>
+                    <input type="number" value={newPlan.price_yearly} onChange={e => setNewPlan({...newPlan, price_yearly: parseFloat(e.target.value) || 0})} className="w-full h-10 rounded-xl border border-slate-200 px-3 text-sm font-bold focus:border-blue-500 outline-none" min="0" />
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-2 mt-5">
+                <button onClick={handleSavePricingPlan} disabled={pricingLoading} className="flex-1 h-11 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 inline-flex items-center justify-center gap-2 disabled:opacity-50">
+                  {pricingLoading ? "جاري الحفظ..." : <><CheckCircle2 size={14}/> {editingPlan ? "تحديث الخطة" : "إنشاء الخطة"}</>}
+                </button>
+                <button onClick={() => { setShowAddPlan(false); setEditingPlan(null); }} className="h-11 px-4 rounded-xl bg-slate-100 font-bold text-sm hover:bg-slate-200">إلغاء</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ───── Teacher Subscription Request Detail Modal ───── */}
+        {viewTeacherSubDetail && (
+          <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => setViewTeacherSubDetail(null)}>
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6" onClick={e => e.stopPropagation()} dir="rtl">
+              <h3 className="text-lg font-black text-slate-900 mb-1">تفاصيل طلب الاشتراك</h3>
+              <p className="text-sm text-slate-500 mb-4">مراجعة طلب اشتراك المعلم والموافقة عليه أو رفضه</p>
+              
+              <div className="space-y-3 bg-slate-50 rounded-xl p-4 mb-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div><span className="text-xs text-slate-500">المعلم:</span><p className="font-bold text-sm">{viewTeacherSubDetail.teacher_name}</p></div>
+                  <div><span className="text-xs text-slate-500">البريد الإلكتروني:</span><p className="font-bold text-sm" dir="ltr">{viewTeacherSubDetail.teacher_email}</p></div>
+                  <div><span className="text-xs text-slate-500">الهاتف:</span><p className="font-bold text-sm">{viewTeacherSubDetail.teacher_phone || "—"}</p></div>
+                  <div><span className="text-xs text-slate-500">الخطة:</span><p className="font-bold text-sm">{viewTeacherSubDetail.plan_type === 'monthly' ? 'شهري' : viewTeacherSubDetail.plan_type === 'yearly' ? 'سنوي' : viewTeacherSubDetail.plan_type}</p></div>
+                  <div><span className="text-xs text-slate-500">المبلغ:</span><p className="font-bold text-sm">{viewTeacherSubDetail.amount ? Number(viewTeacherSubDetail.amount).toLocaleString('ar-EG') + " EGP" : "مجاني"}</p></div>
+                  <div><span className="text-xs text-slate-500">الحالة:</span>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                      viewTeacherSubDetail.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                      viewTeacherSubDetail.status === 'trial_active' ? 'bg-blue-100 text-blue-700' :
+                      viewTeacherSubDetail.status === 'active' ? 'bg-emerald-100 text-emerald-700' :
+                      viewTeacherSubDetail.status === 'rejected' ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-500'
+                    }`}>
+                      {viewTeacherSubDetail.status === 'pending' ? 'قيد المراجعة' :
+                       viewTeacherSubDetail.status === 'trial_active' ? 'تجربة نشطة' :
+                       viewTeacherSubDetail.status === 'active' ? 'اشتراك نشط' :
+                       viewTeacherSubDetail.status === 'rejected' ? 'مرفوض' : viewTeacherSubDetail.status}
+                    </span>
+                  </div>
+                  <div><span className="text-xs text-slate-500">تاريخ الطلب:</span><p className="font-bold text-sm">{viewTeacherSubDetail.created_at ? new Date(viewTeacherSubDetail.created_at).toLocaleDateString('ar-EG') : "—"}</p></div>
+                </div>
+                {viewTeacherSubDetail.founder_notes && (
+                  <div><span className="text-xs text-slate-500">ملاحظات المؤسس:</span><p className="text-sm bg-white rounded-lg p-2 mt-1">{viewTeacherSubDetail.founder_notes}</p></div>
+                )}
+                {viewTeacherSubDetail.status === 'trial_active' && viewTeacherSubDetail.trial_end_date && (
+                  <div className="bg-blue-50 rounded-lg p-3">
+                    <p className="text-xs font-bold text-blue-700">الفترة التجريبية تنتهي: {new Date(viewTeacherSubDetail.trial_end_date).toLocaleDateString('ar-EG')}</p>
+                  </div>
+                )}
+                {viewTeacherSubDetail.status === 'active' && viewTeacherSubDetail.expires_at && (
+                  <div className="bg-emerald-50 rounded-lg p-3">
+                    <p className="text-xs font-bold text-emerald-700">الاشتراك ينتهي: {new Date(viewTeacherSubDetail.expires_at).toLocaleDateString('ar-EG')}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Approval controls (only for pending requests) */}
+              {viewTeacherSubDetail.status === 'pending' && (
+                <div className="space-y-3 bg-amber-50 rounded-xl p-4 mb-4 border border-amber-100">
+                  <p className="text-xs font-bold text-amber-700 mb-2">التحكم في الطلب:</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-600 mb-1">أيام الفترة التجريبية</label>
+                      <input type="number" value={approveTrialDays} onChange={e => setApproveTrialDays(parseInt(e.target.value) || 30)} className="w-full h-10 rounded-xl border border-slate-200 px-3 text-sm font-bold focus:border-blue-500 outline-none" min="0" max="90" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-600 mb-1">ملاحظات (اختياري)</label>
+                      <input type="text" value={approveFounderNotes} onChange={e => setApproveFounderNotes(e.target.value)} className="w-full h-10 rounded-xl border border-slate-200 px-3 text-sm font-bold focus:border-blue-500 outline-none" placeholder="ملاحظات داخلية..." />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                {viewTeacherSubDetail.status === 'pending' && (
+                  <>
+                    <button onClick={() => handleApproveTeacherSub(viewTeacherSubDetail.id, true)} disabled={processingTeacherSub === viewTeacherSubDetail.id} className="flex-1 h-11 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 inline-flex items-center justify-center gap-2 disabled:opacity-50">
+                      {processingTeacherSub === viewTeacherSubDetail.id ? "جاري..." : <><Timer size={14}/> تفعيل فترة تجريبية</>}
+                    </button>
+                    <button onClick={() => handleApproveTeacherSub(viewTeacherSubDetail.id, false)} disabled={processingTeacherSub === viewTeacherSubDetail.id} className="flex-1 h-11 rounded-xl bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 inline-flex items-center justify-center gap-2 disabled:opacity-50">
+                      {processingTeacherSub === viewTeacherSubDetail.id ? "جاري..." : <><CheckCircle2 size={14}/> تفعيل اشتراك مدفوع</>}
+                    </button>
+                    <button onClick={() => handleRejectTeacherSub(viewTeacherSubDetail.id)} disabled={processingTeacherSub === viewTeacherSubDetail.id} className="h-11 px-4 rounded-xl bg-rose-100 text-rose-700 font-bold text-sm hover:bg-rose-200 inline-flex items-center justify-center gap-2 disabled:opacity-50">
+                      <XCircle size={14}/> رفض
+                    </button>
+                  </>
+                )}
+                <button onClick={() => setViewTeacherSubDetail(null)} className="h-11 px-4 rounded-xl bg-slate-100 font-bold text-sm hover:bg-slate-200">إغلاق</button>
               </div>
             </div>
           </div>

@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import { UserPlus, CheckCircle, ArrowLeft, MapPin, Mail, Phone, User, Building2, BookOpen, Shield, GraduationCap, AlertCircle, Award, Star } from "lucide-react";
+import { UserPlus, CheckCircle, ArrowLeft, MapPin, Mail, Phone, User, Building2, BookOpen, Shield, GraduationCap, AlertCircle, Award, Star, Upload, Calendar, Clock, Gift, CreditCard } from "lucide-react";
 
 const SUBJECT_OPTIONS = [
   { id: "math", name: "الرياضيات", nameEn: "Mathematics" },
@@ -194,14 +194,18 @@ export default function TeacherRegister() {
               <label className="text-xs font-bold text-stone-600 flex items-center gap-1"><Star size={12}/> {isRTL ? "باقة الاشتراك" : "Subscription Plan"}</label>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {[
-                  { id: "free", label: isRTL ? "مجاني" : "Free", price: isRTL ? "مجاني" : "Free", desc: isRTL ? "وصول أساسي للمنصة" : "Basic platform access", color: "stone" },
-                  { id: "monthly", label: isRTL ? "شهري" : "Monthly", price: "$15/شهر", desc: isRTL ? "كامل المميزات + دعم فني" : "Full features + support", color: "indigo" },
-                  { id: "yearly", label: isRTL ? "سنوي" : "Yearly", price: "$120/سنة", desc: isRTL ? "خصم 33% + أولوية" : "33% discount + priority", color: "emerald" },
+                  { id: "free", label: isRTL ? "تجريبي مجاني" : "Free Trial", price: isRTL ? "مجاني لمدة شهر" : "Free for 1 month", desc: isRTL ? "شهر مجاني — بعد الموافقة يُفعّل حسابك" : "Free month — account activated after approval", color: "stone", icon: Gift },
+                  { id: "monthly", label: isRTL ? "شهري" : "Monthly", price: "49,000 ج.س/شهر", desc: isRTL ? "اشتراك شهري — إدارة كاملة" : "Monthly subscription — full management", color: "indigo", icon: Calendar },
+                  { id: "yearly", label: isRTL ? "سنوي" : "Yearly", price: "350,000 ج.س/سنة", desc: isRTL ? "خصم 41% — أفضل قيمة" : "41% discount — best value", color: "emerald", icon: Clock },
                 ].map(plan => (
                   <button key={plan.id} type="button" onClick={() => update("subscription_plan", plan.id)}
                     className={`relative p-3 rounded-xl border-2 text-right transition-all ${form.subscription_plan === plan.id ? `border-${plan.color}-500 bg-${plan.color}-50` : "border-stone-200 bg-white hover:border-stone-300"}`}>
-                    {plan.id === "yearly" && <span className="absolute -top-2 -left-2 bg-emerald-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full">{isRTL ? "خصم 33%" : "33% OFF"}</span>}
-                    <div className="font-black text-sm text-stone-900">{plan.label}</div>
+                    {plan.id === "yearly" && <span className="absolute -top-2 -left-2 bg-emerald-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full">{isRTL ? "خصم 41%" : "41% OFF"}</span>}
+                    {plan.id === "free" && <span className="absolute -top-2 -left-2 bg-amber-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full">{isRTL ? "شهر مجاني" : "1 MONTH FREE"}</span>}
+                    <div className="flex items-center gap-2 mb-1">
+                      <plan.icon size={14} className={`text-${plan.color}-600`} />
+                      <span className="font-black text-sm text-stone-900">{plan.label}</span>
+                    </div>
                     <div className="text-xs font-bold text-indigo-600 mt-0.5">{plan.price}</div>
                     <div className="text-[10px] text-stone-500 mt-0.5">{plan.desc}</div>
                   </button>
@@ -212,10 +216,16 @@ export default function TeacherRegister() {
             {/* Payment Receipt Upload */}
             {form.subscription_plan !== "free" && (
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-stone-600 flex items-center gap-1"><Award size={12}/> {isRTL ? "إيصال الدفع (اختياري)" : "Payment Receipt (optional)"}</label>
+                <label className="text-xs font-bold text-stone-600 flex items-center gap-1"><CreditCard size={12}/> {isRTL ? "إيصال الدفع (مطلوب)" : "Payment Receipt (required)"}</label>
                 <input type="file" accept="image/*,application/pdf" onChange={e => update("receipt_file", e.target.files[0])}
                   className="w-full rounded-xl border border-stone-200 bg-white p-3 text-sm file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-indigo-600 file:text-white file:text-xs file:font-bold file:cursor-pointer" />
-                <p className="text-[10px] text-stone-400">{isRTL ? "ارفع صورة أو PDF للإيصال لتسريع الموافقة" : "Upload receipt image or PDF to speed up approval"}</p>
+                <p className="text-[10px] text-stone-400">{isRTL ? "ارفع صورة أو PDF للإيصال — بدون إيصال لن يُفعّل الاشتراك" : "Upload receipt image or PDF — subscription won't activate without receipt"}</p>
+              </div>
+            )}
+
+            {form.subscription_plan === "free" && (
+              <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 text-xs text-amber-800 flex gap-2">
+                <Gift size={14} className="shrink-0 mt-0.5"/> <span>{isRTL ? "الباقة التجريبية المجانية: شهر كامل من الاستخدام — بعد الموافقة من المؤسس، يُفعّل حسابك مجاناً لمدة 30 يوماً." : "Free trial plan: 1 full month of usage — after founder approval, your account is activated free for 30 days."}</span>
               </div>
             )}
 

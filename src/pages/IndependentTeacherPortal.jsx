@@ -296,7 +296,7 @@ export default function IndependentTeacherPortal() {
         <div className="max-w-6xl mx-auto p-4 md:p-6">
           <AnimatePresence mode="wait">
             {activeTab === "dashboard" && <DashboardTab key="dashboard" stats={stats} isRTL={isRTL} students={students} />}
-            {activeTab === "students" && <StudentsTab key="students" teacherId={teacherId} students={students} isRTL={isRTL} queryClient={queryClient} />}
+            {activeTab === "students" && <StudentsTab key="students" teacherId={teacherId} students={students} submissions={submissions} isRTL={isRTL} queryClient={queryClient} />}
             {activeTab === "assignments" && <AssignmentsTab key="assignments" teacherId={teacherId} assignments={assignments} isRTL={isRTL} queryClient={queryClient} />}
             {activeTab === "exams" && <ExamsTab key="exams" teacherId={teacherId} exams={exams} isRTL={isRTL} queryClient={queryClient} />}
             {activeTab === "live" && <LiveClassesTab key="live" teacherId={teacherId} liveClasses={liveClasses} isRTL={isRTL} queryClient={queryClient} />}
@@ -360,13 +360,19 @@ function DashboardTab({ stats, isRTL, students }) {
 }
 
 // ─── Students Tab ───
-function StudentsTab({ teacherId, students, isRTL, queryClient }) {
+function StudentsTab({ teacherId, students, submissions, isRTL, queryClient }) {
   const [showAdd, setShowAdd] = useState(false);
+  const [showEdit, setShowEdit] = useState(null);
   const [form, setForm] = useState({ student_name: "", student_email: "", student_phone: "", grade: "", parent_name: "", parent_phone: "", parent_email: "" });
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
+  const [expandedStudent, setExpandedStudent] = useState(null);
 
   const filtered = students?.filter(s => !search || s.student_name?.toLowerCase().includes(search.toLowerCase())) || [];
+
+  const getStudentSubmissions = (studentId) => {
+    return submissions?.filter(s => s.student_id === studentId) || [];
+  };
 
   const handleAdd = async () => {
     if (!form.student_name.trim()) { toast.error(isRTL ? "أدخل اسم الطالب" : "Enter student name"); return; }
@@ -381,6 +387,19 @@ function StudentsTab({ teacherId, students, isRTL, queryClient }) {
     setLoading(false);
   };
 
+  const handleEdit = async () => {
+    if (!form.student_name.trim()) { toast.error(isRTL ? "أدخل اسم الطالب" : "Enter student name"); return; }
+    setLoading(true);
+    try {
+      await entities.TeacherOwnStudent.update(showEdit.id, form);
+      queryClient.invalidateQueries({ queryKey: ["teacher-own-students"] });
+      setShowEdit(null);
+      setForm({ student_name: "", student_email: "", student_phone: "", grade: "", parent_name: "", parent_phone: "", parent_email: "" });
+      toast.success(isRTL ? "تم تحديث بيانات الطالب" : "Student updated");
+    } catch (e) { toast.error(e.message); }
+    setLoading(false);
+  };
+
   const handleDelete = async (id) => {
     if (!confirm(isRTL ? "هل أنت متأكد من حذف هذا الطالب؟" : "Are you sure you want to delete this student?")) return;
     try {
@@ -388,6 +407,20 @@ function StudentsTab({ teacherId, students, isRTL, queryClient }) {
       queryClient.invalidateQueries({ queryKey: ["teacher-own-students"] });
       toast.success(isRTL ? "تم الحذف" : "Deleted");
     } catch (e) { toast.error(e.message); }
+  };
+
+  const handleToggleStatus = async (student) => {
+    const newStatus = student.status === "active" ? "inactive" : "active";
+    try {
+      await entities.TeacherOwnStudent.update(student.id, { status: newStatus });
+      queryClient.invalidateQueries({ queryKey: ["teacher-own-students"] });
+      toast.success(isRTL ? `تم ${newStatus === "active" ? "تفعيل" : "إيقاف"} الطالب` : `Student ${newStatus === "active" ? "activated" : "deactivated"}`);
+    } catch (e) { toast.error(e.message); }
+  };
+
+  const openEditDialog = (student) => {
+    setForm({ student_name: student.student_name || "", student_email: student.student_email || "", student_phone: student.student_phone || "", grade: student.grade || "", parent_name: student.parent_name || "", parent_phone: student.parent_phone || "", parent_email: student.parent_email || "" });
+    setShowEdit(student);
   };
 
   return (
@@ -398,20 +431,61 @@ function StudentsTab({ teacherId, students, isRTL, queryClient }) {
       </div>
       <div className="mb-4"><Input placeholder={isRTL ? "بحث بالاسم..." : "Search by name..."} value={search} onChange={e => setSearch(e.target.value)} className="h-10 rounded-xl" prefix={<Search size={14} />} /></div>
       <div className="grid gap-3">
-        {filtered.map(s => (
-          <Card key={s.id} className="p-4 rounded-2xl border-stone-100 flex items-center gap-4">
-            <div className="h-10 w-10 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-black text-sm shrink-0">
-              {(s.student_name || "").charAt(0)}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-bold text-stone-900">{s.student_name}</div>
-              <div className="text-xs text-stone-500">{s.student_email || ""} {s.grade ? `• الصف ${s.grade}` : ""}</div>
-              <div className="text-xs text-stone-400">{s.parent_name ? `ولي: ${s.parent_name}` : ""} {s.parent_phone ? `• ${s.parent_phone}` : ""}</div>
-            </div>
-            <Badge variant={s.status === "active" ? "default" : "secondary"} className="text-[10px] shrink-0">{s.status === "active" ? "نشط" : s.status}</Badge>
-            <button onClick={() => handleDelete(s.id)} className="text-red-500 hover:text-red-700 shrink-0"><Trash2 size={16} /></button>
-          </Card>
-        ))}
+        {filtered.map(s => {
+          const isExpanded = expandedStudent === s.id;
+          const studentSubs = getStudentSubmissions(s.id);
+          return (
+            <Card key={s.id} className="rounded-2xl border-stone-100 overflow-hidden">
+              <div className="p-4 flex items-center gap-4 cursor-pointer hover:bg-stone-50 transition-colors" onClick={() => setExpandedStudent(isExpanded ? null : s.id)}>
+                <div className="h-10 w-10 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-black text-sm shrink-0">
+                  {(s.student_name || "").charAt(0)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-bold text-stone-900">{s.student_name}</div>
+                  <div className="text-xs text-stone-500">{s.student_email || ""} {s.grade ? `• الصف ${s.grade}` : ""}</div>
+                  <div className="text-xs text-stone-400">{s.parent_name ? `ولي: ${s.parent_name}` : ""} {s.parent_phone ? `• ${s.parent_phone}` : ""}</div>
+                </div>
+                <Badge variant={s.status === "active" ? "default" : "secondary"} className="text-[10px] shrink-0">{s.status === "active" ? "نشط" : s.status === "inactive" ? "متوقف" : s.status}</Badge>
+                {isExpanded ? <ChevronDown size={16} className="rotate-180 transition-transform" /> : <ChevronRight size={16} className="transition-transform" />}
+              </div>
+
+              {isExpanded && (
+                <div className="border-t border-stone-100 p-4 bg-stone-50/50 space-y-3">
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div><span className="text-stone-400">{isRTL ? "الهاتف" : "Phone"}:</span> <span className="font-bold">{s.student_phone || "—"}</span></div>
+                    <div><span className="text-stone-400">{isRTL ? "البريد" : "Email"}:</span> <span className="font-bold">{s.student_email || "—"}</span></div>
+                    <div><span className="text-stone-400">{isRTL ? "ولي الأمر" : "Parent"}:</span> <span className="font-bold">{s.parent_name || "—"}</span></div>
+                    <div><span className="text-stone-400">{isRTL ? "هاتف ولي الأمر" : "Parent Phone"}:</span> <span className="font-bold">{s.parent_phone || "—"}</span></div>
+                    <div><span className="text-stone-400">{isRTL ? "تاريخ الإضافة" : "Added"}:</span> <span className="font-bold">{s.created_at ? new Date(s.created_at).toLocaleDateString(isRTL ? "ar" : "en") : "—"}</span></div>
+                    <div><span className="text-stone-400">{isRTL ? "اسم المستخدم" : "Username"}:</span> <span className="font-bold">{s.username || "—"}</span></div>
+                  </div>
+
+                  {studentSubs.length > 0 && (
+                    <div className="bg-white rounded-xl p-3">
+                      <div className="text-xs font-bold text-stone-600 mb-2">{isRTL ? `التقديمات (${studentSubs.length})` : `Submissions (${studentSubs.length})`}</div>
+                      <div className="space-y-1 max-h-32 overflow-y-auto">
+                        {studentSubs.slice(0, 5).map(sub => (
+                          <div key={sub.id} className="flex items-center justify-between text-[11px] bg-stone-50 rounded-lg px-2 py-1">
+                            <span className="font-medium truncate">{sub.assignment_title || sub.title || (isRTL ? "واجب" : "Assignment")}</span>
+                            <span className={`font-bold ${sub.score != null ? (sub.score >= 70 ? "text-emerald-600" : "text-amber-600") : "text-stone-400"}`}>{sub.score != null ? `${sub.score}%` : isRTL ? "لم يُقيّم" : "Ungraded"}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex gap-2 flex-wrap">
+                    <button onClick={(e) => { e.stopPropagation(); openEditDialog(s); }} className="h-8 px-3 rounded-lg bg-blue-100 text-blue-700 text-xs font-bold hover:bg-blue-200 flex items-center gap-1"><Edit size={12} /> {isRTL ? "تعديل" : "Edit"}</button>
+                    <button onClick={(e) => { e.stopPropagation(); handleToggleStatus(s); }} className={`h-8 px-3 rounded-lg text-xs font-bold flex items-center gap-1 ${s.status === "active" ? "bg-amber-100 text-amber-700 hover:bg-amber-200" : "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"}`}>
+                      {s.status === "active" ? <><X size={12} /> {isRTL ? "إيقاف" : "Deactivate"}</> : <><Check size={12} /> {isRTL ? "تفعيل" : "Activate"}</>}
+                    </button>
+                    <button onClick={(e) => { e.stopPropagation(); handleDelete(s.id); }} className="h-8 px-3 rounded-lg bg-red-100 text-red-700 text-xs font-bold hover:bg-red-200 flex items-center gap-1"><Trash2 size={12} /> {isRTL ? "حذف" : "Delete"}</button>
+                  </div>
+                </div>
+              )}
+            </Card>
+          );
+        })}
         {filtered.length === 0 && <div className="text-center py-12 text-stone-400 text-sm">{isRTL ? "لا يوجد طلاب بعد" : "No students yet"}</div>}
       </div>
 
@@ -433,6 +507,29 @@ function StudentsTab({ teacherId, students, isRTL, queryClient }) {
           <DialogFooter className="gap-2">
             <button onClick={() => setShowAdd(false)} className={btnOutline}>{isRTL ? "إلغاء" : "Cancel"}</button>
             <button onClick={handleAdd} disabled={loading} className={btnPrimary}>{loading ? "..." : isRTL ? "إضافة" : "Add"}</button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Student Dialog */}
+      <Dialog open={!!showEdit} onOpenChange={() => setShowEdit(null)}>
+        <DialogContent className="max-w-md rounded-[24px]" dir="rtl">
+          <DialogHeader><DialogTitle className="font-black">{isRTL ? "تعديل بيانات الطالب" : "Edit Student"}</DialogTitle></DialogHeader>
+          <div className="space-y-3 p-1">
+            <Input placeholder={isRTL ? "اسم الطالب *" : "Student name *"} value={form.student_name} onChange={e => setForm({ ...form, student_name: e.target.value })} className="h-10 rounded-xl" />
+            <Input placeholder={isRTL ? "البريد الإلكتروني" : "Email"} value={form.student_email} onChange={e => setForm({ ...form, student_email: e.target.value })} className="h-10 rounded-xl" dir="ltr" />
+            <Input placeholder={isRTL ? "الهاتف" : "Phone"} value={form.student_phone} onChange={e => setForm({ ...form, student_phone: e.target.value })} className="h-10 rounded-xl" dir="ltr" />
+            <select value={form.grade} onChange={e => setForm({ ...form, grade: e.target.value })} className="h-10 rounded-xl border border-stone-200 bg-white px-3 text-sm w-full">
+              <option value="">{isRTL ? "الصف الدراسي" : "Grade"}</option>
+              {["1","2","3","4","5","6","7","8","9","10","11","12"].map(g => <option key={g} value={g}>{isRTL ? `الصف ${g}` : `Grade ${g}`}</option>)}
+            </select>
+            <div className="text-xs font-bold text-stone-500 pt-2">{isRTL ? "بيانات ولي الأمر" : "Parent Info"}</div>
+            <Input placeholder={isRTL ? "اسم ولي الأمر" : "Parent name"} value={form.parent_name} onChange={e => setForm({ ...form, parent_name: e.target.value })} className="h-10 rounded-xl" />
+            <Input placeholder={isRTL ? "هاتف ولي الأمر" : "Parent phone"} value={form.parent_phone} onChange={e => setForm({ ...form, parent_phone: e.target.value })} className="h-10 rounded-xl" dir="ltr" />
+          </div>
+          <DialogFooter className="gap-2">
+            <button onClick={() => setShowEdit(null)} className={btnOutline}>{isRTL ? "إلغاء" : "Cancel"}</button>
+            <button onClick={handleEdit} disabled={loading} className={btnPrimary}>{loading ? "..." : isRTL ? "حفظ التعديلات" : "Save Changes"}</button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -636,6 +733,16 @@ function LiveClassesTab({ teacherId, liveClasses, isRTL, queryClient }) {
     try { await entities.TeacherLiveClass.delete(id); queryClient.invalidateQueries({ queryKey: ["teacher-live-classes"] }); toast.success(isRTL ? "تم الحذف" : "Deleted"); } catch (e) { toast.error(e.message); }
   };
 
+  const handleToggleStatus = async (cls) => {
+    const nextStatus = cls.status === "scheduled" ? "live" : cls.status === "live" ? "ended" : "scheduled";
+    try {
+      await entities.TeacherLiveClass.update(cls.id, { status: nextStatus });
+      queryClient.invalidateQueries({ queryKey: ["teacher-live-classes"] });
+      const msg = nextStatus === "live" ? (isRTL ? "تم بدء البث المباشر" : "Session started") : nextStatus === "ended" ? (isRTL ? "تم إنهاء البث" : "Session ended") : (isRTL ? "تمت إعادة الجدولة" : "Session rescheduled");
+      toast.success(msg);
+    } catch (e) { toast.error(e.message); }
+  };
+
   const getStatusBadge = (status) => {
     const map = { scheduled: { label: isRTL ? "مجدول" : "Scheduled", cls: "bg-blue-50 text-blue-700" }, live: { label: isRTL ? "مباشر" : "Live", cls: "bg-red-50 text-red-700 animate-pulse" }, ended: { label: isRTL ? "منتهي" : "Ended", cls: "bg-stone-100 text-stone-500" } };
     const s = map[status] || map.scheduled;
@@ -652,7 +759,7 @@ function LiveClassesTab({ teacherId, liveClasses, isRTL, queryClient }) {
         {liveClasses?.map(c => (
           <Card key={c.id} className="p-4 rounded-2xl border-stone-100">
             <div className="flex items-start justify-between">
-              <div>
+              <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <div className="text-sm font-black text-stone-900">{c.title}</div>
                   {getStatusBadge(c.status)}
@@ -668,10 +775,18 @@ function LiveClassesTab({ teacherId, liveClasses, isRTL, queryClient }) {
                   <div className="mt-2 flex items-center gap-2">
                     <code className="text-[10px] bg-stone-100 px-2 py-1 rounded-lg font-mono">{c.room_token}</code>
                     <button onClick={() => { navigator.clipboard.writeText(c.room_token); toast.success(isRTL ? "تم النسخ" : "Copied"); }} className="text-stone-400 hover:text-stone-600"><Copy size={12} /></button>
+                    <a href={c.room_url || `/live/${c.room_token}`} target="_blank" rel="noopener noreferrer" className="text-[10px] bg-blue-100 text-blue-700 px-2 py-1 rounded-lg font-bold hover:bg-blue-200 flex items-center gap-1"><Video size={10} /> {isRTL ? "فتح الغرفة" : "Open Room"}</a>
                   </div>
                 )}
               </div>
-              <button onClick={() => handleDelete(c.id)} className="text-red-500 hover:text-red-700"><Trash2 size={16} /></button>
+              <div className="flex items-center gap-2 shrink-0">
+                {c.status !== "ended" && (
+                  <button onClick={() => handleToggleStatus(c)} className={`h-8 px-3 rounded-lg text-xs font-bold flex items-center gap-1 ${c.status === "scheduled" ? "bg-red-500 text-white hover:bg-red-600" : "bg-stone-500 text-white hover:bg-stone-600"}`}>
+                    {c.status === "scheduled" ? <><Video size={12} /> {isRTL ? "بدء البث" : "Start"}</> : <><X size={12} /> {isRTL ? "إنهاء" : "End"}</>}
+                  </button>
+                )}
+                <button onClick={() => handleDelete(c.id)} className="text-red-500 hover:text-red-700"><Trash2 size={16} /></button>
+              </div>
             </div>
           </Card>
         ))}
@@ -820,46 +935,118 @@ function VideosTab({ teacherId, videos, isRTL, queryClient }) {
 
 // ─── Subscriptions Tab ───
 function SubscriptionsTab({ teacherId, subscriptions, isRTL, queryClient }) {
-  const handleStatus = async (id, status) => {
+  const [filter, setFilter] = useState("all");
+  const [showPlanDialog, setShowPlanDialog] = useState(null);
+  const [selectedPlan, setSelectedPlan] = useState("monthly");
+
+  const handleStatus = async (id, status, plan) => {
     try {
       const now = new Date().toISOString();
       const update = { status };
-      if (status === "approved") { update.started_at = now; update.expires_at = new Date(Date.now() + 30*24*60*60*1000).toISOString(); }
+      if (status === "approved") {
+        update.started_at = now;
+        const days = plan === "yearly" ? 365 : 30;
+        update.expires_at = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+      }
       await entities.TeacherSubscription.update(id, update);
       queryClient.invalidateQueries({ queryKey: ["teacher-subscriptions"] });
       toast.success(status === "approved" ? (isRTL ? "تم قبول الاشتراك" : "Subscription approved") : (isRTL ? "تم رفض الاشتراك" : "Subscription rejected"));
     } catch (e) { toast.error(e.message); }
   };
 
+  const getDaysUntilExpiry = (expiresAt) => {
+    if (!expiresAt) return null;
+    const diff = new Date(expiresAt).getTime() - Date.now();
+    return Math.ceil(diff / (1000 * 60 * 60 * 24));
+  };
+
+  const filtered = subscriptions?.filter(s => {
+    if (filter === "all") return true;
+    if (filter === "active") return s.status === "approved";
+    if (filter === "pending") return s.status === "pending";
+    if (filter === "expired") return s.status === "rejected" || (s.expires_at && new Date(s.expires_at) < new Date());
+    return true;
+  }) || [];
+
+  const pendingCount = subscriptions?.filter(s => s.status === "pending").length || 0;
+  const activeCount = subscriptions?.filter(s => s.status === "approved").length || 0;
+
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-      <h1 className="text-xl font-black mb-4">{isRTL ? "طلبات الاشتراك" : "Subscription Requests"}</h1>
-      <div className="grid gap-3">
-        {subscriptions?.map(s => (
-          <Card key={s.id} className="p-4 rounded-2xl border-stone-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-sm font-black text-stone-900">{s.student_name || "طالب"}</div>
-                <div className="text-xs text-stone-500">{s.student_email || ""}</div>
-                <div className="flex gap-2 mt-2">
-                  <Badge className={`text-[10px] ${s.status === "approved" ? "bg-emerald-50 text-emerald-700" : s.status === "rejected" ? "bg-red-50 text-red-700" : "bg-amber-50 text-amber-700"}`}>
-                    {s.status === "approved" ? (isRTL ? "مقبول" : "Approved") : s.status === "rejected" ? (isRTL ? "مرفوض" : "Rejected") : (isRTL ? "قيد المراجعة" : "Pending")}
-                  </Badge>
-                  {s.plan && <Badge className="text-[10px] bg-blue-50 text-blue-700">{s.plan}</Badge>}
-                  {s.amount > 0 && <Badge className="text-[10px] bg-purple-50 text-purple-700">${s.amount}</Badge>}
-                </div>
-              </div>
-              {s.status === "pending" && (
-                <div className="flex gap-2">
-                  <button onClick={() => handleStatus(s.id, "approved")} className="h-8 px-3 rounded-lg bg-emerald-500 text-white text-xs font-bold hover:bg-emerald-600 flex items-center gap-1"><CheckCircle2 size={12} /> {isRTL ? "قبول" : "Approve"}</button>
-                  <button onClick={() => handleStatus(s.id, "rejected")} className="h-8 px-3 rounded-lg bg-red-500 text-white text-xs font-bold hover:bg-red-600 flex items-center gap-1"><X size={12} /> {isRTL ? "رفض" : "Reject"}</button>
-                </div>
-              )}
-            </div>
-          </Card>
-        ))}
-        {(!subscriptions || subscriptions.length === 0) && <div className="text-center py-12 text-stone-400 text-sm">{isRTL ? "لا يوجد طلبات اشتراك" : "No subscription requests yet"}</div>}
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-xl font-black">{isRTL ? "طلبات الاشتراك" : "Subscription Requests"}</h1>
+        {pendingCount > 0 && <Badge className="bg-amber-500 text-white text-xs px-2">{pendingCount} {isRTL ? "جديد" : "new"}</Badge>}
       </div>
+
+      {/* Filter Tabs */}
+      <div className="flex gap-2 mb-4 flex-wrap">
+        {[{ key: "all", label: isRTL ? "الكل" : "All", count: subscriptions?.length || 0 }, { key: "pending", label: isRTL ? "قيد المراجعة" : "Pending", count: pendingCount }, { key: "active", label: isRTL ? "نشط" : "Active", count: activeCount }, { key: "expired", label: isRTL ? "منتهي" : "Expired", count: subscriptions?.filter(s => s.status === "rejected" || (s.expires_at && new Date(s.expires_at) < new Date())).length || 0 }].map(tab => (
+          <button key={tab.key} onClick={() => setFilter(tab.key)} className={`h-8 px-3 rounded-xl text-xs font-bold flex items-center gap-1 ${filter === tab.key ? "bg-stone-900 text-white" : "bg-stone-100 text-stone-600 hover:bg-stone-200"}`}>
+            {tab.label} <span className="bg-white/20 px-1 rounded">{tab.count}</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="grid gap-3">
+        {filtered.map(s => {
+          const daysLeft = getDaysUntilExpiry(s.expires_at);
+          const isExpiringSoon = daysLeft !== null && daysLeft <= 7 && daysLeft > 0;
+          const isExpired = daysLeft !== null && daysLeft <= 0;
+          return (
+            <Card key={s.id} className={`p-4 rounded-2xl border-stone-100 ${isExpired ? "border-red-200 bg-red-50/30" : isExpiringSoon ? "border-amber-200 bg-amber-50/30" : ""}`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm font-black text-stone-900">{s.student_name || "طالب"}</div>
+                  <div className="text-xs text-stone-500">{s.student_email || ""}</div>
+                  <div className="flex gap-2 mt-2 flex-wrap">
+                    <Badge className={`text-[10px] ${s.status === "approved" ? "bg-emerald-50 text-emerald-700" : s.status === "rejected" ? "bg-red-50 text-red-700" : "bg-amber-50 text-amber-700"}`}>
+                      {s.status === "approved" ? (isRTL ? "مقبول" : "Approved") : s.status === "rejected" ? (isRTL ? "مرفوض" : "Rejected") : (isRTL ? "قيد المراجعة" : "Pending")}
+                    </Badge>
+                    {s.plan && <Badge className="text-[10px] bg-blue-50 text-blue-700">{s.plan === "yearly" ? (isRTL ? "سنوي" : "Yearly") : (isRTL ? "شهري" : "Monthly")}</Badge>}
+                    {s.amount > 0 && <Badge className="text-[10px] bg-purple-50 text-purple-700">{s.amount} EGP</Badge>}
+                    {s.expires_at && s.status === "approved" && (
+                      <Badge className={`text-[10px] ${isExpired ? "bg-red-100 text-red-700" : isExpiringSoon ? "bg-amber-100 text-amber-700" : "bg-stone-100 text-stone-600"}`}>
+                        {isExpired ? (isRTL ? "منتهي" : "Expired") : isExpiringSoon ? (isRTL ? `متبقي ${daysLeft} يوم` : `${daysLeft}d left`) : (isRTL ? `صالح حتى ${new Date(s.expires_at).toLocaleDateString("ar")}` : `Valid until ${new Date(s.expires_at).toLocaleDateString()}`)}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+                {s.status === "pending" && (
+                  <div className="flex gap-2">
+                    <button onClick={() => setShowPlanDialog(s)} className="h-8 px-3 rounded-lg bg-emerald-500 text-white text-xs font-bold hover:bg-emerald-600 flex items-center gap-1"><CheckCircle2 size={12} /> {isRTL ? "قبول" : "Approve"}</button>
+                    <button onClick={() => handleStatus(s.id, "rejected")} className="h-8 px-3 rounded-lg bg-red-500 text-white text-xs font-bold hover:bg-red-600 flex items-center gap-1"><X size={12} /> {isRTL ? "رفض" : "Reject"}</button>
+                  </div>
+                )}
+              </div>
+            </Card>
+          );
+        })}
+        {filtered.length === 0 && <div className="text-center py-12 text-stone-400 text-sm">{filter === "all" ? (isRTL ? "لا يوجد طلبات اشتراك" : "No subscription requests yet") : isRTL ? "لا توجد نتائج" : "No results"}</div>}
+      </div>
+
+      {/* Plan Picker Dialog */}
+      <Dialog open={!!showPlanDialog} onOpenChange={() => setShowPlanDialog(null)}>
+        <DialogContent className="max-w-sm rounded-[24px]" dir="rtl">
+          <DialogHeader><DialogTitle className="font-black">{isRTL ? "اختيار خطة الاشتراك" : "Choose Subscription Plan"}</DialogTitle></DialogHeader>
+          <div className="p-4 space-y-3">
+            <div className="text-xs text-stone-500">{isRTL ? `للطالب: ${showPlanDialog?.student_name}` : `For: ${showPlanDialog?.student_name}`}</div>
+            <div className="grid grid-cols-2 gap-3">
+              <button onClick={() => setSelectedPlan("monthly")} className={`p-4 rounded-2xl border-2 text-center transition-all ${selectedPlan === "monthly" ? "border-emerald-500 bg-emerald-50" : "border-stone-200 hover:border-stone-300"}`}>
+                <div className="text-lg font-black text-stone-900">{isRTL ? "شهري" : "Monthly"}</div>
+                <div className="text-xs text-stone-500 mt-1">{isRTL ? "30 يوم" : "30 days"}</div>
+              </button>
+              <button onClick={() => setSelectedPlan("yearly")} className={`p-4 rounded-2xl border-2 text-center transition-all ${selectedPlan === "yearly" ? "border-emerald-500 bg-emerald-50" : "border-stone-200 hover:border-stone-300"}`}>
+                <div className="text-lg font-black text-stone-900">{isRTL ? "سنوي" : "Yearly"}</div>
+                <div className="text-xs text-stone-500 mt-1">{isRTL ? "365 يوم" : "365 days"}</div>
+              </button>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <button onClick={() => setShowPlanDialog(null)} className={btnOutline}>{isRTL ? "إلغاء" : "Cancel"}</button>
+            <button onClick={() => { handleStatus(showPlanDialog.id, "approved", selectedPlan); setShowPlanDialog(null); }} className={btnPrimary}>{isRTL ? "تأكيد القبول" : "Confirm Approval"}</button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 }

@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/lib/LanguageContext";
+import { toast } from "sonner";
 
 import {
   GraduationCap, ShieldCheck, Users, Wallet, ClipboardCheck, BarChart3,
   Award, BookOpen, Lock, MessageCircle, Phone, CheckCircle2, Star, Sparkles, X, UserPlus, Mail, Video,
-  LogIn, UserCheck
+  LogIn, UserCheck, KeyRound, Eye, EyeOff, CreditCard, Upload, Calendar, Clock, Gift
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Card } from "@/components/ui/card";
 
 const WHATSAPP_NUMBER = "249969814088";
 const WHATSAPP_MSG = encodeURIComponent("مرحباً، أرغب في طلب نسخة من منصة EduTrack لإدارة مدرستنا. يرجى تزويدي بالتفاصيل والأسعار.");
@@ -18,6 +21,69 @@ export default function LandingPage() {
   const isRTL = language === "ar";
 
   const [selectedFeature, setSelectedFeature] = useState(null);
+  const [teacherLoginOpen, setTeacherLoginOpen] = useState(false);
+  const [studentLoginOpen, setStudentLoginOpen] = useState(false);
+  const [teacherLoginForm, setTeacherLoginForm] = useState({ username: "", password: "" });
+  const [studentLoginForm, setStudentLoginForm] = useState({ email: "", password: "" });
+  const [showTeacherPass, setShowTeacherPass] = useState(false);
+  const [showStudentPass, setShowStudentPass] = useState(false);
+  const [teacherLoginLoading, setTeacherLoginLoading] = useState(false);
+  const [studentLoginLoading, setStudentLoginLoading] = useState(false);
+  const navigate = useNavigate();
+
+  const handleTeacherLogin = async (e) => {
+    e.preventDefault();
+    if (!teacherLoginForm.username.trim() || !teacherLoginForm.password.trim()) {
+      toast.error(isRTL ? "يرجى ملء جميع الحقول" : "Please fill all fields");
+      return;
+    }
+    setTeacherLoginLoading(true);
+    try {
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: teacherLoginForm.username.trim(), password: teacherLoginForm.password, role: "teacher" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Login failed");
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(data.user));
+      toast.success(isRTL ? "تم تسجيل الدخول بنجاح" : "Login successful");
+      setTeacherLoginOpen(false);
+      navigate("/teacher-panel");
+    } catch (err) {
+      toast.error(err.message || (isRTL ? "فشل تسجيل الدخول" : "Login failed"));
+    } finally {
+      setTeacherLoginLoading(false);
+    }
+  };
+
+  const handleStudentLogin = async (e) => {
+    e.preventDefault();
+    if (!studentLoginForm.email.trim() || !studentLoginForm.password.trim()) {
+      toast.error(isRTL ? "يرجى ملء جميع الحقول" : "Please fill all fields");
+      return;
+    }
+    setStudentLoginLoading(true);
+    try {
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: studentLoginForm.email.trim(), password: studentLoginForm.password, role: "student" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Login failed");
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(data.user));
+      toast.success(isRTL ? "تم تسجيل الدخول بنجاح" : "Login successful");
+      setStudentLoginOpen(false);
+      navigate("/student-panel");
+    } catch (err) {
+      toast.error(err.message || (isRTL ? "فشل تسجيل الدخول" : "Login failed"));
+    } finally {
+      setStudentLoginLoading(false);
+    }
+  };
 
   const features = [
     {
@@ -310,14 +376,14 @@ export default function LandingPage() {
                 {isRTL ? "أي معلم يمكنه التسجيل لإدارة طلابه وواجباتهم وامتحاناتهم بشكل مستقل. أنشئ حصص مباشرة، ارفع فيديوهات يوتيوب التعليمية، وتابع تقدم كل طالب. مجاني للمعلمين الأفراد." : "Any teacher can register to manage students, assignments, and exams independently. Create live classes, upload YouTube teaching videos, and track each student's progress. Free for individual teachers."}
               </p>
               <div className="mt-5 flex flex-wrap gap-3">
+                <button onClick={() => setTeacherLoginOpen(true)} className="h-11 px-6 rounded-xl bg-white text-indigo-700 font-black text-sm hover:bg-white/90 inline-flex items-center gap-2 shadow-lg">
+                  <LogIn size={16} /> {isRTL ? "دخول بوابة المعلم" : "Teacher Login"}
+                </button>
                 <Link to="/teacher-register" className="h-11 px-6 rounded-xl bg-white/20 border border-white/30 text-white font-black text-sm hover:bg-white/30 inline-flex items-center gap-2">
                   <UserPlus size={16} /> {isRTL ? "تسجيل جديد كمعلم" : "Register as Teacher"}
                 </Link>
-                <Link to="/teacher-panel" className="h-11 px-6 rounded-xl bg-white text-indigo-700 font-black text-sm hover:bg-white/90 inline-flex items-center gap-2 shadow-lg">
-                  <GraduationCap size={16} /> {isRTL ? "دخول بوابة المعلم" : "Open Teacher Portal"}
-                </Link>
                 <a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("مرحباً، أريد التسجيل كمعلم في منصة EduTrack.")}`} target="_blank" rel="noopener noreferrer" className="h-11 px-6 rounded-xl bg-white/20 border border-white/30 text-white font-black text-sm hover:bg-white/30 inline-flex items-center gap-2">
-                  <MessageCircle size={16} /> {isRTL ? "استفسار عبر الواتساب" : "WhatsApp Inquiry"}
+                  <MessageCircle size={16} /> {isRTL ? "استفسار عبر الواتساب" : "WhatsApp"}
                 </a>
               </div>
             </div>
@@ -341,6 +407,25 @@ export default function LandingPage() {
                   ))}
                 </div>
               </div>
+              {/* Pricing badge */}
+              <div className="mt-4 grid grid-cols-3 gap-2">
+                <div className="bg-white/20 backdrop-blur rounded-xl p-3 text-center border border-white/30">
+                  <Gift size={16} className="mx-auto mb-1 text-white" />
+                  <div className="text-xs font-black text-white">{isRTL ? "شهر مجاني" : "Free Month"}</div>
+                  <div className="text-[10px] text-white/70">{isRTL ? "تجربة بدون دفع" : "No payment"}</div>
+                </div>
+                <div className="bg-white/20 backdrop-blur rounded-xl p-3 text-center border border-white/30">
+                  <CreditCard size={16} className="mx-auto mb-1 text-white" />
+                  <div className="text-xs font-black text-white">49,000 ج.س</div>
+                  <div className="text-[10px] text-white/70">{isRTL ? "شهرياً" : "Monthly"}</div>
+                </div>
+                <div className="bg-white/20 backdrop-blur rounded-xl p-3 text-center border border-white/30 relative">
+                  <span className="absolute -top-2 -right-2 bg-amber-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full">41% OFF</span>
+                  <Award size={16} className="mx-auto mb-1 text-white" />
+                  <div className="text-xs font-black text-white">350,000 ج.س</div>
+                  <div className="text-[10px] text-white/70">{isRTL ? "سنوياً" : "Yearly"}</div>
+                </div>
+              </div>
             </div>
           </div>
         </motion.div>
@@ -361,14 +446,14 @@ export default function LandingPage() {
                 {isRTL ? "أي طالب يمكنه التسجيل مجاناً للوصول إلى كتب المنهج السوداني المعتمدة، وحل الواجبات، ومتابعة الدروس. للاشتراك مع معلم خاص والدروس المباشرة، يرسل طلب اشتراك من داخل البوابة." : "Any student can register free for Sudanese curriculum books, assignments, and lessons. To join a private teacher for live classes, send a subscription request from within the portal."}
               </p>
               <div className="mt-5 flex flex-wrap gap-3">
+                <button onClick={() => setStudentLoginOpen(true)} className="h-11 px-6 rounded-xl bg-white text-emerald-700 font-black text-sm hover:bg-white/90 inline-flex items-center gap-2 shadow-lg">
+                  <LogIn size={16} /> {isRTL ? "دخول بوابة الطالب" : "Student Login"}
+                </button>
                 <Link to="/student-register" className="h-11 px-6 rounded-xl bg-white/20 border border-white/30 text-white font-black text-sm hover:bg-white/30 inline-flex items-center gap-2">
                   <UserPlus size={16} /> {isRTL ? "تسجيل طالب جديد (مجاني)" : "Register Student (Free)"}
                 </Link>
-                <Link to="/student-panel" className="h-11 px-6 rounded-xl bg-white text-emerald-700 font-black text-sm hover:bg-white/90 inline-flex items-center gap-2 shadow-lg">
-                  <BookOpen size={16} /> {isRTL ? "دخول بوابة الطالب" : "Open Student Portal"}
-                </Link>
                 <a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("مرحباً، أريد تسجيل طالب في منصة EduTrack. كيف أبدأ؟")}`} target="_blank" rel="noopener noreferrer" className="h-11 px-6 rounded-xl bg-white/20 border border-white/30 text-white font-black text-sm hover:bg-white/30 inline-flex items-center gap-2">
-                  <MessageCircle size={16} /> {isRTL ? "استفسار عبر الواتساب" : "WhatsApp Inquiry"}
+                  <MessageCircle size={16} /> {isRTL ? "استفسار عبر الواتساب" : "WhatsApp"}
                 </a>
               </div>
             </div>
@@ -391,6 +476,14 @@ export default function LandingPage() {
                     </div>
                   ))}
                 </div>
+              </div>
+              {/* Free registration badge */}
+              <div className="mt-4 bg-white/20 backdrop-blur rounded-xl p-4 text-center border border-white/30">
+                <div className="flex items-center justify-center gap-2 mb-1">
+                  <Gift size={18} className="text-white" />
+                  <span className="text-sm font-black text-white">{isRTL ? "التسجيل مجاني بالكامل" : "Registration is 100% Free"}</span>
+                </div>
+                <p className="text-xs text-white/70">{isRTL ? "وصول فوري لكتب المنهج السوداني المعتمدة وحلول الواجبات" : "Instant access to Sudanese curriculum books and homework solutions"}</p>
               </div>
             </div>
           </div>
@@ -488,6 +581,111 @@ export default function LandingPage() {
       <a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${WHATSAPP_MSG}`} target="_blank" rel="noopener noreferrer" className="fixed bottom-4 left-4 z-50 h-12 w-12 rounded-full bg-emerald-500 text-white shadow-xl flex items-center justify-center hover:bg-emerald-600">
         <MessageCircle size={20} />
       </a>
+
+      {/* Teacher Login Modal */}
+      <Dialog open={teacherLoginOpen} onOpenChange={setTeacherLoginOpen}>
+        <DialogContent className="max-w-sm rounded-[24px] p-0 overflow-hidden" dir="rtl">
+          <div className="bg-gradient-to-br from-indigo-600 to-violet-600 p-6 text-white text-center">
+            <div className="h-14 w-14 rounded-2xl bg-white/20 flex items-center justify-center mx-auto mb-3">
+              <GraduationCap size={28} />
+            </div>
+            <h3 className="text-lg font-black">دخول بوابة المعلم</h3>
+            <p className="text-white/80 text-xs mt-1">سجّل دخولك لإدارة طلابك وواجباتهم</p>
+          </div>
+          <form onSubmit={handleTeacherLogin} className="p-6 space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-stone-600 flex items-center gap-1"><UserCheck size={12} /> اسم المستخدم</label>
+              <div className="relative">
+                <Input
+                  value={teacherLoginForm.username}
+                  onChange={e => setTeacherLoginForm(p => ({ ...p, username: e.target.value }))}
+                  placeholder="أدخل اسم المستخدم"
+                  className="h-11 rounded-xl pr-10"
+                  dir="ltr"
+                />
+                <UserCheck size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400" />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-stone-600 flex items-center gap-1"><KeyRound size={12} /> كلمة المرور</label>
+              <div className="relative">
+                <Input
+                  type={showTeacherPass ? "text" : "password"}
+                  value={teacherLoginForm.password}
+                  onChange={e => setTeacherLoginForm(p => ({ ...p, password: e.target.value }))}
+                  placeholder="أدخل كلمة المرور"
+                  className="h-11 rounded-xl pr-10 pl-10"
+                  dir="ltr"
+                />
+                <KeyRound size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400" />
+                <button type="button" onClick={() => setShowTeacherPass(!showTeacherPass)} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600">
+                  {showTeacherPass ? <EyeOff size={14} /> : <Eye size={14} />}
+                </button>
+              </div>
+            </div>
+            <button type="submit" disabled={teacherLoginLoading} className="w-full h-11 rounded-xl bg-indigo-600 text-white font-black text-sm hover:bg-indigo-700 disabled:opacity-60 flex items-center justify-center gap-2">
+              {teacherLoginLoading ? "جاري الدخول..." : <><LogIn size={16} /> تسجيل الدخول</>}
+            </button>
+            <div className="text-center text-xs text-stone-500">
+              ليس لديك حساب؟{" "}
+              <Link to="/teacher-register" onClick={() => setTeacherLoginOpen(false)} className="text-indigo-600 font-bold hover:underline">سجّل الآن</Link>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Student Login Modal */}
+      <Dialog open={studentLoginOpen} onOpenChange={setStudentLoginOpen}>
+        <DialogContent className="max-w-sm rounded-[24px] p-0 overflow-hidden" dir="rtl">
+          <div className="bg-gradient-to-br from-emerald-600 to-teal-600 p-6 text-white text-center">
+            <div className="h-14 w-14 rounded-2xl bg-white/20 flex items-center justify-center mx-auto mb-3">
+              <GraduationCap size={28} />
+            </div>
+            <h3 className="text-lg font-black">دخول بوابة الطالب</h3>
+            <p className="text-white/80 text-xs mt-1">سجّل دخولك لعرض واجباتك ودرجاتك</p>
+          </div>
+          <form onSubmit={handleStudentLogin} className="p-6 space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-stone-600 flex items-center gap-1"><Mail size={12} /> البريد الإلكتروني</label>
+              <div className="relative">
+                <Input
+                  type="email"
+                  value={studentLoginForm.email}
+                  onChange={e => setStudentLoginForm(p => ({ ...p, email: e.target.value }))}
+                  placeholder="student@email.com"
+                  className="h-11 rounded-xl pr-10"
+                  dir="ltr"
+                />
+                <Mail size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400" />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-stone-600 flex items-center gap-1"><KeyRound size={12} /> كلمة المرور</label>
+              <div className="relative">
+                <Input
+                  type={showStudentPass ? "text" : "password"}
+                  value={studentLoginForm.password}
+                  onChange={e => setStudentLoginForm(p => ({ ...p, password: e.target.value }))}
+                  placeholder="أدخل كلمة المرور"
+                  className="h-11 rounded-xl pr-10 pl-10"
+                  dir="ltr"
+                />
+                <KeyRound size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400" />
+                <button type="button" onClick={() => setShowStudentPass(!showStudentPass)} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600">
+                  {showStudentPass ? <EyeOff size={14} /> : <Eye size={14} />}
+                </button>
+              </div>
+            </div>
+            <button type="submit" disabled={studentLoginLoading} className="w-full h-11 rounded-xl bg-emerald-600 text-white font-black text-sm hover:bg-emerald-700 disabled:opacity-60 flex items-center justify-center gap-2">
+              {studentLoginLoading ? "جاري الدخول..." : <><LogIn size={16} /> تسجيل الدخول</>}
+            </button>
+            <div className="text-center text-xs text-stone-500">
+              ليس لديك حساب؟{" "}
+              <Link to="/student-register" onClick={() => setStudentLoginOpen(false)} className="text-emerald-600 font-bold hover:underline">سجّل الآن مجاناً</Link>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
