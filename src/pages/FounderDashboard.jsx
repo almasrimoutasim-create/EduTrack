@@ -82,6 +82,7 @@ const FounderDashboard = () => {
           requestId: teacherApproval.requestId,
           username: teacherUsername.trim(),
           password: teacherPassword.trim(),
+          school_id: teacherApproval.school_id || null,
         }),
       });
       const data = await res.json();
@@ -91,6 +92,7 @@ const FounderDashboard = () => {
       setTeacherUsername("");
       setTeacherPassword("");
       queryClient.invalidateQueries({ queryKey: ["founder-registrations"] });
+      queryClient.invalidateQueries({ queryKey: ["founder-teachers"] });
 
 
     } catch (err) {
@@ -115,6 +117,7 @@ const FounderDashboard = () => {
           requestId: studentApproval.requestId,
           username: studentUsername.trim(),
           password: studentPassword.trim(),
+          school_id: studentApproval.school_id || null,
         }),
       });
       const data = await res.json();
@@ -124,6 +127,7 @@ const FounderDashboard = () => {
       setStudentUsername("");
       setStudentPassword("");
       queryClient.invalidateQueries({ queryKey: ["founder-registrations"] });
+      queryClient.invalidateQueries({ queryKey: ["founder-students"] });
 
 
     } catch (err) {
@@ -1396,17 +1400,38 @@ const FounderDashboard = () => {
                                     </>
                                   ) : (
                                     <>
-                                      {/* زر استخراج بيانات الدخول للطلبات المقبولة من نوع مدرسة */}
-                                      {r.status === 'approved' && !isStudent && !isTeacher && (
+                                      {/* زر استخراج بيانات الدخول للطلبات المقبولة */}
+                                      {r.status === 'approved' && (
                                         <button
-                                          onClick={() => showDeliveryForRequest(r)}
+                                          onClick={() => {
+                                            if (isStudent || isTeacher) {
+                                              const name = r.full_name || r.student_name || '—';
+                                              const generatedUsername = r.username_generated || r.email || '—';
+                                              const portalUrl = isTeacher
+                                                ? `${window.location.origin}/independent-teacher-login`
+                                                : `${window.location.origin}/student-login`;
+                                              const modalHtml = `
+                                                <div style="direction:rtl;text-align:right;font-family:sans-serif;padding:20px;">
+                                                  <h3 style="margin:0 0 12px;color:#7c3aed;">بيانات دخول ${isTeacher ? 'المعلم' : 'الطالب'}</h3>
+                                                  <p style="margin:0 0 6px;"><b>الاسم:</b> ${name}</p>
+                                                  <p style="margin:0 0 6px;"><b>اسم المستخدم:</b> <code style="background:#f1f5f9;padding:2px 6px;border-radius:4px;">${generatedUsername}</code></p>
+                                                  <p style="margin:0 0 6px;"><b>كلمة المرور:</b> تم تعيينها أثناء الموافقة</p>
+                                                  <p style="margin:12px 0 0;"><b>رابط الدخول:</b> <a href="${portalUrl}" target="_blank" style="color:#7c3aed;">${portalUrl}</a></p>
+                                                </div>`;
+                                              const w = window.open('', '_blank', 'width=500,height=350');
+                                              w.document.write(`<html><head><title>بيانات الدخول</title></head><body>${modalHtml}</body></html>`);
+                                              w.document.close();
+                                            } else {
+                                              showDeliveryForRequest(r);
+                                            }
+                                          }}
                                           className="flex items-center gap-1 bg-violet-600 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold hover:bg-violet-700 shadow-sm"
-                                          title="استخراج بيانات الدخول والرابط المخصص"
+                                          title="استخراج بيانات الدخول"
                                         >
                                           <KeyRound size={13}/> بيانات الدخول
                                         </button>
                                       )}
-                                      {(r.status === 'rejected' || r.status === 'on_hold' || (r.status === 'approved' && (isStudent || isTeacher))) && (
+                                      {(r.status === 'rejected' || r.status === 'on_hold') && (
                                         <span className="text-xs text-slate-400 font-medium">تمت المعالجة</span>
                                       )}
                                     </>

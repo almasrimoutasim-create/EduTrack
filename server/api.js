@@ -1423,7 +1423,7 @@ export function createApiHandler() {
       res.setHeader('Content-Type', 'application/json');
       try {
         const body = await parseBody(req);
-        const { requestId, username, password } = body;
+        const { requestId, username, password, school_id } = body;
         if (!requestId || !username || !password) {
           res.statusCode = 400;
           return res.end(JSON.stringify({ error: 'requestId, username, and password are required' }));
@@ -1444,7 +1444,7 @@ export function createApiHandler() {
         if (existing.length > 0) {
           await dbQuery(
             `UPDATE students 
-             SET full_name = $1, phone = $2, grade = $3, parent_name = $4, parent_phone = $5, parent_email = $6, school_name = $7, city = $8, portal_password = $9, status = 'active'
+             SET full_name = $1, phone = $2, grade = $3, parent_name = $4, parent_phone = $5, parent_email = $6, school_name = $7, city = $8, portal_password = $9, status = 'active', school_id = COALESCE($11, school_id)
              WHERE user_email = $10`,
             [
               reg.full_name || 'طالب',
@@ -1456,13 +1456,14 @@ export function createApiHandler() {
               reg.school_name || null,
               reg.country || null,
               hashedPassword,
-              username.trim().toLowerCase()
+              username.trim().toLowerCase(),
+              school_id || null
             ]
           );
         } else {
           await dbQuery(
-            `INSERT INTO students (full_name, user_email, student_id, phone, grade, parent_name, parent_phone, parent_email, school_name, city, status, portal_password)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'active', $11)`,
+            `INSERT INTO students (full_name, user_email, student_id, phone, grade, parent_name, parent_phone, parent_email, school_name, city, status, portal_password, school_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'active', $11, $12)`,
             [
               reg.full_name || 'طالب جديد',
               username.trim().toLowerCase(),
@@ -1474,7 +1475,8 @@ export function createApiHandler() {
               reg.email || null,
               reg.school_name || null,
               reg.country || null,
-              hashedPassword
+              hashedPassword,
+              school_id || null
             ]
           );
         }
@@ -1500,7 +1502,7 @@ export function createApiHandler() {
       res.setHeader('Content-Type', 'application/json');
       try {
         const body = await parseBody(req);
-        const { requestId, username, password } = body;
+        const { requestId, username, password, school_id } = body;
         if (!requestId || !username || !password) {
           res.statusCode = 400;
           return res.end(JSON.stringify({ error: 'requestId, username, and password are required' }));
@@ -1520,7 +1522,7 @@ export function createApiHandler() {
         if (existing.length > 0) {
           await dbQuery(
             `UPDATE teachers 
-             SET full_name = $1, phone = $2, subjects = $3, experience_years = $4, bio = $5, portal_password = $6, status = 'active'
+             SET full_name = $1, phone = $2, subjects = $3, experience_years = $4, bio = $5, portal_password = $6, status = 'active', school_id = COALESCE($8, school_id)
              WHERE email = $7`,
             [
               reg.full_name || 'معلم',
@@ -1529,13 +1531,14 @@ export function createApiHandler() {
               parseInt(reg.experience_years) || null,
               reg.bio || null,
               hashedPassword,
-              username.trim().toLowerCase()
+              username.trim().toLowerCase(),
+              school_id || null
             ]
           );
         } else {
           await dbQuery(
-            `INSERT INTO teachers (full_name, email, employee_id, phone, subjects, experience_years, bio, status, portal_password)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, 'active', $8)`,
+            `INSERT INTO teachers (full_name, email, employee_id, phone, subjects, experience_years, bio, status, portal_password, school_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, 'active', $8, $9)`,
             [
               reg.full_name || 'معلم جديد',
               username.trim().toLowerCase(),
@@ -1544,7 +1547,8 @@ export function createApiHandler() {
               reg.subjects || null,
               parseInt(reg.experience_years) || null,
               reg.bio || null,
-              hashedPassword
+              hashedPassword,
+              school_id || null
             ]
           );
         }
@@ -1763,7 +1767,7 @@ export function createApiHandler() {
     const earlyEntity = earlyMatch ? earlyMatch[1] : null;
     const isPublicRegistrationPost = earlyEntity === 'RegistrationRequest' && req.method === 'POST';
     const isFounderAuth = req.headers['x-founder-auth'] === 'true';
-    const isFounderEntity = earlyEntity === 'School' || earlyEntity === 'RegistrationRequest' || earlyEntity === 'SystemAdmin';
+    const isFounderEntity = earlyEntity === 'School' || earlyEntity === 'RegistrationRequest' || earlyEntity === 'SystemAdmin' || earlyEntity === 'Teacher' || earlyEntity === 'Student';
     const isFounderPublicRead = isFounderEntity && req.method === 'GET';
     const isFounderEntityAction = isFounderAuth && isFounderEntity;
     const authHeader = req.headers.authorization;
