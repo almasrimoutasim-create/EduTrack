@@ -1783,16 +1783,22 @@ export function createApiHandler() {
       try {
         const urlObj = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
         const teacherId = urlObj.searchParams.get('teacherId');
-        if (!teacherId) {
+        const studentId = urlObj.searchParams.get('studentId');
+        if (!teacherId && !studentId) {
           res.statusCode = 400;
-          return res.end(JSON.stringify({ error: 'teacherId query parameter is required' }));
+          return res.end(JSON.stringify({ error: 'teacherId or studentId query parameter is required' }));
         }
 
-        const bonds = await dbQuery(
-          `SELECT * FROM student_teacher_bonds WHERE teacher_id = $1 ORDER BY created_at DESC`,
-          [teacherId]
-        );
-        return res.end(JSON.stringify({ success: true, bonds }));
+        const bonds = teacherId
+          ? await dbQuery(
+              `SELECT * FROM student_teacher_bonds WHERE teacher_id = $1 ORDER BY created_at DESC`,
+              [teacherId]
+            )
+          : await dbQuery(
+              `SELECT * FROM student_teacher_bonds WHERE student_id = $1 ORDER BY created_at DESC`,
+              [studentId]
+            );
+        return res.end(JSON.stringify(Array.isArray(bonds) ? bonds : []));
       } catch (error) {
         console.error('[teacher-bonds] error:', error);
         res.statusCode = 500;

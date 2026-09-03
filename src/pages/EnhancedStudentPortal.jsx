@@ -774,7 +774,10 @@ function CurriculumTab({ books, isRTL }) {
 function MyTeacherTab({ approvedTeachers, pendingSubs, studentId, isRTL, queryClient }) {
   const { data: myBonds = [] } = useQuery({
     queryKey: ["student-bonds", studentId],
-    queryFn: () => fetch(`/api/teacher-bonds?studentId=${studentId}`).then(r => r.json()),
+    queryFn: () => fetch(`/api/teacher-bonds?studentId=${studentId}`)
+      .then(r => r.json())
+      .then(d => Array.isArray(d) ? d : (d?.bonds || []))
+      .catch(() => []),
     enabled: !!studentId,
   });
 

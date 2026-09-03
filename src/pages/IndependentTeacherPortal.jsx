@@ -123,7 +123,10 @@ export default function IndependentTeacherPortal() {
 
   const { data: bonds = [] } = useQuery({
     queryKey: ["teacher-bonds", teacherId],
-    queryFn: () => fetch(`/api/teacher-bonds?teacherId=${teacherId}`).then(r => r.json()),
+    queryFn: () => fetch(`/api/teacher-bonds?teacherId=${teacherId}`)
+      .then(r => r.json())
+      .then(d => Array.isArray(d) ? d : (d?.bonds || []))
+      .catch(() => []),
     enabled: !!teacherId,
   });
 
