@@ -97,6 +97,9 @@ export default function RoleGate({ children }) {
   useEffect(() => {
     if (isLoadingAuth || redirecting) return;
 
+    // Public pages (landing, gateway, login, register) stay viewable for everyone — even logged-in users
+    if (isPublicPath) return;
+
     if (isAuthenticated && user) {
       const userRole = user.role;
       const isAllowed = isPathAllowed(userRole, path);
@@ -109,7 +112,7 @@ export default function RoleGate({ children }) {
         window.location.href = defaultRedirect;
       }
     }
-  }, [isAuthenticated, user, path, isLoadingAuth, redirecting]);
+  }, [isAuthenticated, user, path, isLoadingAuth, redirecting, isPublicPath]);
 
   if (isLoadingAuth || redirecting) {
     return (
