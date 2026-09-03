@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import {
   GraduationCap, ShieldCheck, Users, Wallet, ClipboardCheck, BarChart3,
   Award, BookOpen, Lock, MessageCircle, Phone, CheckCircle2, Star, Sparkles, X, UserPlus, Mail, Video,
-  LogIn, UserCheck, KeyRound, Eye, EyeOff, CreditCard, Upload, Calendar, Clock, Gift
+  LogIn, UserCheck, KeyRound, Eye, EyeOff, CreditCard, Upload, Calendar, Clock, Gift, School
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -173,6 +173,9 @@ export default function LandingPage() {
             <a href="#contact" className="text-stone-600 hover:text-stone-900">{isRTL ? "تواصل معنا" : "Contact"}</a>
           </nav>
           <div className="flex items-center gap-2">
+            <a href="/gateway" className="hidden md:inline-flex h-9 px-3 rounded-xl bg-violet-600 text-white text-xs font-black hover:bg-violet-700 items-center gap-1.5 shadow-sm">
+              <School size={14} />{isRTL ? "بوابة المدرسة" : "School Gateway"}
+            </a>
             <a href="/teacher-login" className="hidden md:inline-flex h-9 px-3 rounded-xl bg-indigo-600 text-white text-xs font-black hover:bg-indigo-700 items-center gap-1.5 shadow-sm">
               <UserCheck size={14} />{isRTL ? "دخول المعلم" : "Teacher Login"}
             </a>
