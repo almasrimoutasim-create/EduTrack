@@ -1713,7 +1713,7 @@ export function createApiHandler() {
       }
     }
 
-    // ── Get Teacher Subscription Requests ──
+    // ── Get Teacher Subscription Requests (public read) ──
     if (req.url === '/api/teacher-subscription-requests' && req.method === 'GET') {
       res.setHeader('Content-Type', 'application/json');
       try {
@@ -1723,6 +1723,19 @@ export function createApiHandler() {
         return res.end(JSON.stringify({ success: true, requests }));
       } catch (error) {
         console.error('[teacher-subscription-requests] error:', error);
+        res.statusCode = 500;
+        return res.end(JSON.stringify({ error: error.message }));
+      }
+    }
+
+    // ── Get Subscription Pricing (public read) ──
+    if (req.url === '/api/subscription-pricing' && req.method === 'GET') {
+      res.setHeader('Content-Type', 'application/json');
+      try {
+        const rows = await dbQuery('SELECT * FROM subscription_pricing WHERE is_active = true ORDER BY price_monthly ASC, price_yearly ASC');
+        return res.end(JSON.stringify(rows));
+      } catch (error) {
+        console.error('[subscription-pricing] GET error:', error);
         res.statusCode = 500;
         return res.end(JSON.stringify({ error: error.message }));
       }

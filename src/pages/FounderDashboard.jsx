@@ -315,7 +315,8 @@ const FounderDashboard = () => {
         const apiBase = import.meta.env.VITE_BACKEND_URL || '';
         const res = await fetch(`${apiBase}/api/teacher-subscription-requests`);
         if (!res.ok) throw new Error('Failed to fetch teacher subscription requests');
-        return await res.json();
+        const json = await res.json();
+        return json.requests || json;
       } catch (err) { console.error("[FounderDashboard] teacherSubRequests fetch failed:", err); return []; }
     },
   });
