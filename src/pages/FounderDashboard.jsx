@@ -46,6 +46,12 @@ const NAV = [
 const FounderDashboard = () => {
   const [section, setSection] = useState("overview");
   const [reqFilter, setReqFilter] = useState("all"); // "all" | "schools" | "students" | "teachers"
+  // ── Filter states (declared early: used by pre-computed .filter() blocks below ── TDZ safety) ──
+  const [teacherSearch, setTeacherSearch] = useState("");
+  const [teacherStatusFilter, setTeacherStatusFilter] = useState("all");
+  const [studentSearch, setStudentSearch] = useState("");
+  const [studentStatusFilter, setStudentStatusFilter] = useState("all");
+  const [teacherSubFilter, setTeacherSubFilter] = useState("all"); // all, pending, trial_active, active, rejected
   const [viewRequestDetail, setViewRequestDetail] = useState(null);
   const queryClient = useQueryClient();
 
@@ -843,16 +849,12 @@ const FounderDashboard = () => {
   const [viewSchool, setViewSchool] = useState(null);
 
   // ── Teacher management states ──
-  const [teacherSearch, setTeacherSearch] = useState("");
-  const [teacherStatusFilter, setTeacherStatusFilter] = useState("all");
   const [viewTeacher, setViewTeacher] = useState(null);
   const [teacherAccountData, setTeacherAccountData] = useState(null);
   const [teacherAccountLoading, setTeacherAccountLoading] = useState(false);
   const [confirmDeleteTeacher, setConfirmDeleteTeacher] = useState(null);
 
   // ── Student management states ──
-  const [studentSearch, setStudentSearch] = useState("");
-  const [studentStatusFilter, setStudentStatusFilter] = useState("all");
   const [viewStudent, setViewStudent] = useState(null);
   const [studentAccountData, setStudentAccountData] = useState(null);
   const [studentAccountLoading, setStudentAccountLoading] = useState(false);
@@ -874,7 +876,6 @@ const FounderDashboard = () => {
   // ── Teacher subscription requests states ──
   const [teacherSubRequests, setTeacherSubRequests] = useState([]);
   const [teacherSubLoading, setTeacherSubLoading] = useState(false);
-  const [teacherSubFilter, setTeacherSubFilter] = useState("all"); // all, pending, trial_active, active, rejected
   const [viewTeacherSubDetail, setViewTeacherSubDetail] = useState(null);
   const [approveTrialDays, setApproveTrialDays] = useState(30);
   const [approveFounderNotes, setApproveFounderNotes] = useState("");
