@@ -559,6 +559,15 @@ if (process.env.DATABASE_URL) {
   sql`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS experience_years INTEGER;`.catch(() => {});
   // Migration: store plain portal password for founder credentials display (login still uses bcrypt hash in portal_password)
   sql`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS portal_password_plain TEXT;`.catch(() => {});
+  // Migration: complete teachers columns on older production tables (approve-teacher writes all of these)
+  sql`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS full_name TEXT;`.catch(() => {});
+  sql`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS email TEXT;`.catch(() => {});
+  sql`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS employee_id TEXT;`.catch(() => {});
+  sql`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS phone TEXT;`.catch(() => {});
+  sql`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS subjects TEXT;`.catch(() => {});
+  sql`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS bio TEXT;`.catch(() => {});
+  sql`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active';`.catch(() => {});
+  sql`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS portal_password TEXT;`.catch(() => {});
 
   // ── Independent Student Portal: جدول الطلاب المستقلين ──
   sql`
@@ -584,6 +593,19 @@ if (process.env.DATABASE_URL) {
 
   // Migration: store plain portal password for founder credentials display (login still uses bcrypt hash in portal_password)
   sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS portal_password_plain TEXT;`.catch(() => {});
+  // Migration: complete students columns on older production tables (approve-student writes all of these)
+  sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS full_name TEXT;`.catch(() => {});
+  sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS user_email TEXT;`.catch(() => {});
+  sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS student_id TEXT;`.catch(() => {});
+  sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS phone TEXT;`.catch(() => {});
+  sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS grade TEXT;`.catch(() => {});
+  sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS parent_name TEXT;`.catch(() => {});
+  sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS parent_phone TEXT;`.catch(() => {});
+  sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS parent_email TEXT;`.catch(() => {});
+  sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS school_name TEXT;`.catch(() => {});
+  sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS city TEXT;`.catch(() => {});
+  sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active';`.catch(() => {});
+  sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS portal_password TEXT;`.catch(() => {});
 
   // ── Multi-tenant: إضافة school_id لكل جدول مستأجر + فهرسة + RLS سيتم لاحقاً ──
   const TENANT_TABLES = [
