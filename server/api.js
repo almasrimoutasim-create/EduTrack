@@ -1203,6 +1203,46 @@ export function createApiHandler() {
       }
     }
 
+    // ── POST /api/login — دخول المعلم/الطالب من حوارات صفحة الهبوط ──
+    if (req.url === '/api/login' && req.method === 'POST') {
+      res.setHeader('Content-Type', 'application/json');
+      try {
+        const body = await parseBody(req);
+        const identifier = String(body.username ?? body.identifier ?? '').trim();
+        const password = body.password || '';
+        const role = String(body.role || '').toLowerCase();
+        if (!identifier || !password || (role !== 'teacher' && role !== 'student')) {
+          res.statusCode = 400;
+          return res.end(JSON.stringify({ error: 'username, password and role (teacher|student) are required' }));
+        }
+        const table = role === 'teacher' ? 'teachers' : 'students';
+        const idMatch = role === 'teacher' ? '(email = $1 OR employee_id = $1)' : '(user_email = $1 OR student_id = $1)';
+        const rows = await dbQuery(`SELECT * FROM ${table} WHERE ${idMatch} AND status = 'active'`, [identifier]);
+        if (rows.length === 0) {
+          res.statusCode = 401;
+          return res.end(JSON.stringify({ error: role === 'teacher' ? 'Teacher account not found or inactive' : 'Student account not found or inactive' }));
+        }
+        const account = rows[0];
+        if (!account.portal_password || !bcrypt.compareSync(password, account.portal_password)) {
+          res.statusCode = 401;
+          return res.end(JSON.stringify({ error: 'Invalid password' }));
+        }
+        const user = {
+          id: account.id,
+          full_name: account.full_name,
+          email: role === 'teacher' ? account.email : account.user_email,
+          role,
+          school_id: account.school_id || null
+        };
+        const token = jwt.sign(user, JWT_SECRET, { expiresIn: '24h' });
+        return res.end(JSON.stringify({ success: true, user, token }));
+      } catch (error) {
+        console.error('[api/login] error:', error);
+        res.statusCode = 500;
+        return res.end(JSON.stringify({ error: error.message }));
+      }
+    }
+
     // 1. Intercept unified Auth login endpoint
     if (req.url === '/neon-db/auth/login' && req.method === 'POST') {
       res.setHeader('Content-Type', 'application/json');

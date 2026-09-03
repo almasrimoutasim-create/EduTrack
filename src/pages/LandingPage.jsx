@@ -48,6 +48,15 @@ export default function LandingPage() {
       if (!res.ok) throw new Error(data.error || "Login failed");
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
+      // Portal session keys (same as AuthContext.login) so /teacher-panel recognizes the session
+      const tu = data.user || {};
+      localStorage.setItem("portal_role", tu.role || "teacher");
+      localStorage.setItem("portal_user", JSON.stringify(tu));
+      localStorage.setItem("portal_user_id", tu.id || "");
+      localStorage.setItem("portal_user_name", tu.full_name || "");
+      localStorage.setItem("portal_is_auth", "true");
+      if (tu.school_id) localStorage.setItem("portal_school_id", tu.school_id);
+      if (data.token) localStorage.setItem("portal_jwt_token", data.token);
       toast.success(isRTL ? "تم تسجيل الدخول بنجاح" : "Login successful");
       setTeacherLoginOpen(false);
       navigate("/teacher-panel");
@@ -75,6 +84,15 @@ export default function LandingPage() {
       if (!res.ok) throw new Error(data.error || "Login failed");
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
+      // Portal session keys (same as AuthContext.login) so /student-panel recognizes the session
+      const su = data.user || {};
+      localStorage.setItem("portal_role", su.role || "student");
+      localStorage.setItem("portal_user", JSON.stringify(su));
+      localStorage.setItem("portal_user_id", su.id || "");
+      localStorage.setItem("portal_user_name", su.full_name || "");
+      localStorage.setItem("portal_is_auth", "true");
+      if (su.school_id) localStorage.setItem("portal_school_id", su.school_id);
+      if (data.token) localStorage.setItem("portal_jwt_token", data.token);
       toast.success(isRTL ? "تم تسجيل الدخول بنجاح" : "Login successful");
       setStudentLoginOpen(false);
       navigate("/student-panel");

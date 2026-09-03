@@ -1469,7 +1469,7 @@ const FounderDashboard = () => {
                                               const name = r.full_name || r.student_name || '—';
                                               const generatedUsername = r.username_generated || r.email || '—';
                                               const portalUrl = isTeacher
-                                                ? `${window.location.origin}/independent-teacher-login`
+                                                ? `${window.location.origin}/teacher-login`
                                                 : `${window.location.origin}/student-login`;
                                               const modalHtml = `
                                                 <div style="direction:rtl;text-align:right;font-family:sans-serif;padding:20px;">
