@@ -99,6 +99,7 @@ const FounderDashboard = () => {
       setTeacherPassword("");
       queryClient.invalidateQueries({ queryKey: ["founder-registrations"] });
       queryClient.invalidateQueries({ queryKey: ["founder-teachers"] });
+      setSection("teachers");
 
 
     } catch (err) {
@@ -134,6 +135,7 @@ const FounderDashboard = () => {
       setStudentPassword("");
       queryClient.invalidateQueries({ queryKey: ["founder-registrations"] });
       queryClient.invalidateQueries({ queryKey: ["founder-students"] });
+      setSection("students");
 
 
     } catch (err) {
