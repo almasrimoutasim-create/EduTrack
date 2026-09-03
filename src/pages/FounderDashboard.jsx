@@ -763,7 +763,7 @@ const FounderDashboard = () => {
     try {
       setTeacherAccountData({
         email: teacher.email || '—',
-        password: teacher.portal_password || '***مخفية***',
+        password: teacher.portal_password_plain || '***مخفية***',
         employee_id: teacher.employee_id || '—',
         status: teacher.status || 'active',
       });
@@ -781,7 +781,7 @@ const FounderDashboard = () => {
     try {
       setStudentAccountData({
         email: student.user_email || '—',
-        password: student.portal_password || '***مخفية***',
+        password: student.portal_password_plain || '***مخفية***',
         student_id: student.student_id || '—',
         status: student.status || 'active',
       });
@@ -1443,7 +1443,7 @@ const FounderDashboard = () => {
                                                   <h3 style="margin:0 0 12px;color:#7c3aed;">بيانات دخول ${isTeacher ? 'المعلم' : 'الطالب'}</h3>
                                                   <p style="margin:0 0 6px;"><b>الاسم:</b> ${name}</p>
                                                   <p style="margin:0 0 6px;"><b>اسم المستخدم:</b> <code style="background:#f1f5f9;padding:2px 6px;border-radius:4px;">${generatedUsername}</code></p>
-                                                  <p style="margin:0 0 6px;"><b>كلمة المرور:</b> تم تعيينها أثناء الموافقة</p>
+                                                  <p style="margin:0 0 6px;"><b>كلمة المرور:</b> <code style="background:#f1f5f9;padding:2px 6px;border-radius:4px;direction:ltr;display:inline-block;">${r.password_generated || 'تم تعيينها أثناء الموافقة'}</code></p>
                                                   <p style="margin:12px 0 0;"><b>رابط الدخول:</b> <a href="${portalUrl}" target="_blank" style="color:#7c3aed;">${portalUrl}</a></p>
                                                 </div>`;
                                               const w = window.open('', '_blank', 'width=500,height=350');

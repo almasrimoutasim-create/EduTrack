@@ -557,6 +557,8 @@ if (process.env.DATABASE_URL) {
 
   // Migration: add experience_years if missing
   sql`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS experience_years INTEGER;`.catch(() => {});
+  // Migration: store plain portal password for founder credentials display (login still uses bcrypt hash in portal_password)
+  sql`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS portal_password_plain TEXT;`.catch(() => {});
 
   // ── Independent Student Portal: جدول الطلاب المستقلين ──
   sql`
@@ -579,6 +581,9 @@ if (process.env.DATABASE_URL) {
     )
   `.then(() => console.log('[neon] students table verified'))
     .catch(err => console.error('[neon] students:', err.message));
+
+  // Migration: store plain portal password for founder credentials display (login still uses bcrypt hash in portal_password)
+  sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS portal_password_plain TEXT;`.catch(() => {});
 
   // ── Multi-tenant: إضافة school_id لكل جدول مستأجر + فهرسة + RLS سيتم لاحقاً ──
   const TENANT_TABLES = [
@@ -1443,8 +1448,8 @@ export function createApiHandler() {
         const existing = await dbQuery('SELECT id FROM students WHERE user_email = $1', [username.trim().toLowerCase()]);
         if (existing.length > 0) {
           await dbQuery(
-            `UPDATE students 
-             SET full_name = $1, phone = $2, grade = $3, parent_name = $4, parent_phone = $5, parent_email = $6, school_name = $7, city = $8, portal_password = $9, status = 'active', school_id = COALESCE($11, school_id)
+            `UPDATE students
+             SET full_name = $1, phone = $2, grade = $3, parent_name = $4, parent_phone = $5, parent_email = $6, school_name = $7, city = $8, portal_password = $9, portal_password_plain = $12, status = 'active', school_id = COALESCE($11, school_id)
              WHERE user_email = $10`,
             [
               reg.full_name || 'طالب',
@@ -1457,13 +1462,14 @@ export function createApiHandler() {
               reg.country || null,
               hashedPassword,
               username.trim().toLowerCase(),
-              school_id || null
+              school_id || null,
+              password
             ]
           );
         } else {
           await dbQuery(
-            `INSERT INTO students (full_name, user_email, student_id, phone, grade, parent_name, parent_phone, parent_email, school_name, city, status, portal_password, school_id)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'active', $11, $12)`,
+            `INSERT INTO students (full_name, user_email, student_id, phone, grade, parent_name, parent_phone, parent_email, school_name, city, status, portal_password, portal_password_plain, school_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'active', $11, $12, $13)`,
             [
               reg.full_name || 'طالب جديد',
               username.trim().toLowerCase(),
@@ -1476,6 +1482,7 @@ export function createApiHandler() {
               reg.school_name || null,
               reg.country || null,
               hashedPassword,
+              password,
               school_id || null
             ]
           );
@@ -1483,10 +1490,10 @@ export function createApiHandler() {
 
         // Update registration request
         await dbQuery(
-          `UPDATE registration_requests 
-           SET status = 'approved', username_generated = $1, reviewed_at = CURRENT_TIMESTAMP
-           WHERE id = $2`,
-          [username.trim(), requestId]
+          `UPDATE registration_requests
+           SET status = 'approved', username_generated = $1, password_generated = $2, reviewed_at = CURRENT_TIMESTAMP
+           WHERE id = $3`,
+          [username.trim(), password, requestId]
         );
 
         return res.end(JSON.stringify({ success: true, message: 'Student approved successfully', studentId }));
@@ -1521,8 +1528,8 @@ export function createApiHandler() {
         const existing = await dbQuery('SELECT id FROM teachers WHERE email = $1', [username.trim().toLowerCase()]);
         if (existing.length > 0) {
           await dbQuery(
-            `UPDATE teachers 
-             SET full_name = $1, phone = $2, subjects = $3, experience_years = $4, bio = $5, portal_password = $6, status = 'active', school_id = COALESCE($8, school_id)
+            `UPDATE teachers
+             SET full_name = $1, phone = $2, subjects = $3, experience_years = $4, bio = $5, portal_password = $6, portal_password_plain = $9, status = 'active', school_id = COALESCE($8, school_id)
              WHERE email = $7`,
             [
               reg.full_name || 'معلم',
@@ -1532,13 +1539,14 @@ export function createApiHandler() {
               reg.bio || null,
               hashedPassword,
               username.trim().toLowerCase(),
-              school_id || null
+              school_id || null,
+              password
             ]
           );
         } else {
           await dbQuery(
-            `INSERT INTO teachers (full_name, email, employee_id, phone, subjects, experience_years, bio, status, portal_password, school_id)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, 'active', $8, $9)`,
+            `INSERT INTO teachers (full_name, email, employee_id, phone, subjects, experience_years, bio, status, portal_password, portal_password_plain, school_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, 'active', $8, $9, $10)`,
             [
               reg.full_name || 'معلم جديد',
               username.trim().toLowerCase(),
@@ -1548,6 +1556,7 @@ export function createApiHandler() {
               parseInt(reg.experience_years) || null,
               reg.bio || null,
               hashedPassword,
+              password,
               school_id || null
             ]
           );
@@ -1555,10 +1564,10 @@ export function createApiHandler() {
 
         // Update registration request
         await dbQuery(
-          `UPDATE registration_requests 
-           SET status = 'approved', username_generated = $1, reviewed_at = CURRENT_TIMESTAMP
-           WHERE id = $2`,
-          [username.trim(), requestId]
+          `UPDATE registration_requests
+           SET status = 'approved', username_generated = $1, password_generated = $2, reviewed_at = CURRENT_TIMESTAMP
+           WHERE id = $3`,
+          [username.trim(), password, requestId]
         );
 
         return res.end(JSON.stringify({ success: true, message: 'Teacher approved successfully', empId }));
