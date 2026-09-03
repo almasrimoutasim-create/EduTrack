@@ -408,6 +408,46 @@ const FounderDashboard = () => {
   });
   const activeStudents = allStudents.filter(s => s.status === "active").length;
 
+  // ── Pre-computed IIFE replacements (TDZ safety) ──
+  const filteredReqs = requests.filter(r => {
+    const isStudent = r.role_requested === 'student' || r.plan === 'student_free';
+    const isTeacher = r.role_requested === 'teacher' || r.plan === 'teacher_free';
+    const isSchool = !isStudent && !isTeacher;
+    if (reqFilter === "schools") return isSchool;
+    if (reqFilter === "students") return isStudent;
+    if (reqFilter === "teachers") return isTeacher;
+    return true;
+  });
+
+  const chartNow = new Date();
+  const chartMonths = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(chartNow.getFullYear(), chartNow.getMonth() - i, 1);
+    chartMonths.push({ label: d.toLocaleDateString('ar-EG', { month: 'short' }), key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` });
+  }
+  const chartMonthlyData = chartMonths.map(m => {
+    const activeInMonth = schools.filter(s => {
+      if (s.subscription_status !== 'active') return false;
+      const start = s.subscription_start_date || s.created_at;
+      if (!start) return false;
+      const sDate = new Date(start);
+      const monthKey = `${sDate.getFullYear()}-${String(sDate.getMonth() + 1).padStart(2, '0')}`;
+      return monthKey <= m.key;
+    });
+    return activeInMonth.reduce((sum, s) => sum + getMonthlyEquivalent(s), 0);
+  });
+  const chartMaxVal = Math.max(...chartMonthlyData, 1);
+
+  const filteredTeacherSubRequests = teacherSubscriptionRequests.filter(r => {
+    if (teacherSubFilter === "all") return true;
+    return r.status === teacherSubFilter;
+  });
+
+  const detailIsStudent = viewRequestDetail?.role_requested === "student" || viewRequestDetail?.plan === "student_free";
+  const detailIsTeacher = viewRequestDetail?.role_requested === "teacher" || viewRequestDetail?.plan === "teacher_free";
+  const detailIsSchool = viewRequestDetail && !detailIsStudent && !detailIsTeacher;
+  const detailIsOpen = viewRequestDetail && viewRequestDetail.status !== "approved" && viewRequestDetail.status !== "rejected";
+
   // ── Mutations ──
   const updateSchool = useMutation({
     mutationFn: async ({ id, status }) => entities.School.update(id, { subscription_status: status }),
@@ -1273,30 +1313,16 @@ const FounderDashboard = () => {
 
             {/* Requests Table */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-              {(() => {
-                const filteredReqs = requests.filter(r => {
-                  const isStudent = r.role_requested === 'student' || r.plan === 'student_free';
-                  const isTeacher = r.role_requested === 'teacher' || r.plan === 'teacher_free';
-                  const isSchool = !isStudent && !isTeacher;
-                  if (reqFilter === "schools") return isSchool;
-                  if (reqFilter === "students") return isStudent;
-                  if (reqFilter === "teachers") return isTeacher;
-                  return true;
-                });
-
-                if (reqLoading) return <p className="p-8 text-slate-500 text-center">جاري التحميل...</p>;
-                if (filteredReqs.length === 0) {
-                  return (
-                    <div className="p-12 text-center">
-                      <FileText size={40} className="text-slate-200 mx-auto mb-3"/>
-                      <p className="text-slate-600 font-bold">لا توجد طلبات في هذا القسم حالياً</p>
-                      <p className="text-xs text-slate-400 mt-1">تظهر هنا الطلبات فور إرسالها من صفحة الهبوط أو صفحات التسجيل</p>
-                    </div>
-                  );
-                }
-
-                return (
-                  <div className="overflow-x-auto">
+              {reqLoading ? (
+                <p className="p-8 text-slate-500 text-center">جاري التحميل...</p>
+              ) : filteredReqs.length === 0 ? (
+                <div className="p-12 text-center">
+                  <FileText size={40} className="text-slate-200 mx-auto mb-3"/>
+                  <p className="text-slate-600 font-bold">لا توجد طلبات في هذا القسم حالياً</p>
+                  <p className="text-xs text-slate-400 mt-1">تظهر هنا الطلبات فور إرسالها من صفحة الهبوط أو صفحات التسجيل</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead className="bg-slate-50 text-slate-500">
                         <tr>
@@ -1445,8 +1471,7 @@ const FounderDashboard = () => {
                       </tbody>
                     </table>
                   </div>
-                );
-              })()}
+              )}
               <div className="p-3 text-xs text-slate-500 bg-slate-50 border-t flex items-center justify-between">
                 <span>يتم تحديث الطلبات تلقائياً فور تسجيل الطالب أو المعلم أو المدرسة من صفحات التسجيل العامة.</span>
               </div>
@@ -1781,33 +1806,13 @@ const FounderDashboard = () => {
               <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
                 <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2"><BarChart3 size={18} className="text-blue-500"/> رسم بياني للإيرادات الشهرية (مكافئ شهري)</h3>
                 <div className="flex items-end gap-2 h-32">
-                  {(() => {
-                    const now = new Date();
-                    const months = [];
-                    for (let i = 5; i >= 0; i--) {
-                      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-                      months.push({ label: d.toLocaleDateString('ar-EG', { month: 'short' }), key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` });
-                    }
-                    const monthlyData = months.map(m => {
-                      const activeInMonth = schools.filter(s => {
-                        if (s.subscription_status !== 'active') return false;
-                        const start = s.subscription_start_date || s.created_at;
-                        if (!start) return false;
-                        const sDate = new Date(start);
-                        const monthKey = `${sDate.getFullYear()}-${String(sDate.getMonth() + 1).padStart(2, '0')}`;
-                        return monthKey <= m.key;
-                      });
-                      return activeInMonth.reduce((sum, s) => sum + getMonthlyEquivalent(s), 0);
-                    });
-                    const maxVal = Math.max(...monthlyData, 1);
-                    return monthlyData.map((v, i) => (
-                      <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                        <div className="w-full bg-gradient-to-t from-blue-500 to-violet-400 rounded-t-lg" style={{ height: `${(v / maxVal) * 100}%` }}></div>
-                        <span className="text-[10px] text-slate-400">{months[i].label}</span>
-                        {v > 0 && <span className="text-[9px] font-bold text-slate-600">${v}</span>}
-                      </div>
-                    ));
-                  })()}
+                  {chartMonthlyData.map((v, i) => (
+                    <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                      <div className="w-full bg-gradient-to-t from-blue-500 to-violet-400 rounded-t-lg" style={{ height: `${(v / chartMaxVal) * 100}%` }}></div>
+                      <span className="text-[10px] text-slate-400">{chartMonths[i].label}</span>
+                      {v > 0 && <span className="text-[9px] font-bold text-slate-600">${v}</span>}
+                    </div>
+                  ))}
                 </div>
                 <p className="text-xs text-slate-400 mt-2 text-center">الإيراد الشهري المكافئ ${monthlyRevenue} — السنوي يُحسب بسعر مخفض 20%</p>
               </div>
@@ -1972,50 +1977,44 @@ const FounderDashboard = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {(() => {
-                      const filtered = teacherSubFilter === "all" 
-                        ? teacherSubscriptionRequests 
-                        : teacherSubscriptionRequests.filter(r => r.status === teacherSubFilter);
-                      if (filtered.length === 0) {
-                        return <tr><td colSpan="7" className="p-8 text-center text-slate-400">لا توجد طلبات</td></tr>;
-                      }
-                      return filtered.map(req => (
-                        <tr key={req.id} className="border-b border-slate-100 hover:bg-slate-50">
-                          <td className="p-4">
-                            <div className="font-bold text-sm text-slate-900">{req.teacher_name}</div>
-                            <div className="text-xs text-slate-400">{req.teacher_email}</div>
-                          </td>
-                          <td className="p-4 text-center text-sm text-slate-600">{req.teacher_phone || "—"}</td>
-                          <td className="p-4 text-center">
-                            <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
-                              {req.plan_type === 'monthly' ? 'شهري' : req.plan_type === 'yearly' ? 'سنوي' : req.plan_type}
-                            </span>
-                          </td>
-                          <td className="p-4 text-center font-bold text-slate-900">{req.amount ? Number(req.amount).toLocaleString('ar-EG') : "مجاني"}</td>
-                          <td className="p-4 text-center">
-                            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                              req.status === 'pending' ? 'bg-amber-100 text-amber-700' :
-                              req.status === 'trial_active' ? 'bg-blue-100 text-blue-700' :
-                              req.status === 'active' ? 'bg-emerald-100 text-emerald-700' :
-                              req.status === 'rejected' ? 'bg-rose-100 text-rose-700' :
-                              'bg-slate-100 text-slate-500'
-                            }`}>
-                              {req.status === 'pending' ? 'قيد المراجعة' :
-                               req.status === 'trial_active' ? 'تجربة نشطة' :
-                               req.status === 'active' ? 'اشتراك نشط' :
-                               req.status === 'rejected' ? 'مرفوض' :
-                               req.status === 'expired' ? 'منتهي' : req.status}
-                            </span>
-                          </td>
-                          <td className="p-4 text-center text-xs text-slate-500">{req.created_at ? new Date(req.created_at).toLocaleDateString('ar-EG') : "—"}</td>
-                          <td className="p-4 text-center">
-                            <button onClick={() => setViewTeacherSubDetail(req)} className="text-blue-600 hover:bg-blue-50 p-1.5 rounded-lg" title="عرض التفاصيل">
-                              <Eye size={14} />
-                            </button>
-                          </td>
-                        </tr>
-                      ));
-                    })()}
+                    {filteredTeacherSubRequests.length === 0 ? (
+                      <tr><td colSpan="7" className="p-8 text-center text-slate-400">لا توجد طلبات</td></tr>
+                    ) : filteredTeacherSubRequests.map(req => (
+                      <tr key={req.id} className="border-b border-slate-100 hover:bg-slate-50">
+                        <td className="p-4">
+                          <div className="font-bold text-sm text-slate-900">{req.teacher_name}</div>
+                          <div className="text-xs text-slate-400">{req.teacher_email}</div>
+                        </td>
+                        <td className="p-4 text-center text-sm text-slate-600">{req.teacher_phone || "—"}</td>
+                        <td className="p-4 text-center">
+                          <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
+                            {req.plan_type === 'monthly' ? 'شهري' : req.plan_type === 'yearly' ? 'سنوي' : req.plan_type}
+                          </span>
+                        </td>
+                        <td className="p-4 text-center font-bold text-slate-900">{req.amount ? Number(req.amount).toLocaleString('ar-EG') : "مجاني"}</td>
+                        <td className="p-4 text-center">
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                            req.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                            req.status === 'trial_active' ? 'bg-blue-100 text-blue-700' :
+                            req.status === 'active' ? 'bg-emerald-100 text-emerald-700' :
+                            req.status === 'rejected' ? 'bg-rose-100 text-rose-700' :
+                            'bg-slate-100 text-slate-500'
+                          }`}>
+                            {req.status === 'pending' ? 'قيد المراجعة' :
+                             req.status === 'trial_active' ? 'تجربة نشطة' :
+                             req.status === 'active' ? 'اشتراك نشط' :
+                             req.status === 'rejected' ? 'مرفوض' :
+                             req.status === 'expired' ? 'منتهي' : req.status}
+                          </span>
+                        </td>
+                        <td className="p-4 text-center text-xs text-slate-500">{req.created_at ? new Date(req.created_at).toLocaleDateString('ar-EG') : "—"}</td>
+                        <td className="p-4 text-center">
+                          <button onClick={() => setViewTeacherSubDetail(req)} className="text-blue-600 hover:bg-blue-50 p-1.5 rounded-lg" title="عرض التفاصيل">
+                            <Eye size={14} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               )}
@@ -2257,18 +2256,10 @@ const FounderDashboard = () => {
                     <FileText size={20}/>
                   </div>
                   <div>
-                    {(() => {
-                      const isSt = viewRequestDetail.role_requested === "student" || viewRequestDetail.plan === "student_free";
-                      const isTe = viewRequestDetail.role_requested === "teacher" || viewRequestDetail.plan === "teacher_free";
-                      return (
-                        <>
-                          <h3 className="font-extrabold text-base text-slate-900">
-                            {isSt ? "تفاصيل طلب الطالب" : isTe ? "تفاصيل طلب المعلم" : "تفاصيل طلب المدرسة"}
-                          </h3>
-                          <p className="text-xs text-slate-500">معرف الطلب: <span className="font-mono">{viewRequestDetail.id}</span></p>
-                        </>
-                      );
-                    })()}
+                    <h3 className="font-extrabold text-base text-slate-900">
+                      {detailIsStudent ? "تفاصيل طلب الطالب" : detailIsTeacher ? "تفاصيل طلب المعلم" : "تفاصيل طلب المدرسة"}
+                    </h3>
+                    <p className="text-xs text-slate-500">معرف الطلب: <span className="font-mono">{viewRequestDetail.id}</span></p>
                   </div>
                 </div>
                 <button onClick={() => setViewRequestDetail(null)} className="text-slate-400 hover:text-slate-700 p-1.5 rounded-lg hover:bg-slate-100">
@@ -2294,58 +2285,45 @@ const FounderDashboard = () => {
                   </div>
                 </div>
 
-                {(() => {
-                  const r = viewRequestDetail;
-                  const isStudent = r.role_requested === "student" || r.plan === "student_free";
-                  const isTeacher = r.role_requested === "teacher" || r.plan === "teacher_free";
-                  const isSchool = !isStudent && !isTeacher;
-
-                  if (isSchool) {
-                    return (
+                {detailIsSchool && (
                       <div className="space-y-2 p-1">
-                        <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">اسم المدرسة</span><b className="text-slate-900">{r.school_name || r.full_name || "-"}</b></div>
-                        {r.director_name && <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">مدير المدرسة</span><b className="text-slate-900">{r.director_name}</b></div>}
-                        <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">البريد الإلكتروني</span><b className="text-slate-900 font-mono text-xs" dir="ltr">{r.email || "-"}</b></div>
-                        <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">رقم الهاتف</span><b className="text-slate-900 font-mono text-xs" dir="ltr">{r.phone || "-"}</b></div>
-                        {r.plan && <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">الباقة المطلوبة</span><b className="text-violet-700 font-bold">{r.plan === "starter" ? " starters 🟢" : r.plan === "professional" ? "Professional 🟡" : r.plan === "enterprise" ? "Enterprise 🔴" : r.plan}</b></div>}
-                        {r.billing_cycle && <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">نوع الفوترة</span><b className="text-slate-900">{r.billing_cycle === "monthly" ? "شهري" : r.billing_cycle === "yearly" ? "سنوي" : r.billing_cycle}</b></div>}
-                        <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">الدولة</span><b className="text-slate-900">{r.country || "السودان"}</b></div>
-                        {r.created_at && <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">تاريخ تقديم الطلب</span><b className="text-slate-700">{new Date(r.created_at).toLocaleString('ar-EG')}</b></div>}
+                        <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">اسم المدرسة</span><b className="text-slate-900">{viewRequestDetail.school_name || viewRequestDetail.full_name || "-"}</b></div>
+                        {viewRequestDetail.director_name && <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">مدير المدرسة</span><b className="text-slate-900">{viewRequestDetail.director_name}</b></div>}
+                        <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">البريد الإلكتروني</span><b className="text-slate-900 font-mono text-xs" dir="ltr">{viewRequestDetail.email || "-"}</b></div>
+                        <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">رقم الهاتف</span><b className="text-slate-900 font-mono text-xs" dir="ltr">{viewRequestDetail.phone || "-"}</b></div>
+                        {viewRequestDetail.plan && <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">الباقة المطلوبة</span><b className="text-violet-700 font-bold">{viewRequestDetail.plan === "starter" ? " starters 🟢" : viewRequestDetail.plan === "professional" ? "Professional 🟡" : viewRequestDetail.plan === "enterprise" ? "Enterprise 🔴" : viewRequestDetail.plan}</b></div>}
+                        {viewRequestDetail.billing_cycle && <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">نوع الفوترة</span><b className="text-slate-900">{viewRequestDetail.billing_cycle === "monthly" ? "شهري" : viewRequestDetail.billing_cycle === "yearly" ? "سنوي" : viewRequestDetail.billing_cycle}</b></div>}
+                        <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">الدولة</span><b className="text-slate-900">{viewRequestDetail.country || "السودان"}</b></div>
+                        {viewRequestDetail.created_at && <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">تاريخ تقديم الطلب</span><b className="text-slate-700">{new Date(viewRequestDetail.created_at).toLocaleString('ar-EG')}</b></div>}
                       </div>
-                    );
-                  }
+                )}
 
-                  if (isStudent) {
-                    return (
+                {detailIsStudent && (
                       <div className="space-y-2 p-1">
-                        <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">اسم الطالب</span><b className="text-slate-900">{r.full_name || "-"}</b></div>
-                        {r.director_name && <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">ولي الأمر</span><b className="text-slate-900">{r.director_name}</b></div>}
-                        <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">البريد الإلكتروني (ولي الأمر)</span><b className="text-slate-900 font-mono text-xs" dir="ltr">{r.email || "-"}</b></div>
-                        <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">رقم هاتف ولي الأمر</span><b className="text-slate-900 font-mono text-xs" dir="ltr">{r.phone || "-"}</b></div>
-                        {r.grade && <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">الصف الدراسي</span><b className="text-emerald-700 font-bold">{r.grade}</b></div>}
-                        {r.school_name && <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">المدرسة</span><b className="text-slate-900">{r.school_name}</b></div>}
-                        <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">المدينة</span><b className="text-slate-900">{r.country || "السودان"}</b></div>
-                        {r.created_at && <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">تاريخ تقديم الطلب</span><b className="text-slate-700">{new Date(r.created_at).toLocaleString('ar-EG')}</b></div>}
+                        <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">اسم الطالب</span><b className="text-slate-900">{viewRequestDetail.full_name || "-"}</b></div>
+                        {viewRequestDetail.director_name && <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">ولي الأمر</span><b className="text-slate-900">{viewRequestDetail.director_name}</b></div>}
+                        <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">البريد الإلكتروني (ولي الأمر)</span><b className="text-slate-900 font-mono text-xs" dir="ltr">{viewRequestDetail.email || "-"}</b></div>
+                        <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">رقم هاتف ولي الأمر</span><b className="text-slate-900 font-mono text-xs" dir="ltr">{viewRequestDetail.phone || "-"}</b></div>
+                        {viewRequestDetail.grade && <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">الصف الدراسي</span><b className="text-emerald-700 font-bold">{viewRequestDetail.grade}</b></div>}
+                        {viewRequestDetail.school_name && <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">المدرسة</span><b className="text-slate-900">{viewRequestDetail.school_name}</b></div>}
+                        <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">المدينة</span><b className="text-slate-900">{viewRequestDetail.country || "السودان"}</b></div>
+                        {viewRequestDetail.created_at && <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">تاريخ تقديم الطلب</span><b className="text-slate-700">{new Date(viewRequestDetail.created_at).toLocaleString('ar-EG')}</b></div>}
                       </div>
-                    );
-                  }
+                )}
 
-                  if (isTeacher) {
-                    return (
+                {detailIsTeacher && (
                       <div className="space-y-2 p-1">
-                        <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">اسم المعلم</span><b className="text-slate-900">{r.full_name || "-"}</b></div>
-                        <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">البريد الإلكتروني</span><b className="text-slate-900 font-mono text-xs" dir="ltr">{r.email || "-"}</b></div>
-                        <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">رقم الهاتف</span><b className="text-slate-900 font-mono text-xs" dir="ltr">{r.phone || "-"}</b></div>
-                        {r.school_name && <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">المدرسة</span><b className="text-slate-900">{r.school_name}</b></div>}
-                        {r.subjects && <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">المواد الدراسية</span><b className="text-slate-900">{r.subjects}</b></div>}
-                        {r.experience_years && <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">سنوات الخبرة</span><b className="text-slate-900">{r.experience_years} سنوات</b></div>}
-                        {r.bio && <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">نبذة شخصية</span><b className="text-slate-900">{r.bio}</b></div>}
-                        <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">المدينة</span><b className="text-slate-900">{r.country || "السودان"}</b></div>
-                        {r.created_at && <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">تاريخ تقديم الطلب</span><b className="text-slate-700">{new Date(r.created_at).toLocaleString('ar-EG')}</b></div>}
+                        <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">اسم المعلم</span><b className="text-slate-900">{viewRequestDetail.full_name || "-"}</b></div>
+                        <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">البريد الإلكتروني</span><b className="text-slate-900 font-mono text-xs" dir="ltr">{viewRequestDetail.email || "-"}</b></div>
+                        <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">رقم الهاتف</span><b className="text-slate-900 font-mono text-xs" dir="ltr">{viewRequestDetail.phone || "-"}</b></div>
+                        {viewRequestDetail.school_name && <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">المدرسة</span><b className="text-slate-900">{viewRequestDetail.school_name}</b></div>}
+                        {viewRequestDetail.subjects && <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">المواد الدراسية</span><b className="text-slate-900">{viewRequestDetail.subjects}</b></div>}
+                        {viewRequestDetail.experience_years && <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">سنوات الخبرة</span><b className="text-slate-900">{viewRequestDetail.experience_years} سنوات</b></div>}
+                        {viewRequestDetail.bio && <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">نبذة شخصية</span><b className="text-slate-900">{viewRequestDetail.bio}</b></div>}
+                        <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">المدينة</span><b className="text-slate-900">{viewRequestDetail.country || "السودان"}</b></div>
+                        {viewRequestDetail.created_at && <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-slate-500 font-medium">تاريخ تقديم الطلب</span><b className="text-slate-700">{new Date(viewRequestDetail.created_at).toLocaleString('ar-EG')}</b></div>}
                       </div>
-                    );
-                  }
-                })()}
+                )}
 
                 {viewRequestDetail.notes && (
                   <div className="bg-amber-50/70 border border-amber-100 p-3.5 rounded-2xl mt-2">
@@ -2356,60 +2334,49 @@ const FounderDashboard = () => {
               </div>
 
               <div className="flex gap-2 mt-6 flex-wrap">
-                {(() => {
-                  const isStudent = viewRequestDetail.role_requested === "student" || viewRequestDetail.plan === "student_free";
-                  const isTeacher = viewRequestDetail.role_requested === "teacher" || viewRequestDetail.plan === "teacher_free";
-                  const isSchool = !isStudent && !isTeacher;
-                  const isOpen = viewRequestDetail.status !== "approved" && viewRequestDetail.status !== "rejected";
-
-                  return (
-                    <>
-                      {isOpen && (
-                        <button
-                          onClick={() => {
-                            if (isStudent) {
-                              setStudentApproval({ requestId: viewRequestDetail.id, fullName: viewRequestDetail.full_name || viewRequestDetail.student_name, email: viewRequestDetail.email, data: viewRequestDetail });
-                              setStudentUsername(viewRequestDetail.email ? viewRequestDetail.email.split('@')[0] : `student_${Date.now().toString().slice(-4)}`);
-                              setStudentPassword(genPassword(8));
-                            } else if (isTeacher) {
-                              setTeacherApproval({ requestId: viewRequestDetail.id, fullName: viewRequestDetail.full_name, email: viewRequestDetail.email, data: viewRequestDetail });
-                              setTeacherUsername(viewRequestDetail.email ? viewRequestDetail.email.split('@')[0] : `teacher_${Date.now().toString().slice(-4)}`);
-                              setTeacherPassword(genPassword(8));
-                            } else {
-                              openSchoolApproval(viewRequestDetail);
-                            }
-                          }}
-                          className="flex-1 min-w-[140px] h-11 rounded-xl bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 inline-flex items-center justify-center gap-2"
-                        >
-                          <CheckCircle2 size={16}/> قبول
-                        </button>
-                      )}
-                      {isOpen && (
-                        <button
-                          onClick={() => updateRequest.mutate({ id: viewRequestDetail.id, status: "rejected" })}
-                          className="flex-1 min-w-[120px] h-11 rounded-xl bg-rose-50 text-rose-700 font-bold text-sm hover:bg-rose-100 inline-flex items-center justify-center gap-2"
-                        >
-                          <XCircle size={16}/> رفض
-                        </button>
-                      )}
-                      {viewRequestDetail.status === 'approved' && isSchool && (
-                        <button
-                          onClick={() => { showDeliveryForRequest(viewRequestDetail); setViewRequestDetail(null); }}
-                          className="flex-1 min-w-[180px] h-11 rounded-xl bg-violet-600 text-white font-bold text-sm hover:bg-violet-700 inline-flex items-center justify-center gap-2"
-                        >
-                          <KeyRound size={16}/> استخراج بيانات الدخول والرابط
-                        </button>
-                      )}
-                      <button
-                        onClick={() => deleteRequest.mutate(viewRequestDetail.id)}
-                        disabled={deleteRequest.isPending}
-                        className="h-11 px-4 rounded-xl bg-red-600 text-white font-bold text-sm hover:bg-red-700 disabled:opacity-50 inline-flex items-center justify-center gap-2"
-                      >
-                        <Trash2 size={16}/> {deleteRequest.isPending ? "جاري الحذف..." : "حذف الطلب"}
-                      </button>
-                    </>
-                  );
-                })()}
+                {detailIsOpen && (
+                  <button
+                    onClick={() => {
+                      if (detailIsStudent) {
+                        setStudentApproval({ requestId: viewRequestDetail.id, fullName: viewRequestDetail.full_name || viewRequestDetail.student_name, email: viewRequestDetail.email, data: viewRequestDetail });
+                        setStudentUsername(viewRequestDetail.email ? viewRequestDetail.email.split('@')[0] : `student_${Date.now().toString().slice(-4)}`);
+                        setStudentPassword(genPassword(8));
+                      } else if (detailIsTeacher) {
+                        setTeacherApproval({ requestId: viewRequestDetail.id, fullName: viewRequestDetail.full_name, email: viewRequestDetail.email, data: viewRequestDetail });
+                        setTeacherUsername(viewRequestDetail.email ? viewRequestDetail.email.split('@')[0] : `teacher_${Date.now().toString().slice(-4)}`);
+                        setTeacherPassword(genPassword(8));
+                      } else {
+                        openSchoolApproval(viewRequestDetail);
+                      }
+                    }}
+                    className="flex-1 min-w-[140px] h-11 rounded-xl bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 inline-flex items-center justify-center gap-2"
+                  >
+                    <CheckCircle2 size={16}/> قبول
+                  </button>
+                )}
+                {detailIsOpen && (
+                  <button
+                    onClick={() => updateRequest.mutate({ id: viewRequestDetail.id, status: "rejected" })}
+                    className="flex-1 min-w-[120px] h-11 rounded-xl bg-rose-50 text-rose-700 font-bold text-sm hover:bg-rose-100 inline-flex items-center justify-center gap-2"
+                  >
+                    <XCircle size={16}/> رفض
+                  </button>
+                )}
+                {viewRequestDetail.status === 'approved' && detailIsSchool && (
+                  <button
+                    onClick={() => { showDeliveryForRequest(viewRequestDetail); setViewRequestDetail(null); }}
+                    className="flex-1 min-w-[180px] h-11 rounded-xl bg-violet-600 text-white font-bold text-sm hover:bg-violet-700 inline-flex items-center justify-center gap-2"
+                  >
+                    <KeyRound size={16}/> استخراج بيانات الدخول والرابط
+                  </button>
+                )}
+                <button
+                  onClick={() => deleteRequest.mutate(viewRequestDetail.id)}
+                  disabled={deleteRequest.isPending}
+                  className="h-11 px-4 rounded-xl bg-red-600 text-white font-bold text-sm hover:bg-red-700 disabled:opacity-50 inline-flex items-center justify-center gap-2"
+                >
+                  <Trash2 size={16}/> {deleteRequest.isPending ? "جاري الحذف..." : "حذف الطلب"}
+                </button>
                 <button
                   onClick={() => setViewRequestDetail(null)}
                   className="flex-1 min-w-[110px] h-11 rounded-xl bg-slate-900 text-white font-bold text-sm hover:bg-black"
