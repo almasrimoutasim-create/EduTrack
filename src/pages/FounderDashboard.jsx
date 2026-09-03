@@ -792,6 +792,39 @@ const FounderDashboard = () => {
     }
   };
 
+  // ── إعادة تعيين كلمة مرور معلم/طالب حالي ──
+  const [resettingPw, setResettingPw] = useState(false);
+  const handleResetPortalPassword = async (role, person) => {
+    if (!person?.id) return;
+    const np = genPassword(8);
+    const who = person.full_name || person.email || person.user_email || '';
+    if (!window.confirm(`إعادة تعيين كلمة المرور لـ "${who}"؟\nكلمة المرور الجديدة ستكون: ${np}`)) return;
+    setResettingPw(true);
+    try {
+      const apiBase = import.meta.env.VITE_BACKEND_URL || '';
+      const res = await fetch(`${apiBase}/api/reset-portal-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Founder-Auth": "true" },
+        body: JSON.stringify({ role, id: person.id, newPassword: np }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed");
+      if (role === 'teacher') {
+        setTeacherAccountData(prev => prev ? { ...prev, password: np } : prev);
+        queryClient.invalidateQueries({ queryKey: ["founder-teachers"] });
+      } else {
+        setStudentAccountData(prev => prev ? { ...prev, password: np } : prev);
+        queryClient.invalidateQueries({ queryKey: ["founder-students"] });
+      }
+      queryClient.invalidateQueries({ queryKey: ["founder-registrations"] });
+      toast.success(`تم تعيين كلمة المرور الجديدة: ${np}`);
+    } catch (e) {
+      toast.error(e.message || "فشل إعادة التعيين");
+    } finally {
+      setResettingPw(false);
+    }
+  };
+
   // ── استخراج بيانات الدخول لطلب مقبول مسبقاً ──
   const showDeliveryForRequest = async (r) => {
     try {
@@ -1586,6 +1619,9 @@ const FounderDashboard = () => {
                             <span className="text-xs text-slate-500">الحالة</span>
                             <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${viewTeacher.status==='active'?'bg-emerald-100 text-emerald-700':viewTeacher.status==='suspended'?'bg-amber-100 text-amber-700':'bg-rose-100 text-rose-700'}`}>{viewTeacher.status==='active'?'نشط':viewTeacher.status==='suspended'?'معلق':'منتهي'}</span>
                           </div>
+                          <button onClick={()=>handleResetPortalPassword('teacher', viewTeacher)} disabled={resettingPw} className="w-full h-10 rounded-xl bg-amber-50 text-amber-700 font-bold text-sm hover:bg-amber-100 disabled:opacity-50 inline-flex items-center justify-center gap-2">
+                            <KeyRound size={15}/> {resettingPw ? "جاري التعيين..." : "إعادة تعيين كلمة المرور"}
+                          </button>
                         </div>
                       )}
                     </div>
@@ -1737,6 +1773,9 @@ const FounderDashboard = () => {
                             <span className="text-xs text-slate-500">الحالة</span>
                             <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${viewStudent.status==='active'?'bg-emerald-100 text-emerald-700':viewStudent.status==='suspended'?'bg-amber-100 text-amber-700':'bg-rose-100 text-rose-700'}`}>{viewStudent.status==='active'?'نشط':viewStudent.status==='suspended'?'معلق':'منتهي'}</span>
                           </div>
+                          <button onClick={()=>handleResetPortalPassword('student', viewStudent)} disabled={resettingPw} className="w-full h-10 rounded-xl bg-amber-50 text-amber-700 font-bold text-sm hover:bg-amber-100 disabled:opacity-50 inline-flex items-center justify-center gap-2">
+                            <KeyRound size={15}/> {resettingPw ? "جاري التعيين..." : "إعادة تعيين كلمة المرور"}
+                          </button>
                         </div>
                       )}
                     </div>

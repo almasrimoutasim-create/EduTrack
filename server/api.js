@@ -1578,6 +1578,44 @@ export function createApiHandler() {
       }
     }
 
+    // ── POST /api/reset-portal-password — إعادة تعيين كلمة مرور معلم/طالب حالي (Founder) ──
+    if ((req.url === '/api/reset-portal-password' || req.url === '/neon-db/reset-portal-password') && req.method === 'POST') {
+      res.setHeader('Content-Type', 'application/json');
+      try {
+        if (req.headers['x-founder-auth'] !== 'true') {
+          res.statusCode = 403;
+          return res.end(JSON.stringify({ error: 'Founder auth required' }));
+        }
+        const body = await parseBody(req);
+        const { role, id, newPassword } = body;
+        if ((role !== 'teacher' && role !== 'student') || !id || !newPassword || String(newPassword).length < 4) {
+          res.statusCode = 400;
+          return res.end(JSON.stringify({ error: 'role (teacher|student), id, and newPassword (min 4 chars) are required' }));
+        }
+        const table = role === 'teacher' ? 'teachers' : 'students';
+        const loginField = role === 'teacher' ? 'email' : 'user_email';
+        const rows = await dbQuery(`SELECT id, ${loginField} AS login FROM ${table} WHERE id = $1`, [id]);
+        if (rows.length === 0) {
+          res.statusCode = 404;
+          return res.end(JSON.stringify({ error: 'Account not found' }));
+        }
+        const hashedPassword = hashPassword(String(newPassword));
+        await dbQuery(`UPDATE ${table} SET portal_password = $1, portal_password_plain = $2 WHERE id = $3`, [hashedPassword, String(newPassword), id]);
+        // Sync the approved registration request so the credentials popup shows the new password
+        try {
+          await dbQuery(
+            `UPDATE registration_requests SET password_generated = $1 WHERE status = 'approved' AND LOWER(username_generated) = LOWER($2)`,
+            [String(newPassword), String(rows[0].login || '')]
+          );
+        } catch (e) { console.error('[reset-portal-password] request sync:', e.message); }
+        return res.end(JSON.stringify({ success: true }));
+      } catch (error) {
+        console.error('[reset-portal-password] error:', error);
+        res.statusCode = 500;
+        return res.end(JSON.stringify({ error: error.message }));
+      }
+    }
+
     // ── Teacher Subscription Request ──
     if (req.url === '/api/teacher-subscription-request' && req.method === 'POST') {
       res.setHeader('Content-Type', 'application/json');
