@@ -212,7 +212,7 @@ export default function IndependentTeacherPortal() {
               </div>
 
               <button type="submit" disabled={loginLoading || !loginEmail || !loginPassword}
-                className="w-full h-12 rounded-xl bg-emerald-600 text-white font-black text-sm hover:bg-emerald-700 transition-all disabled:opacity-50 shadow-lg">
+                className="w-full h-12 rounded-xl bg-emerald-600 text-white font-black text-sm hover:bg-emerald-700 transition-all disabled:opacity-50 shadow-lg inline-flex items-center justify-center gap-2">
                 {loginLoading ? (isRTL ? "جاري الدخول..." : "Signing in...") : (isRTL ? "تسجيل الدخول" : "Sign In")}
               </button>
             </form>
@@ -262,7 +262,7 @@ export default function IndependentTeacherPortal() {
           ))}
         </nav>
         <div className="p-3 border-t border-stone-100">
-          <button onClick={handleLogout} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-red-600 hover:bg-red-50 transition-all">
+          <button onClick={handleLogout} className="w-full inline-flex items-center justify-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-red-600 hover:bg-red-50 transition-all">
             <LogOut size={18} /> خروج
           </button>
         </div>
@@ -327,7 +327,7 @@ function DashboardTab({ stats, isRTL, students }) {
       <h1 className="text-xl font-black text-stone-900 mb-4">{isRTL ? "لوحة التحكم" : "Dashboard"}</h1>
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
         {cards.map((c, i) => (
-          <Card key={i} className="p-4 rounded-2xl border-stone-100">
+          <Card key={i} className="p-4 rounded-2xl border-stone-100 flex flex-col items-center justify-center text-center">
             <div className={`h-10 w-10 rounded-xl ${c.color} flex items-center justify-center mb-3`}>
               <c.icon size={18} />
             </div>
@@ -475,11 +475,11 @@ function StudentsTab({ teacherId, students, submissions, isRTL, queryClient }) {
                   )}
 
                   <div className="flex gap-2 flex-wrap">
-                    <button onClick={(e) => { e.stopPropagation(); openEditDialog(s); }} className="h-8 px-3 rounded-lg bg-blue-100 text-blue-700 text-xs font-bold hover:bg-blue-200 flex items-center gap-1"><Edit size={12} /> {isRTL ? "تعديل" : "Edit"}</button>
-                    <button onClick={(e) => { e.stopPropagation(); handleToggleStatus(s); }} className={`h-8 px-3 rounded-lg text-xs font-bold flex items-center gap-1 ${s.status === "active" ? "bg-amber-100 text-amber-700 hover:bg-amber-200" : "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"}`}>
+                    <button onClick={(e) => { e.stopPropagation(); openEditDialog(s); }} className="h-8 px-3 rounded-lg bg-blue-100 text-blue-700 text-xs font-bold hover:bg-blue-200 inline-flex items-center justify-center gap-1"><Edit size={12} /> {isRTL ? "تعديل" : "Edit"}</button>
+                    <button onClick={(e) => { e.stopPropagation(); handleToggleStatus(s); }} className={`h-8 px-3 rounded-lg text-xs font-bold inline-flex items-center justify-center gap-1 ${s.status === "active" ? "bg-amber-100 text-amber-700 hover:bg-amber-200" : "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"}`}>
                       {s.status === "active" ? <><X size={12} /> {isRTL ? "إيقاف" : "Deactivate"}</> : <><Check size={12} /> {isRTL ? "تفعيل" : "Activate"}</>}
                     </button>
-                    <button onClick={(e) => { e.stopPropagation(); handleDelete(s.id); }} className="h-8 px-3 rounded-lg bg-red-100 text-red-700 text-xs font-bold hover:bg-red-200 flex items-center gap-1"><Trash2 size={12} /> {isRTL ? "حذف" : "Delete"}</button>
+                    <button onClick={(e) => { e.stopPropagation(); handleDelete(s.id); }} className="h-8 px-3 rounded-lg bg-red-100 text-red-700 text-xs font-bold hover:bg-red-200 inline-flex items-center justify-center gap-1"><Trash2 size={12} /> {isRTL ? "حذف" : "Delete"}</button>
                   </div>
                 </div>
               )}
@@ -581,7 +581,7 @@ function AssignmentsTab({ teacherId, assignments, isRTL, queryClient }) {
                   <Badge className="text-[10px] bg-stone-100 text-stone-600">{a.total_points} {isRTL ? "نقطة" : "pts"}</Badge>
                 </div>
               </div>
-              <button onClick={() => handleDelete(a.id)} className="text-red-500 hover:text-red-700"><Trash2 size={16} /></button>
+              <button onClick={() => handleDelete(a.id)} className="h-8 w-8 rounded-lg text-red-500 hover:text-red-700 hover:bg-red-50 inline-flex items-center justify-center"><Trash2 size={16} /></button>
             </div>
           </Card>
         ))}
@@ -667,7 +667,7 @@ function ExamsTab({ teacherId, exams, isRTL, queryClient }) {
                   {Array.isArray(e.questions) && <Badge className="text-[10px] bg-cyan-50 text-cyan-700">{e.questions.length} {isRTL ? "سؤال" : "Q"}</Badge>}
                 </div>
               </div>
-              <button onClick={() => handleDelete(e.id)} className="text-red-500 hover:text-red-700"><Trash2 size={16} /></button>
+              <button onClick={() => handleDelete(e.id)} className="h-8 w-8 rounded-lg text-red-500 hover:text-red-700 hover:bg-red-50 inline-flex items-center justify-center"><Trash2 size={16} /></button>
             </div>
           </Card>
         ))}
@@ -774,18 +774,18 @@ function LiveClassesTab({ teacherId, liveClasses, isRTL, queryClient }) {
                 {c.room_token && (
                   <div className="mt-2 flex items-center gap-2">
                     <code className="text-[10px] bg-stone-100 px-2 py-1 rounded-lg font-mono">{c.room_token}</code>
-                    <button onClick={() => { navigator.clipboard.writeText(c.room_token); toast.success(isRTL ? "تم النسخ" : "Copied"); }} className="text-stone-400 hover:text-stone-600"><Copy size={12} /></button>
-                    <a href={c.room_url || `/live/${c.room_token}`} target="_blank" rel="noopener noreferrer" className="text-[10px] bg-blue-100 text-blue-700 px-2 py-1 rounded-lg font-bold hover:bg-blue-200 flex items-center gap-1"><Video size={10} /> {isRTL ? "فتح الغرفة" : "Open Room"}</a>
+                    <button onClick={() => { navigator.clipboard.writeText(c.room_token); toast.success(isRTL ? "تم النسخ" : "Copied"); }} className="h-7 w-7 rounded-lg text-stone-400 hover:text-stone-600 hover:bg-stone-100 inline-flex items-center justify-center"><Copy size={12} /></button>
+                    <a href={c.room_url || `/live/${c.room_token}`} target="_blank" rel="noopener noreferrer" className="text-[10px] bg-blue-100 text-blue-700 px-2 py-1 rounded-lg font-bold hover:bg-blue-200 inline-flex items-center justify-center gap-1"><Video size={10} /> {isRTL ? "فتح الغرفة" : "Open Room"}</a>
                   </div>
                 )}
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 {c.status !== "ended" && (
-                  <button onClick={() => handleToggleStatus(c)} className={`h-8 px-3 rounded-lg text-xs font-bold flex items-center gap-1 ${c.status === "scheduled" ? "bg-red-500 text-white hover:bg-red-600" : "bg-stone-500 text-white hover:bg-stone-600"}`}>
+                  <button onClick={() => handleToggleStatus(c)} className={`h-8 px-3 rounded-lg text-xs font-bold inline-flex items-center justify-center gap-1 ${c.status === "scheduled" ? "bg-red-500 text-white hover:bg-red-600" : "bg-stone-500 text-white hover:bg-stone-600"}`}>
                     {c.status === "scheduled" ? <><Video size={12} /> {isRTL ? "بدء البث" : "Start"}</> : <><X size={12} /> {isRTL ? "إنهاء" : "End"}</>}
                   </button>
                 )}
-                <button onClick={() => handleDelete(c.id)} className="text-red-500 hover:text-red-700"><Trash2 size={16} /></button>
+                <button onClick={() => handleDelete(c.id)} className="h-8 w-8 rounded-lg text-red-500 hover:text-red-700 hover:bg-red-50 inline-flex items-center justify-center"><Trash2 size={16} /></button>
               </div>
             </div>
           </Card>
@@ -890,13 +890,13 @@ function VideosTab({ teacherId, videos, isRTL, queryClient }) {
                 {v.grade && <Badge className="text-[10px] bg-purple-50 text-purple-700">{isRTL ? `صف ${v.grade}` : `Grade ${v.grade}`}</Badge>}
               </div>
               <div className="flex items-center gap-2 mt-3">
-                <a href={v.youtube_url} target="_blank" rel="noopener noreferrer" className="flex-1 h-8 rounded-lg bg-red-50 text-red-600 text-xs font-bold flex items-center justify-center gap-1 hover:bg-red-100">
+                <a href={v.youtube_url} target="_blank" rel="noopener noreferrer" className="flex-1 h-8 rounded-lg bg-red-50 text-red-600 text-xs font-bold inline-flex items-center justify-center gap-1 hover:bg-red-100">
                   <Play size={12} /> YouTube
                 </a>
-                <button onClick={() => toggleHidden(v.id, v.is_hidden)} className="h-8 px-3 rounded-lg bg-stone-100 text-stone-600 text-xs font-bold flex items-center gap-1 hover:bg-stone-200">
+                <button onClick={() => toggleHidden(v.id, v.is_hidden)} className="h-8 px-3 rounded-lg bg-stone-100 text-stone-600 text-xs font-bold inline-flex items-center justify-center gap-1 hover:bg-stone-200">
                   {v.is_hidden ? <><Eye size={12} /> {isRTL ? "إظهار" : "Show"}</> : <><EyeOff size={12} /> {isRTL ? "إخفاء" : "Hide"}</>}
                 </button>
-                <button onClick={() => handleDelete(v.id)} className="h-8 px-3 rounded-lg bg-red-50 text-red-500 text-xs font-bold hover:bg-red-100"><Trash2 size={12} /></button>
+                <button onClick={() => handleDelete(v.id)} className="h-8 px-3 rounded-lg bg-red-50 text-red-500 text-xs font-bold inline-flex items-center justify-center gap-1 hover:bg-red-100"><Trash2 size={12} /></button>
               </div>
             </div>
           </Card>
@@ -981,7 +981,7 @@ function SubscriptionsTab({ teacherId, subscriptions, isRTL, queryClient }) {
       {/* Filter Tabs */}
       <div className="flex gap-2 mb-4 flex-wrap">
         {[{ key: "all", label: isRTL ? "الكل" : "All", count: subscriptions?.length || 0 }, { key: "pending", label: isRTL ? "قيد المراجعة" : "Pending", count: pendingCount }, { key: "active", label: isRTL ? "نشط" : "Active", count: activeCount }, { key: "expired", label: isRTL ? "منتهي" : "Expired", count: subscriptions?.filter(s => s.status === "rejected" || (s.expires_at && new Date(s.expires_at) < new Date())).length || 0 }].map(tab => (
-          <button key={tab.key} onClick={() => setFilter(tab.key)} className={`h-8 px-3 rounded-xl text-xs font-bold flex items-center gap-1 ${filter === tab.key ? "bg-stone-900 text-white" : "bg-stone-100 text-stone-600 hover:bg-stone-200"}`}>
+          <button key={tab.key} onClick={() => setFilter(tab.key)} className={`h-8 px-3 rounded-xl text-xs font-bold inline-flex items-center justify-center gap-1 ${filter === tab.key ? "bg-stone-900 text-white" : "bg-stone-100 text-stone-600 hover:bg-stone-200"}`}>
             {tab.label} <span className="bg-white/20 px-1 rounded">{tab.count}</span>
           </button>
         ))}
@@ -1013,8 +1013,8 @@ function SubscriptionsTab({ teacherId, subscriptions, isRTL, queryClient }) {
                 </div>
                 {s.status === "pending" && (
                   <div className="flex gap-2">
-                    <button onClick={() => setShowPlanDialog(s)} className="h-8 px-3 rounded-lg bg-emerald-500 text-white text-xs font-bold hover:bg-emerald-600 flex items-center gap-1"><CheckCircle2 size={12} /> {isRTL ? "قبول" : "Approve"}</button>
-                    <button onClick={() => handleStatus(s.id, "rejected")} className="h-8 px-3 rounded-lg bg-red-500 text-white text-xs font-bold hover:bg-red-600 flex items-center gap-1"><X size={12} /> {isRTL ? "رفض" : "Reject"}</button>
+                    <button onClick={() => setShowPlanDialog(s)} className="h-8 px-3 rounded-lg bg-emerald-500 text-white text-xs font-bold hover:bg-emerald-600 inline-flex items-center justify-center gap-1"><CheckCircle2 size={12} /> {isRTL ? "قبول" : "Approve"}</button>
+                    <button onClick={() => handleStatus(s.id, "rejected")} className="h-8 px-3 rounded-lg bg-red-500 text-white text-xs font-bold hover:bg-red-600 inline-flex items-center justify-center gap-1"><X size={12} /> {isRTL ? "رفض" : "Reject"}</button>
                   </div>
                 )}
               </div>
@@ -1031,13 +1031,13 @@ function SubscriptionsTab({ teacherId, subscriptions, isRTL, queryClient }) {
           <div className="p-4 space-y-3">
             <div className="text-xs text-stone-500">{isRTL ? `للطالب: ${showPlanDialog?.student_name}` : `For: ${showPlanDialog?.student_name}`}</div>
             <div className="grid grid-cols-2 gap-3">
-              <button onClick={() => setSelectedPlan("monthly")} className={`p-4 rounded-2xl border-2 text-center transition-all ${selectedPlan === "monthly" ? "border-emerald-500 bg-emerald-50" : "border-stone-200 hover:border-stone-300"}`}>
+              <button onClick={() => setSelectedPlan("monthly")} className={`p-4 rounded-2xl border-2 text-center transition-all inline-flex flex-col items-center justify-center gap-1 ${selectedPlan === "monthly" ? "border-emerald-500 bg-emerald-50" : "border-stone-200 hover:border-stone-300"}`}>
                 <div className="text-lg font-black text-stone-900">{isRTL ? "شهري" : "Monthly"}</div>
-                <div className="text-xs text-stone-500 mt-1">{isRTL ? "30 يوم" : "30 days"}</div>
+                <div className="text-xs text-stone-500">{isRTL ? "30 يوم" : "30 days"}</div>
               </button>
-              <button onClick={() => setSelectedPlan("yearly")} className={`p-4 rounded-2xl border-2 text-center transition-all ${selectedPlan === "yearly" ? "border-emerald-500 bg-emerald-50" : "border-stone-200 hover:border-stone-300"}`}>
+              <button onClick={() => setSelectedPlan("yearly")} className={`p-4 rounded-2xl border-2 text-center transition-all inline-flex flex-col items-center justify-center gap-1 ${selectedPlan === "yearly" ? "border-emerald-500 bg-emerald-50" : "border-stone-200 hover:border-stone-300"}`}>
                 <div className="text-lg font-black text-stone-900">{isRTL ? "سنوي" : "Yearly"}</div>
-                <div className="text-xs text-stone-500 mt-1">{isRTL ? "365 يوم" : "365 days"}</div>
+                <div className="text-xs text-stone-500">{isRTL ? "365 يوم" : "365 days"}</div>
               </button>
             </div>
           </div>
@@ -1069,8 +1069,8 @@ function BondsTab({ bonds, isRTL, approveBond, rejectBond, approveLoading, rejec
           {isRTL ? "طلبات معلقة" : "Pending Requests"} ({pendingBonds.length})
         </h2>
         {pendingBonds.length === 0 ? (
-          <Card className="p-6 rounded-2xl border-stone-100 text-center">
-            <CheckCircle2 size={36} className="text-stone-300 mx-auto mb-2" />
+          <Card className="p-6 rounded-2xl border-stone-100 text-center flex flex-col items-center justify-center">
+            <CheckCircle2 size={36} className="text-stone-300 mb-2" />
             <div className="text-sm font-bold text-stone-500">{isRTL ? "لا توجد طلبات معلقة" : "No pending requests"}</div>
           </Card>
         ) : (
@@ -1089,11 +1089,11 @@ function BondsTab({ bonds, isRTL, approveBond, rejectBond, approveLoading, rejec
                   </div>
                   <div className="flex gap-2">
                     <button onClick={() => approveBond(bond.id)} disabled={approveLoading}
-                      className="h-8 px-3 rounded-lg bg-emerald-500 text-white text-xs font-bold hover:bg-emerald-600 flex items-center gap-1 disabled:opacity-50">
+                      className="h-8 px-3 rounded-lg bg-emerald-500 text-white text-xs font-bold hover:bg-emerald-600 inline-flex items-center justify-center gap-1 disabled:opacity-50">
                       <Check size={12} /> {isRTL ? "قبول" : "Approve"}
                     </button>
                     <button onClick={() => rejectBond(bond.id)} disabled={rejectLoading}
-                      className="h-8 px-3 rounded-lg bg-red-500 text-white text-xs font-bold hover:bg-red-600 flex items-center gap-1 disabled:opacity-50">
+                      className="h-8 px-3 rounded-lg bg-red-500 text-white text-xs font-bold hover:bg-red-600 inline-flex items-center justify-center gap-1 disabled:opacity-50">
                       <X size={12} /> {isRTL ? "رفض" : "Reject"}
                     </button>
                   </div>
