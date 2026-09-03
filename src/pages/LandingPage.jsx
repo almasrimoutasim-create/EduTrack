@@ -664,17 +664,17 @@ export default function LandingPage() {
           </div>
           <form onSubmit={handleStudentLogin} className="p-6 space-y-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-stone-600 flex items-center gap-1"><Mail size={12} /> البريد الإلكتروني</label>
+              <label className="text-xs font-bold text-stone-600 flex items-center gap-1"><UserCheck size={12} /> البريد الإلكتروني أو اسم المستخدم</label>
               <div className="relative">
                 <Input
-                  type="email"
+                  type="text"
                   value={studentLoginForm.email}
                   onChange={e => setStudentLoginForm(p => ({ ...p, email: e.target.value }))}
-                  placeholder="student@email.com"
+                  placeholder="student@email.com أو اسم المستخدم"
                   className="h-11 rounded-xl pr-10"
                   dir="ltr"
                 />
-                <Mail size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400" />
+                <UserCheck size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400" />
               </div>
             </div>
             <div className="space-y-1.5">
