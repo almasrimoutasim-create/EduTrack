@@ -555,6 +555,9 @@ if (process.env.DATABASE_URL) {
   `.then(() => console.log('[neon] teachers table verified'))
     .catch(err => console.error('[neon] teachers:', err.message));
 
+  // Migration: add experience_years if missing
+  sql`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS experience_years INTEGER;`.catch(() => {});
+
   // ── Independent Student Portal: جدول الطلاب المستقلين ──
   sql`
     CREATE TABLE IF NOT EXISTS students (
