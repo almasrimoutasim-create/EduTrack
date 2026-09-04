@@ -3,33 +3,34 @@ import { motion } from "framer-motion";
 import { Eye, EyeOff, Lock, Mail, ShieldCheck, GraduationCap } from "lucide-react";
 import { toast } from "sonner";
 
-const FOUNDER_EMAIL = "etrack249@gmail.com";
-const FOUNDER_PASSWORD = "430655";
-
 const FounderLogin = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
-
-    setTimeout(() => {
-      const customPw = localStorage.getItem("founder_custom_password");
-      const validPw = customPw || FOUNDER_PASSWORD;
-      if (email.trim() === FOUNDER_EMAIL && password === validPw) {
-        localStorage.setItem("founder_auth", "true");
-        localStorage.setItem("founder_email", email.trim());
-        localStorage.setItem("founder_login_time", Date.now().toString());
-        toast.success("تم تسجيل الدخول بنجاح");
-        window.location.href = "/founder-dashboard";
-      } else {
-        toast.error("بيانات الدخول غير صحيحة");
-        setLoading(false);
-      }
-    }, 600);
+    try {
+      const res = await fetch("/api/founder-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim(), password }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "بيانات الدخول غير صحيحة");
+      localStorage.setItem("founder_token", data.token);
+      localStorage.setItem("founder_auth", "true");
+      localStorage.setItem("founder_email", (data.user && data.user.email) || email.trim());
+      localStorage.setItem("founder_login_time", Date.now().toString());
+      localStorage.removeItem("founder_custom_password");
+      toast.success("تم تسجيل الدخول بنجاح");
+      window.location.href = "/founder-dashboard";
+    } catch (err) {
+      toast.error(err.message || "بيانات الدخول غير صحيحة");
+      setLoading(false);
+    }
   };
 
   return (

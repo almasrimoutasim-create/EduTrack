@@ -123,7 +123,9 @@ export default function IndependentTeacherPortal() {
 
   const { data: bonds = [] } = useQuery({
     queryKey: ["teacher-bonds", teacherId],
-    queryFn: () => fetch(`/api/teacher-bonds?teacherId=${teacherId}`)
+    queryFn: () => fetch(`/api/teacher-bonds?teacherId=${teacherId}`, {
+        headers: { "Authorization": `Bearer ${localStorage.getItem("portal_jwt_token") || localStorage.getItem("token") || ""}` },
+      })
       .then(r => r.json())
       .then(d => Array.isArray(d) ? d : (d?.bonds || []))
       .catch(() => []),
@@ -131,13 +133,13 @@ export default function IndependentTeacherPortal() {
   });
 
   const approveBondMutation = useMutation({
-    mutationFn: (bondId) => fetch("/api/teacher-bond-approve", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ bondId }) }).then(r => r.json()),
+    mutationFn: (bondId) => fetch("/api/teacher-bond-approve", { method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("portal_jwt_token") || localStorage.getItem("token") || ""}` }, body: JSON.stringify({ bondId }) }).then(async r => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || "غير مصرح"); return d; }),
     onSuccess: () => { toast.success(isRTL ? "تم قبول ربط الطالب" : "Student bond approved"); queryClient.invalidateQueries({ queryKey: ["teacher-bonds"] }); },
     onError: (err) => toast.error(err.message),
   });
 
   const rejectBondMutation = useMutation({
-    mutationFn: (bondId) => fetch("/api/teacher-bond-reject", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ bondId }) }).then(r => r.json()),
+    mutationFn: (bondId) => fetch("/api/teacher-bond-reject", { method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("portal_jwt_token") || localStorage.getItem("token") || ""}` }, body: JSON.stringify({ bondId }) }).then(async r => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || "غير مصرح"); return d; }),
     onSuccess: () => { toast.success(isRTL ? "تم رفض ربط الطالب" : "Student bond rejected"); queryClient.invalidateQueries({ queryKey: ["teacher-bonds"] }); },
     onError: (err) => toast.error(err.message),
   });

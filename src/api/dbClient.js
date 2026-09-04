@@ -18,14 +18,15 @@ class EntityClient {
 
   getHeaders() {
     const token = localStorage.getItem('portal_jwt_token') || localStorage.getItem('jwt_token') || localStorage.getItem('auth_token') || localStorage.getItem('token');
-    const isFounder = localStorage.getItem('founder_auth') === 'true';
+    // Founder JWT is attached ONLY on founder routes — never leaks into school/portal sessions sharing a browser
+    const isFounderRoute = typeof window !== 'undefined' && window.location.pathname.startsWith('/founder');
+    const founderToken = isFounderRoute ? localStorage.getItem('founder_token') : null;
     /** @type {Record<string, string>} */
     const headers = {};
-    if (token) {
+    if (founderToken) {
+      headers['Authorization'] = `Bearer ${founderToken}`;
+    } else if (token) {
       headers['Authorization'] = `Bearer ${token}`;
-    }
-    if (isFounder) {
-      headers['X-Founder-Auth'] = 'true';
     }
     if (this.entityName === 'SystemSetting' || this.entityName === 'RegistrationRequest' || this.entityName === 'School') {
       headers['Content-Type'] = 'application/json';

@@ -774,7 +774,9 @@ function CurriculumTab({ books, isRTL }) {
 function MyTeacherTab({ approvedTeachers, pendingSubs, studentId, isRTL, queryClient }) {
   const { data: myBonds = [] } = useQuery({
     queryKey: ["student-bonds", studentId],
-    queryFn: () => fetch(`/api/teacher-bonds?studentId=${studentId}`)
+    queryFn: () => fetch(`/api/teacher-bonds?studentId=${studentId}`, {
+        headers: { "Authorization": `Bearer ${localStorage.getItem("portal_jwt_token") || localStorage.getItem("token") || ""}` },
+      })
       .then(r => r.json())
       .then(d => Array.isArray(d) ? d : (d?.bonds || []))
       .catch(() => []),

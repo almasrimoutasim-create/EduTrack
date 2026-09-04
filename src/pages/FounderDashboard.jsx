@@ -83,7 +83,7 @@ const FounderDashboard = () => {
       const apiBase = import.meta.env.VITE_BACKEND_URL || '';
       const res = await fetch(`${apiBase}/api/approve-teacher`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "X-Founder-Auth": "true" },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("founder_token") || ""}` },
         body: JSON.stringify({
           requestId: teacherApproval.requestId,
           username: teacherUsername.trim(),
@@ -119,7 +119,7 @@ const FounderDashboard = () => {
       const apiBase = import.meta.env.VITE_BACKEND_URL || '';
       const res = await fetch(`${apiBase}/api/approve-student`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "X-Founder-Auth": "true" },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("founder_token") || ""}` },
         body: JSON.stringify({
           requestId: studentApproval.requestId,
           username: studentUsername.trim(),
@@ -152,7 +152,7 @@ const FounderDashboard = () => {
       const apiBase = import.meta.env.VITE_BACKEND_URL || '';
       const res = await fetch(`${apiBase}/api/teacher-subscription-requests/${requestId}/approve`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "X-Founder-Auth": "true" },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("founder_token") || ""}` },
         body: JSON.stringify({
           trial_days: approveTrialDays,
           founder_notes: approveFounderNotes,
@@ -180,7 +180,7 @@ const FounderDashboard = () => {
       const apiBase = import.meta.env.VITE_BACKEND_URL || '';
       const res = await fetch(`${apiBase}/api/teacher-subscription-requests/${requestId}/reject`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "X-Founder-Auth": "true" },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("founder_token") || ""}` },
         body: JSON.stringify({ founder_notes: approveFounderNotes || "مرفوض من المؤسس" }),
       });
       const data = await res.json();
@@ -209,7 +209,7 @@ const FounderDashboard = () => {
       if (editingPlan) payload.id = editingPlan.id;
       const res = await fetch(`${apiBase}/api/subscription-pricing`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "X-Founder-Auth": "true" },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("founder_token") || ""}` },
         body: JSON.stringify(payload),
       });
       const data = await res.json();
@@ -235,7 +235,7 @@ const FounderDashboard = () => {
       const apiBase = import.meta.env.VITE_BACKEND_URL || '';
       const res = await fetch(`${apiBase}/api/subscription-pricing/${planId}`, {
         method: "DELETE",
-        headers: { "X-Founder-Auth": "true" },
+        headers: { "Authorization": `Bearer ${localStorage.getItem("founder_token") || ""}` },
       });
       if (!res.ok) throw new Error("Failed");
       toast.success("تم حذف الخطة");
@@ -248,6 +248,7 @@ const FounderDashboard = () => {
   };
 
   const logout = () => {
+    localStorage.removeItem("founder_token");
     localStorage.removeItem("founder_auth");
     localStorage.removeItem("founder_email");
     localStorage.removeItem("founder_login_time");
@@ -321,7 +322,9 @@ const FounderDashboard = () => {
     queryFn: async () => {
       try {
         const apiBase = import.meta.env.VITE_BACKEND_URL || '';
-        const res = await fetch(`${apiBase}/api/teacher-subscription-requests`);
+        const res = await fetch(`${apiBase}/api/teacher-subscription-requests`, {
+          headers: { "Authorization": `Bearer ${localStorage.getItem("founder_token") || ""}` },
+        });
         if (!res.ok) throw new Error('Failed to fetch teacher subscription requests');
         const json = await res.json();
         return json.requests || json;
@@ -806,7 +809,7 @@ const FounderDashboard = () => {
       const apiBase = import.meta.env.VITE_BACKEND_URL || '';
       const res = await fetch(`${apiBase}/api/reset-portal-password`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "X-Founder-Auth": "true" },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("founder_token") || ""}` },
         body: JSON.stringify({ role, id: person.id, newPassword: np }),
       });
       const data = await res.json();

@@ -12,6 +12,25 @@ function hashPassword(password) {
   return bcrypt.hashSync(password, 10);
 }
 
+// ── Phase 1 security: real founder auth (JWT role=founder). No forgeable headers. ──
+function getBearerUser(req) {
+  const h = req.headers.authorization;
+  if (!h || !h.startsWith('Bearer ')) return null;
+  try { return jwt.verify(h.split(' ')[1], JWT_SECRET); } catch { return null; }
+}
+function isFounderUser(req) {
+  const u = getBearerUser(req);
+  return u && u.role === 'founder' ? u : null;
+}
+// Constant-time string compare (avoids timing leaks on env secrets)
+function safeEqualStr(a, b) {
+  const sa = String(a || ''), sb = String(b || '');
+  if (sa.length !== sb.length) return false;
+  let diff = 0;
+  for (let i = 0; i < sa.length; i++) diff |= sa.charCodeAt(i) ^ sb.charCodeAt(i);
+  return diff === 0;
+}
+
 let sql = null;
 if (process.env.DATABASE_URL) {
   sql = neon(process.env.DATABASE_URL);
@@ -1498,10 +1517,36 @@ export function createApiHandler() {
       return res.end(JSON.stringify({ error: 'Webhook not found' }));
     }
 
+    // ── POST /api/founder-login — server-side founder auth → JWT (fail closed if env missing) ──
+    if (req.url === '/api/founder-login' && req.method === 'POST') {
+      res.setHeader('Content-Type', 'application/json');
+      try {
+        const FE = process.env.FOUNDER_EMAIL, FP = process.env.FOUNDER_PASSWORD;
+        if (!FE || !FP) {
+          res.statusCode = 503;
+          return res.end(JSON.stringify({ error: 'Founder credentials not configured on server (set FOUNDER_EMAIL/FOUNDER_PASSWORD)' }));
+        }
+        const body = await parseBody(req);
+        if (!safeEqualStr(body.email && body.email.trim(), FE) || !safeEqualStr(body.password, FP)) {
+          res.statusCode = 401;
+          return res.end(JSON.stringify({ error: 'Invalid founder credentials' }));
+        }
+        const token = jwt.sign({ role: 'founder', email: FE }, JWT_SECRET, { expiresIn: '12h' });
+        return res.end(JSON.stringify({ success: true, token, user: { role: 'founder', email: FE } }));
+      } catch (error) {
+        res.statusCode = 500;
+        return res.end(JSON.stringify({ error: error.message }));
+      }
+    }
+
     // ── Approve Student Endpoint (Founder action) ──
     if ((req.url === '/api/approve-student' || req.url === '/neon-db/approve-student') && req.method === 'POST') {
       res.setHeader('Content-Type', 'application/json');
       try {
+        if (!isFounderUser(req)) {
+          res.statusCode = 401;
+          return res.end(JSON.stringify({ error: 'Founder auth required' }));
+        }
         const body = await parseBody(req);
         const { requestId, username, password, school_id } = body;
         if (!requestId || !username || !password) {
@@ -1583,6 +1628,10 @@ export function createApiHandler() {
     if ((req.url === '/api/approve-teacher' || req.url === '/neon-db/approve-teacher') && req.method === 'POST') {
       res.setHeader('Content-Type', 'application/json');
       try {
+        if (!isFounderUser(req)) {
+          res.statusCode = 401;
+          return res.end(JSON.stringify({ error: 'Founder auth required' }));
+        }
         const body = await parseBody(req);
         const { requestId, username, password, school_id } = body;
         if (!requestId || !username || !password) {
@@ -1657,8 +1706,8 @@ export function createApiHandler() {
     if ((req.url === '/api/reset-portal-password' || req.url === '/neon-db/reset-portal-password') && req.method === 'POST') {
       res.setHeader('Content-Type', 'application/json');
       try {
-        if (req.headers['x-founder-auth'] !== 'true') {
-          res.statusCode = 403;
+        if (!isFounderUser(req)) {
+          res.statusCode = 401;
           return res.end(JSON.stringify({ error: 'Founder auth required' }));
         }
         const body = await parseBody(req);
@@ -1765,15 +1814,27 @@ export function createApiHandler() {
       }
     }
 
-    // ── Teacher Bond Approve ──
+    // ── Teacher Bond Approve (own bonds only) ──
     if (req.url === '/api/teacher-bond-approve' && req.method === 'POST') {
       res.setHeader('Content-Type', 'application/json');
       try {
+        const me = getBearerUser(req);
+        if (!me) {
+          res.statusCode = 401;
+          return res.end(JSON.stringify({ error: 'Auth required' }));
+        }
         const body = await parseBody(req);
         const { bondId, portalUsername, portalPassword } = body;
         if (!bondId) {
           res.statusCode = 400;
           return res.end(JSON.stringify({ error: 'bondId is required' }));
+        }
+        if (me.role !== 'founder') {
+          const own = await dbQuery('SELECT id FROM student_teacher_bonds WHERE id = $1 AND teacher_id = $2', [bondId, me.id]);
+          if (me.role !== 'teacher' || own.length === 0) {
+            res.statusCode = 403;
+            return res.end(JSON.stringify({ error: 'Forbidden' }));
+          }
         }
 
         const hashedPw = hashPassword(portalPassword);
@@ -1789,15 +1850,27 @@ export function createApiHandler() {
       }
     }
 
-    // ── Teacher Bond Reject ──
+    // ── Teacher Bond Reject (own bonds only) ──
     if (req.url === '/api/teacher-bond-reject' && req.method === 'POST') {
       res.setHeader('Content-Type', 'application/json');
       try {
+        const me = getBearerUser(req);
+        if (!me) {
+          res.statusCode = 401;
+          return res.end(JSON.stringify({ error: 'Auth required' }));
+        }
         const body = await parseBody(req);
         const { bondId, reason } = body;
         if (!bondId) {
           res.statusCode = 400;
           return res.end(JSON.stringify({ error: 'bondId is required' }));
+        }
+        if (me.role !== 'founder') {
+          const own = await dbQuery('SELECT id FROM student_teacher_bonds WHERE id = $1 AND teacher_id = $2', [bondId, me.id]);
+          if (me.role !== 'teacher' || own.length === 0) {
+            res.statusCode = 403;
+            return res.end(JSON.stringify({ error: 'Forbidden' }));
+          }
         }
 
         await dbQuery(
@@ -1816,12 +1889,28 @@ export function createApiHandler() {
     if (req.url.startsWith('/api/teacher-bonds') && req.method === 'GET') {
       res.setHeader('Content-Type', 'application/json');
       try {
+        const me = getBearerUser(req);
+        if (!me) {
+          res.statusCode = 401;
+          return res.end(JSON.stringify({ error: 'Auth required' }));
+        }
         const urlObj = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
         const teacherId = urlObj.searchParams.get('teacherId');
         const studentId = urlObj.searchParams.get('studentId');
         if (!teacherId && !studentId) {
           res.statusCode = 400;
           return res.end(JSON.stringify({ error: 'teacherId or studentId query parameter is required' }));
+        }
+        // Ownership: callers may only read their own bonds (founder bypasses)
+        if (me.role !== 'founder') {
+          if (teacherId && (me.role !== 'teacher' || teacherId !== me.id)) {
+            res.statusCode = 403;
+            return res.end(JSON.stringify({ error: 'Forbidden' }));
+          }
+          if (studentId && (me.role !== 'student' || studentId !== me.id)) {
+            res.statusCode = 403;
+            return res.end(JSON.stringify({ error: 'Forbidden' }));
+          }
         }
 
         const bonds = teacherId
@@ -1841,16 +1930,149 @@ export function createApiHandler() {
       }
     }
 
-    // ── Get Teacher Subscription Requests (public read) ──
+    // ── Get Teacher Subscription Requests (founder only — contains PII) ──
     if (req.url === '/api/teacher-subscription-requests' && req.method === 'GET') {
       res.setHeader('Content-Type', 'application/json');
       try {
+        if (!isFounderUser(req)) {
+          res.statusCode = 401;
+          return res.end(JSON.stringify({ error: 'Founder auth required' }));
+        }
         const requests = await dbQuery(
           `SELECT * FROM teacher_subscription_requests ORDER BY created_at DESC`
         );
         return res.end(JSON.stringify({ success: true, requests }));
       } catch (error) {
         console.error('[teacher-subscription-requests] error:', error);
+        res.statusCode = 500;
+        return res.end(JSON.stringify({ error: error.message }));
+      }
+    }
+
+    // ── POST /api/teacher-subscription-requests/:id/approve (founder only, live) ──
+    if (req.url?.startsWith('/api/teacher-subscription-requests/') && req.url.endsWith('/approve') && req.method === 'POST') {
+      res.setHeader('Content-Type', 'application/json');
+      try {
+        if (!isFounderUser(req)) {
+          res.statusCode = 401;
+          return res.end(JSON.stringify({ error: 'Founder auth required' }));
+        }
+        const requestId = req.url.split('/api/teacher-subscription-requests/')[1].split('/')[0];
+        const body = await parseBody(req);
+        const { trial_days, founder_notes, is_trial } = body;
+
+        const rows = await dbQuery('SELECT * FROM teacher_subscription_requests WHERE id = $1', [requestId]);
+        if (rows.length === 0) {
+          res.statusCode = 404;
+          return res.end(JSON.stringify({ error: 'Request not found' }));
+        }
+
+        const request = rows[0];
+        const trialDuration = trial_days || 30;
+        const now = new Date();
+        const trialEnd = new Date(now);
+        trialEnd.setDate(trialEnd.getDate() + trialDuration);
+
+        if (is_trial) {
+          await dbQuery(
+            `UPDATE teacher_subscription_requests SET status = 'trial_active', trial_start_date = $1, trial_end_date = $2, approved_at = NOW(), founder_notes = $3, updated_at = NOW() WHERE id = $4`,
+            [now.toISOString(), trialEnd.toISOString(), founder_notes || `Free trial for ${trialDuration} days`, requestId]
+          );
+        } else {
+          const expiresAt = new Date(now);
+          if (request.plan_type === 'yearly') expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+          else expiresAt.setMonth(expiresAt.getMonth() + 1);
+
+          await dbQuery(
+            `UPDATE teacher_subscription_requests SET status = 'active', approved_at = NOW(), activated_at = NOW(), expires_at = $1, founder_notes = $2, updated_at = NOW() WHERE id = $3`,
+            [expiresAt.toISOString(), founder_notes || 'Paid subscription activated', requestId]
+          );
+        }
+
+        return res.end(JSON.stringify({ success: true, message: is_trial ? 'Trial activated' : 'Subscription activated' }));
+      } catch (error) {
+        console.error('[teacher-subscription-requests] approve error:', error);
+        res.statusCode = 500;
+        return res.end(JSON.stringify({ error: error.message }));
+      }
+    }
+
+    // ── POST /api/teacher-subscription-requests/:id/reject (founder only, live) ──
+    if (req.url?.startsWith('/api/teacher-subscription-requests/') && req.url.endsWith('/reject') && req.method === 'POST') {
+      res.setHeader('Content-Type', 'application/json');
+      try {
+        if (!isFounderUser(req)) {
+          res.statusCode = 401;
+          return res.end(JSON.stringify({ error: 'Founder auth required' }));
+        }
+        const requestId = req.url.split('/api/teacher-subscription-requests/')[1].split('/')[0];
+        const body = await parseBody(req);
+        const { founder_notes } = body;
+
+        await dbQuery(
+          `UPDATE teacher_subscription_requests SET status = 'rejected', founder_notes = $1, updated_at = NOW() WHERE id = $2`,
+          [founder_notes || 'Rejected by founder', requestId]
+        );
+
+        return res.end(JSON.stringify({ success: true, message: 'Request rejected' }));
+      } catch (error) {
+        console.error('[teacher-subscription-requests] reject error:', error);
+        res.statusCode = 500;
+        return res.end(JSON.stringify({ error: error.message }));
+      }
+    }
+
+    // ── POST /api/subscription-pricing — Create/update pricing plan (founder only, live) ──
+    if (req.url === '/api/subscription-pricing' && req.method === 'POST') {
+      res.setHeader('Content-Type', 'application/json');
+      try {
+        if (!isFounderUser(req)) {
+          res.statusCode = 401;
+          return res.end(JSON.stringify({ error: 'Founder auth required' }));
+        }
+        const body = await parseBody(req);
+        const { id, plan_name, plan_name_ar, plan_type, price_monthly, price_yearly, currency, trial_days, features, is_active } = body;
+        if (!plan_name) {
+          res.statusCode = 400;
+          return res.end(JSON.stringify({ error: 'plan_name is required' }));
+        }
+        if (id) {
+          const result = await dbQuery(
+            `UPDATE subscription_pricing SET plan_name=$1, plan_name_ar=$2, plan_type=$3, price_monthly=$4, price_yearly=$5, currency=$6, trial_days=$7, features=$8, is_active=$9, updated_at=NOW() WHERE id=$10 RETURNING *`,
+            [plan_name, plan_name_ar || null, plan_type || 'teacher', price_monthly || 0, price_yearly || 0, currency || 'EGP', trial_days || 30, JSON.stringify(features || []), is_active !== false, id]
+          );
+          if (result.length === 0) {
+            res.statusCode = 404;
+            return res.end(JSON.stringify({ error: 'Plan not found' }));
+          }
+          return res.end(JSON.stringify(result[0]));
+        } else {
+          const result = await dbQuery(
+            `INSERT INTO subscription_pricing (plan_name, plan_name_ar, plan_type, price_monthly, price_yearly, currency, trial_days, features, is_active) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+            [plan_name, plan_name_ar || null, plan_type || 'teacher', price_monthly || 0, price_yearly || 0, currency || 'EGP', trial_days || 30, JSON.stringify(features || []), is_active !== false]
+          );
+          return res.end(JSON.stringify(result[0]));
+        }
+      } catch (error) {
+        console.error('[subscription-pricing] POST error:', error);
+        res.statusCode = 500;
+        return res.end(JSON.stringify({ error: error.message }));
+      }
+    }
+
+    // ── DELETE /api/subscription-pricing/:id (founder only, live) ──
+    if (req.url?.startsWith('/api/subscription-pricing/') && req.method === 'DELETE') {
+      res.setHeader('Content-Type', 'application/json');
+      try {
+        if (!isFounderUser(req)) {
+          res.statusCode = 401;
+          return res.end(JSON.stringify({ error: 'Founder auth required' }));
+        }
+        const planId = req.url.split('/api/subscription-pricing/')[1];
+        await dbQuery('UPDATE subscription_pricing SET is_active = false, updated_at = NOW() WHERE id = $1', [planId]);
+        return res.end(JSON.stringify({ success: true }));
+      } catch (error) {
+        console.error('[subscription-pricing] DELETE error:', error);
         res.statusCode = 500;
         return res.end(JSON.stringify({ error: error.message }));
       }
@@ -1907,13 +2129,13 @@ export function createApiHandler() {
     const earlyMatch = earlyPath.match(/^\/neon-db\/entities\/([^\/]+)(?:\/(.+))?$/);
     const earlyEntity = earlyMatch ? earlyMatch[1] : null;
     const isPublicRegistrationPost = earlyEntity === 'RegistrationRequest' && req.method === 'POST';
-    const isFounderAuth = req.headers['x-founder-auth'] === 'true';
     const isFounderEntity = earlyEntity === 'School' || earlyEntity === 'RegistrationRequest' || earlyEntity === 'SystemAdmin' || earlyEntity === 'Teacher' || earlyEntity === 'Student';
-    const isFounderPublicRead = isFounderEntity && req.method === 'GET';
-    const isFounderEntityAction = isFounderAuth && isFounderEntity;
+    // Phase 1: founder access = verified JWT with role 'founder' ONLY.
+    // Public reads of founder entities REMOVED. Forgeable X-Founder-Auth header REMOVED (ignored).
+    const earlyJwtUser = getBearerUser(req);
+    const isFounderJwt = earlyJwtUser && earlyJwtUser.role === 'founder';
     const authHeader = req.headers.authorization;
-    // Founder (سواء بـ header خاص أو عام) يسمح له بالوصول للطلبات والمدارس
-    const allowWithoutAuth = isPublicRegistrationPost || isFounderPublicRead || isFounderEntityAction;
+    const allowWithoutAuth = isPublicRegistrationPost || (isFounderEntity && isFounderJwt);
 
     // JWT Authentication Middleware
     if (!allowWithoutAuth) {
