@@ -173,12 +173,6 @@ export default function LandingPage() {
             <a href="#contact" className="text-stone-600 hover:text-stone-900">{isRTL ? "تواصل معنا" : "Contact"}</a>
           </nav>
           <div className="flex items-center gap-2">
-            <a href="/teacher-login" className="hidden md:inline-flex h-9 px-3 rounded-xl bg-indigo-600 text-white text-xs font-black hover:bg-indigo-700 items-center gap-1.5 shadow-sm">
-              <UserCheck size={14} />{isRTL ? "دخول المعلم" : "Teacher Login"}
-            </a>
-            <a href="/student-login" className="hidden md:inline-flex h-9 px-3 rounded-xl bg-emerald-600 text-white text-xs font-black hover:bg-emerald-700 items-center gap-1.5 shadow-sm">
-              <GraduationCap size={14} />{isRTL ? "دخول الطالب" : "Student Login"}
-            </a>
             <a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${WHATSAPP_MSG}`} target="_blank" rel="noopener noreferrer" className="hidden sm:inline-flex h-9 px-4 rounded-xl bg-stone-800 text-white text-xs font-black hover:bg-stone-900 items-center gap-1.5 shadow-sm">
               <MessageCircle size={14} />{isRTL ? "استفسار واتساب" : "WhatsApp"}
             </a>
