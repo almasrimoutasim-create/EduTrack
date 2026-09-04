@@ -114,6 +114,11 @@ const DEFAULTS = {
   nav_features_ar: "مميزات المنصة", nav_features_en: "Features",
   nav_pricing_ar: "الباقات والأسعار", nav_pricing_en: "Pricing",
   nav_contact_ar: "تواصل معنا", nav_contact_en: "Contact",
+  pricing_monthly_price_ar: "49,000", pricing_monthly_price_en: "49,000",
+  pricing_yearly_price_ar: "350,000", pricing_yearly_price_en: "350,000",
+  pricing_currency_ar: "ج.س", pricing_currency_en: "SDG",
+  pricing_trial_badge_ar: "شهر مجاني", pricing_trial_badge_en: "Free Month",
+  pricing_discount_badge_ar: "41% OFF", pricing_discount_badge_en: "41% OFF",
 };
 
 export default function LandingPage() {
@@ -525,18 +530,18 @@ export default function LandingPage() {
               <div className="mt-4 grid grid-cols-3 gap-2">
                 <div className="bg-white/20 backdrop-blur rounded-xl p-3 text-center border border-white/30">
                   <Gift size={16} className="mx-auto mb-1 text-white" />
-                  <div className="text-xs font-black text-white">{isRTL ? "شهر مجاني" : "Free Month"}</div>
+                  <div className="text-xs font-black text-white">{t("pricing_trial_badge")}</div>
                   <div className="text-[10px] text-white/70">{isRTL ? "تجربة بدون دفع" : "No payment"}</div>
                 </div>
                 <div className="bg-white/20 backdrop-blur rounded-xl p-3 text-center border border-white/30">
                   <CreditCard size={16} className="mx-auto mb-1 text-white" />
-                  <div className="text-xs font-black text-white">49,000 ج.س</div>
+                  <div className="text-xs font-black text-white">{t("pricing_monthly_price")} {t("pricing_currency")}</div>
                   <div className="text-[10px] text-white/70">{isRTL ? "شهرياً" : "Monthly"}</div>
                 </div>
                 <div className="bg-white/20 backdrop-blur rounded-xl p-3 text-center border border-white/30 relative">
-                  <span className="absolute -top-2 -right-2 bg-amber-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full">41% OFF</span>
+                  <span className="absolute -top-2 -right-2 bg-amber-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full">{t("pricing_discount_badge")}</span>
                   <Award size={16} className="mx-auto mb-1 text-white" />
-                  <div className="text-xs font-black text-white">350,000 ج.س</div>
+                  <div className="text-xs font-black text-white">{t("pricing_yearly_price")} {t("pricing_currency")}</div>
                   <div className="text-[10px] text-white/70">{isRTL ? "سنوياً" : "Yearly"}</div>
                 </div>
               </div>

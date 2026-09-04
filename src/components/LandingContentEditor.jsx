@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Save, Loader2, Globe, Image as ImageIcon, ChevronDown, ChevronRight, Type, Hash } from "lucide-react";
+import { Save, Loader2, Globe, Image as ImageIcon, ChevronDown, ChevronRight, Type, Hash, CreditCard } from "lucide-react";
 
 const SECTIONS = [
   { key: "hero", label: "القسم الرئيسي (Hero)", icon: Globe },
@@ -11,6 +11,7 @@ const SECTIONS = [
   { key: "student_cta", label: "دعوة الطالب المستقل", icon: Type },
   { key: "whatsapp", label: "قسم واتساب", icon: Type },
   { key: "footer", label: "التذييل", icon: Type },
+  { key: "pricing", label: "الأسعار والباقات", icon: CreditCard },
   { key: "nav", label: "القائمة العلوية", icon: Type },
 ];
 
@@ -33,6 +34,11 @@ const DEFAULT_VALUES = {
   hero_slide_4_caption: ["المراجعة والتحضير", "Review & preparation"],
   features_title: ["مميزات المنصة", "Platform Features"],
   features_desc: ["كل ما تحتاجه المدرسة السودانية في مكان واحد", "Everything a Sudanese school needs in one place"],
+  pricing_monthly_price: ["49,000", "49,000"],
+  pricing_yearly_price: ["350,000", "350,000"],
+  pricing_currency: ["ج.س", "SDG"],
+  pricing_trial_badge: ["شهر مجاني", "Free Month"],
+  pricing_discount_badge: ["41% OFF", "41% OFF"],
 };
 
 export default function LandingContentEditor() {
@@ -245,6 +251,72 @@ export default function LandingContentEditor() {
         {renderField("nav_contact", "التواصل")}
         {renderField("nav_whatsapp", "واتساب")}
         {renderField("nav_cta", "نص الزر الرئيسي")}
+      </>)}
+
+      {/* Pricing */}
+      {renderSection("pricing", <>
+        <div className="bg-amber-50 rounded-xl p-3 border border-amber-200 mb-2">
+          <p className="text-xs text-amber-700 font-bold">هذه الأسعار تظهر في قسم "بوابة المعلم المستقل" في الصفحة الرئيسية</p>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-slate-500">السعر الشهري (رقم فقط)</label>
+            <input
+              type="text"
+              value={getVal("pricing_monthly_price", activeTab === "ar" ? "ar" : "en")}
+              onChange={e => setVal("pricing_monthly_price", activeTab === "ar" ? "ar" : "en", e.target.value)}
+              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white"
+              dir="ltr"
+              placeholder="49,000"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-slate-500">السعر السنوي (رقم فقط)</label>
+            <input
+              type="text"
+              value={getVal("pricing_yearly_price", activeTab === "ar" ? "ar" : "en")}
+              onChange={e => setVal("pricing_yearly_price", activeTab === "ar" ? "ar" : "en", e.target.value)}
+              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white"
+              dir="ltr"
+              placeholder="350,000"
+            />
+          </div>
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-slate-500">العملة</label>
+            <input
+              type="text"
+              value={getVal("pricing_currency", activeTab === "ar" ? "ar" : "en")}
+              onChange={e => setVal("pricing_currency", activeTab === "ar" ? "ar" : "en", e.target.value)}
+              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white"
+              dir={activeTab === "ar" ? "rtl" : "ltr"}
+              placeholder="ج.س"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-slate-500">شارة التجربة المجانية</label>
+            <input
+              type="text"
+              value={getVal("pricing_trial_badge", activeTab === "ar" ? "ar" : "en")}
+              onChange={e => setVal("pricing_trial_badge", activeTab === "ar" ? "ar" : "en", e.target.value)}
+              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white"
+              dir={activeTab === "ar" ? "rtl" : "ltr"}
+              placeholder="شهر مجاني"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-slate-500">شارة الخصم</label>
+            <input
+              type="text"
+              value={getVal("pricing_discount_badge", activeTab === "ar" ? "ar" : "en")}
+              onChange={e => setVal("pricing_discount_badge", activeTab === "ar" ? "ar" : "en", e.target.value)}
+              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white"
+              dir="ltr"
+              placeholder="41% OFF"
+            />
+          </div>
+        </div>
       </>)}
 
       {/* Save */}
