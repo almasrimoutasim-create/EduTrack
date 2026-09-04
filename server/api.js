@@ -122,6 +122,122 @@ if (process.env.DATABASE_URL) {
     console.error('[neon] failed to verify/create session_participants table:', err.message);
   });
 
+  // Auto-create landing_content table
+  sql`
+    CREATE TABLE IF NOT EXISTS landing_content (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      content_key TEXT UNIQUE NOT NULL,
+      value_ar TEXT DEFAULT '',
+      value_en TEXT DEFAULT '',
+      content_type TEXT DEFAULT 'text',
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `.then(async () => {
+    console.log('[neon] landing_content table verified/created');
+    // Seed default content if empty
+    const existing = await sql`SELECT COUNT(*) as cnt FROM landing_content`.catch(()=>[{cnt:0}]);
+    if (existing[0] && Number(existing[0].cnt) === 0) {
+      const seeds = [
+        ['hero_badge', 'نظام شامل لإدارة المدارس الذكية', 'All-in-one Smart School Management', 'text'],
+        ['hero_title_1', 'منصة المدارس ', 'Manage your school', 'text'],
+        ['hero_title_highlight', 'الإلكترونية', 'smartly', 'text'],
+        ['hero_title_2', ' المدرسة الإلكترونية ', 'from one place', 'text'],
+        ['hero_desc', 'منصة EduTrack تغطي النتائج والشهادات السودانية، شؤون الطلاب، الرسوم، الحضور، والمزيد — بواجهة عربية احترافية وطباعة بجودة الوزارة.', 'EduTrack covers results & Sudanese certificates, students, fees, attendance and more — with Arabic UI and ministry-grade print.', 'text'],
+        ['hero_cta', 'طلب نسخة تجريبية', 'Request Demo', 'text'],
+        ['hero_trust_1', 'دعم فني مخصص', 'Local support', 'text'],
+        ['hero_trust_2', 'آمن ومشفّر', 'Secure', 'text'],
+        ['hero_slide_1_img', 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?q=80&w=800&auto=format&fit=crop', '', 'image'],
+        ['hero_slide_1_caption', 'أثناء الدرس المباشر', 'During live lesson', 'text'],
+        ['hero_slide_2_img', 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?q=80&w=800&auto=format&fit=crop', '', 'image'],
+        ['hero_slide_2_caption', 'العمل الجماعي في الفصل', 'Group work in class', 'text'],
+        ['hero_slide_3_img', 'https://images.unsplash.com/photo-1588072432836-e10032774350?q=80&w=800&auto=format&fit=crop', '', 'image'],
+        ['hero_slide_3_caption', 'أثناء أداء الواجب', 'Doing homework', 'text'],
+        ['hero_slide_4_img', 'https://images.unsplash.com/photo-1516534775068-ba3e7458af70?q=80&w=800&auto=format&fit=crop', '', 'image'],
+        ['hero_slide_4_caption', 'المراجعة والتحضير', 'Review & preparation', 'text'],
+        ['features_title', 'مميزات المنصة', 'Platform Features', 'text'],
+        ['features_desc', 'كل ما تحتاجه المدرسة السودانية في مكان واحد', 'Everything a Sudanese school needs in one place', 'text'],
+        ['feature_1_title', 'طباعة النتائج  ', 'Sudanese Results & Certificates', 'text'],
+        ['feature_1_desc', 'كشف درجات أفقي وعمودي مطابق  مع طباعة احترافية وختم وتقديرات.', 'Landscape & portrait marksheets per Sudanese standards with professional print.', 'text'],
+        ['feature_1_longDesc', 'نظام متكامل لإدارة نتائج الطلاب . يدعم الكشف الأفقي البانورامي والشهادة العمودية الرسمية مع تفقيط الدرجات، حساب النسبة والتقدير تلقائياً، وطباعة احترافية بجودة الوزارة تشمل الختم والشعار والحدود المزخرفة.', 'Complete results management per Sudanese Ministry standards. Supports landscape marksheet and portrait certificate with tafqeet, auto percentage and grade, and ministry-grade print.', 'text'],
+        ['feature_1_points', 'كشف أفقي وعمودي بأبعاد A4 دقيقة|تفقيط تلقائي وحساب النسبة والتقدير|طباعة بجودة عالية |أرشيف نتائج وبحث سريع', 'Landscape & portrait A4 precise|Auto tafqeet and grade|Ministry-grade print with logo & stamp|Archive and quick search', 'text'],
+        ['feature_1_img1', 'https://images.unsplash.com/photo-1588072432836-e10032774350?q=80&w=800&auto=format&fit=crop', '', 'image'],
+        ['feature_1_img2', 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?q=80&w=800&auto=format&fit=crop', '', 'image'],
+        ['feature_2_title', 'شؤون الطلاب', 'Student Affairs', 'text'],
+        ['feature_2_desc', 'تسجيل، ملفات أكاديمية، أرشيف، وإدارة شاملة لبيانات الطلاب.', 'Enrollment, academic files, archive and full student data management.', 'text'],
+        ['feature_2_longDesc', 'إدارة شاملة لدورة حياة الطالب من التسجيل وحتى الأرشفة. يشمل تسجيل الطلاب الجدد، إدارة الملفات الأكاديمية، الأرشيف الرقمي، البحث المتقدم، وربط الطلاب بالصفوف والشعب مع إمكانية الاستيراد الجماعي.', 'Full student lifecycle from enrollment to archive. Includes new registration, academic files, digital archive and advanced search.', 'text'],
+        ['feature_2_points', 'تسجيل فردي وجماعي|ملفات أكاديمية منظمة|أرشيف رقمي آمن|بحث وفلترة متقدمة', 'Individual & bulk enrollment|Organized academic files|Secure digital archive|Advanced search', 'text'],
+        ['feature_2_img1', 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?q=80&w=800&auto=format&fit=crop', '', 'image'],
+        ['feature_2_img2', 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?q=80&w=800&auto=format&fit=crop', '', 'image'],
+        ['feature_3_title', 'الرسوم المالية', 'Fees & Finance', 'text'],
+        ['feature_3_desc', 'هيكلة رسوم، محافظ، مدفوعات، إيرادات ومصروفات بتقارير دقيقة.', 'Fee structures, wallets, payments and accurate financial reports.', 'text'],
+        ['feature_3_longDesc', 'نظام مالي متكامل لإدارة رسوم الطلاب، المحافظ الإلكترونية، المدفوعات والإيصالات، مع متابعة الإيرادات والمصروفات وتقارير مالية دقيقة تساعد الإدارة في اتخاذ القرار.', 'Integrated financial system for fees, wallets, payments and receipts with revenue/expense tracking.', 'text'],
+        ['feature_3_points', 'هيكلة رسوم مرنة|محافظ طلاب إلكترونية|إيصالات ومدفوعات فورية|تقارير إيرادات ومصروفات', 'Flexible fee structures|Student e-wallets|Instant receipts & payments|Revenue/expense reports', 'text'],
+        ['feature_3_img1', 'https://images.unsplash.com/photo-1554224155-6726b3196a58?q=80&w=800&auto=format&fit=crop', '', 'image'],
+        ['feature_3_img2', 'https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?q=80&w=800&auto=format&fit=crop', '', 'image'],
+        ['feature_4_title', 'الحضور والغياب', 'Attendance', 'text'],
+        ['feature_4_desc', 'تتبع يومي وأسبوعي للحضور مع سجلات وتحليلات.', 'Daily & weekly attendance tracking with logs and analytics.', 'text'],
+        ['feature_4_longDesc', 'متابعة دقيقة لحضور الطلاب والمعلمين يومياً وأسبوعياً مع سجلات مفصلة، تنبيهات للغياب المتكرر، وتحليلات تساعد في تحسين الانضباط ومتابعة أولياء الأمور.', 'Precise daily & weekly attendance for students and teachers with logs and analytics.', 'text'],
+        ['feature_4_points', 'تسجيل يومي وأسبوعي|تنبيهات غياب|تقارير حضور مفصلة|ربط مع أولياء الأمور', 'Daily & weekly logs|Absence alerts|Detailed reports|Parent linkage', 'text'],
+        ['feature_4_img1', 'https://images.unsplash.com/photo-1509062522246-3755977927d?q=80&w=800&auto=format&fit=crop', '', 'image'],
+        ['feature_4_img2', 'https://images.unsplash.com/photo-1516534775068-ba3e7458af70?q=80&w=800&auto=format&fit=crop', '', 'image'],
+        ['feature_5_title', 'الأمان وسجلات التدقيق', 'Security & Audit', 'text'],
+        ['feature_5_desc', 'صلاحيات دقيقة، سجل تدقيق كامل، وتشفير لحماية البيانات.', 'Fine-grained permissions, full audit log and data encryption.', 'text'],
+        ['feature_5_longDesc', 'حماية متكاملة للبيانات مع صلاحيات دقيقة لكل دور (مدير، معلم، طالب...)، سجل تدقيق يوثق كل عملية، وتشفير كامل للبيانات الحساسة لضمان الخصوصية والامتثال.', 'Complete data protection with role permissions, full audit log and encryption.', 'text'],
+        ['feature_5_points', 'صلاحيات لكل دور|سجل تدقيق شامل|تشفير البيانات|نسخ احتياطي آمن', 'Role-based permissions|Full audit log|Data encryption|Secure backup', 'text'],
+        ['feature_5_img1', 'https://images.unsplash.com/photo-1563013544-824ae1b704d3?q=80&w=800&auto=format&fit=crop', '', 'image'],
+        ['feature_5_img2', 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=800&auto=format&fit=crop', '', 'image'],
+        ['feature_6_title', 'التقارير والتحليلات', 'Reports & Analytics', 'text'],
+        ['feature_6_desc', 'لوحات متابعة، تقارير مالية وأكاديمية لدعم القرار.', 'Dashboards and academic/financial reports for decision making.', 'text'],
+        ['feature_6_longDesc', 'لوحات تحكم تفاعلية وتقارير ذكية تعرض الأداء الأكاديمي والمالي في رسوم بيانية واضحة، مع إمكانية التصدير والمشاركة لدعم قرارات الإدارة بسرعة ودقة.', 'Interactive dashboards and smart reports with clear charts for academic and financial performance.', 'text'],
+        ['feature_6_points', 'لوحات تفاعلية|رسوم بيانية واضحة|تصدير PDF/Excel|تحليلات تنبؤية', 'Interactive dashboards|Clear charts|PDF/Excel export|Predictive analytics', 'text'],
+        ['feature_6_img1', 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=800&auto=format&fit=crop', '', 'image'],
+        ['feature_6_img2', 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?q=80&w=800&auto=format&fit=crop', '', 'image'],
+        ['school_cta_badge', 'بوابة المدرسة', 'School Portal', 'text'],
+        ['school_cta_title', 'أدر مدرستك بالكامل — نتائج، رسوم، حضور، وتقارير', 'Manage your entire school — results, fees, attendance & reports', 'text'],
+        ['school_cta_desc', 'لوحة تحكم شاملة للمديرين: إدارة الطلاب والمعلمين، النتائج والشهادات السودانية، الرسوم المالية، الحضور والغياب، والتقارير الذكية. كل ما تحتاجه لإدارة مدرستك في مكان واحد.', 'Comprehensive admin dashboard: manage students & teachers, Sudanese results & certificates, financial fees, attendance, and smart reports. Everything you need in one place.', 'text'],
+        ['school_cta_cta', 'طلب نسخة تجريبية', 'Request Demo', 'text'],
+        ['school_cta_whatsapp', 'استفسار عبر الواتساب', 'WhatsApp Inquiry', 'text'],
+        ['teacher_cta_badge', 'بوابة المعلم المستقل', 'Independent Teacher Portal', 'text'],
+        ['teacher_cta_title', 'ادَرْ فصلك بذكاء — وواجبات، امتحانات، وبث مباشر', 'Manage your class smartly — assignments, exams & live classes', 'text'],
+        ['teacher_cta_desc', 'أي معلم يمكنه التسجيل لإدارة طلابه وواجباتهم وامتحاناتهم بشكل مستقل. أنشئ حصص مباشرة، ارفع فيديوهات يوتيوب التعليمية، وتابع تقدم كل طالب. مجاني للمعلمين الأفراد.', 'Any teacher can register to manage students, assignments, and exams independently. Create live classes, upload YouTube teaching videos, and track each student\'s progress. Free for individual teachers.', 'text'],
+        ['teacher_cta_login', 'دخول بوابة المعلم', 'Teacher Login', 'text'],
+        ['teacher_cta_register', 'تسجيل جديد كمعلم', 'Register as Teacher', 'text'],
+        ['teacher_cta_whatsapp', 'استفسار عبر الواتساب', 'WhatsApp', 'text'],
+        ['student_cta_badge', 'بوابة الطالب المستقل', 'Independent Student Portal', 'text'],
+        ['student_cta_title', 'سجل طالبك الآن — وصول فوري للمنهج السوداني', 'Register your student — Instant access to Sudanese curriculum', 'text'],
+        ['student_cta_desc', 'أي طالب يمكنه التسجيل مجاناً للوصول إلى كتب المنهج السوداني المعتمدة، وحل الواجبات، ومتابعة الدروس. للاشتراك مع معلم خاص والدروس المباشرة، يرسل طلب اشتراك من داخل البوابة.', 'Any student can register free for Sudanese curriculum books, assignments, and lessons. To join a private teacher for live classes, send a subscription request from within the portal.', 'text'],
+        ['student_cta_login', 'دخول بوابة الطالب', 'Student Login', 'text'],
+        ['student_cta_register', 'تسجيل طالب جديد (مجاني)', 'Register Student (Free)', 'text'],
+        ['student_cta_whatsapp', 'استفسار عبر الواتساب', 'WhatsApp', 'text'],
+        ['whatsapp_title', 'تواصل سريع عبر واتساب', 'Quick WhatsApp Contact', 'text'],
+        ['whatsapp_desc', 'رد فوري من فريق EduTrack على الرقم الموحد', 'Instant reply from EduTrack team', 'text'],
+        ['whatsapp_cta', 'فتح واتساب', 'Open WhatsApp', 'text'],
+        ['footer_desc', 'منصة سودانية ذكية لإدارة المدارس — نتائج، رسوم، حضور، ومتابعة شاملة بواجهة عربية وطباعة وزارية.', 'Smart Sudanese school management — results, fees, attendance and full follow-up with Arabic UI and ministry-grade print.', 'text'],
+        ['footer_links_title', 'روابط سريعة', 'Quick Links', 'text'],
+        ['footer_link_1', 'مميزات المنصة', 'Features', 'text'],
+        ['footer_link_2', 'الباقات والأسعار', 'Pricing', 'text'],
+        ['footer_link_3', 'طلب اشتراك مدرسة', 'Register School', 'text'],
+        ['footer_link_4', 'تواصل مباشر واتساب', 'WhatsApp', 'text'],
+        ['footer_contact_title', 'تواصل معنا', 'Contact Us', 'text'],
+        ['footer_location', 'الخرطوم، السودان — دعم فني', 'Khartoum, Sudan — Local support', 'text'],
+        ['footer_social_title', 'تابعنا', 'Follow Us', 'text'],
+        ['footer_follow_desc', 'تابع آخر التحديثات والعروض على صفحاتنا الرسمية.', 'Follow our official pages for updates and offers.', 'text'],
+        ['footer_secure', 'آمن ومشفّر', 'Secure & Encrypted', 'text'],
+        ['nav_features', 'مميزات المنصة', 'Features', 'text'],
+        ['nav_pricing', 'الباقات والأسعار', 'Pricing', 'text'],
+        ['nav_contact', 'تواصل معنا', 'Contact', 'text'],
+        ['nav_whatsapp', 'استفسار واتساب', 'WhatsApp', 'text'],
+        ['nav_cta', 'طلب نسخة تجريبية', 'Request Demo', 'text'],
+      ];
+      for (const [key, ar, en, type] of seeds) {
+        await sql`INSERT INTO landing_content (content_key, value_ar, value_en, content_type) VALUES (${key}, ${ar}, ${en}, ${type}) ON CONFLICT (content_key) DO NOTHING`.catch(()=>{});
+      }
+      console.log('[landing_content] seeded', seeds.length, 'default entries');
+    }
+  }).catch(err => {
+    console.error('[neon] failed to verify/create landing_content table:', err.message);
+  });
+
   // Auto-create room_messages table
   sql`
     CREATE TABLE IF NOT EXISTS room_messages (
@@ -2941,8 +3057,58 @@ export function createApiHandler() {
         }
       }
 
-      res.statusCode = 405;
-      res.end(JSON.stringify({ error: 'Method not allowed' }));
+    // ── Landing Content: GET all ──
+    if (req.url === '/api/landing-content' && req.method === 'GET') {
+      res.setHeader('Content-Type', 'application/json');
+      try {
+        const rows = await dbQuery('SELECT content_key, value_ar, value_en, content_type FROM landing_content ORDER BY content_key');
+        return res.end(JSON.stringify({ items: rows }));
+      } catch (error) {
+        console.error('[landing-content] GET error:', error.message);
+        res.statusCode = 500;
+        return res.end(JSON.stringify({ error: error.message }));
+      }
+    }
+
+    // ── Landing Content: PUT (founder only, bulk upsert) ──
+    if (req.url === '/api/landing-content' && req.method === 'PUT') {
+      res.setHeader('Content-Type', 'application/json');
+      try {
+        const me = isFounderUser(req);
+        if (!me) {
+          res.statusCode = 403;
+          return res.end(JSON.stringify({ error: 'Founder access required' }));
+        }
+        const body = await parseBody(req);
+        const { items } = body;
+        if (!Array.isArray(items)) {
+          res.statusCode = 400;
+          return res.end(JSON.stringify({ error: 'items array required' }));
+        }
+        let updated = 0;
+        for (const item of items) {
+          if (!item.content_key) continue;
+          const ar = item.value_ar != null ? String(item.value_ar) : '';
+          const en = item.value_en != null ? String(item.value_en) : '';
+          const ct = item.content_type || 'text';
+          await dbQuery(
+            `INSERT INTO landing_content (content_key, value_ar, value_en, content_type, updated_at)
+             VALUES ($1, $2, $3, $4, NOW())
+             ON CONFLICT (content_key) DO UPDATE SET value_ar = $2, value_en = $3, content_type = $4, updated_at = NOW()`,
+            [item.content_key, ar, en, ct]
+          );
+          updated++;
+        }
+        return res.end(JSON.stringify({ success: true, updated }));
+      } catch (error) {
+        console.error('[landing-content] PUT error:', error.message);
+        res.statusCode = 500;
+        return res.end(JSON.stringify({ error: error.message }));
+      }
+    }
+
+    res.statusCode = 405;
+    res.end(JSON.stringify({ error: 'Method not allowed' }));
 
     } catch (error) {
       if (error.message && error.message.includes('invalid input syntax for type uuid')) {

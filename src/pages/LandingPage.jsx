@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/lib/LanguageContext";
@@ -16,10 +16,111 @@ import { Card } from "@/components/ui/card";
 const WHATSAPP_NUMBER = "249969814088";
 const WHATSAPP_MSG = encodeURIComponent("مرحباً، أرغب في طلب نسخة من منصة EduTrack لإدارة مدرستنا. يرجى تزويدي بالتفاصيل والأسعار.");
 
+/* ─── hardcoded defaults (used if API doesn't provide a value) ─── */
+const DEFAULTS = {
+  hero_badge_ar: "نظام شامل لإدارة المدارس الذكية", hero_badge_en: "All-in-one Smart School Management",
+  hero_title_1_ar: "منصة المدارس ", hero_title_1_en: "Manage your school",
+  hero_highlight_ar: "الإلكترونية", hero_highlight_en: "smartly",
+  hero_title_2_ar: " المدرسة الإلكترونية ", hero_title_2_en: "from one place",
+  hero_desc_ar: "منصة EduTrack تغطي النتائج والشهادات السودانية، شؤون الطلاب، الرسوم، الحضور، والمزيد — بواجهة عربية احترافية وطباعة بجودة الوزارة.",
+  hero_desc_en: "EduTrack covers results & Sudanese certificates, students, fees, attendance and more — with Arabic UI and ministry-grade print.",
+  hero_cta_ar: "طلب نسخة تجريبية", hero_cta_en: "Request Demo",
+  hero_trust1_ar: "دعم فني مخصص", hero_trust1_en: "Local support",
+  hero_trust2_ar: "آمن ومشفّر", hero_trust2_en: "Secure",
+  slide1_img: "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?q=80&w=800&auto=format&fit=crop",
+  slide1_cap_ar: "أثناء الدرس المباشر", slide1_cap_en: "During live lesson",
+  slide2_img: "https://images.unsplash.com/photo-1523240795612-9a054b0db644?q=80&w=800&auto=format&fit=crop",
+  slide2_cap_ar: "العمل الجماعي في الفصل", slide2_cap_en: "Group work in class",
+  slide3_img: "https://images.unsplash.com/photo-1588072432836-e10032774350?q=80&w=800&auto=format&fit=crop",
+  slide3_cap_ar: "أثناء أداء الواجب", slide3_cap_en: "Doing homework",
+  slide4_img: "https://images.unsplash.com/photo-1516534775068-ba3e7458af70?q=80&w=800&auto=format&fit=crop",
+  slide4_cap_ar: "المراجعة والتحضير", slide4_cap_en: "Review & preparation",
+  features_title_ar: "مميزات المنصة", features_title_en: "Platform Features",
+  features_desc_ar: "كل ما تحتاجه المدرسة السودانية في مكان واحد", features_desc_en: "Everything a Sudanese school needs in one place",
+  /* feature icons + images stay in code — only titles/descs are editable */
+  f1_title_ar: "طباعة النتائج ", f1_title_en: "Sudanese Results & Certificates",
+  f1_desc_ar: "كشف درجات أفقي وعمودي مطابق  مع طباعة احترافية وختم وتقديرات.", f1_desc_en: "Landscape & portrait marksheets per Sudanese standards with professional print.",
+  f1_long_ar: "نظام متكامل لإدارة نتائج الطلاب . يدعم الكشف الأفقي البانورامي والشهادة العمودية الرسمية مع تفقيط الدرجات، حساب النسبة والتقدير تلقائياً، وطباعة احترافية بجودة الوزارة تشمل الختم والشعار والحدود المزخرفة.", f1_long_en: "Complete results management per Sudanese Ministry standards. Supports landscape marksheet and portrait certificate with tafqeet, auto percentage and grade, and ministry-grade print.",
+  f1_p1_ar: "كشف أفقي وعمودي بأبعاد A4 دقيقة", f1_p1_en: "Landscape & portrait A4 precise",
+  f1_p2_ar: "تفقيط تلقائي وحساب النسبة والتقدير", f1_p2_en: "Auto tafqeet and grade",
+  f1_p3_ar: "طباعة بجودة عالية ", f1_p3_en: "Ministry-grade print with logo & stamp",
+  f1_p4_ar: "أرشيف نتائج وبحث سريع", f1_p4_en: "Archive and quick search",
+  f2_title_ar: "شؤون الطلاب", f2_title_en: "Student Affairs",
+  f2_desc_ar: "تسجيل، ملفات أكاديمية، أرشيف، وإدارة شاملة لبيانات الطلاب.", f2_desc_en: "Enrollment, academic files, archive and full student data management.",
+  f2_long_ar: "إدارة شاملة لدورة حياة الطالب من التسجيل وحتى الأرشفة. يشمل تسجيل الطلاب الجدد، إدارة الملفات الأكاديمية، الأرشيف الرقمي، البحث المتقدم، وربط الطلاب بالصفوف والشعب مع إمكانية الاستيراد الجماعي.", f2_long_en: "Full student lifecycle from enrollment to archive. Includes new registration, academic files, digital archive and advanced search.",
+  f2_p1_ar: "تسجيل فردي وجماعي", f2_p1_en: "Individual & bulk enrollment",
+  f2_p2_ar: "ملفات أكاديمية منظمة", f2_p2_en: "Organized academic files",
+  f2_p3_ar: "أرشيف رقمي آمن", f2_p3_en: "Secure digital archive",
+  f2_p4_ar: "بحث وفلترة متقدمة", f2_p4_en: "Advanced search",
+  f3_title_ar: "الرسوم المالية", f3_title_en: "Fees & Finance",
+  f3_desc_ar: "هيكلة رسوم، محافظ، مدفوعات، إيرادات ومصروفات بتقارير دقيقة.", f3_desc_en: "Fee structures, wallets, payments and accurate financial reports.",
+  f3_long_ar: "نظام مالي متكامل لإدارة رسوم الطلاب، المحافظ الإلكترونية، المدفوعات والإيصالات، مع متابعة الإيرادات والمصروفات وتقارير مالية دقيقة تساعد الإدارة في اتخاذ القرار.", f3_long_en: "Integrated financial system for fees, wallets, payments and receipts with revenue/expense tracking.",
+  f3_p1_ar: "هيكلة رسوم مرنة", f3_p1_en: "Flexible fee structures",
+  f3_p2_ar: "محافظ طلاب إلكترونية", f3_p2_en: "Student e-wallets",
+  f3_p3_ar: "إيصالات ومدفوعات فورية", f3_p3_en: "Instant receipts & payments",
+  f3_p4_ar: "تقارير إيرادات ومصروفات", f3_p4_en: "Revenue/expense reports",
+  f4_title_ar: "الحضور والغياب", f4_title_en: "Attendance",
+  f4_desc_ar: "تتبع يومي وأسبوعي للحضور مع سجلات وتحليلات.", f4_desc_en: "Daily & weekly attendance tracking with logs and analytics.",
+  f4_long_ar: "متابعة دقيقة لحضور الطلاب والمعلمين يومياً وأسبوعياً مع سجلات مفصلة، تنبيهات للغياب المتكرر، وتحليلات تساعد في تحسين الانضباط ومتابعة أولياء الأمور.", f4_long_en: "Precise daily & weekly attendance for students and teachers with logs and analytics.",
+  f4_p1_ar: "تسجيل يومي وأسبوعي", f4_p1_en: "Daily & weekly logs",
+  f4_p2_ar: "تنبيهات غياب", f4_p2_en: "Absence alerts",
+  f4_p3_ar: "تقارير حضور مفصلة", f4_p3_en: "Detailed reports",
+  f4_p4_ar: "ربط مع أولياء الأمور", f4_p4_en: "Parent linkage",
+  f5_title_ar: "الأمان وسجلات التدقيق", f5_title_en: "Security & Audit",
+  f5_desc_ar: "صلاحيات دقيقة، سجل تدقيق كامل، وتشفير لحماية البيانات.", f5_desc_en: "Fine-grained permissions, full audit log and data encryption.",
+  f5_long_ar: "حماية متكاملة للبيانات مع صلاحيات دقيقة لكل دور (مدير، معلم، طالب...)، سجل تدقيق يوثق كل عملية، وتشفير كامل للبيانات الحساسة لضمان الخصوصية والامتثال.", f5_long_en: "Complete data protection with role permissions, full audit log and encryption.",
+  f5_p1_ar: "صلاحيات لكل دور", f5_p1_en: "Role-based permissions",
+  f5_p2_ar: "سجل تدقيق شامل", f5_p2_en: "Full audit log",
+  f5_p3_ar: "تشفير البيانات", f5_p3_en: "Data encryption",
+  f5_p4_ar: "نسخ احتياطي آمن", f5_p4_en: "Secure backup",
+  f6_title_ar: "التقارير والتحليلات", f6_title_en: "Reports & Analytics",
+  f6_desc_ar: "لوحات متابعة، تقارير مالية وأكاديمية لدعم القرار.", f6_desc_en: "Dashboards and academic/financial reports for decision making.",
+  f6_long_ar: "لوحات تحكم تفاعلية وتقارير ذكية تعرض الأداء الأكاديمي والمالي في رسوم بيانية واضحة، مع إمكانية التصدير والمشاركة لدعم قرارات الإدارة بسرعة ودقة.", f6_long_en: "Interactive dashboards and smart reports with clear charts for academic and financial performance.",
+  f6_p1_ar: "لوحات تفاعلية", f6_p1_en: "Interactive dashboards",
+  f6_p2_ar: "رسوم بيانية واضحة", f6_p2_en: "Clear charts",
+  f6_p3_ar: "تصدير PDF/Excel", f6_p3_en: "PDF/Excel export",
+  f6_p4_ar: "تحليلات تنبؤية", f6_p4_en: "Predictive analytics",
+  school_badge_ar: "بوابة المدرسة", school_badge_en: "School Portal",
+  school_title_ar: "أدر مدرستك بالكامل — نتائج، رسوم، حضور، وتقارير", school_title_en: "Manage your entire school — results, fees, attendance & reports",
+  school_desc_ar: "لوحة تحكم شاملة للمديرين: إدارة الطلاب والمعلمين، النتائج والشهادات السودانية، الرسوم المالية، الحضور والغياب، والتقارير الذكية. كل ما تحتاجه لإدارة مدرستك في مكان واحد.", school_desc_en: "Comprehensive admin dashboard: manage students & teachers, Sudanese results & certificates, financial fees, attendance, and smart reports. Everything you need in one place.",
+  school_cta_ar: "طلب نسخة تجريبية", school_cta_en: "Request Demo",
+  school_wa_ar: "استفسار عبر الواتساب", school_wa_en: "WhatsApp Inquiry",
+  teacher_badge_ar: "بوابة المعلم المستقل", teacher_badge_en: "Independent Teacher Portal",
+  teacher_title_ar: "ادَرْ فصلك بذكاء — وواجبات، امتحانات، وبث مباشر", teacher_title_en: "Manage your class smartly — assignments, exams & live classes",
+  teacher_desc_ar: "أي معلم يمكنه التسجيل لإدارة طلابه وواجباتهم وامتحاناتهم بشكل مستقل. أنشئ حصص مباشرة، ارفع فيديوهات يوتيوب التعليمية، وتابع تقدم كل طالب. مجاني للمعلمين الأفراد.", teacher_desc_en: "Any teacher can register to manage students, assignments, and exams independently. Create live classes, upload YouTube teaching videos, and track each student's progress. Free for individual teachers.",
+  teacher_login_ar: "دخول بوابة المعلم", teacher_login_en: "Teacher Login",
+  teacher_register_ar: "تسجيل جديد كمعلم", teacher_register_en: "Register as Teacher",
+  teacher_wa_ar: "استفسار عبر الواتساب", teacher_wa_en: "WhatsApp",
+  student_badge_ar: "بوابة الطالب المستقل", student_badge_en: "Independent Student Portal",
+  student_title_ar: "سجل طالبك الآن — وصول فوري للمنهج السوداني", student_title_en: "Register your student — Instant access to Sudanese curriculum",
+  student_desc_ar: "أي طالب يمكنه التسجيل مجاناً للوصول إلى كتب المنهج السوداني المعتمدة، وحل الواجبات، ومتابعة الدروس. للاشتراك مع معلم خاص والدروس المباشرة، يرسل طلب اشتراك من داخل البوابة.", student_desc_en: "Any student can register free for Sudanese curriculum books, assignments, and lessons. To join a private teacher for live classes, send a subscription request from within the portal.",
+  student_login_ar: "دخول بوابة الطالب", student_login_en: "Student Login",
+  student_register_ar: "تسجيل طالب جديد (مجاني)", student_register_en: "Register Student (Free)",
+  student_wa_ar: "استفسار عبر الواتساب", student_wa_en: "WhatsApp",
+  whatsapp_title_ar: "تواصل سريع عبر واتساب", whatsapp_title_en: "Quick WhatsApp Contact",
+  whatsapp_desc_ar: "رد فوري من فريق EduTrack على الرقم الموحد", whatsapp_desc_en: "Instant reply from EduTrack team",
+  whatsapp_cta_ar: "فتح واتساب", whatsapp_cta_en: "Open WhatsApp",
+  footer_desc_ar: "منصة سودانية ذكية لإدارة المدارس — نتائج، رسوم، حضور، ومتابعة شاملة بواجهة عربية وطباعة وزارية.", footer_desc_en: "Smart Sudanese school management — results, fees, attendance and full follow-up with Arabic UI and ministry-grade print.",
+  footer_links_ar: "روابط سريعة", footer_links_en: "Quick Links",
+  footer_link1_ar: "مميزات المنصة", footer_link1_en: "Features",
+  footer_link2_ar: "الباقات والأسعار", footer_link2_en: "Pricing",
+  footer_link3_ar: "طلب اشتراك مدرسة", footer_link3_en: "Register School",
+  footer_link4_ar: "تواصل مباشر واتساب", footer_link4_en: "WhatsApp",
+  footer_contact_ar: "تواصل معنا", footer_contact_en: "Contact Us",
+  footer_location_ar: "الخرطوم، السودان — دعم فني", footer_location_en: "Khartoum, Sudan — Local support",
+  footer_social_ar: "تابعنا", footer_social_en: "Follow Us",
+  footer_follow_ar: "تابع آخر التحديثات والعروض على صفحاتنا الرسمية.", footer_follow_en: "Follow our official pages for updates and offers.",
+  footer_secure_ar: "آمن ومشفّر", footer_secure_en: "Secure & Encrypted",
+  nav_features_ar: "مميزات المنصة", nav_features_en: "Features",
+  nav_pricing_ar: "الباقات والأسعار", nav_pricing_en: "Pricing",
+  nav_contact_ar: "تواصل معنا", nav_contact_en: "Contact",
+};
+
 export default function LandingPage() {
   const { language } = useLanguage();
   const isRTL = language === "ar";
 
+  const [contentItems, setContentItems] = useState([]);
   const [selectedFeature, setSelectedFeature] = useState(null);
   const [teacherLoginOpen, setTeacherLoginOpen] = useState(false);
   const [studentLoginOpen, setStudentLoginOpen] = useState(false);
@@ -30,6 +131,33 @@ export default function LandingPage() {
   const [teacherLoginLoading, setTeacherLoginLoading] = useState(false);
   const [studentLoginLoading, setStudentLoginLoading] = useState(false);
   const navigate = useNavigate();
+
+  /* ─── fetch editable content from API ─── */
+  useEffect(() => {
+    fetch("/api/landing-content")
+      .then(r => r.json())
+      .then(d => { if (d.items) setContentItems(d.items); })
+      .catch(() => {});
+  }, []);
+
+  /* map API content_key → value_ar or value_en */
+  const apiVal = useMemo(() => {
+    const m = {};
+    contentItems.forEach(item => {
+      if (item.value_ar) m[item.content_key + "_ar"] = item.value_ar;
+      if (item.value_en) m[item.content_key + "_en"] = item.value_en;
+    });
+    return m;
+  }, [contentItems]);
+
+  /* single helper: get text for a key */
+  const t = (key) => {
+    const suffix = isRTL ? "_ar" : "_en";
+    return apiVal[key + suffix] || DEFAULTS[key + suffix] || "";
+  };
+
+  /* get image URL (no lang suffix) */
+  const img = (key) => apiVal[key] || DEFAULTS[key] || "";
 
   const handleTeacherLogin = async (e) => {
     e.preventDefault();
@@ -48,7 +176,6 @@ export default function LandingPage() {
       if (!res.ok) throw new Error(data.error || "Login failed");
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
-      // Portal session keys (same as AuthContext.login) so /teacher-panel recognizes the session
       const tu = data.user || {};
       localStorage.setItem("portal_role", tu.role || "teacher");
       localStorage.setItem("portal_user", JSON.stringify(tu));
@@ -84,7 +211,6 @@ export default function LandingPage() {
       if (!res.ok) throw new Error(data.error || "Login failed");
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
-      // Portal session keys (same as AuthContext.login) so /student-panel recognizes the session
       const su = data.user || {};
       localStorage.setItem("portal_role", su.role || "student");
       localStorage.setItem("portal_user", JSON.stringify(su));
@@ -105,53 +231,42 @@ export default function LandingPage() {
 
   const features = [
     {
-      icon: Award,
-      title: isRTL ? "إدارة النتائج والشهادات السودانية" : "Sudanese Results & Certificates",
-      desc: isRTL ? "كشف درجات أفقي وعمودي مطابق للمعايير السودانية، مع طباعة احترافية وختم وتقديرات." : "Landscape & portrait marksheets per Sudanese standards with professional print.",
-      longDesc: isRTL ? "نظام متكامل لإدارة نتائج الطلاب وفق المعايير السودانية المعتمدة من وزارة التربية والتعليم. يدعم الكشف الأفقي البانورامي والشهادة العمودية الرسمية مع تفقيط الدرجات، حساب النسبة والتقدير تلقائياً، وطباعة احترافية بجودة الوزارة تشمل الختم والشعار والحدود المزخرفة." : "Complete results management per Sudanese Ministry standards. Supports landscape marksheet and portrait certificate with tafqeet, auto percentage and grade, and ministry-grade print.",
-      points: isRTL ? ["كشف أفقي وعمودي بأبعاد A4 دقيقة", "تفقيط تلقائي وحساب النسبة والتقدير", "طباعة بجودة وزارية مع شعار وختم", "أرشيف نتائج وبحث سريع"] : ["Landscape & portrait A4 precise", "Auto tafqeet and grade", "Ministry-grade print with logo & stamp", "Archive and quick search"],
+      icon: Award, title: t("f1_title"), desc: t("f1_desc"), longDesc: t("f1_long"),
+      points: [t("f1_p1"), t("f1_p2"), t("f1_p3"), t("f1_p4")],
       images: ["https://images.unsplash.com/photo-1588072432836-e10032774350?q=80&w=800&auto=format&fit=crop", "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?q=80&w=800&auto=format&fit=crop"],
     },
     {
-      icon: Users,
-      title: isRTL ? "شؤون الطلاب" : "Student Affairs",
-      desc: isRTL ? "تسجيل، ملفات أكاديمية، أرشيف، وإدارة شاملة لبيانات الطلاب." : "Enrollment, academic files, archive and full student data management.",
-      longDesc: isRTL ? "إدارة شاملة لدورة حياة الطالب من التسجيل وحتى الأرشفة. يشمل تسجيل الطلاب الجدد، إدارة الملفات الأكاديمية، الأرشيف الرقمي، البحث المتقدم، وربط الطلاب بالصفوف والشعب مع إمكانية الاستيراد الجماعي." : "Full student lifecycle from enrollment to archive. Includes new registration, academic files, digital archive and advanced search.",
-      points: isRTL ? ["تسجيل فردي وجماعي", "ملفات أكاديمية منظمة", "أرشيف رقمي آمن", "بحث وفلترة متقدمة"] : ["Individual & bulk enrollment", "Organized academic files", "Secure digital archive", "Advanced search"],
+      icon: Users, title: t("f2_title"), desc: t("f2_desc"), longDesc: t("f2_long"),
+      points: [t("f2_p1"), t("f2_p2"), t("f2_p3"), t("f2_p4")],
       images: ["https://images.unsplash.com/photo-1523240795612-9a054b0db644?q=80&w=800&auto=format&fit=crop", "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?q=80&w=800&auto=format&fit=crop"],
     },
     {
-      icon: Wallet,
-      title: isRTL ? "الرسوم المالية" : "Fees & Finance",
-      desc: isRTL ? "هيكلة رسوم، محافظ، مدفوعات، إيرادات ومصروفات بتقارير دقيقة." : "Fee structures, wallets, payments and accurate financial reports.",
-      longDesc: isRTL ? "نظام مالي متكامل لإدارة رسوم الطلاب، المحافظ الإلكترونية، المدفوعات والإيصالات، مع متابعة الإيرادات والمصروفات وتقارير مالية دقيقة تساعد الإدارة في اتخاذ القرار." : "Integrated financial system for fees, wallets, payments and receipts with revenue/expense tracking.",
-      points: isRTL ? ["هيكلة رسوم مرنة", "محافظ طلاب إلكترونية", "إيصالات ومدفوعات فورية", "تقارير إيرادات ومصروفات"] : ["Flexible fee structures", "Student e-wallets", "Instant receipts & payments", "Revenue/expense reports"],
+      icon: Wallet, title: t("f3_title"), desc: t("f3_desc"), longDesc: t("f3_long"),
+      points: [t("f3_p1"), t("f3_p2"), t("f3_p3"), t("f3_p4")],
       images: ["https://images.unsplash.com/photo-1554224155-6726b3196a58?q=80&w=800&auto=format&fit=crop", "https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?q=80&w=800&auto=format&fit=crop"],
     },
     {
-      icon: ClipboardCheck,
-      title: isRTL ? "الحضور والغياب" : "Attendance",
-      desc: isRTL ? "تتبع يومي وأسبوعي للحضور مع سجلات وتحليلات." : "Daily & weekly attendance tracking with logs and analytics.",
-      longDesc: isRTL ? "متابعة دقيقة لحضور الطلاب والمعلمين يومياً وأسبوعياً مع سجلات مفصلة، تنبيهات للغياب المتكرر، وتحليلات تساعد في تحسين الانضباط ومتابعة أولياء الأمور." : "Precise daily & weekly attendance for students and teachers with logs and analytics.",
-      points: isRTL ? ["تسجيل يومي وأسبوعي", "تنبيهات غياب", "تقارير حضور مفصلة", "ربط مع أولياء الأمور"] : ["Daily & weekly logs", "Absence alerts", "Detailed reports", "Parent linkage"],
+      icon: ClipboardCheck, title: t("f4_title"), desc: t("f4_desc"), longDesc: t("f4_long"),
+      points: [t("f4_p1"), t("f4_p2"), t("f4_p3"), t("f4_p4")],
       images: ["https://images.unsplash.com/photo-1509062522246-3755977927d?q=80&w=800&auto=format&fit=crop", "https://images.unsplash.com/photo-1516534775068-ba3e7458af70?q=80&w=800&auto=format&fit=crop"],
     },
     {
-      icon: ShieldCheck,
-      title: isRTL ? "الأمان وسجلات التدقيق" : "Security & Audit",
-      desc: isRTL ? "صلاحيات دقيقة، سجل تدقيق كامل، وتشفير لحماية البيانات." : "Fine-grained permissions, full audit log and data encryption.",
-      longDesc: isRTL ? "حماية متكاملة للبيانات مع صلاحيات دقيقة لكل دور (مدير، معلم، طالب...)، سجل تدقيق يوثق كل عملية، وتشفير كامل للبيانات الحساسة لضمان الخصوصية والامتثال." : "Complete data protection with role permissions, full audit log and encryption.",
-      points: isRTL ? ["صلاحيات لكل دور", "سجل تدقيق شامل", "تشفير البيانات", "نسخ احتياطي آمن"] : ["Role-based permissions", "Full audit log", "Data encryption", "Secure backup"],
+      icon: ShieldCheck, title: t("f5_title"), desc: t("f5_desc"), longDesc: t("f5_long"),
+      points: [t("f5_p1"), t("f5_p2"), t("f5_p3"), t("f5_p4")],
       images: ["https://images.unsplash.com/photo-1563013544-824ae1b704d3?q=80&w=800&auto=format&fit=crop", "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=800&auto=format&fit=crop"],
     },
     {
-      icon: BarChart3,
-      title: isRTL ? "التقارير والتحليلات" : "Reports & Analytics",
-      desc: isRTL ? "لوحات متابعة، تقارير مالية وأكاديمية لدعم القرار." : "Dashboards and academic/financial reports for decision making.",
-      longDesc: isRTL ? "لوحات تحكم تفاعلية وتقارير ذكية تعرض الأداء الأكاديمي والمالي في رسوم بيانية واضحة، مع إمكانية التصدير والمشاركة لدعم قرارات الإدارة بسرعة ودقة." : "Interactive dashboards and smart reports with clear charts for academic and financial performance.",
-      points: isRTL ? ["لوحات تفاعلية", "رسوم بيانية واضحة", "تصدير PDF/Excel", "تحليلات تنبؤية"] : ["Interactive dashboards", "Clear charts", "PDF/Excel export", "Predictive analytics"],
+      icon: BarChart3, title: t("f6_title"), desc: t("f6_desc"), longDesc: t("f6_long"),
+      points: [t("f6_p1"), t("f6_p2"), t("f6_p3"), t("f6_p4")],
       images: ["https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=800&auto=format&fit=crop", "https://images.unsplash.com/photo-1460925895917-afdab827c52f?q=80&w=800&auto=format&fit=crop"],
     },
+  ];
+
+  const slides = [
+    { img: img("slide1_img"), caption: t("slide1_cap") },
+    { img: img("slide2_img"), caption: t("slide2_cap") },
+    { img: img("slide3_img"), caption: t("slide3_cap") },
+    { img: img("slide4_img"), caption: t("slide4_cap") },
   ];
 
   return (
@@ -168,9 +283,9 @@ export default function LandingPage() {
             <span className="font-black text-lg tracking-tight">Edu<span className="text-emerald-600">Track</span></span>
           </Link>
           <nav className="hidden md:flex items-center gap-6 text-sm font-bold">
-            <a href="#features" className="text-stone-600 hover:text-stone-900">{isRTL ? "مميزات المنصة" : "Features"}</a>
-            <a href="#plans" className="text-stone-600 hover:text-stone-900">{isRTL ? "الباقات والأسعار" : "Pricing"}</a>
-            <a href="#contact" className="text-stone-600 hover:text-stone-900">{isRTL ? "تواصل معنا" : "Contact"}</a>
+            <a href="#features" className="text-stone-600 hover:text-stone-900">{t("nav_features")}</a>
+            <a href="#plans" className="text-stone-600 hover:text-stone-900">{t("nav_pricing")}</a>
+            <a href="#contact" className="text-stone-600 hover:text-stone-900">{t("nav_contact")}</a>
           </nav>
           <div className="flex items-center gap-2">
             <a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${WHATSAPP_MSG}`} target="_blank" rel="noopener noreferrer" className="hidden sm:inline-flex h-9 px-4 rounded-xl bg-stone-800 text-white text-xs font-black hover:bg-stone-900 items-center gap-1.5 shadow-sm">
@@ -178,7 +293,7 @@ export default function LandingPage() {
             </a>
             <Link to="/register" className="h-9 px-5 rounded-xl bg-stone-900 text-white text-xs font-black hover:bg-black inline-flex items-center gap-1.5 shadow-md">
               <Sparkles size={13} className="text-amber-400" />
-              {isRTL ? "طلب نسخة تجريبية" : "Request Demo"}
+              {t("hero_cta")}
             </Link>
           </div>
         </div>
@@ -193,32 +308,26 @@ export default function LandingPage() {
           <div className="grid md:grid-cols-2 gap-8 items-center">
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
               <div className="inline-flex items-center gap-2 bg-white border border-stone-100 rounded-full px-3 py-1.5 shadow-sm text-xs font-bold text-stone-600">
-                <Sparkles size={14} className="text-amber-500" />{isRTL ? "نظام شامل لإدارة المدارس الذكية" : "All-in-one Smart School Management"}
+                <Sparkles size={14} className="text-amber-500" />{t("hero_badge")}
               </div>
               <h1 className="mt-4 text-3xl md:text-5xl font-black leading-tight">
-                {isRTL ? "إدارة مدرستك" : "Manage your school"} <span className="text-emerald-600">{isRTL ? "بذكاء" : "smartly"}</span><br />
-                {isRTL ? "من مكان واحد" : "from one place"}
+                {t("hero_title_1")} <span className="text-emerald-600">{t("hero_highlight")}</span><br />
+                {t("hero_title_2")}
               </h1>
               <p className="mt-3 text-stone-600 leading-relaxed text-sm md:text-base">
-                {isRTL ? "منصة EduTrack تغطي النتائج والشهادات السودانية، شؤون الطلاب، الرسوم، الحضور، والمزيد — بواجهة عربية احترافية وطباعة بجودة الوزارة." : "EduTrack covers results & Sudanese certificates, students, fees, attendance and more — with Arabic UI and ministry-grade print."}
+                {t("hero_desc")}
               </p>
               <div className="mt-6 flex flex-wrap gap-3">
                 <Link to="/register" className="h-11 px-6 rounded-xl bg-stone-900 text-white font-black text-sm hover:bg-black inline-flex items-center gap-2 shadow-lg">
-                  <Sparkles size={16} />{isRTL ? "طلب نسخة تجريبية" : "Request Demo"}
+                  <Sparkles size={16} />{t("hero_cta")}
                 </Link>
               </div>
               <div className="mt-4 flex items-center gap-3 text-xs text-stone-500">
-                <span className="flex items-center gap-1"><CheckCircle2 size={14} className="text-emerald-500" />{isRTL ? "دعم فني مخصص" : "Local support"}</span>
-                <span className="flex items-center gap-1"><ShieldCheck size={14} className="text-sky-500" />{isRTL ? "آمن ومشفّر" : "Secure"}</span>
+                <span className="flex items-center gap-1"><CheckCircle2 size={14} className="text-emerald-500" />{t("hero_trust1")}</span>
+                <span className="flex items-center gap-1"><ShieldCheck size={14} className="text-sky-500" />{t("hero_trust2")}</span>
               </div>
             </motion.div>
             {(() => {
-              const slides = [
-                { img: "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?q=80&w=800&auto=format&fit=crop", caption: isRTL ? "أثناء الدرس المباشر" : "During live lesson" },
-                { img: "https://images.unsplash.com/photo-1523240795612-9a054b0db644?q=80&w=800&auto=format&fit=crop", caption: isRTL ? "العمل الجماعي في الفصل" : "Group work in class" },
-                { img: "https://images.unsplash.com/photo-1588072432836-e10032774350?q=80&w=800&auto=format&fit=crop", caption: isRTL ? "أثناء أداء الواجب" : "Doing homework" },
-                { img: "https://images.unsplash.com/photo-1516534775068-ba3e7458af70?q=80&w=800&auto=format&fit=crop", caption: isRTL ? "المراجعة والتحضير" : "Review & preparation" },
-              ];
               const [idx, setIdx] = useState(0);
               useEffect(() => {
                 const id = setInterval(() => setIdx((p) => (p + 1) % slides.length), 2800);
@@ -263,8 +372,8 @@ export default function LandingPage() {
       {/* Features */}
       <section id="features" className="max-w-7xl mx-auto px-4 md:px-6 py-10 md:py-16">
         <div className="text-center max-w-2xl mx-auto">
-          <h2 className="text-2xl md:text-3xl font-black">{isRTL ? "مميزات المنصة" : "Platform Features"}</h2>
-          <p className="text-stone-500 mt-2 text-sm">{isRTL ? "كل ما تحتاجه المدرسة السودانية في مكان واحد" : "Everything a Sudanese school needs in one place"}</p>
+          <h2 className="text-2xl md:text-3xl font-black">{t("features_title")}</h2>
+          <p className="text-stone-500 mt-2 text-sm">{t("features_desc")}</p>
         </div>
         <div className="grid md:grid-cols-3 gap-4 mt-8">
           {features.map((f) => (
@@ -325,20 +434,20 @@ export default function LandingPage() {
           <div className="grid md:grid-cols-2 gap-8 items-center">
             <div>
               <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur rounded-full px-4 py-2 text-sm font-bold">
-                <ShieldCheck size={16} /> {isRTL ? "بوابة المدرسة" : "School Portal"}
+                <ShieldCheck size={16} /> {t("school_badge")}
               </div>
               <h3 className="mt-3 text-2xl md:text-3xl font-black leading-tight">
-                {isRTL ? "أدر مدرستك بالكامل — نتائج، رسوم، حضور، وتقارير" : "Manage your entire school — results, fees, attendance & reports"}
+                {t("school_title")}
               </h3>
               <p className="mt-2 text-white/90 leading-relaxed">
-                {isRTL ? "لوحة تحكم شاملة للمديرين: إدارة الطلاب والمعلمين، النتائج والشهادات السودانية، الرسوم المالية، الحضور والغياب، والتقارير الذكية. كل ما تحتاجه لإدارة مدرستك في مكان واحد." : "Comprehensive admin dashboard: manage students & teachers, Sudanese results & certificates, financial fees, attendance, and smart reports. Everything you need in one place."}
+                {t("school_desc")}
               </p>
               <div className="mt-5 flex flex-wrap gap-3">
                 <Link to="/register" className="h-11 px-6 rounded-xl bg-white text-stone-900 font-black text-sm hover:bg-white/90 inline-flex items-center gap-2 shadow-lg">
-                  <Sparkles size={16} /> {isRTL ? "طلب نسخة تجريبية" : "Request Demo"}
+                  <Sparkles size={16} /> {t("school_cta")}
                 </Link>
                 <a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${WHATSAPP_MSG}`} target="_blank" rel="noopener noreferrer" className="h-11 px-6 rounded-xl bg-white/20 border border-white/30 text-white font-black text-sm hover:bg-white/30 inline-flex items-center gap-2">
-                  <MessageCircle size={16} /> {isRTL ? "استفسار عبر الواتساب" : "WhatsApp Inquiry"}
+                  <MessageCircle size={16} /> {t("school_wa")}
                 </a>
               </div>
             </div>
@@ -373,23 +482,23 @@ export default function LandingPage() {
           <div className="grid md:grid-cols-2 gap-8 items-center">
             <div>
               <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur rounded-full px-4 py-2 text-sm font-bold">
-                <GraduationCap size={16} /> {isRTL ? "بوابة المعلم المستقل" : "Independent Teacher Portal"}
+                <GraduationCap size={16} /> {t("teacher_badge")}
               </div>
               <h3 className="mt-3 text-2xl md:text-3xl font-black leading-tight">
-                {isRTL ? "ادَرْ فصلك بذكاء — وواجبات، امتحانات، وبث مباشر" : "Manage your class smartly — assignments, exams & live classes"}
+                {t("teacher_title")}
               </h3>
               <p className="mt-2 text-white/90 leading-relaxed">
-                {isRTL ? "أي معلم يمكنه التسجيل لإدارة طلابه وواجباتهم وامتحاناتهم بشكل مستقل. أنشئ حصص مباشرة، ارفع فيديوهات يوتيوب التعليمية، وتابع تقدم كل طالب. مجاني للمعلمين الأفراد." : "Any teacher can register to manage students, assignments, and exams independently. Create live classes, upload YouTube teaching videos, and track each student's progress. Free for individual teachers."}
+                {t("teacher_desc")}
               </p>
               <div className="mt-5 flex flex-wrap gap-3">
                 <button onClick={() => setTeacherLoginOpen(true)} className="h-11 px-6 rounded-xl bg-white text-indigo-700 font-black text-sm hover:bg-white/90 inline-flex items-center gap-2 shadow-lg">
-                  <LogIn size={16} /> {isRTL ? "دخول بوابة المعلم" : "Teacher Login"}
+                  <LogIn size={16} /> {t("teacher_login")}
                 </button>
                 <Link to="/teacher-register" className="h-11 px-6 rounded-xl bg-white/20 border border-white/30 text-white font-black text-sm hover:bg-white/30 inline-flex items-center gap-2">
-                  <UserPlus size={16} /> {isRTL ? "تسجيل جديد كمعلم" : "Register as Teacher"}
+                  <UserPlus size={16} /> {t("teacher_register")}
                 </Link>
                 <a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("مرحباً، أريد التسجيل كمعلم في منصة EduTrack.")}`} target="_blank" rel="noopener noreferrer" className="h-11 px-6 rounded-xl bg-white/20 border border-white/30 text-white font-black text-sm hover:bg-white/30 inline-flex items-center gap-2">
-                  <MessageCircle size={16} /> {isRTL ? "استفسار عبر الواتساب" : "WhatsApp"}
+                  <MessageCircle size={16} /> {t("teacher_wa")}
                 </a>
               </div>
             </div>
@@ -413,7 +522,6 @@ export default function LandingPage() {
                   ))}
                 </div>
               </div>
-              {/* Pricing badge */}
               <div className="mt-4 grid grid-cols-3 gap-2">
                 <div className="bg-white/20 backdrop-blur rounded-xl p-3 text-center border border-white/30">
                   <Gift size={16} className="mx-auto mb-1 text-white" />
@@ -443,23 +551,23 @@ export default function LandingPage() {
           <div className="grid md:grid-cols-2 gap-8 items-center">
             <div>
               <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur rounded-full px-4 py-2 text-sm font-bold">
-                <UserPlus size={16} /> {isRTL ? "بوابة الطالب المستقل" : "Independent Student Portal"}
+                <UserPlus size={16} /> {t("student_badge")}
               </div>
               <h3 className="mt-3 text-2xl md:text-3xl font-black leading-tight">
-                {isRTL ? "سجل طالبك الآن — وصول فوري للمنهج السوداني" : "Register your student — Instant access to Sudanese curriculum"}
+                {t("student_title")}
               </h3>
               <p className="mt-2 text-white/90 leading-relaxed">
-                {isRTL ? "أي طالب يمكنه التسجيل مجاناً للوصول إلى كتب المنهج السوداني المعتمدة، وحل الواجبات، ومتابعة الدروس. للاشتراك مع معلم خاص والدروس المباشرة، يرسل طلب اشتراك من داخل البوابة." : "Any student can register free for Sudanese curriculum books, assignments, and lessons. To join a private teacher for live classes, send a subscription request from within the portal."}
+                {t("student_desc")}
               </p>
               <div className="mt-5 flex flex-wrap gap-3">
                 <button onClick={() => setStudentLoginOpen(true)} className="h-11 px-6 rounded-xl bg-white text-emerald-700 font-black text-sm hover:bg-white/90 inline-flex items-center gap-2 shadow-lg">
-                  <LogIn size={16} /> {isRTL ? "دخول بوابة الطالب" : "Student Login"}
+                  <LogIn size={16} /> {t("student_login")}
                 </button>
                 <Link to="/student-register" className="h-11 px-6 rounded-xl bg-white/20 border border-white/30 text-white font-black text-sm hover:bg-white/30 inline-flex items-center gap-2">
-                  <UserPlus size={16} /> {isRTL ? "تسجيل طالب جديد (مجاني)" : "Register Student (Free)"}
+                  <UserPlus size={16} /> {t("student_register")}
                 </Link>
                 <a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("مرحباً، أريد تسجيل طالب في منصة EduTrack. كيف أبدأ؟")}`} target="_blank" rel="noopener noreferrer" className="h-11 px-6 rounded-xl bg-white/20 border border-white/30 text-white font-black text-sm hover:bg-white/30 inline-flex items-center gap-2">
-                  <MessageCircle size={16} /> {isRTL ? "استفسار عبر الواتساب" : "WhatsApp"}
+                  <MessageCircle size={16} /> {t("student_wa")}
                 </a>
               </div>
             </div>
@@ -483,7 +591,6 @@ export default function LandingPage() {
                   ))}
                 </div>
               </div>
-              {/* Free registration badge */}
               <div className="mt-4 bg-white/20 backdrop-blur rounded-xl p-4 text-center border border-white/30">
                 <div className="flex items-center justify-center gap-2 mb-1">
                   <Gift size={18} className="text-white" />
@@ -500,16 +607,16 @@ export default function LandingPage() {
       <section className="max-w-7xl mx-auto px-4 md:px-6 pb-10">
         <div className="bg-stone-900 rounded-[28px] p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-4 text-white">
           <div>
-            <h3 className="font-black text-lg">{isRTL ? "تواصل سريع عبر واتساب" : "Quick WhatsApp Contact"}</h3>
-            <p className="text-white/70 text-sm mt-1">{isRTL ? "رد فوري من فريق EduTrack على الرقم الموحد" : "Instant reply from EduTrack team"}</p>
+            <h3 className="font-black text-lg">{t("whatsapp_title")}</h3>
+            <p className="text-white/70 text-sm mt-1">{t("whatsapp_desc")}</p>
           </div>
           <a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${WHATSAPP_MSG}`} target="_blank" rel="noopener noreferrer" className="h-11 px-6 rounded-xl bg-emerald-500 text-white font-black text-sm hover:bg-emerald-600 inline-flex items-center gap-2 shadow-lg shrink-0">
-            <MessageCircle size={16} />{isRTL ? "فتح واتساب" : "Open WhatsApp"} — {WHATSAPP_NUMBER}
+            <MessageCircle size={16} />{t("whatsapp_cta")} — {WHATSAPP_NUMBER}
           </a>
         </div>
       </section>
 
-      {/* Footer — احترافي */}
+      {/* Footer */}
       <footer className="bg-stone-900 text-stone-300">
         <div className="max-w-7xl mx-auto px-4 md:px-6 py-10">
           <div className="grid md:grid-cols-4 gap-8">
@@ -521,20 +628,20 @@ export default function LandingPage() {
                 <span className="font-black text-white">EduTrack</span>
               </div>
               <p className="text-sm leading-relaxed text-stone-400">
-                {isRTL ? "منصة سودانية ذكية لإدارة المدارس — نتائج، رسوم، حضور، ومتابعة شاملة بواجهة عربية وطباعة وزارية." : "Smart Sudanese school management — results, fees, attendance and full follow-up with Arabic UI and ministry-grade print."}
+                {t("footer_desc")}
               </p>
             </div>
             <div>
-              <h4 className="font-black text-white text-sm mb-3">{isRTL ? "روابط سريعة" : "Quick Links"}</h4>
+              <h4 className="font-black text-white text-sm mb-3">{t("footer_links")}</h4>
               <ul className="space-y-2 text-sm">
-                <li><a href="#features" className="hover:text-white text-stone-400">{isRTL ? "مميزات المنصة" : "Features"}</a></li>
-                <li><a href="#plans" className="hover:text-white text-stone-400">{isRTL ? "الباقات والأسعار" : "Pricing"}</a></li>
-                <li><Link to="/register" className="hover:text-white text-stone-400">{isRTL ? "طلب اشتراك مدرسة" : "Register School"}</Link></li>
-                <li><a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${WHATSAPP_MSG}`} target="_blank" rel="noopener noreferrer" className="hover:text-white text-stone-400">{isRTL ? "تواصل مباشر واتساب" : "WhatsApp"}</a></li>
+                <li><a href="#features" className="hover:text-white text-stone-400">{t("footer_link1")}</a></li>
+                <li><a href="#plans" className="hover:text-white text-stone-400">{t("footer_link2")}</a></li>
+                <li><Link to="/register" className="hover:text-white text-stone-400">{t("footer_link3")}</Link></li>
+                <li><a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${WHATSAPP_MSG}`} target="_blank" rel="noopener noreferrer" className="hover:text-white text-stone-400">{t("footer_link4")}</a></li>
               </ul>
             </div>
             <div>
-              <h4 className="font-black text-white text-sm mb-3">{isRTL ? "تواصل معنا" : "Contact Us"}</h4>
+              <h4 className="font-black text-white text-sm mb-3">{t("footer_contact")}</h4>
               <ul className="space-y-2.5 text-sm">
                 <li className="flex items-center gap-2.5">
                   <Phone size={14} className="text-emerald-400 shrink-0" />
@@ -548,11 +655,11 @@ export default function LandingPage() {
                   <span className="text-emerald-400 shrink-0">@</span>
                   <a href="mailto:etrack249@gmail.com" className="hover:text-white text-stone-300">etrack249@gmail.com</a>
                 </li>
-                <li className="text-stone-500 text-xs mt-1">{isRTL ? "الخرطوم، السودان — دعم فني" : "Khartoum, Sudan — Local support"}</li>
+                <li className="text-stone-500 text-xs mt-1">{t("footer_location")}</li>
               </ul>
             </div>
             <div>
-              <h4 className="font-black text-white text-sm mb-3">{isRTL ? "تابعنا" : "Follow Us"}</h4>
+              <h4 className="font-black text-white text-sm mb-3">{t("footer_social")}</h4>
               <div className="flex items-center gap-2">
                 <a href="https://www.facebook.com/share/1ErDcNrRYU/" target="_blank" rel="noopener noreferrer" aria-label="Facebook" className="h-9 w-9 rounded-xl bg-white/10 hover:bg-white text-white/80 hover:text-stone-900 flex items-center justify-center transition-colors">
                   <span className="font-black text-sm">f</span>
@@ -568,14 +675,14 @@ export default function LandingPage() {
                 </a>
               </div>
               <p className="text-xs text-stone-500 mt-3 leading-relaxed">
-                {isRTL ? "تابع آخر التحديثات والعروض على صفحاتنا الرسمية." : "Follow our official pages for updates and offers."}
+                {t("footer_follow")}
               </p>
             </div>
           </div>
           <div className="mt-8 pt-6 border-t border-white/10 flex flex-col md:flex-row items-center justify-between gap-3 text-xs text-stone-500">
             <div className="font-bold">© {new Date().getFullYear()} EduTrack — {isRTL ? "جميع الحقوق محفوظة" : "All rights reserved"}</div>
             <div className="flex items-center gap-3">
-              <span className="hidden sm:inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />{isRTL ? "آمن ومشفّر" : "Secure & Encrypted"}</span>
+              <span className="hidden sm:inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />{t("footer_secure")}</span>
               <span className="hidden sm:inline">•</span>
               <span>V 2.0.4 — EduTrack Advanced Engine</span>
             </div>

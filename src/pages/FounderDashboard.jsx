@@ -9,6 +9,7 @@ import {
   BarChart3, MessageCircle, Save, Download, KeyRound, PauseCircle, Timer,
   MapPin, Calendar, Phone, Mail, Crown, Zap, Shield, Copy, Printer, Send, UserPlus, Lock, Link2, ExternalLink, GraduationCap, Trash2
 } from "lucide-react";
+import LandingContentEditor from "@/components/LandingContentEditor";
 
 const PLANS_DEFAULT = [
   { id: "starter", name: "Starter", price: 49, color: "from-slate-500 to-slate-600", desc: "مدرسة صغيرة حتى 200 طالب" },
@@ -40,6 +41,7 @@ const NAV = [
   { id: "teacher-pricing", label: "أسعار المعلمين", icon: Crown },
   { id: "teacher-sub-requests", label: "طلبات اشتراكات المعلمين", icon: Timer },
   { id: "support", label: "الدعم الفني", icon: LifeBuoy },
+  { id: "landing", label: "محتوى الصفحة الرئيسية", icon: Settings },
   { id: "settings", label: "إعدادات المنصة", icon: Settings },
 ];
 
@@ -2117,6 +2119,9 @@ const FounderDashboard = () => {
             )}
           </div>
         )}
+
+        {/* ───── محتوى الصفحة الرئيسية ───── */}
+        {section === "landing" && <LandingContentEditor />}
 
         {/* ───── 8️⃣ إعدادات المنصة ───── */}
         {section === "settings" && (
