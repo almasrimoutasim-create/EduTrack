@@ -2241,6 +2241,19 @@ export function createApiHandler() {
       }
     }
 
+    // ── Public API routes (no auth) ──
+    if (req.url.startsWith('/api/landing-content') && req.method === 'GET') {
+      res.setHeader('Content-Type', 'application/json');
+      try {
+        const rows = await dbQuery('SELECT content_key, value_ar, value_en, content_type FROM landing_content ORDER BY content_key');
+        return res.end(JSON.stringify({ items: rows }));
+      } catch (error) {
+        console.error('[landing-content] GET error:', error.message);
+        res.statusCode = 500;
+        return res.end(JSON.stringify({ error: error.message }));
+      }
+    }
+
     // ── API routes for payment (require auth) ──
     if (req.url.startsWith('/api/')) {
       res.setHeader('Content-Type', 'application/json');
@@ -3056,19 +3069,6 @@ export function createApiHandler() {
           return res.end(JSON.stringify({ error: error.message }));
         }
       }
-
-    // ── Landing Content: GET all ──
-    if (req.url === '/api/landing-content' && req.method === 'GET') {
-      res.setHeader('Content-Type', 'application/json');
-      try {
-        const rows = await dbQuery('SELECT content_key, value_ar, value_en, content_type FROM landing_content ORDER BY content_key');
-        return res.end(JSON.stringify({ items: rows }));
-      } catch (error) {
-        console.error('[landing-content] GET error:', error.message);
-        res.statusCode = 500;
-        return res.end(JSON.stringify({ error: error.message }));
-      }
-    }
 
     // ── Landing Content: PUT (founder only, bulk upsert) ──
     if (req.url === '/api/landing-content' && req.method === 'PUT') {
