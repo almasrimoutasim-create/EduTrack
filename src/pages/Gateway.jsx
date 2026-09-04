@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useLanguage } from "@/lib/LanguageContext";
 import { motion, AnimatePresence } from "framer-motion";
-import { Lock, Eye, EyeOff, AlertCircle, Building2, ArrowRight, ArrowLeft, Sparkles, CheckCircle2, Search } from "lucide-react";
+import { Eye, EyeOff, AlertCircle, Building2, ArrowRight, ArrowLeft, Sparkles, CheckCircle2, Search, Shield, Users } from "lucide-react";
 import { Card } from "@/components/ui/card";
 
 export default function Gateway() {
@@ -61,6 +61,9 @@ export default function Gateway() {
   };
 
   const [searchSlugInput, setSearchSlugInput] = useState("");
+
+  // Unified glass card tabs: admin login | members lock
+  const [gwTab, setGwTab] = useState("admin"); // 'admin' | 'members'
 
   const FALLBACK_BG = "https://images.unsplash.com/photo-1510519138101-570d1dcb3d8e?q=80&w=2000&auto=format&fit=crop";
 
@@ -347,13 +350,45 @@ export default function Gateway() {
               {schoolName}
             </h1>
             <p className="text-stone-400 text-[11px] font-medium">
-              {isRTL ? "لوحة الإدارة والتحكم" : "Management Portal"}
+              {gwTab === "admin"
+                ? (isRTL ? "لوحة الإدارة والتحكم" : "Management Portal")
+                : (isRTL ? "بوابة أعضاء المدرسة" : "School Members Gateway")}
             </p>
           </div>
 
-          {/* Form */}
-          <div className="px-8 pb-8 pt-2">
-            <form onSubmit={handleLogin} className="space-y-3.5">
+          {/* Tabs: System Admin | School Members */}
+          <div className="px-8 pt-1">
+            <div className="grid grid-cols-2 gap-1.5 p-1.5 bg-stone-100 rounded-2xl">
+              <button
+                type="button"
+                onClick={() => setGwTab("admin")}
+                className={`h-10 rounded-xl text-xs font-black inline-flex items-center justify-center gap-1.5 transition-all ${gwTab === "admin" ? "bg-stone-900 text-white shadow-md" : "text-stone-500 hover:text-stone-800"}`}
+              >
+                <Shield size={14} />{isRTL ? "مدير النظام" : "System Admin"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setGwTab("members")}
+                className={`h-10 rounded-xl text-xs font-black inline-flex items-center justify-center gap-1.5 transition-all ${gwTab === "members" ? "bg-emerald-600 text-white shadow-md" : "text-stone-500 hover:text-stone-800"}`}
+              >
+                <Users size={14} />{isRTL ? "أعضاء المدرسة" : "School Members"}
+              </button>
+            </div>
+          </div>
+
+          {/* Forms */}
+          <div className="px-8 pb-8 pt-4">
+            <AnimatePresence mode="wait">
+              {gwTab === "admin" ? (
+              <motion.form
+                key="gw-admin"
+                initial={{ opacity: 0, x: 12 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -12 }}
+                transition={{ duration: 0.2 }}
+                onSubmit={handleLogin}
+                className="space-y-3.5"
+              >
               <AnimatePresence mode="wait">
                 {loginError && (
                   <motion.div
@@ -425,32 +460,17 @@ export default function Gateway() {
                   <span>{isRTL ? "دخول" : "Login"}</span>
                 )}
               </button>
-
-              <div className="pt-3 mt-3 border-t border-stone-100 flex items-center justify-between text-[11px] text-stone-400">
-                <span className="font-mono">{schoolData.slug || schoolSlug}</span>
-                <Link to="/" className="text-stone-500 hover:text-stone-800 font-bold transition-colors">
-                  {isRTL ? "EduTrack" : "EduTrack"}
-                </Link>
-              </div>
-            </form>
-          </div>
-        </Card>
-
-        {/* Member lock card (Option A: shared school credential → RoleLogin) */}
-        <Card className="mt-4 rounded-3xl bg-white/95 backdrop-blur-xl border-0 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.5)] overflow-hidden">
-          <div className="px-8 py-6">
-            <div className="text-center mb-4">
-              <div className="h-11 w-11 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto mb-2">
-                <Lock size={20} />
-              </div>
-              <h2 className="text-base font-extrabold text-stone-900">
-                {isRTL ? "دخول أعضاء المدرسة" : "School Members Entry"}
-              </h2>
-              <p className="text-stone-400 text-[11px] font-medium mt-1">
-                {isRTL ? "للمعلمين والطلاب والموظفين — أدخل بيانات المدرسة المشتركة للانتقال لاختيار البوابة" : "For teachers, students and staff — enter the shared school credential to reach the portals"}
-              </p>
-            </div>
-            <form onSubmit={handleMemberLogin} className="space-y-3">
+              </motion.form>
+              ) : (
+              <motion.form
+                key="gw-members"
+                initial={{ opacity: 0, x: -12 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 12 }}
+                transition={{ duration: 0.2 }}
+                onSubmit={handleMemberLogin}
+                className="space-y-3.5"
+              >
               {memberError && (
                 <div className="flex items-start gap-2.5 p-3 rounded-xl bg-rose-50 border border-rose-100 text-rose-600">
                   <AlertCircle className="shrink-0 mt-0.5" size={15} />
@@ -484,10 +504,23 @@ export default function Gateway() {
                     <span>{isRTL ? "جاري التحقق..." : "Verifying..."}</span>
                   </>
                 ) : (
-                  <span>{isRTL ? "دخول الأعضاء" : "Members Entry"}</span>
+                  <span>{isRTL ? "دخول الأعضاء" : "Members Login"}</span>
                 )}
               </button>
-            </form>
+
+                <p className="text-[11px] text-center text-stone-400 leading-relaxed">
+                  {isRTL ? "للمعلمين والطلاب والموظفين — أدخل بيانات المدرسة المشتركة للانتقال لاختيار البوابة" : "For teachers, students and staff — enter the shared school credential to reach the portals"}
+                </p>
+              </motion.form>
+              )}
+            </AnimatePresence>
+
+            <div className="pt-3 mt-4 border-t border-stone-100 flex items-center justify-between text-[11px] text-stone-400">
+              <span className="font-mono">{schoolData.slug || schoolSlug}</span>
+              <Link to="/" className="text-stone-500 hover:text-stone-800 font-bold transition-colors">
+                {isRTL ? "EduTrack" : "EduTrack"}
+              </Link>
+            </div>
           </div>
         </Card>
       </motion.div>
