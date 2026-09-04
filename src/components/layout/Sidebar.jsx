@@ -561,6 +561,7 @@ export default function Sidebar() {
           )}
           
           <button
+            type="button"
             onClick={() => logout()}
             className="flex items-center gap-3 w-full px-4 py-3 text-sm font-bold text-rose-500 hover:bg-rose-50 rounded-2xl transition-all"
           >

@@ -233,22 +233,22 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = (shouldRedirect = true) => {
-    setUser(null);
-    setIsAuthenticated(false);
-    setIsGatewayPassed(false);
-    localStorage.removeItem('portal_role');
-    localStorage.removeItem('portal_user');
-    localStorage.removeItem('portal_user_id');
-    localStorage.removeItem('portal_user_name');
-    localStorage.removeItem('portal_is_auth');
-    localStorage.removeItem('portal_jwt_token');
-    localStorage.removeItem('portal_gateway_passed');
-
-    if (shouldRedirect) {
-      const slug = localStorage.getItem('portal_school_slug');
-      localStorage.removeItem('portal_school_slug');
-      // With a known school → its gateway login card; otherwise → the login hub (never the bare slug-search page)
-      window.location.href = slug ? `/gateway/${slug}` : '/login';
+    let slug = null;
+    try {
+      setUser(null);
+      setIsAuthenticated(false);
+      setIsGatewayPassed(false);
+      const keys = ['portal_role', 'portal_user', 'portal_user_id', 'portal_user_name',
+        'portal_is_auth', 'portal_jwt_token', 'portal_gateway_passed', 'token', 'user'];
+      keys.forEach(k => { try { localStorage.removeItem(k); } catch { /* ignore */ } });
+      try { slug = localStorage.getItem('portal_school_slug'); } catch { slug = null; }
+      try { localStorage.removeItem('portal_school_slug'); } catch { /* ignore */ }
+    } finally {
+      // Navigation MUST always happen — even if any storage step above throws,
+      // otherwise the lock screen renders on the old URL (no redirect).
+      if (shouldRedirect) {
+        window.location.replace(slug ? `/gateway/${slug}` : '/login');
+      }
     }
   };
 
