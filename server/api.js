@@ -1383,7 +1383,7 @@ export function createApiHandler() {
         let rows;
         if (schoolId) {
           rows = await dbQuery(
-            'SELECT * FROM gateway_accounts WHERE username = $1 AND (school_id = $2 OR school_id IS NULL)',
+            'SELECT * FROM gateway_accounts WHERE username = $1 AND school_id = $2',
             [username, schoolId]
           );
         } else {
@@ -2571,9 +2571,9 @@ export function createApiHandler() {
           values.push(tenantId);
           paramIdx++;
         }
-        // Gateway lock accounts: each school admin sees only their school's accounts (+ global seed)
+        // Gateway lock accounts: each school admin sees only their school's accounts
         if (table === 'gateway_accounts' && tenantId) {
-          conditions.push(`(school_id = $${paramIdx} OR school_id IS NULL)`);
+          conditions.push(`school_id = $${paramIdx}`);
           values.push(tenantId);
           paramIdx++;
         }
@@ -2599,6 +2599,8 @@ export function createApiHandler() {
       if (req.method === 'GET' && entityId) {
         let rows;
         if (isTenantTable && tenantId) {
+          rows = await dbQuery(`SELECT * FROM ${table} WHERE id = $1 AND school_id = $2`, [entityId, tenantId]);
+        } else if (table === 'gateway_accounts' && tenantId) {
           rows = await dbQuery(`SELECT * FROM ${table} WHERE id = $1 AND school_id = $2`, [entityId, tenantId]);
         } else {
           rows = await dbQuery(`SELECT * FROM ${table} WHERE id = $1`, [entityId]);
@@ -2778,10 +2780,7 @@ export function createApiHandler() {
         values.push(entityId);
         let q = `UPDATE ${table} SET ${sets.join(', ')} WHERE id = $${values.length} RETURNING *`;
         // Multi-tenant: منع تعديل سجل لمستأجر آخر (يشمل حسابات القفل المحدودة بالمدرسة)
-        if (table === 'gateway_accounts' && tenantId && !body.school_id) {
-          q = `UPDATE ${table} SET ${sets.join(', ')} WHERE id = $${values.length} AND (school_id = $${values.length + 1} OR school_id IS NULL) RETURNING *`;
-          values.push(tenantId);
-        } else if (isTenantTable && tenantId) {
+        if ((table === 'gateway_accounts' || isTenantTable) && tenantId) {
           q = `UPDATE ${table} SET ${sets.join(', ')} WHERE id = $${values.length} AND school_id = $${values.length + 1} RETURNING *`;
           values.push(tenantId);
         } else {
@@ -2798,13 +2797,11 @@ export function createApiHandler() {
         return res.end(JSON.stringify(rows[0]));
       }
 
-      // ===== DELETE =====
-      if (req.method === 'DELETE' && entityId) {
-        if (isTenantTable && tenantId) {
-          await dbQuery(`DELETE FROM ${table} WHERE id = $1 AND school_id = $2`, [entityId, tenantId]);
-        } else if (table === 'gateway_accounts' && tenantId) {
-          await dbQuery(`DELETE FROM ${table} WHERE id = $1 AND (school_id = $2 OR school_id IS NULL)`, [entityId, tenantId]);
-        } else {
+        // ===== DELETE =====
+        if (req.method === 'DELETE' && entityId) {
+          if ((table === 'gateway_accounts' || isTenantTable) && tenantId) {
+            await dbQuery(`DELETE FROM ${table} WHERE id = $1 AND school_id = $2`, [entityId, tenantId]);
+          } else {
           await dbQuery(`DELETE FROM ${table} WHERE id = $1`, [entityId]);
         }
         return res.end(JSON.stringify({ success: true }));
