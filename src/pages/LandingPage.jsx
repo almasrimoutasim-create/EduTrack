@@ -203,12 +203,6 @@ export default function LandingPage() {
                 {isRTL ? "منصة EduTrack تغطي النتائج والشهادات السودانية، شؤون الطلاب، الرسوم، الحضور، والمزيد — بواجهة عربية احترافية وطباعة بجودة الوزارة." : "EduTrack covers results & Sudanese certificates, students, fees, attendance and more — with Arabic UI and ministry-grade print."}
               </p>
               <div className="mt-6 flex flex-wrap gap-3">
-                <Link to="/teacher-login" className="h-11 px-6 rounded-xl bg-indigo-600 text-white font-black text-sm hover:bg-indigo-700 inline-flex items-center gap-2 shadow-lg">
-                  <UserCheck size={16} />{isRTL ? "دخول المعلم" : "Teacher Login"}
-                </Link>
-                <Link to="/student-login" className="h-11 px-6 rounded-xl bg-emerald-600 text-white font-black text-sm hover:bg-emerald-700 inline-flex items-center gap-2 shadow-lg">
-                  <GraduationCap size={16} />{isRTL ? "دخول الطالب" : "Student Login"}
-                </Link>
                 <Link to="/register" className="h-11 px-6 rounded-xl bg-stone-900 text-white font-black text-sm hover:bg-black inline-flex items-center gap-2 shadow-lg">
                   <Sparkles size={16} />{isRTL ? "طلب نسخة تجريبية" : "Request Demo"}
                 </Link>
