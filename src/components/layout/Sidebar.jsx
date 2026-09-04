@@ -562,7 +562,18 @@ export default function Sidebar() {
           
           <button
             type="button"
-            onClick={() => logout()}
+            onClick={() => {
+              try {
+                ['portal_role', 'portal_user', 'portal_user_id', 'portal_user_name',
+                  'portal_is_auth', 'portal_jwt_token', 'portal_gateway_passed',
+                  'portal_school_slug', 'token', 'user'].forEach(k => {
+                  try { localStorage.removeItem(k); } catch { /* ignore */ }
+                });
+              } finally {
+                // Direct navigation to this school's gateway (no dependency on stored slug)
+                window.location.replace('/gateway/' + encodeURIComponent('مدارس-إيديو-تراك-العالمية'));
+              }
+            }}
             className="flex items-center gap-3 w-full px-4 py-3 text-sm font-bold text-rose-500 hover:bg-rose-50 rounded-2xl transition-all"
           >
             <LogOut className="h-5 w-5" />
