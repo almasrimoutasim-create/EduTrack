@@ -24,7 +24,7 @@ import { Card } from "@/components/ui/card";
 const btnOutline = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full text-sm font-semibold transition-all border-2 border-stone-200 bg-white/50 backdrop-blur-md text-stone-800 hover:bg-stone-100 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
 
 export default function RoleLogin() {
-  const { login } = useAuth();
+  const { login, gatewayLogin, appPublicSettings } = useAuth();
   const { language, setLanguage } = useLanguage();
   const isRTL = language === "ar";
 
@@ -120,6 +120,214 @@ export default function RoleLogin() {
       setLoading(false);
     }
   };
+
+  // ── Unified lock card (Phase 1): admin tab + members tab ──
+  const [activeTab, setActiveTab] = useState("admin"); // 'admin' | 'members'
+  const [lockPassed, setLockPassed] = useState(() => localStorage.getItem("portal_gateway_passed") === "true");
+  const [adminId, setAdminId] = useState("");
+  const [adminPass, setAdminPass] = useState("");
+  const [showAdminPass, setShowAdminPass] = useState(false);
+  const [adminLoading, setAdminLoading] = useState(false);
+  const [adminError, setAdminError] = useState("");
+  const [memberUser, setMemberUser] = useState("");
+  const [memberPass, setMemberPass] = useState("");
+  const [showMemberPass, setShowMemberPass] = useState(false);
+  const [memberLoading, setMemberLoading] = useState(false);
+  const [memberError, setMemberError] = useState("");
+
+  const brandName = schoolBrand?.name_ar || schoolBrand?.name
+    || appPublicSettings?.public_settings?.school_name_ar || "EduTrack";
+  const brandLogo = schoolBrand?.logo_url || appPublicSettings?.public_settings?.school_logo || null;
+  const brandBg = appPublicSettings?.public_settings?.school_background_image
+    || "https://images.unsplash.com/photo-1510519138101-570d1dcb3d8e?q=80&w=2000&auto=format&fit=crop";
+
+  const handleAdminLogin = async (e) => {
+    e.preventDefault();
+    setAdminError("");
+    if (!adminId.trim() || !adminPass) {
+      setAdminError(isRTL ? "أدخل اسم المستخدم وكلمة المرور" : "Enter username and password");
+      return;
+    }
+    setAdminLoading(true);
+    try {
+      await login("admin", adminId.trim(), adminPass);
+      window.location.href = "/admin-dashboard";
+    } catch (err) {
+      let message = err.message;
+      if (message?.includes("Failed to fetch")) {
+        message = isRTL ? "تعذر الاتصال بالخادم. تحقق من الشبكة." : "Connection failed. Check your network.";
+      } else if (message?.toLowerCase().includes("invalid password") || message?.toLowerCase().includes("credentials")) {
+        message = isRTL ? "بيانات الدخول غير صحيحة." : "Invalid credentials.";
+      } else if (message?.toLowerCase().includes("not found")) {
+        message = isRTL ? "الحساب غير مسجل أو غير نشط." : "Account not found or inactive.";
+      }
+      setAdminError(message);
+    } finally {
+      setAdminLoading(false);
+    }
+  };
+
+  const handleMemberLogin = async (e) => {
+    e.preventDefault();
+    setMemberError("");
+    if (!memberUser.trim() || !memberPass) {
+      setMemberError(isRTL ? "أدخل اسم المستخدم وكلمة المرور" : "Enter username and password");
+      return;
+    }
+    setMemberLoading(true);
+    try {
+      await gatewayLogin(memberUser.trim(), memberPass, schoolBrand?.id || null);
+      setLockPassed(true);
+    } catch (err) {
+      setMemberError(err.message || (isRTL ? "بيانات الدخول غير صحيحة." : "Invalid credentials."));
+    } finally {
+      setMemberLoading(false);
+    }
+  };
+
+  // Phase 1: glass lock card with tabs (admin | members)
+  if (!lockPassed) {
+    const isAdmin = activeTab === "admin";
+    return (
+      <div className="min-h-screen relative flex items-center justify-center p-4 overflow-hidden" dir={isRTL ? "rtl" : "ltr"}>
+        <div
+          className="absolute inset-0 z-0 bg-cover bg-center"
+          style={{ backgroundImage: `url('${brandBg}')`, filter: "blur(14px) brightness(0.55)", transform: "scale(1.1)" }}
+        />
+        <div className="absolute inset-0 z-0 bg-gradient-to-b from-black/30 via-black/50 to-black/70" />
+
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, type: "spring" }}
+          className="w-full max-w-sm relative z-10"
+        >
+          <div className="rounded-[28px] bg-white/95 backdrop-blur-2xl border border-white/40 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.5)] overflow-hidden">
+            {/* School brand */}
+            <div className="px-8 pt-8 pb-2 text-center flex flex-col items-center">
+              {brandLogo ? (
+                <img src={brandLogo} alt={brandName} className="h-14 w-auto mb-3 object-contain max-h-14 rounded-xl" onError={(e) => { e.currentTarget.style.display = "none"; }} />
+              ) : (
+                <div className="h-14 w-14 rounded-2xl bg-stone-900 text-white flex items-center justify-center mb-3 shadow-lg">
+                  <Lock size={26} className="text-emerald-400" />
+                </div>
+              )}
+              <h1 className="text-xl font-black text-stone-900 leading-tight">{brandName}</h1>
+              <p className="text-stone-400 text-[11px] font-medium mt-1">
+                {isAdmin
+                  ? (isRTL ? "لوحة الإدارة والتحكم" : "Admin Control Panel")
+                  : (isRTL ? "بوابة أعضاء المدرسة" : "School Members Gateway")}
+              </p>
+            </div>
+
+            {/* Tabs */}
+            <div className="px-8 pt-4">
+              <div className="grid grid-cols-2 gap-1.5 p-1.5 bg-stone-100 rounded-2xl">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("admin")}
+                  className={`h-10 rounded-xl text-xs font-black inline-flex items-center justify-center gap-1.5 transition-all ${isAdmin ? "bg-stone-900 text-white shadow-md" : "text-stone-500 hover:text-stone-800"}`}
+                >
+                  <Shield size={14} />{isRTL ? "مدير النظام" : "System Admin"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("members")}
+                  className={`h-10 rounded-xl text-xs font-black inline-flex items-center justify-center gap-1.5 transition-all ${!isAdmin ? "bg-emerald-600 text-white shadow-md" : "text-stone-500 hover:text-stone-800"}`}
+                >
+                  <Users size={14} />{isRTL ? "أعضاء المدرسة" : "School Members"}
+                </button>
+              </div>
+            </div>
+
+            {/* Unified form */}
+            <div className="px-8 py-6">
+              <AnimatePresence mode="wait">
+                <motion.form
+                  key={activeTab}
+                  initial={{ opacity: 0, x: isAdmin ? 12 : -12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: isAdmin ? -12 : 12 }}
+                  transition={{ duration: 0.2 }}
+                  onSubmit={isAdmin ? handleAdminLogin : handleMemberLogin}
+                  className="space-y-3.5"
+                >
+                  {(isAdmin ? adminError : memberError) && (
+                    <div className="flex items-start gap-2.5 p-3 rounded-xl bg-rose-50 border border-rose-100 text-rose-600">
+                      <AlertCircle className="shrink-0 mt-0.5" size={15} />
+                      <p className="text-[12px] font-bold leading-relaxed">{isAdmin ? adminError : memberError}</p>
+                    </div>
+                  )}
+
+                  <div className="space-y-1">
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-stone-400 px-1">
+                      {isRTL ? "اسم المستخدم" : "Username"}
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      autoFocus
+                      value={isAdmin ? adminId : memberUser}
+                      onChange={(e) => isAdmin ? setAdminId(e.target.value) : setMemberUser(e.target.value)}
+                      placeholder={isRTL ? "اسم المستخدم" : "Username"}
+                      className="w-full h-12 rounded-xl border border-stone-200 bg-stone-50/80 text-sm font-bold text-stone-900 px-4 placeholder-stone-400 focus:outline-none focus:border-stone-800 focus:bg-white transition-all text-start"
+                      dir="ltr"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-stone-400 px-1">
+                      {isRTL ? "كلمة المرور" : "Password"}
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={(isAdmin ? showAdminPass : showMemberPass) ? "text" : "password"}
+                        required
+                        value={isAdmin ? adminPass : memberPass}
+                        onChange={(e) => isAdmin ? setAdminPass(e.target.value) : setMemberPass(e.target.value)}
+                        placeholder="••••••••"
+                        className="w-full h-12 rounded-xl border border-stone-200 bg-stone-50/80 text-sm font-bold text-stone-900 px-4 placeholder-stone-400 focus:outline-none focus:border-stone-800 focus:bg-white transition-all text-start"
+                        style={{ paddingInlineEnd: "2.8rem" }}
+                        dir="ltr"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => isAdmin ? setShowAdminPass(!showAdminPass) : setShowMemberPass(!showMemberPass)}
+                        className="absolute inset-y-0 left-1 flex items-center justify-center text-stone-400 hover:text-stone-600 w-10 cursor-pointer transition-colors"
+                      >
+                        {(isAdmin ? showAdminPass : showMemberPass) ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isAdmin ? adminLoading : memberLoading}
+                    className={`w-full h-12 rounded-xl text-white font-black text-sm tracking-wide hover:scale-[1.01] active:scale-[0.99] disabled:opacity-70 transition-all cursor-pointer flex items-center justify-center gap-2 shadow-lg ${isAdmin ? "bg-stone-900 hover:bg-black shadow-stone-900/25" : "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/25"}`}
+                  >
+                    {(isAdmin ? adminLoading : memberLoading) ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <span>{isRTL ? "جاري التحقق..." : "Verifying..."}</span>
+                      </>
+                    ) : (
+                      <span>{isAdmin ? (isRTL ? "دخول مدير النظام" : "System Admin Login") : (isRTL ? "دخول أعضاء المدرسة" : "School Members Login")}</span>
+                    )}
+                  </button>
+
+                  {!isAdmin && (
+                    <p className="text-[11px] text-center text-stone-400 leading-relaxed">
+                      {isRTL ? "للمعلمين والطلاب والموظفين — أدخل بيانات المدرسة المشتركة للانتقال لاختيار البوابة" : "For teachers, students and staff — enter the shared school credential to reach the portals"}
+                    </p>
+                  )}
+                </motion.form>
+              </AnimatePresence>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-stone-50 flex flex-col items-center justify-center p-4 md:p-8 relative overflow-hidden" dir={isRTL ? "rtl" : "ltr"}>
