@@ -686,7 +686,13 @@ if (process.env.DATABASE_URL) {
       }
       if (defaultSchoolId) {
         for (const tbl of TENANT_TABLES) {
-          await sql.query(`UPDATE ${tbl} SET school_id = $1 WHERE school_id IS NULL`, [defaultSchoolId]).catch(()=>{});
+          // Independent teachers/students must NEVER be absorbed into a school (they live with school_id NULL)
+          if (tbl === 'students' || tbl === 'teachers') {
+            const typeCol = tbl === 'students' ? 'student_type' : 'teacher_type';
+            await sql.query(`UPDATE ${tbl} SET school_id = $1 WHERE school_id IS NULL AND (${typeCol} IS NULL OR ${typeCol} <> 'independent')`, [defaultSchoolId]).catch(()=>{});
+          } else {
+            await sql.query(`UPDATE ${tbl} SET school_id = $1 WHERE school_id IS NULL`, [defaultSchoolId]).catch(()=>{});
+          }
         }
         await sql.query(`UPDATE system_admins SET school_id = $1 WHERE school_id IS NULL`, [defaultSchoolId]).catch(()=>{});
         console.log('[neon] backfilled school_id for existing rows to', defaultSchoolId);
@@ -694,6 +700,36 @@ if (process.env.DATABASE_URL) {
     } catch (e) { console.error('[neon] tenant backfill error:', e.message); }
   })();
   // RLS سيُفعّل في مرحلة ثانية بعد تثبيت حقن school_id على مستوى التطبيق — حالياً نعتمد على فلترة التطبيق
+
+  // ── Independent vs school separation: discriminator + repair (idempotent, runs every boot) ──
+  // Independent = approved founder request (landing self-registration). They must keep school_id NULL.
+  (async () => {
+    try {
+      await sql.query(`ALTER TABLE students ADD COLUMN IF NOT EXISTS student_type TEXT DEFAULT 'school'`).catch(()=>{});
+      await sql.query(`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS teacher_type TEXT DEFAULT 'school'`).catch(()=>{});
+      // Repair wrongly-absorbed independents (matched via their approved registration request)
+      await sql.query(`
+        UPDATE students SET school_id = NULL, student_type = 'independent'
+        WHERE EXISTS (
+          SELECT 1 FROM registration_requests r
+          WHERE r.status = 'approved'
+            AND LOWER(r.username_generated) = LOWER(students.user_email)
+            AND (r.role_requested = 'student' OR r.plan = 'student_free')
+        )`).catch(()=>{});
+      await sql.query(`
+        UPDATE teachers SET school_id = NULL, teacher_type = 'independent'
+        WHERE EXISTS (
+          SELECT 1 FROM registration_requests r
+          WHERE r.status = 'approved'
+            AND LOWER(r.username_generated) = LOWER(teachers.email)
+            AND (r.role_requested = 'teacher' OR r.plan = 'teacher_free')
+        )`).catch(()=>{});
+      // Everyone else is explicitly school
+      await sql.query(`UPDATE students SET student_type = 'school' WHERE student_type IS NULL OR student_type NOT IN ('school','independent')`).catch(()=>{});
+      await sql.query(`UPDATE teachers SET teacher_type = 'school' WHERE teacher_type IS NULL OR teacher_type NOT IN ('school','independent')`).catch(()=>{});
+      console.log('[neon] independent/school separation verified');
+    } catch (e) { console.error('[neon] separation repair error:', e.message); }
+  })();
 
   // ── Payments / Subscriptions tables ──
   sql`
@@ -1564,13 +1600,14 @@ export function createApiHandler() {
         const hashedPassword = hashPassword(password);
         const studentId = `STU-${Date.now().toString().slice(-6)}`;
 
+        // Founder approval is ALWAYS the independent flow: force school detachment + independent type
         // Check if student already exists with this user_email
         const existing = await dbQuery('SELECT id FROM students WHERE user_email = $1', [username.trim().toLowerCase()]);
         if (existing.length > 0) {
           await dbQuery(
             `UPDATE students
-             SET full_name = $1, phone = $2, grade = $3, parent_name = $4, parent_phone = $5, parent_email = $6, school_name = $7, city = $8, portal_password = $9, portal_password_plain = $12, status = 'active', school_id = COALESCE($11, school_id)
-             WHERE user_email = $10`,
+             SET full_name = $1, phone = $2, grade = $3, parent_name = $4, parent_phone = $5, parent_email = $6, school_name = $7, city = $8, portal_password = $9, portal_password_plain = $10, student_type = 'independent', status = 'active', school_id = NULL
+             WHERE user_email = $11`,
             [
               reg.full_name || 'طالب',
               reg.phone || null,
@@ -1581,15 +1618,14 @@ export function createApiHandler() {
               reg.school_name || null,
               reg.country || null,
               hashedPassword,
-              username.trim().toLowerCase(),
-              school_id || null,
-              password
+              password,
+              username.trim().toLowerCase()
             ]
           );
         } else {
           await dbQuery(
-            `INSERT INTO students (full_name, user_email, student_id, phone, grade, parent_name, parent_phone, parent_email, school_name, city, status, portal_password, portal_password_plain, school_id)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'active', $11, $12, $13)`,
+            `INSERT INTO students (full_name, user_email, student_id, phone, grade, parent_name, parent_phone, parent_email, school_name, city, status, portal_password, portal_password_plain, student_type, school_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'active', $11, $12, 'independent', NULL)`,
             [
               reg.full_name || 'طالب جديد',
               username.trim().toLowerCase(),
@@ -1602,8 +1638,7 @@ export function createApiHandler() {
               reg.school_name || null,
               reg.country || null,
               hashedPassword,
-              password,
-              school_id || null
+              password
             ]
           );
         }
@@ -1649,12 +1684,13 @@ export function createApiHandler() {
         const hashedPassword = hashPassword(password);
         const empId = `TCH-${Date.now().toString().slice(-6)}`;
 
+        // Founder approval is ALWAYS the independent flow: force school detachment + independent type
         const existing = await dbQuery('SELECT id FROM teachers WHERE email = $1', [username.trim().toLowerCase()]);
         if (existing.length > 0) {
           await dbQuery(
             `UPDATE teachers
-             SET full_name = $1, phone = $2, subjects = $3, experience_years = $4, bio = $5, portal_password = $6, portal_password_plain = $9, status = 'active', school_id = COALESCE($8, school_id)
-             WHERE email = $7`,
+             SET full_name = $1, phone = $2, subjects = $3, experience_years = $4, bio = $5, portal_password = $6, portal_password_plain = $7, teacher_type = 'independent', status = 'active', school_id = NULL
+             WHERE email = $8`,
             [
               reg.full_name || 'معلم',
               reg.phone || null,
@@ -1662,15 +1698,14 @@ export function createApiHandler() {
               parseInt(reg.experience_years) || null,
               reg.bio || null,
               hashedPassword,
-              username.trim().toLowerCase(),
-              school_id || null,
-              password
+              password,
+              username.trim().toLowerCase()
             ]
           );
         } else {
           await dbQuery(
-            `INSERT INTO teachers (full_name, email, employee_id, phone, subjects, experience_years, bio, status, portal_password, portal_password_plain, school_id)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, 'active', $8, $9, $10)`,
+            `INSERT INTO teachers (full_name, email, employee_id, phone, subjects, experience_years, bio, status, portal_password, portal_password_plain, teacher_type, school_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, 'active', $8, $9, 'independent', NULL)`,
             [
               reg.full_name || 'معلم جديد',
               username.trim().toLowerCase(),
@@ -1680,8 +1715,7 @@ export function createApiHandler() {
               parseInt(reg.experience_years) || null,
               reg.bio || null,
               hashedPassword,
-              password,
-              school_id || null
+              password
             ]
           );
         }

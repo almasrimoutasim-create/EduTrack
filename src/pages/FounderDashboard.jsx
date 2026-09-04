@@ -52,6 +52,9 @@ const FounderDashboard = () => {
   const [studentSearch, setStudentSearch] = useState("");
   const [studentStatusFilter, setStudentStatusFilter] = useState("all");
   const [teacherSubFilter, setTeacherSubFilter] = useState("all"); // all, pending, trial_active, active, rejected
+  // Independent vs school separation (TDZ safety: declared before pre-computed filters below)
+  const [teacherTypeFilter, setTeacherTypeFilter] = useState("school"); // school | independent
+  const [studentTypeFilter, setStudentTypeFilter] = useState("school"); // school | independent
   const [viewRequestDetail, setViewRequestDetail] = useState(null);
   const queryClient = useQueryClient();
 
@@ -408,14 +411,16 @@ const FounderDashboard = () => {
   const filteredTeachers = allTeachers.filter(t => {
     const matchSearch = !teacherSearch || t.full_name?.toLowerCase().includes(teacherSearch.toLowerCase()) || t.email?.toLowerCase().includes(teacherSearch.toLowerCase()) || t.employee_id?.toLowerCase().includes(teacherSearch.toLowerCase());
     const matchStatus = teacherStatusFilter === "all" || t.status === teacherStatusFilter;
-    return matchSearch && matchStatus;
+    const matchType = (t.teacher_type || "school") === teacherTypeFilter;
+    return matchSearch && matchStatus && matchType;
   });
   const activeTeachers = allTeachers.filter(t => t.status === "active").length;
 
   const filteredStudents = allStudents.filter(s => {
     const matchSearch = !studentSearch || s.full_name?.toLowerCase().includes(studentSearch.toLowerCase()) || s.user_email?.toLowerCase().includes(studentSearch.toLowerCase()) || s.student_id?.toLowerCase().includes(studentSearch.toLowerCase()) || s.phone?.includes(studentSearch);
     const matchStatus = studentStatusFilter === "all" || s.status === studentStatusFilter;
-    return matchSearch && matchStatus;
+    const matchType = (s.student_type || "school") === studentTypeFilter;
+    return matchSearch && matchStatus && matchType;
   });
   const activeStudents = allStudents.filter(s => s.status === "active").length;
 
@@ -1522,8 +1527,12 @@ const FounderDashboard = () => {
         {section === "teachers" && (
           <div className="space-y-4">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-              <div className="flex items-center gap-3">
-                <p className="text-sm text-slate-500">إجمالي {allTeachers.length} معلم — <span className="font-bold text-emerald-600">{activeTeachers} نشط</span></p>
+              <div className="flex items-center gap-3 flex-wrap">
+                <p className="text-sm text-slate-500">إجمالي {filteredTeachers.length} معلم — <span className="font-bold text-emerald-600">{filteredTeachers.filter(t=>t.status==="active").length} نشط</span></p>
+                <div className="flex items-center gap-1 bg-slate-100 rounded-xl p-1">
+                  <button onClick={()=>setTeacherTypeFilter("school")} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${teacherTypeFilter==="school" ? "bg-slate-900 text-white shadow" : "text-slate-600 hover:bg-slate-200"}`}>معلمو المدارس</button>
+                  <button onClick={()=>setTeacherTypeFilter("independent")} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${teacherTypeFilter==="independent" ? "bg-indigo-600 text-white shadow" : "text-slate-600 hover:bg-slate-200"}`}>معلمون مستقلون</button>
+                </div>
                 <select value={teacherStatusFilter} onChange={(e)=>setTeacherStatusFilter(e.target.value)} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold">
                   <option value="all">الكل</option>
                   <option value="active">نشط</option>
@@ -1669,8 +1678,12 @@ const FounderDashboard = () => {
         {section === "students" && (
           <div className="space-y-4">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-              <div className="flex items-center gap-3">
-                <p className="text-sm text-slate-500">إجمالي {allStudents.length} طالب — <span className="font-bold text-emerald-600">{activeStudents} نشط</span></p>
+              <div className="flex items-center gap-3 flex-wrap">
+                <p className="text-sm text-slate-500">إجمالي {filteredStudents.length} طالب — <span className="font-bold text-emerald-600">{filteredStudents.filter(s=>s.status==="active").length} نشط</span></p>
+                <div className="flex items-center gap-1 bg-slate-100 rounded-xl p-1">
+                  <button onClick={()=>setStudentTypeFilter("school")} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${studentTypeFilter==="school" ? "bg-slate-900 text-white shadow" : "text-slate-600 hover:bg-slate-200"}`}>طلاب المدارس</button>
+                  <button onClick={()=>setStudentTypeFilter("independent")} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${studentTypeFilter==="independent" ? "bg-emerald-600 text-white shadow" : "text-slate-600 hover:bg-slate-200"}`}>طلاب مستقلون</button>
+                </div>
                 <select value={studentStatusFilter} onChange={(e)=>setStudentStatusFilter(e.target.value)} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold">
                   <option value="all">الكل</option>
                   <option value="active">نشط</option>
