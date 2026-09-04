@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import {
@@ -35,6 +35,20 @@ export default function RoleLogin() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+
+  // School branding (Option A: members arriving via /gateway/:slug see their school)
+  const [schoolBrand, setSchoolBrand] = useState(null);
+  useEffect(() => {
+    const slug = (localStorage.getItem("portal_school_slug") || "").trim();
+    if (!slug) return;
+    let alive = true;
+    const apiBase = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/$/, "");
+    fetch(`${apiBase}/neon-db/public-school/${encodeURIComponent(slug)}`)
+      .then(r => r.json().catch(() => ({})))
+      .then(d => { if (alive && d?.school) setSchoolBrand(d.school); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
 
   const roles = [
     { id: "admin", icon: Settings, label: { ar: "مدير النظام", en: "System Admin" }, color: "bg-stone-900 text-white", desc: { ar: "لوحة التحكم الرئيسية والإعدادات العامة.", en: "Main dashboard and system settings." }, path: "/admin-dashboard" },
@@ -151,6 +165,19 @@ export default function RoleLogin() {
           >
             {isRTL ? "نظام إدارة التعليم الذكي. اختر بوابتك للمتابعة." : "Smart Education Management System. Choose your portal to continue."}
           </motion.p>
+          {schoolBrand && (
+            <motion.div
+              initial={{ y: 10, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.2 }}
+              className="inline-flex items-center gap-2 bg-emerald-50 border border-emerald-100 text-emerald-800 rounded-full px-4 py-1.5 text-xs font-black"
+            >
+              {schoolBrand.logo_url ? (
+                <img src={schoolBrand.logo_url} alt="" className="h-5 w-5 rounded-full object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} />
+              ) : null}
+              {isRTL ? `بوابة ${schoolBrand.name_ar || schoolBrand.name || ""}` : `${schoolBrand.name_en || schoolBrand.name || ""} Portal`}
+            </motion.div>
+          )}
         </header>
 
         <motion.div

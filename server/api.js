@@ -392,6 +392,9 @@ if (process.env.DATABASE_URL) {
     )
   `.then(async () => {
     console.log('[neon] gateway_accounts table verified/created');
+    // Migration: scope lock accounts per school (Option A: one shared credential per school)
+    await sql`ALTER TABLE gateway_accounts ADD COLUMN IF NOT EXISTS school_id UUID;`.catch(() => {});
+    await sql`CREATE INDEX IF NOT EXISTS idx_gateway_accounts_school ON gateway_accounts(school_id);`.catch(() => {});
     // Seed default account if empty
     const rows = await sql`SELECT COUNT(*) FROM gateway_accounts`;
     if (rows[0].count === '0') {
@@ -1195,30 +1198,40 @@ export function createApiHandler() {
       }
     }
 
-    // Intercept Gateway login endpoint (legacy / fallback)
+    // Gateway lock login (Option A: shared school credential; global NULL-school accounts work as fallback)
     if (req.url === '/neon-db/auth/gateway' && req.method === 'POST') {
       res.setHeader('Content-Type', 'application/json');
       try {
         const body = await parseBody(req);
-        const { username, password } = body;
+        const { username, password, schoolId } = body;
         if (!username || !password) {
           res.statusCode = 400;
           return res.end(JSON.stringify({ error: 'Username and password are required' }));
         }
 
-        const rows = await dbQuery('SELECT * FROM gateway_accounts WHERE username = $1', [username]);
+        let rows;
+        if (schoolId) {
+          rows = await dbQuery(
+            'SELECT * FROM gateway_accounts WHERE username = $1 AND (school_id = $2 OR school_id IS NULL)',
+            [username, schoolId]
+          );
+        } else {
+          rows = await dbQuery('SELECT * FROM gateway_accounts WHERE username = $1 AND school_id IS NULL', [username]);
+        }
         if (rows.length === 0) {
           res.statusCode = 401;
           return res.end(JSON.stringify({ error: 'Invalid credentials' }));
         }
-        
+
         const account = rows[0];
-        if (!bcrypt.compareSync(password, account.password)) {
+        let ok = false;
+        try { ok = bcrypt.compareSync(password, account.password || ''); } catch { ok = false; }
+        if (!ok) {
           res.statusCode = 401;
           return res.end(JSON.stringify({ error: 'Invalid credentials' }));
         }
 
-        return res.end(JSON.stringify({ success: true }));
+        return res.end(JSON.stringify({ success: true, school_id: account.school_id || null }));
       } catch (error) {
         res.statusCode = 500;
         return res.end(JSON.stringify({ error: error.message }));
@@ -2173,6 +2186,12 @@ export function createApiHandler() {
           values.push(tenantId);
           paramIdx++;
         }
+        // Gateway lock accounts: each school admin sees only their school's accounts (+ global seed)
+        if (table === 'gateway_accounts' && tenantId) {
+          conditions.push(`(school_id = $${paramIdx} OR school_id IS NULL)`);
+          values.push(tenantId);
+          paramIdx++;
+        }
 
         const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
         const limitParam = paramIdx;
@@ -2212,6 +2231,10 @@ export function createApiHandler() {
         // Multi-tenant: حقن school_id تلقائياً (الأولوية لـ req.user school_id)
         const tenantIdFromUser = req.user?.school_id;
         if (isTenantTable && tenantIdFromUser && !body.school_id) {
+          body.school_id = tenantIdFromUser;
+        }
+        // Gateway lock accounts: scope to the admin's school automatically (Option A shared credential)
+        if (table === 'gateway_accounts' && tenantIdFromUser && !body.school_id) {
           body.school_id = tenantIdFromUser;
         }
         
@@ -2369,8 +2392,11 @@ export function createApiHandler() {
         const values = keys.map(k => body[k]);
         values.push(entityId);
         let q = `UPDATE ${table} SET ${sets.join(', ')} WHERE id = $${values.length} RETURNING *`;
-        // Multi-tenant: منع تعديل سجل لمستأجر آخر
-        if (isTenantTable && tenantId) {
+        // Multi-tenant: منع تعديل سجل لمستأجر آخر (يشمل حسابات القفل المحدودة بالمدرسة)
+        if (table === 'gateway_accounts' && tenantId && !body.school_id) {
+          q = `UPDATE ${table} SET ${sets.join(', ')} WHERE id = $${values.length} AND (school_id = $${values.length + 1} OR school_id IS NULL) RETURNING *`;
+          values.push(tenantId);
+        } else if (isTenantTable && tenantId) {
           q = `UPDATE ${table} SET ${sets.join(', ')} WHERE id = $${values.length} AND school_id = $${values.length + 1} RETURNING *`;
           values.push(tenantId);
         } else {
@@ -2391,6 +2417,8 @@ export function createApiHandler() {
       if (req.method === 'DELETE' && entityId) {
         if (isTenantTable && tenantId) {
           await dbQuery(`DELETE FROM ${table} WHERE id = $1 AND school_id = $2`, [entityId, tenantId]);
+        } else if (table === 'gateway_accounts' && tenantId) {
+          await dbQuery(`DELETE FROM ${table} WHERE id = $1 AND (school_id = $2 OR school_id IS NULL)`, [entityId, tenantId]);
         } else {
           await dbQuery(`DELETE FROM ${table} WHERE id = $1`, [entityId]);
         }

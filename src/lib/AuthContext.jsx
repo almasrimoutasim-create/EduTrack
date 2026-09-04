@@ -195,7 +195,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const gatewayLogin = async (username, password) => {
+  const gatewayLogin = async (username, password, schoolId = null) => {
     setAuthError(null);
     try {
       const apiBase = import.meta.env.VITE_BACKEND_URL || '';
@@ -206,7 +206,7 @@ export const AuthProvider = ({ children }) => {
       const response = await fetch(loginUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
+        body: JSON.stringify({ username, password, schoolId: schoolId || undefined })
       });
 
       let data;

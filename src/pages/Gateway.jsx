@@ -25,6 +25,41 @@ export default function Gateway() {
   const [submitting, setSubmitting] = useState(false);
   const [loginError, setLoginError] = useState("");
 
+  // Member lock (Option A: shared school credential for teachers/students/staff)
+  const [memberUser, setMemberUser] = useState("");
+  const [memberPass, setMemberPass] = useState("");
+  const [memberSubmitting, setMemberSubmitting] = useState(false);
+  const [memberError, setMemberError] = useState("");
+
+  const handleMemberLogin = async (e) => {
+    e.preventDefault();
+    setMemberError("");
+    if (!schoolData?.id) {
+      setMemberError(isRTL ? "تعذر تحديد المدرسة. أعد تحميل الصفحة." : "Could not identify the school. Reload the page.");
+      return;
+    }
+    setMemberSubmitting(true);
+    try {
+      const apiBase = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/$/, "");
+      const response = await fetch(`${apiBase}/neon-db/auth/gateway`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: memberUser.trim(), password: memberPass, schoolId: schoolData.id }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error || (isRTL ? "بيانات الدخول غير صحيحة" : "Invalid credentials"));
+      }
+      localStorage.setItem("portal_gateway_passed", "true");
+      if (schoolSlug) localStorage.setItem("portal_school_slug", schoolSlug);
+      navigate("/login");
+    } catch (err) {
+      setMemberError(err.message || (isRTL ? "فشل الدخول. تحقق من البيانات." : "Login failed."));
+    } finally {
+      setMemberSubmitting(false);
+    }
+  };
+
   const [searchSlugInput, setSearchSlugInput] = useState("");
 
   const FALLBACK_BG = "https://images.unsplash.com/photo-1510519138101-570d1dcb3d8e?q=80&w=2000&auto=format&fit=crop";
@@ -397,6 +432,61 @@ export default function Gateway() {
                   {isRTL ? "EduTrack" : "EduTrack"}
                 </Link>
               </div>
+            </form>
+          </div>
+        </Card>
+
+        {/* Member lock card (Option A: shared school credential → RoleLogin) */}
+        <Card className="mt-4 rounded-3xl bg-white/95 backdrop-blur-xl border-0 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.5)] overflow-hidden">
+          <div className="px-8 py-6">
+            <div className="text-center mb-4">
+              <div className="h-11 w-11 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto mb-2">
+                <Lock size={20} />
+              </div>
+              <h2 className="text-base font-extrabold text-stone-900">
+                {isRTL ? "دخول أعضاء المدرسة" : "School Members Entry"}
+              </h2>
+              <p className="text-stone-400 text-[11px] font-medium mt-1">
+                {isRTL ? "للمعلمين والطلاب والموظفين — أدخل بيانات المدرسة المشتركة للانتقال لاختيار البوابة" : "For teachers, students and staff — enter the shared school credential to reach the portals"}
+              </p>
+            </div>
+            <form onSubmit={handleMemberLogin} className="space-y-3">
+              {memberError && (
+                <div className="flex items-start gap-2.5 p-3 rounded-xl bg-rose-50 border border-rose-100 text-rose-600">
+                  <AlertCircle className="shrink-0 mt-0.5" size={15} />
+                  <p className="text-[12px] font-bold leading-relaxed">{memberError}</p>
+                </div>
+              )}
+              <input
+                type="text"
+                required
+                value={memberUser}
+                onChange={(e) => setMemberUser(e.target.value)}
+                placeholder={isRTL ? "اسم مستخدم المدرسة" : "School username"}
+                className="w-full h-11 rounded-xl border border-stone-200 bg-stone-50/80 text-[13px] font-semibold text-stone-900 px-3.5 placeholder-stone-400 focus:outline-none focus:border-emerald-600 focus:bg-white transition-all text-start"
+              />
+              <input
+                type="password"
+                required
+                value={memberPass}
+                onChange={(e) => setMemberPass(e.target.value)}
+                placeholder={isRTL ? "كلمة مرور المدرسة" : "School password"}
+                className="w-full h-11 rounded-xl border border-stone-200 bg-stone-50/80 text-[13px] font-semibold text-stone-900 px-3.5 placeholder-stone-400 focus:outline-none focus:border-emerald-600 focus:bg-white transition-all text-start"
+              />
+              <button
+                type="submit"
+                disabled={memberSubmitting}
+                className="w-full h-11 rounded-xl bg-emerald-600 text-white font-extrabold text-[13px] tracking-wide hover:bg-emerald-700 active:scale-[0.99] disabled:opacity-70 transition-all cursor-pointer flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/25"
+              >
+                {memberSubmitting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>{isRTL ? "جاري التحقق..." : "Verifying..."}</span>
+                  </>
+                ) : (
+                  <span>{isRTL ? "دخول الأعضاء" : "Members Entry"}</span>
+                )}
+              </button>
             </form>
           </div>
         </Card>
