@@ -247,12 +247,13 @@ export const AuthProvider = ({ children }) => {
     if (shouldRedirect) {
       const slug = localStorage.getItem('portal_school_slug');
       localStorage.removeItem('portal_school_slug');
-      window.location.href = slug ? `/gateway/${slug}` : '/gateway';
+      // With a known school → its gateway login card; otherwise → the login hub (never the bare slug-search page)
+      window.location.href = slug ? `/gateway/${slug}` : '/login';
     }
   };
 
   const navigateToLogin = () => {
-    window.location.href = '/gateway';
+    window.location.href = '/login';
   };
 
   return (
