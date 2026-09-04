@@ -228,6 +228,11 @@ if (process.env.DATABASE_URL) {
         ['nav_contact', 'تواصل معنا', 'Contact', 'text'],
         ['nav_whatsapp', 'استفسار واتساب', 'WhatsApp', 'text'],
         ['nav_cta', 'طلب نسخة تجريبية', 'Request Demo', 'text'],
+        ['pricing_monthly_price', '49,000', '49,000', 'text'],
+        ['pricing_yearly_price', '350,000', '350,000', 'text'],
+        ['pricing_currency', 'ج.س', 'EGP', 'text'],
+        ['pricing_trial_badge', 'شهر مجاني', '1 MONTH FREE', 'text'],
+        ['pricing_discount_badge', '41% OFF', '41% OFF', 'text'],
       ];
       for (const [key, ar, en, type] of seeds) {
         await sql`INSERT INTO landing_content (content_key, value_ar, value_en, content_type) VALUES (${key}, ${ar}, ${en}, ${type}) ON CONFLICT (content_key) DO NOTHING`.catch(()=>{});

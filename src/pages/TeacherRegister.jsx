@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useLanguage } from "@/lib/LanguageContext";
 import { entities } from "@/api/dbClient";
 import { Card } from "@/components/ui/card";
@@ -41,6 +41,35 @@ export default function TeacherRegister() {
   });
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [pricing, setPricing] = useState({ monthly: "49,000", yearly: "350,000", currency: "ج.س", trialDays: 30, discount: 41 });
+
+  useEffect(() => {
+    const fetchPricing = async () => {
+      try {
+        const res = await fetch("/api/landing-content");
+        if (!res.ok) return;
+        const data = await res.json();
+        const items = Array.isArray(data) ? data : [];
+        const get = (key) => {
+          const item = items.find(i => i.content_key === key);
+          return item?.value_ar || item?.value_en || null;
+        };
+        const monthly = get("pricing_monthly_price");
+        const yearly = get("pricing_yearly_price");
+        const currency = get("pricing_currency");
+        const trialDays = get("pricing_trial_badge");
+        const discount = get("pricing_discount_badge");
+        setPricing({
+          monthly: monthly || "49,000",
+          yearly: yearly || "350,000",
+          currency: currency || "ج.س",
+          trialDays: trialDays || "30 يوم",
+          discount: discount || "41%",
+        });
+      } catch {}
+    };
+    fetchPricing();
+  }, []);
 
   const update = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
 
@@ -195,12 +224,12 @@ export default function TeacherRegister() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {[
                   { id: "free", label: isRTL ? "تجريبي مجاني" : "Free Trial", price: isRTL ? "مجاني لمدة شهر" : "Free for 1 month", desc: isRTL ? "شهر مجاني — بعد الموافقة يُفعّل حسابك" : "Free month — account activated after approval", color: "stone", icon: Gift },
-                  { id: "monthly", label: isRTL ? "شهري" : "Monthly", price: "49,000 ج.س/شهر", desc: isRTL ? "اشتراك شهري — إدارة كاملة" : "Monthly subscription — full management", color: "indigo", icon: Calendar },
-                  { id: "yearly", label: isRTL ? "سنوي" : "Yearly", price: "350,000 ج.س/سنة", desc: isRTL ? "خصم 41% — أفضل قيمة" : "41% discount — best value", color: "emerald", icon: Clock },
+                  { id: "monthly", label: isRTL ? "شهري" : "Monthly", price: `${pricing.monthly} ${pricing.currency}/شهر`, desc: isRTL ? "اشتراك شهري — إدارة كاملة" : "Monthly subscription — full management", color: "indigo", icon: Calendar },
+                  { id: "yearly", label: isRTL ? "سنوي" : "Yearly", price: `${pricing.yearly} ${pricing.currency}/سنة`, desc: isRTL ? `خصم ${pricing.discount} — أفضل قيمة` : `${pricing.discount} discount — best value`, color: "emerald", icon: Clock },
                 ].map(plan => (
                   <button key={plan.id} type="button" onClick={() => update("subscription_plan", plan.id)}
                     className={`relative p-3 rounded-xl border-2 text-right transition-all ${form.subscription_plan === plan.id ? `border-${plan.color}-500 bg-${plan.color}-50` : "border-stone-200 bg-white hover:border-stone-300"}`}>
-                    {plan.id === "yearly" && <span className="absolute -top-2 -left-2 bg-emerald-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full">{isRTL ? "خصم 41%" : "41% OFF"}</span>}
+                    {plan.id === "yearly" && <span className="absolute -top-2 -left-2 bg-emerald-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full">{isRTL ? `خصم ${pricing.discount}` : `${pricing.discount} OFF`}</span>}
                     {plan.id === "free" && <span className="absolute -top-2 -left-2 bg-amber-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full">{isRTL ? "شهر مجاني" : "1 MONTH FREE"}</span>}
                     <div className="flex items-center gap-2 mb-1">
                       <plan.icon size={14} className={`text-${plan.color}-600`} />

@@ -1977,17 +1977,27 @@ const FounderDashboard = () => {
 
             {/* Default plans quick view */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-6 text-white shadow-lg">
-                <div className="flex items-center gap-2 mb-3"><Calendar size={20} /><h4 className="font-bold text-lg">الخطة الشهرية</h4></div>
-                <p className="text-3xl font-extrabold mb-2">49,000 <span className="text-sm font-normal opacity-80">EGP/شهر</span></p>
-                <p className="text-xs opacity-90">اشتراك شهري لمعلم واحد مع 30 يوم تجربة مجانية</p>
-              </div>
-              <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl p-6 text-white shadow-lg relative">
-                <span className="absolute top-4 left-4 bg-white/20 text-white text-[10px] px-2 py-0.5 rounded-full">خصم 41%</span>
-                <div className="flex items-center gap-2 mb-3"><Crown size={20} /><h4 className="font-bold text-lg">الخطة السنوية</h4></div>
-                <p className="text-3xl font-extrabold mb-2">350,000 <span className="text-sm font-normal opacity-80">EGP/سنة</span></p>
-                <p className="text-xs opacity-90">اشتراك سنوي مع 30 يوم تجربة مجانية وخصم كبير</p>
-              </div>
+              {(() => {
+                const activeTeacherPlan = subscriptionPricing.find(p => p.plan_type === 'teacher' && p.is_active);
+                const monthlyPrice = activeTeacherPlan?.price_monthly ? Number(activeTeacherPlan.price_monthly).toLocaleString('ar-EG') : "49,000";
+                const yearlyPrice = activeTeacherPlan?.price_yearly ? Number(activeTeacherPlan.price_yearly).toLocaleString('ar-EG') : "350,000";
+                const currency = activeTeacherPlan?.currency || "EGP";
+                const trialDays = activeTeacherPlan?.trial_days || 30;
+                const yearlyDiscount = yearlyPrice !== "350,000" && monthlyPrice !== "49,000" ? Math.round((1 - (Number(yearlyPrice.replace(/,/g, '')) / (Number(monthlyPrice.replace(/,/g, '')) * 12))) * 100) : 41;
+                return (<>
+                  <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-6 text-white shadow-lg">
+                    <div className="flex items-center gap-2 mb-3"><Calendar size={20} /><h4 className="font-bold text-lg">الخطة الشهرية</h4></div>
+                    <p className="text-3xl font-extrabold mb-2">{monthlyPrice} <span className="text-sm font-normal opacity-80">{currency}/شهر</span></p>
+                    <p className="text-xs opacity-90">اشتراك شهري لمعلم واحد مع {trialDays} يوم تجربة مجانية</p>
+                  </div>
+                  <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl p-6 text-white shadow-lg relative">
+                    <span className="absolute top-4 left-4 bg-white/20 text-white text-[10px] px-2 py-0.5 rounded-full">خصم {yearlyDiscount}%</span>
+                    <div className="flex items-center gap-2 mb-3"><Crown size={20} /><h4 className="font-bold text-lg">الخطة السنوية</h4></div>
+                    <p className="text-3xl font-extrabold mb-2">{yearlyPrice} <span className="text-sm font-normal opacity-80">{currency}/سنة</span></p>
+                    <p className="text-xs opacity-90">اشتراك سنوي مع {trialDays} يوم تجربة مجانية وخصم كبير</p>
+                  </div>
+                </>);
+              })()}
             </div>
           </div>
         )}
