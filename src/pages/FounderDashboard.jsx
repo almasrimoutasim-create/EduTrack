@@ -38,8 +38,6 @@ const NAV = [
   { id: "teachers", label: "إدارة المعلمين", icon: GraduationCap },
   { id: "students", label: "إدارة الطلاب", icon: Users },
   { id: "subscriptions", label: "الاشتراكات والإيرادات", icon: CreditCard },
-  { id: "teacher-pricing", label: "أسعار المعلمين", icon: Crown },
-  { id: "teacher-sub-requests", label: "طلبات اشتراكات المعلمين", icon: Timer },
   { id: "support", label: "الدعم الفني", icon: LifeBuoy },
   { id: "landing", label: "محتوى الصفحة الرئيسية", icon: Settings },
   { id: "settings", label: "إعدادات المنصة", icon: Settings },
@@ -370,6 +368,8 @@ const FounderDashboard = () => {
     { id: "professional", name: "Professional", price: Number(settings.plan_professional_price) || 99, color: "from-blue-500 to-blue-600", desc: "المدرسة المتوسطة مع كل الميزات", popular: true },
     { id: "enterprise", name: "Enterprise", price: Number(settings.plan_enterprise_price) || 199, color: "from-violet-500 to-violet-600", desc: "شبكة مدارس وميزات غير محدودة" },
   ];
+  // العملة المعروضة في صفحة الاشتراكات (تُغيَّر من محرر الأسعار أدناه أو من الإعدادات)
+  const CUR = settings.default_currency || "$";
 
   // ── Derived stats ──
   const activeSchools = schools.filter((s) => s.subscription_status === "active").length;
@@ -1866,6 +1866,26 @@ const FounderDashboard = () => {
         {/* ───── 6️⃣ الاشتراكات والإيرادات ───── */}
         {section === "subscriptions" && (
           <div className="space-y-6">
+            {/* ── محرر أسعار اشتراكات المدارس والعملة ── */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+              <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2"><CreditCard size={18} className="text-blue-500"/> تعديل أسعار اشتراكات المدارس والعملة</h3>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div><label className="text-xs font-bold text-slate-600">Starter (شهري)</label><input type="number" min="0" value={settings.plan_starter_price} onChange={e=>setSettings({...settings, plan_starter_price:e.target.value})} className="w-full mt-1 rounded-xl border border-slate-300 px-3 py-2 text-sm"/></div>
+                <div><label className="text-xs font-bold text-slate-600">Professional (شهري)</label><input type="number" min="0" value={settings.plan_professional_price} onChange={e=>setSettings({...settings, plan_professional_price:e.target.value})} className="w-full mt-1 rounded-xl border border-slate-300 px-3 py-2 text-sm"/></div>
+                <div><label className="text-xs font-bold text-slate-600">Enterprise (شهري)</label><input type="number" min="0" value={settings.plan_enterprise_price} onChange={e=>setSettings({...settings, plan_enterprise_price:e.target.value})} className="w-full mt-1 rounded-xl border border-slate-300 px-3 py-2 text-sm"/></div>
+                <div><label className="text-xs font-bold text-slate-600">العملة</label>
+                  <select value={settings.default_currency} onChange={(e) => setSettings((s) => ({ ...s, default_currency: e.target.value }))} className="w-full mt-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm">
+                    <option value="USD">USD ($)</option>
+                    <option value="SAR">SAR (﷼)</option>
+                    <option value="AED">AED (د.إ)</option>
+                    <option value="SDG">SDG (ج.س)</option>
+                    <option value="EGP">EGP (ج.م)</option>
+                  </select>
+                </div>
+              </div>
+              <p className="text-xs text-slate-400 mt-2">تُحفظ تلقائياً وتنعكس فوراً على البطاقات والإيرادات أدناه.</p>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {PLANS.map((p) => {
                 const count = p.id==="starter" ? starterCount : p.id==="professional" ? proCount : enterpriseCount;
@@ -1875,7 +1895,7 @@ const FounderDashboard = () => {
                 <div key={p.id} className={`relative rounded-2xl p-6 bg-gradient-to-br ${p.color} text-white shadow-lg`}>
                   {p.popular && <span className="absolute top-4 left-4 bg-white/20 text-white text-[10px] px-2 py-0.5 rounded-full">الأكثر رواجاً</span>}
                   <h3 className="text-lg font-bold">{p.name}</h3>
-                  <p className="text-3xl font-extrabold mt-2">${p.price}<span className="text-sm font-normal opacity-80">/شهر</span></p>
+                  <p className="text-3xl font-extrabold mt-2">{p.price} {CUR}<span className="text-sm font-normal opacity-80">/شهر</span></p>
                   <p className="text-xs opacity-90 mt-3">{p.desc}</p>
                   <div className="mt-3 space-y-1 text-xs">
                     <p className="bg-white/20 rounded-lg px-3 py-1 inline-block font-bold">{count} مدرسة إجمالاً</p>
@@ -1896,24 +1916,24 @@ const FounderDashboard = () => {
                     <div key={i} className="flex-1 flex flex-col items-center gap-1">
                       <div className="w-full bg-gradient-to-t from-blue-500 to-violet-400 rounded-t-lg" style={{ height: `${(v / chartMaxVal) * 100}%` }}></div>
                       <span className="text-[10px] text-slate-400">{chartMonths[i].label}</span>
-                      {v > 0 && <span className="text-[9px] font-bold text-slate-600">${v}</span>}
+                      {v > 0 && <span className="text-[9px] font-bold text-slate-600">{v} {CUR}</span>}
                     </div>
                   ))}
                 </div>
-                <p className="text-xs text-slate-400 mt-2 text-center">الإيراد الشهري المكافئ ${monthlyRevenue} — السنوي يُحسب بسعر مخفض 20%</p>
+                <p className="text-xs text-slate-400 mt-2 text-center">الإيراد الشهري المكافئ {monthlyRevenue} {CUR} — السنوي يُحسب بسعر مخفض 20%</p>
               </div>
               <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
                 <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2"><CircleDollarSign size={18} className="text-amber-500"/> ملخص الإيرادات</h3>
                 <div className="space-y-4 text-center">
-                  <div className="p-3 bg-emerald-50 rounded-xl"><p className="text-2xl font-extrabold text-emerald-700">${monthlyRevenue}</p><p className="text-xs text-slate-500">الإيراد الشهري المكافئ (MRR)</p></div>
-                  <div className="p-3 bg-blue-50 rounded-xl"><p className="text-2xl font-extrabold text-blue-700">${annualRevenue}</p><p className="text-xs text-slate-500">الإيراد السنوي المتوقع (ARR)</p></div>
+                   <div className="p-3 bg-emerald-50 rounded-xl"><p className="text-2xl font-extrabold text-emerald-700">{monthlyRevenue} {CUR}</p><p className="text-xs text-slate-500">الإيراد الشهري المكافئ (MRR)</p></div>
+                   <div className="p-3 bg-blue-50 rounded-xl"><p className="text-2xl font-extrabold text-blue-700">{annualRevenue} {CUR}</p><p className="text-xs text-slate-500">الإيراد السنوي المتوقع (ARR)</p></div>
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div className="bg-emerald-50 rounded-lg p-2"><p className="font-bold text-emerald-700">${monthlySchoolsCount}</p><p className="text-slate-500">مدارس شهرية</p></div>
                     <div className="bg-amber-50 rounded-lg p-2"><p className="font-bold text-amber-700">${yearlySchoolsCount}</p><p className="text-slate-500">مدارس سنوية</p></div>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-xs mt-2">
-                    <div className="bg-blue-50 rounded-lg p-2"><p className="font-bold text-blue-700">${revenueBreakdown.monthly}</p><p className="text-slate-500">MRR من الشهري</p></div>
-                    <div className="bg-violet-50 rounded-lg p-2"><p className="font-bold text-violet-700">${revenueBreakdown.yearly}</p><p className="text-slate-500">MRR من السنوي (مخفّض)</p></div>
+                     <div className="bg-blue-50 rounded-lg p-2"><p className="font-bold text-blue-700">{revenueBreakdown.monthly} {CUR}</p><p className="text-slate-500">MRR من الشهري</p></div>
+                     <div className="bg-violet-50 rounded-lg p-2"><p className="font-bold text-violet-700">{revenueBreakdown.yearly} {CUR}</p><p className="text-slate-500">MRR من السنوي (مخفّض)</p></div>
                   </div>
                 </div>
               </div>
@@ -1941,9 +1961,9 @@ const FounderDashboard = () => {
           </div>
         )}
 
-        {/* ───── 6.1️⃣ أسعار المعلمين ───── */}
-        {section === "teacher-pricing" && (
-          <div className="space-y-6">
+        {/* ───── أسعار اشتراكات المعلمين (مدمجة داخل الاشتراكات والإيرادات) ───── */}
+        {section === "subscriptions" && (
+          <div className="space-y-6 mt-6">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-extrabold text-slate-900">إدارة أسعار اشتراكات المعلمين</h3>
               <button onClick={() => { setShowAddPlan(true); setEditingPlan(null); setNewPlan({ plan_name: "", plan_name_ar: "", plan_type: "teacher", price_monthly: 0, price_yearly: 0, currency: "EGP", trial_days: 30, features: [] }); }} className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-blue-700 transition-all">
@@ -1958,8 +1978,8 @@ const FounderDashboard = () => {
                   <tr className="bg-slate-50 border-b border-slate-200">
                     <th className="text-right p-4 text-sm font-bold text-slate-700">الخطة</th>
                     <th className="text-center p-4 text-sm font-bold text-slate-700">النوع</th>
-                    <th className="text-center p-4 text-sm font-bold text-slate-700">السعر الشهري (EGP)</th>
-                    <th className="text-center p-4 text-sm font-bold text-slate-700">السعر السنوي (EGP)</th>
+                    <th className="text-center p-4 text-sm font-bold text-slate-700">السعر الشهري</th>
+                    <th className="text-center p-4 text-sm font-bold text-slate-700">السعر السنوي</th>
                     <th className="text-center p-4 text-sm font-bold text-slate-700">أيام التجربة</th>
                     <th className="text-center p-4 text-sm font-bold text-slate-700">الحالة</th>
                     <th className="text-center p-4 text-sm font-bold text-slate-700">إجراءات</th>
@@ -1977,8 +1997,8 @@ const FounderDashboard = () => {
                       <td className="p-4 text-center">
                         <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">{plan.plan_type === 'teacher' ? 'معلم' : 'طالب'}</span>
                       </td>
-                      <td className="p-4 text-center font-bold text-slate-900">{plan.price_monthly ? Number(plan.price_monthly).toLocaleString('ar-EG') : "—"}</td>
-                      <td className="p-4 text-center font-bold text-slate-900">{plan.price_yearly ? Number(plan.price_yearly).toLocaleString('ar-EG') : "—"}</td>
+                      <td className="p-4 text-center font-bold text-slate-900">{plan.price_monthly ? `${Number(plan.price_monthly).toLocaleString('ar-EG')} ${plan.currency || "EGP"}` : "—"}</td>
+                      <td className="p-4 text-center font-bold text-slate-900">{plan.price_yearly ? `${Number(plan.price_yearly).toLocaleString('ar-EG')} ${plan.currency || "EGP"}` : "—"}</td>
                       <td className="p-4 text-center text-sm text-slate-600">{plan.trial_days || 30} يوم</td>
                       <td className="p-4 text-center">
                         <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${plan.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
@@ -2028,9 +2048,9 @@ const FounderDashboard = () => {
           </div>
         )}
 
-        {/* ───── 6.2️⃣ طلبات اشتراكات المعلمين ───── */}
-        {section === "teacher-sub-requests" && (
-          <div className="space-y-6">
+        {/* ───── طلبات اشتراكات المعلمين (مدمجة داخل الاشتراكات والإيرادات) ───── */}
+        {section === "subscriptions" && (
+          <div className="space-y-6 mt-6">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-extrabold text-slate-900">طلبات اشتراكات المعلمين</h3>
               <div className="flex items-center gap-2">
