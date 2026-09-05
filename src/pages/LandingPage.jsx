@@ -469,12 +469,12 @@ export default function LandingPage() {
                   ].map((item, i) => (
                     <div
                       key={i}
-                      className="bg-white/5 rounded-xl p-3 flex flex-col items-center justify-center text-center hover:bg-white/10 transition-colors min-h-[92px]"
+                      className="bg-white/5 rounded-xl px-2 pt-4 pb-3 flex flex-col items-center justify-start text-center hover:bg-white/10 transition-colors min-h-[104px]"
                     >
                       <div className="h-9 w-9 rounded-xl bg-white/20 text-white flex items-center justify-center mb-2 shrink-0 shadow-sm mx-auto">
                         <item.icon size={18} />
                       </div>
-                      <span className="text-xs font-bold text-white/90 text-center leading-snug w-full block">
+                      <span className="text-xs font-bold text-white/90 text-center leading-snug w-full block mx-auto">
                         {item.label}
                       </span>
                     </div>
@@ -525,12 +525,12 @@ export default function LandingPage() {
                   ].map((item, i) => (
                     <div
                       key={i}
-                      className="bg-white/5 rounded-xl p-3 flex flex-col items-center justify-center text-center hover:bg-white/10 transition-colors min-h-[92px]"
+                      className="bg-white/5 rounded-xl px-2 pt-4 pb-3 flex flex-col items-center justify-start text-center hover:bg-white/10 transition-colors min-h-[104px]"
                     >
                       <div className="h-9 w-9 rounded-xl bg-indigo-500 text-white flex items-center justify-center mb-2 shrink-0 shadow-sm mx-auto">
                         <item.icon size={18} />
                       </div>
-                      <span className="text-xs font-bold text-white/90 text-center leading-snug w-full block">
+                      <span className="text-xs font-bold text-white/90 text-center leading-snug w-full block mx-auto">
                         {item.label}
                       </span>
                     </div>
@@ -599,12 +599,12 @@ export default function LandingPage() {
                   ].map((item, i) => (
                     <div
                       key={i}
-                      className="bg-white/5 rounded-xl p-3 flex flex-col items-center justify-center text-center hover:bg-white/10 transition-colors min-h-[92px]"
+                      className="bg-white/5 rounded-xl px-2 pt-4 pb-3 flex flex-col items-center justify-start text-center hover:bg-white/10 transition-colors min-h-[104px]"
                     >
                       <div className="h-9 w-9 rounded-xl bg-emerald-500 text-white flex items-center justify-center mb-2 shrink-0 shadow-sm mx-auto">
                         <item.icon size={18} />
                       </div>
-                      <span className="text-xs font-bold text-white/90 text-center leading-snug w-full block">
+                      <span className="text-xs font-bold text-white/90 text-center leading-snug w-full block mx-auto">
                         {item.label}
                       </span>
                     </div>
