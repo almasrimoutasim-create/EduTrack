@@ -474,7 +474,7 @@ export default function LandingPage() {
                       <div className="h-9 w-9 rounded-xl bg-white/20 text-white flex items-center justify-center mb-2 shrink-0 shadow-sm">
                         <item.icon size={18} />
                       </div>
-                      <span className={`text-xs font-bold text-white/90 text-center leading-snug w-full block ${isRTL ? "-translate-x-1" : ""}`}>
+                      <span className="text-xs font-bold text-white/90 text-center leading-snug w-full block">
                         {item.label}
                       </span>
                     </div>
@@ -530,7 +530,7 @@ export default function LandingPage() {
                       <div className="h-9 w-9 rounded-xl bg-indigo-500 text-white flex items-center justify-center mb-2 shrink-0 shadow-sm">
                         <item.icon size={18} />
                       </div>
-                      <span className={`text-xs font-bold text-white/90 text-center leading-snug w-full block ${isRTL ? "-translate-x-1" : ""}`}>
+                      <span className="text-xs font-bold text-white/90 text-center leading-snug w-full block">
                         {item.label}
                       </span>
                     </div>
@@ -604,7 +604,7 @@ export default function LandingPage() {
                       <div className="h-9 w-9 rounded-xl bg-emerald-500 text-white flex items-center justify-center mb-2 shrink-0 shadow-sm">
                         <item.icon size={18} />
                       </div>
-                      <span className={`text-xs font-bold text-white/90 text-center leading-snug w-full block ${isRTL ? "-translate-x-1" : ""}`}>
+                      <span className="text-xs font-bold text-white/90 text-center leading-snug w-full block">
                         {item.label}
                       </span>
                     </div>
