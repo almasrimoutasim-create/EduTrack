@@ -382,13 +382,13 @@ export default function LandingPage() {
         </div>
         <div className="grid md:grid-cols-3 gap-4 mt-8">
           {features.map((f) => (
-            <button key={f.title} onClick={() => setSelectedFeature(f)} className="text-right bg-white rounded-2xl border border-stone-100 p-5 shadow-sm hover:shadow-lg hover:border-stone-200 hover:-translate-y-1 transition-all text-start w-full group">
-              <div className="h-10 w-10 rounded-xl bg-stone-900 text-white flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                <f.icon size={18} />
+            <button key={f.title} onClick={() => setSelectedFeature(f)} className="bg-white rounded-2xl border border-stone-100 p-5 pt-6 shadow-sm hover:shadow-lg hover:border-stone-200 hover:-translate-y-1 transition-all w-full h-full min-h-[218px] group flex flex-col items-center justify-start text-center">
+              <div className="h-11 w-11 rounded-2xl bg-stone-900 text-white flex items-center justify-center mb-3 shrink-0 shadow-sm mx-auto group-hover:scale-110 transition-transform">
+                <f.icon size={20} />
               </div>
-              <h3 className="font-black text-sm">{f.title}</h3>
-              <p className="text-xs text-stone-500 mt-1 leading-relaxed">{f.desc}</p>
-              <span className="inline-flex items-center gap-1 mt-3 text-xs font-bold text-emerald-600 group-hover:gap-2 transition-all">{isRTL ? "اعرف المزيد" : "Learn more"} →</span>
+              <h3 className="font-black text-sm text-stone-900 text-center leading-snug w-full">{f.title}</h3>
+              <p className="text-xs text-stone-500 mt-1.5 leading-relaxed text-center w-full flex-1">{f.desc}</p>
+              <span className="inline-flex items-center justify-center gap-1 mt-3 text-xs font-bold text-emerald-600 group-hover:gap-2 transition-all text-center">{isRTL ? "اعرف المزيد" : "Learn more"} →</span>
             </button>
           ))}
         </div>
