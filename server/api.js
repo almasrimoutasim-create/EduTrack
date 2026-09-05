@@ -1678,13 +1678,14 @@ export function createApiHandler() {
     if (req.url === '/api/founder-login' && req.method === 'POST') {
       res.setHeader('Content-Type', 'application/json');
       try {
-        const FE = process.env.FOUNDER_EMAIL, FP = process.env.FOUNDER_PASSWORD;
+        // trim env (dashboard paste often adds stray whitespace/newlines)
+        const FE = String(process.env.FOUNDER_EMAIL || '').trim(), FP = String(process.env.FOUNDER_PASSWORD || '').trim();
         if (!FE || !FP) {
           res.statusCode = 503;
           return res.end(JSON.stringify({ error: 'Founder credentials not configured on server (set FOUNDER_EMAIL/FOUNDER_PASSWORD)' }));
         }
         const body = await parseBody(req);
-        if (!safeEqualStr(body.email && body.email.trim(), FE) || !safeEqualStr(body.password, FP)) {
+        if (!safeEqualStr(String(body.email || '').trim(), FE) || !safeEqualStr(body.password, FP)) {
           res.statusCode = 401;
           return res.end(JSON.stringify({ error: 'Invalid founder credentials' }));
         }

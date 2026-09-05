@@ -59,6 +59,17 @@ const FounderDashboard = () => {
   const [studentTypeFilter, setStudentTypeFilter] = useState("school"); // school | independent
   const [viewRequestDetail, setViewRequestDetail] = useState(null);
   const queryClient = useQueryClient();
+  // ── Session health: if the founder JWT is rejected (401) the lists come back
+  // empty — surface a visible banner instead of a confusing blank dashboard ──
+  const [authExpired, setAuthExpired] = useState(false);
+  const markAuthErr = (err) => {
+    const msg = String(err?.message || err || "");
+    if (/401|Unauthorized|Invalid or expired token|Invalid token/i.test(msg)) setAuthExpired(true);
+  };
+  const forceRelogin = () => {
+    ["founder_token", "founder_auth", "founder_email", "founder_login_time"].forEach((k) => localStorage.removeItem(k));
+    window.location.href = "/founder-login";
+  };
 
   // ── Teacher Approval Modal ──
   const [teacherApproval, setTeacherApproval] = useState(null); // { requestId, fullName, email, data }
@@ -266,7 +277,7 @@ const FounderDashboard = () => {
     queryKey: ["founder-schools"],
     queryFn: async () => {
       try { return await entities.School.list("-created_at", 1000); }
-      catch (err) { console.error("[FounderDashboard] School.list failed:", err); return []; }
+      catch (err) { console.error("[FounderDashboard] School.list failed:", err); markAuthErr(err); return []; }
     },
   });
 
@@ -275,7 +286,7 @@ const FounderDashboard = () => {
     queryKey: ["founder-registrations"],
     queryFn: async () => {
       try { return await entities.RegistrationRequest.list("-created_at", 200); }
-      catch (err) { console.error("[FounderDashboard] RegistrationRequest.list failed:", err); return []; }
+      catch (err) { console.error("[FounderDashboard] RegistrationRequest.list failed:", err); markAuthErr(err); return []; }
     },
   });
 
@@ -284,7 +295,7 @@ const FounderDashboard = () => {
     queryKey: ["founder-teachers"],
     queryFn: async () => {
       try { return await entities.Teacher.list("-created_at", 1000); }
-      catch (err) { console.error("[FounderDashboard] Teacher.list failed:", err); return []; }
+      catch (err) { console.error("[FounderDashboard] Teacher.list failed:", err); markAuthErr(err); return []; }
     },
   });
 
@@ -293,7 +304,7 @@ const FounderDashboard = () => {
     queryKey: ["founder-students"],
     queryFn: async () => {
       try { return await entities.Student.list("-created_at", 1000); }
-      catch (err) { console.error("[FounderDashboard] Student.list failed:", err); return []; }
+      catch (err) { console.error("[FounderDashboard] Student.list failed:", err); markAuthErr(err); return []; }
     },
   });
 
@@ -992,6 +1003,21 @@ const FounderDashboard = () => {
             مرحباً بك {localStorage.getItem("founder_email") || "بالمالك"} في لوحة تحكم المنصة
           </p>
         </header>
+
+        {authExpired && (
+          <div className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 p-4 flex flex-col sm:flex-row items-start sm:items-center gap-3 shadow-sm">
+            <div className="flex items-center gap-2 text-amber-800 font-extrabold text-sm">
+              <AlertTriangle size={18} />
+              انتهت جلسة الدخول — لا يمكن جلب البيانات من الخادم
+            </div>
+            <p className="text-xs text-amber-700 leading-relaxed flex-1">
+              سجّل الدخول مجدداً في صفحة دخول المالك ليتم تحميل المدارس والطلبات. (تأكد أن بيانات FOUNDER_EMAIL / FOUNDER_PASSWORD في Render مطابقة لبيانات الدخول)
+            </p>
+            <button onClick={forceRelogin} className="px-4 py-2 rounded-xl bg-amber-600 text-white text-xs font-black hover:bg-amber-700 shrink-0">
+              تسجيل الدخول مجدداً
+            </button>
+          </div>
+        )}
 
         {/* ───── 1️⃣ الرئيسية ───── */}
         {section === "overview" && (

@@ -7,11 +7,13 @@ const FounderGuard = ({ children }) => {
 
   useEffect(() => {
     const isAuthed = localStorage.getItem("founder_auth") === "true";
+    const hasToken = !!localStorage.getItem("founder_token");
     const loginTime = Number(localStorage.getItem("founder_login_time") || "0");
     const expired = Date.now() - loginTime > SESSION_DURATION;
 
-    if (!isAuthed || expired) {
+    if (!isAuthed || !hasToken || expired) {
       localStorage.removeItem("founder_auth");
+      localStorage.removeItem("founder_token");
       localStorage.removeItem("founder_email");
       localStorage.removeItem("founder_login_time");
       window.location.href = "/founder-login";

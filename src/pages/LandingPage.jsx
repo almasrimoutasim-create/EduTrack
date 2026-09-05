@@ -467,11 +467,16 @@ export default function LandingPage() {
                     { icon: BarChart3, label: isRTL ? "التقارير الذكية" : "Smart Reports" },
                     { icon: Lock, label: isRTL ? "أمان وصلاحيات" : "Security & Roles" },
                   ].map((item, i) => (
-                    <div key={i} className="bg-white/5 rounded-xl p-3 text-center hover:bg-white/10 transition-colors">
-                      <div className="h-8 w-8 rounded-lg bg-white/20 text-white flex items-center justify-center mx-auto mb-2">
-                        <item.icon size={16} />
+                    <div
+                      key={i}
+                      className="bg-white/5 rounded-xl p-3 flex flex-col items-center justify-center text-center hover:bg-white/10 transition-colors min-h-[92px]"
+                    >
+                      <div className="h-9 w-9 rounded-xl bg-white/20 text-white flex items-center justify-center mb-2 shrink-0 shadow-sm mx-auto">
+                        <item.icon size={18} />
                       </div>
-                      <span className="text-xs font-bold text-white/90">{item.label}</span>
+                      <span className="text-xs font-bold text-white/90 text-center leading-snug w-full block">
+                        {item.label}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -518,31 +523,36 @@ export default function LandingPage() {
                     { icon: Star, label: isRTL ? "فيديوهات يوتيوب" : "YouTube Videos" },
                     { icon: ShieldCheck, label: isRTL ? "مستقل وخالص" : "Fully Independent" },
                   ].map((item, i) => (
-                    <div key={i} className="bg-white/5 rounded-xl p-3 text-center hover:bg-white/10 transition-colors">
-                      <div className="h-8 w-8 rounded-lg bg-indigo-500 text-white flex items-center justify-center mx-auto mb-2">
-                        <item.icon size={16} />
+                    <div
+                      key={i}
+                      className="bg-white/5 rounded-xl p-3 flex flex-col items-center justify-center text-center hover:bg-white/10 transition-colors min-h-[92px]"
+                    >
+                      <div className="h-9 w-9 rounded-xl bg-indigo-500 text-white flex items-center justify-center mb-2 shrink-0 shadow-sm mx-auto">
+                        <item.icon size={18} />
                       </div>
-                      <span className="text-xs font-bold text-white/90">{item.label}</span>
+                      <span className="text-xs font-bold text-white/90 text-center leading-snug w-full block">
+                        {item.label}
+                      </span>
                     </div>
                   ))}
                 </div>
               </div>
               <div className="mt-4 grid grid-cols-3 gap-2">
-                <div className="bg-white/20 backdrop-blur rounded-xl p-3 text-center border border-white/30">
-                  <Gift size={16} className="mx-auto mb-1 text-white" />
-                  <div className="text-xs font-black text-white">{t("pricing_trial_badge")}</div>
-                  <div className="text-[10px] text-white/70">{isRTL ? "تجربة بدون دفع" : "No payment"}</div>
+                <div className="bg-white/20 backdrop-blur rounded-xl p-3 flex flex-col items-center justify-center text-center border border-white/30">
+                  <Gift size={16} className="mx-auto mb-1 text-white shrink-0" />
+                  <div className="text-xs font-black text-white text-center w-full">{t("pricing_trial_badge")}</div>
+                  <div className="text-[10px] text-white/70 text-center w-full mt-0.5">{isRTL ? "تجربة بدون دفع" : "No payment"}</div>
                 </div>
-                <div className="bg-white/20 backdrop-blur rounded-xl p-3 text-center border border-white/30">
-                  <CreditCard size={16} className="mx-auto mb-1 text-white" />
-                  <div className="text-xs font-black text-white">{t("pricing_monthly_price")} {t("pricing_currency")}</div>
-                  <div className="text-[10px] text-white/70">{isRTL ? "شهرياً" : "Monthly"}</div>
+                <div className="bg-white/20 backdrop-blur rounded-xl p-3 flex flex-col items-center justify-center text-center border border-white/30">
+                  <CreditCard size={16} className="mx-auto mb-1 text-white shrink-0" />
+                  <div className="text-xs font-black text-white text-center w-full">{t("pricing_monthly_price")} {t("pricing_currency")}</div>
+                  <div className="text-[10px] text-white/70 text-center w-full mt-0.5">{isRTL ? "شهرياً" : "Monthly"}</div>
                 </div>
-                <div className="bg-white/20 backdrop-blur rounded-xl p-3 text-center border border-white/30 relative">
-                  <span className="absolute -top-2 -right-2 bg-amber-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full">{t("pricing_discount_badge")}</span>
-                  <Award size={16} className="mx-auto mb-1 text-white" />
-                  <div className="text-xs font-black text-white">{t("pricing_yearly_price")} {t("pricing_currency")}</div>
-                  <div className="text-[10px] text-white/70">{isRTL ? "سنوياً" : "Yearly"}</div>
+                <div className="bg-white/20 backdrop-blur rounded-xl p-3 flex flex-col items-center justify-center text-center border border-white/30 relative">
+                  <span className="absolute -top-2 -right-2 bg-amber-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full shadow">{t("pricing_discount_badge")}</span>
+                  <Award size={16} className="mx-auto mb-1 text-white shrink-0" />
+                  <div className="text-xs font-black text-white text-center w-full">{t("pricing_yearly_price")} {t("pricing_currency")}</div>
+                  <div className="text-[10px] text-white/70 text-center w-full mt-0.5">{isRTL ? "سنوياً" : "Yearly"}</div>
                 </div>
               </div>
             </div>
@@ -587,21 +597,26 @@ export default function LandingPage() {
                     { icon: Award, label: isRTL ? "متابعة تقديرات" : "Track Grades" },
                     { icon: ShieldCheck, label: isRTL ? "آمن ومحمي" : "Secure & Safe" },
                   ].map((item, i) => (
-                    <div key={i} className="bg-white/5 rounded-xl p-3 text-center hover:bg-white/10 transition-colors">
-                      <div className="h-8 w-8 rounded-lg bg-emerald-500 text-white flex items-center justify-center mx-auto mb-2">
-                        <item.icon size={16} />
+                    <div
+                      key={i}
+                      className="bg-white/5 rounded-xl p-3 flex flex-col items-center justify-center text-center hover:bg-white/10 transition-colors min-h-[92px]"
+                    >
+                      <div className="h-9 w-9 rounded-xl bg-emerald-500 text-white flex items-center justify-center mb-2 shrink-0 shadow-sm mx-auto">
+                        <item.icon size={18} />
                       </div>
-                      <span className="text-xs font-bold text-white/90">{item.label}</span>
+                      <span className="text-xs font-bold text-white/90 text-center leading-snug w-full block">
+                        {item.label}
+                      </span>
                     </div>
                   ))}
                 </div>
               </div>
-              <div className="mt-4 bg-white/20 backdrop-blur rounded-xl p-4 text-center border border-white/30">
-                <div className="flex items-center justify-center gap-2 mb-1">
-                  <Gift size={18} className="text-white" />
+              <div className="mt-4 bg-white/20 backdrop-blur rounded-xl p-4 flex flex-col items-center justify-center text-center border border-white/30">
+                <div className="flex items-center justify-center gap-2 mb-1 text-center w-full">
+                  <Gift size={18} className="text-white shrink-0" />
                   <span className="text-sm font-black text-white">{isRTL ? "التسجيل مجاني بالكامل" : "Registration is 100% Free"}</span>
                 </div>
-                <p className="text-xs text-white/70">{isRTL ? "وصول فوري لكتب المنهج السوداني المعتمدة وحلول الواجبات" : "Instant access to Sudanese curriculum books and homework solutions"}</p>
+                <p className="text-xs text-white/70 text-center w-full leading-relaxed">{isRTL ? "وصول فوري لكتب المنهج السوداني المعتمدة وحلول الواجبات" : "Instant access to Sudanese curriculum books and homework solutions"}</p>
               </div>
             </div>
           </div>
