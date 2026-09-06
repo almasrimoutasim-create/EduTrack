@@ -17,7 +17,7 @@ const tabs = [
 
 export default function PortalNav({ active, onChange, unreadNotifs = 0, unreadMessages = 0 }) {
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-border flex sm:static sm:border-t-0 sm:border-b sm:border-border sm:bg-card sm:rounded-xl sm:shadow">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-border sm:static sm:border-t-0 sm:border-b sm:border-border sm:bg-card sm:rounded-xl sm:shadow flex flex-col items-center justify-center text-center">
       {tabs.map(({ key, label, icon: Icon }) => {
         const badge = key === "notifications" ? unreadNotifs : key === "chat" ? unreadMessages : 0;
         return (
@@ -25,7 +25,7 @@ export default function PortalNav({ active, onChange, unreadNotifs = 0, unreadMe
             key={key}
             onClick={() => onChange(key)}
             className={cn(
-              "flex-1 flex flex-col items-center gap-1 py-3 text-xs font-medium transition-colors relative",
+              "inline-flex items-center justify-center gap-2 rounded-xl text-sm font-medium transition-colors relative text-center w-full",
               active === key
                 ? "text-primary sm:border-b-2 sm:border-primary"
                 : "text-muted-foreground hover:text-foreground"

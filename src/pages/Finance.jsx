@@ -954,9 +954,7 @@ export default function Finance() {
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              activeTab === t.id ? "bg-white text-stone-900 shadow-sm font-extrabold" : "text-stone-500 hover:text-stone-900"
-            }`}
+            className={`inline-flex items-center justify-center gap-2 rounded-xl text-xs font-bold transition-all cursor-pointer text-center w-full px-5 py-2.5 ${activeTab === t.id ? "bg-white text-stone-900 shadow-sm font-extrabold" : "text-stone-500 hover:text-stone-900"}`}
           >
             {t.label}
           </button>

@@ -45,19 +45,24 @@ const FounderLogin = () => {
           <div className="absolute -top-24 -left-24 w-48 h-48 bg-blue-600/20 rounded-full blur-3xl" />
           <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-violet-600/20 rounded-full blur-3xl" />
 
-          <div className="relative">
-            <div className="flex items-center justify-center gap-3 mb-2">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-violet-500 flex items-center justify-center shadow-lg">
-                <GraduationCap className="text-white" size={26} />
-              </div>
-              <h1 className="text-2xl font-extrabold text-white">EduTrack</h1>
+          {/* الحاوية الرئيسية للتوسيط */}
+          <div className="relative flex flex-col items-center text-center">
+            
+            {/* الشعار */}
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-violet-500 flex items-center justify-center shadow-lg mb-3">
+              <GraduationCap className="text-white" size={26} />
             </div>
-            <p className="text-center text-slate-400 text-sm mb-8 flex items-center justify-center gap-2">
+
+            {/* العنوان الرئيسي */}
+            <h1 className="text-2xl font-extrabold text-white mb-1">EduTrack</h1>
+
+            {/* العنوان الفرعي في المنتصف */}
+            <p className="text-slate-400 text-sm mb-8 flex items-center justify-center gap-2">
               <ShieldCheck size={15} className="text-blue-400" />
               لوحة تحكم المالك
             </p>
 
-            <form onSubmit={handleLogin} className="space-y-5">
+            <form onSubmit={handleLogin} className="space-y-5 w-full text-right">
               <div>
                 <label className="block text-slate-300 text-sm font-semibold mb-2">البريد الإلكتروني</label>
                 <div className="relative">
@@ -67,7 +72,7 @@ const FounderLogin = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="ادخل بريد المالك"
-                    className="w-full rounded-xl bg-slate-950/60 border border-slate-700 text-white placeholder-slate-500 pr-11 pl-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/60 focus:border-blue-500"
+                    className="w-full rounded-xl bg-slate-950/60 border border-slate-700 text-white placeholder-slate-500 pr-11 pl-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/60 focus:border-blue-500 text-right"
                     required
                   />
                 </div>
@@ -82,7 +87,7 @@ const FounderLogin = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="ادخل كلمة المرور"
-                    className="w-full rounded-xl bg-slate-950/60 border border-slate-700 text-white placeholder-slate-500 pr-11 pl-11 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/60 focus:border-blue-500"
+                    className="w-full rounded-xl bg-slate-950/60 border border-slate-700 text-white placeholder-slate-500 pr-11 pl-11 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/60 focus:border-blue-500 text-right"
                     required
                   />
                   <button
@@ -95,18 +100,21 @@ const FounderLogin = () => {
                 </div>
               </div>
 
+              {/* زر الدخول (النص متمركز تماماً أفقياً وعمودياً بفضل flex items-center justify-center) */}
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 type="submit"
                 disabled={loading}
-                className="w-full rounded-xl bg-gradient-to-r from-blue-600 to-violet-600 text-white font-bold py-3 text-sm shadow-lg shadow-blue-900/40 disabled:opacity-60"
+                className="w-full rounded-xl bg-gradient-to-r from-blue-600 to-violet-600 text-white font-bold py-3 text-sm flex items-center justify-center shadow-lg shadow-blue-900/40 disabled:opacity-60"
+                style={{ cssText: 'text-align: center !important' }}
               >
                 {loading ? "جاري التحقق..." : "دخول"}
               </motion.button>
             </form>
 
-            <div className="mt-8 pt-6 border-t border-slate-700/60 text-center">
+            {/* التذييل في المنتصف */}
+            <div className="mt-8 pt-6 border-t border-slate-700/60 w-full text-center">
               <p className="text-slate-500 text-xs">EduTrack Founder Control Panel v1.0</p>
             </div>
           </div>

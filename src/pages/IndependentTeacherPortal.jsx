@@ -19,9 +19,9 @@ import {
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
-const btnPrimary = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-bold transition-all bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer shadow-lg disabled:opacity-50";
-const btnOutline = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-bold transition-all border-2 border-stone-200 bg-white text-stone-700 hover:bg-stone-50 hover:border-stone-300 cursor-pointer";
-const btnDanger = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-bold transition-all bg-red-500 text-white hover:bg-red-600 cursor-pointer";
+const btnPrimary = "inline-flex items-center justify-center text-center gap-2 rounded-xl text-sm font-bold transition-all bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer shadow-lg w-full disabled:opacity-50";
+const btnOutline = "inline-flex items-center justify-center text-center gap-2 rounded-xl text-sm font-bold transition-all border-2 border-stone-200 bg-white text-stone-700 hover:bg-stone-50 hover:border-stone-300 cursor-pointer w-full disabled:opacity-50";
+const btnDanger = "inline-flex items-center justify-center text-center gap-2 rounded-xl text-sm font-bold transition-all bg-red-500 text-white hover:bg-red-600 cursor-pointer w-full disabled:opacity-50";
 
 const SIDEBAR_ITEMS = [
   { id: "dashboard", icon: BarChart3, label: "لوحة التحكم", labelEn: "Dashboard" },
@@ -254,7 +254,7 @@ export default function IndependentTeacherPortal() {
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
           {SIDEBAR_ITEMS.map(item => (
             <button key={item.id} onClick={() => setActiveTab(item.id)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === item.id ? "bg-emerald-50 text-emerald-700" : "text-stone-600 hover:bg-stone-50"}`}>
+              className={`w-full inline-flex items-center justify-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all text-center ${activeTab === item.id ? "bg-emerald-50 text-emerald-700" : "text-stone-600 hover:bg-stone-50"}`}>
               <item.icon size={18} />
               <span>{isRTL ? item.label : item.labelEn}</span>
               {item.id === "subscriptions" && stats.pendingSubs > 0 && (
@@ -289,7 +289,7 @@ export default function IndependentTeacherPortal() {
       <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-stone-200 h-16 flex items-center justify-around px-2">
         {SIDEBAR_ITEMS.slice(0, 5).map(item => (
           <button key={item.id} onClick={() => setActiveTab(item.id)}
-            className={`flex flex-col items-center gap-0.5 py-1 px-2 rounded-lg ${activeTab === item.id ? "text-emerald-600" : "text-stone-400"}`}>
+            className={`flex flex-col items-center gap-0.5 py-1 px-2 rounded-lg text-center ${activeTab === item.id ? "text-emerald-600" : "text-stone-400"}`}>
             <item.icon size={20} />
             <span className="text-[10px] font-bold">{isRTL ? item.label.split(" ").pop() : item.labelEn.split(" ").pop()}</span>
           </button>
