@@ -90,15 +90,16 @@ export default function LandingContentEditor() {
 
   const toggleSection = (key) => setOpenSections(prev => ({ ...prev, [key]: !prev[key] }));
 
+  // تم ضبط الحقول لتكون في المنتصف (text-center)
   const renderField = (key, label, type = "text") => (
-    <div key={key} className="space-y-1">
-      <label className="text-xs font-bold text-slate-500">{label}</label>
+    <div key={key} className="space-y-1 text-center">
+      <label className="text-xs font-bold text-slate-500 block text-center">{label}</label>
       {activeTab === "ar" ? (
         <input
           type={type}
           value={getVal(key, "ar")}
           onChange={e => setVal(key, "ar", e.target.value)}
-          className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white"
+          className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white text-center"
           dir="rtl"
         />
       ) : (
@@ -106,7 +107,7 @@ export default function LandingContentEditor() {
           type={type}
           value={getVal(key, "en")}
           onChange={e => setVal(key, "en", e.target.value)}
-          className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white"
+          className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white text-center"
           dir="ltr"
         />
       )}
@@ -114,23 +115,27 @@ export default function LandingContentEditor() {
   );
 
   const renderImageField = (key, label) => (
-    <div key={key} className="space-y-1">
-      <label className="text-xs font-bold text-slate-500 flex items-center gap-1"><ImageIcon size={12}/> {label}</label>
+    <div key={key} className="space-y-1 text-center">
+      <label className="text-xs font-bold text-slate-500 flex items-center justify-center gap-1">
+        <ImageIcon size={12}/> {label}
+      </label>
       <input
         type="url"
         value={getVal(key, "ar")}
         onChange={e => setVal(key, "ar", e.target.value)}
-        className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white font-mono text-xs"
+        className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white font-mono text-xs text-center"
         dir="ltr"
         placeholder="https://..."
       />
       {getVal(key, "ar") && (
-        <img src={getVal(key, "ar")} alt="" className="h-16 rounded-lg object-cover border" onError={e => e.target.style.display = 'none'} />
+        <div className="flex justify-center">
+          <img src={getVal(key, "ar")} alt="" className="h-16 rounded-lg object-cover border mt-1" onError={e => e.target.style.display = 'none'} />
+        </div>
       )}
     </div>
   );
 
-  if (loading) return <div className="flex items-center gap-2 text-slate-500 p-6"><Loader2 className="animate-spin" size={18}/> جاري التحميل...</div>;
+  if (loading) return <div className="flex items-center justify-center gap-2 text-slate-500 p-6"><Loader2 className="animate-spin" size={18}/> جاري التحميل...</div>;
 
   const renderSection = (sectionKey, fields) => {
     const isOpen = openSections[sectionKey];
@@ -138,10 +143,12 @@ export default function LandingContentEditor() {
     const Icon = sectionDef?.icon || Type;
     return (
       <div key={sectionKey} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <button onClick={() => toggleSection(sectionKey)} className="w-full flex items-center gap-3 px-5 py-4 hover:bg-slate-50 transition text-right">
-          <Icon size={16} className="text-blue-500 shrink-0"/>
-          <span className="font-bold text-slate-800 flex-1">{sectionDef?.label}</span>
-          {isOpen ? <ChevronDown size={16} className="text-slate-400"/> : <ChevronRight size={16} className="text-slate-400"/>}
+        <button onClick={() => toggleSection(sectionKey)} className="w-full flex items-center justify-between px-5 py-4 hover:bg-slate-50 transition text-center">
+          <div className="flex items-center gap-3 mx-auto">
+            <Icon size={16} className="text-blue-500 shrink-0"/>
+            <span className="font-bold text-slate-800">{sectionDef?.label}</span>
+          </div>
+          {isOpen ? <ChevronDown size={16} className="text-slate-400 shrink-0"/> : <ChevronRight size={16} className="text-slate-400 shrink-0"/>}
         </button>
         {isOpen && <div className="px-5 pb-5 space-y-3 border-t border-slate-100">{fields}</div>}
       </div>
@@ -149,9 +156,9 @@ export default function LandingContentEditor() {
   };
 
   return (
-    <div className="space-y-4 max-w-3xl">
-      {/* Tabs */}
-      <div className="flex gap-2">
+    <div className="space-y-4 max-w-3xl mx-auto">
+      {/* Tabs - متمركزة في المنتصف */}
+      <div className="flex justify-center gap-2">
         <button onClick={() => setActiveTab("ar")} className={`px-4 py-2 rounded-xl text-sm font-bold transition ${activeTab === "ar" ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>العربية</button>
         <button onClick={() => setActiveTab("en")} className={`px-4 py-2 rounded-xl text-sm font-bold transition ${activeTab === "en" ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>English</button>
       </div>
@@ -181,8 +188,8 @@ export default function LandingContentEditor() {
         {renderField("features_title", "عنوان القسم")}
         {renderField("features_desc", "وصف القسم")}
         {[1,2,3,4,5,6].map(n => (
-          <div key={n} className="bg-slate-50 rounded-xl p-3 space-y-2 border border-slate-100">
-            <div className="text-xs font-bold text-blue-600">الميزة {n}</div>
+          <div key={n} className="bg-slate-50 rounded-xl p-3 space-y-2 border border-slate-100 text-center">
+            <div className="text-xs font-bold text-blue-600 text-center">الميزة {n}</div>
             {renderField(`feature_${n}_title`, "العنوان")}
             {renderField(`feature_${n}_desc`, "الوصف القصير")}
             {renderField(`feature_${n}_longDesc`, "الوصف الطويل")}
@@ -255,63 +262,63 @@ export default function LandingContentEditor() {
 
       {/* Pricing */}
       {renderSection("pricing", <>
-        <div className="bg-amber-50 rounded-xl p-3 border border-amber-200 mb-2">
-          <p className="text-xs text-amber-700 font-bold">هذه الأسعار تظهر في قسم "بوابة المعلم المستقل" في الصفحة الرئيسية</p>
+        <div className="bg-amber-50 rounded-xl p-3 border border-amber-200 mb-2 text-center">
+          <p className="text-xs text-amber-700 font-bold text-center">هذه الأسعار تظهر في قسم "بوابة المعلم المستقل" في الصفحة الرئيسية</p>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-500">السعر الشهري (رقم فقط)</label>
+          <div className="space-y-1 text-center">
+            <label className="text-xs font-bold text-slate-500 block text-center">السعر الشهري (رقم فقط)</label>
             <input
               type="text"
               value={getVal("pricing_monthly_price", activeTab === "ar" ? "ar" : "en")}
               onChange={e => setVal("pricing_monthly_price", activeTab === "ar" ? "ar" : "en", e.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white"
+              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white text-center"
               dir="ltr"
               placeholder="49,000"
             />
           </div>
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-500">السعر السنوي (رقم فقط)</label>
+          <div className="space-y-1 text-center">
+            <label className="text-xs font-bold text-slate-500 block text-center">السعر السنوي (رقم فقط)</label>
             <input
               type="text"
               value={getVal("pricing_yearly_price", activeTab === "ar" ? "ar" : "en")}
               onChange={e => setVal("pricing_yearly_price", activeTab === "ar" ? "ar" : "en", e.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white"
+              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white text-center"
               dir="ltr"
               placeholder="350,000"
             />
           </div>
         </div>
         <div className="grid grid-cols-3 gap-3">
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-500">العملة</label>
+          <div className="space-y-1 text-center">
+            <label className="text-xs font-bold text-slate-500 block text-center">العملة</label>
             <input
               type="text"
               value={getVal("pricing_currency", activeTab === "ar" ? "ar" : "en")}
               onChange={e => setVal("pricing_currency", activeTab === "ar" ? "ar" : "en", e.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white"
+              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white text-center"
               dir={activeTab === "ar" ? "rtl" : "ltr"}
               placeholder="ج.س"
             />
           </div>
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-500">شارة التجربة المجانية</label>
+          <div className="space-y-1 text-center">
+            <label className="text-xs font-bold text-slate-500 block text-center">شارة التجربة المجانية</label>
             <input
               type="text"
               value={getVal("pricing_trial_badge", activeTab === "ar" ? "ar" : "en")}
               onChange={e => setVal("pricing_trial_badge", activeTab === "ar" ? "ar" : "en", e.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white"
+              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white text-center"
               dir={activeTab === "ar" ? "rtl" : "ltr"}
               placeholder="شهر مجاني"
             />
           </div>
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-500">شارة الخصم</label>
+          <div className="space-y-1 text-center">
+            <label className="text-xs font-bold text-slate-500 block text-center">شارة الخصم</label>
             <input
               type="text"
               value={getVal("pricing_discount_badge", activeTab === "ar" ? "ar" : "en")}
               onChange={e => setVal("pricing_discount_badge", activeTab === "ar" ? "ar" : "en", e.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white"
+              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white text-center"
               dir="ltr"
               placeholder="41% OFF"
             />
@@ -319,12 +326,12 @@ export default function LandingContentEditor() {
         </div>
       </>)}
 
-      {/* Save */}
-      <div className="flex justify-end sticky bottom-4">
+      {/* Save Button - زر الحفظ في المنتصف */}
+      <div className="flex justify-center sticky bottom-4">
         <button
           onClick={() => saveMutation.mutate()}
           disabled={saveMutation.isPending}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold shadow-lg transition disabled:opacity-50"
+          className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-bold shadow-lg transition disabled:opacity-50 text-center"
         >
           {saveMutation.isPending ? <Loader2 className="animate-spin" size={16}/> : <Save size={16}/>}
           {saveMutation.isPending ? "جاري الحفظ..." : "حفظ جميع التغييرات"}

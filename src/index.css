@@ -481,7 +481,7 @@
   clip-path: polygon(10% 0%, 90% 0%, 100% 50%, 90% 100%, 10% 100%, 0% 50%);
 }
 
-.pro-student-cover-info { text-align: right; }
+.pro-student-cover-info { text-align: center; }
 
 /* ── مساعدات تخطيط ── */
 .bg-black-subtle { background-color: rgba(0,0,0,0.02); }
@@ -570,7 +570,7 @@
   html[dir="rtl"] body,
   html[dir="rtl"] * {
     direction: rtl;
-    text-align: right;
+    text-align: center;
     font-family: var(--font-sans);
     font-variant-numeric: tabular-nums;
   }

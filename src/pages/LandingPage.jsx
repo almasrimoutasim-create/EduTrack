@@ -311,8 +311,8 @@ export default function LandingPage() {
         <div className="absolute -bottom-24 -left-24 h-96 w-96 bg-sky-100/40 rounded-full blur-3xl" />
         <div className="max-w-7xl mx-auto px-4 md:px-6 py-12 md:py-20 relative">
           <div className="grid md:grid-cols-2 gap-8 items-center">
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
-              <div className="inline-flex items-center gap-2 bg-white border border-stone-100 rounded-full px-3 py-1.5 shadow-sm text-xs font-bold text-stone-600">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="text-center">
+              <div className="inline-flex items-center gap-2 bg-white border border-stone-100 rounded-full px-3 py-1.5 shadow-sm text-xs font-bold text-stone-600 mx-auto">
                 <Sparkles size={14} className="text-amber-500" />{t("hero_badge")}
               </div>
               <h1 className="mt-4 text-3xl md:text-5xl font-black leading-tight">
@@ -322,12 +322,12 @@ export default function LandingPage() {
               <p className="mt-3 text-stone-600 leading-relaxed text-sm md:text-base">
                 {t("hero_desc")}
               </p>
-              <div className="mt-6 flex flex-wrap gap-3">
+              <div className="mt-6 flex flex-wrap gap-3 justify-center">
                 <Link to="/register" className="h-11 px-6 rounded-xl bg-stone-900 text-white font-black text-sm hover:bg-black inline-flex items-center gap-2 shadow-lg">
                   <Sparkles size={16} />{t("hero_cta")}
                 </Link>
               </div>
-              <div className="mt-4 flex items-center gap-3 text-xs text-stone-500">
+              <div className="mt-4 flex items-center gap-3 text-xs text-stone-500 justify-center">
                 <span className="flex items-center gap-1"><CheckCircle2 size={14} className="text-emerald-500" />{t("hero_trust1")}</span>
                 <span className="flex items-center gap-1"><ShieldCheck size={14} className="text-sky-500" />{t("hero_trust2")}</span>
               </div>
@@ -437,8 +437,8 @@ export default function LandingPage() {
       <section className="max-w-7xl mx-auto px-4 md:px-6 py-6">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-gradient-to-r from-stone-800 via-stone-900 to-black rounded-[28px] p-6 md:p-8 text-white shadow-xl">
           <div className="grid md:grid-cols-2 gap-8 items-center">
-            <div>
-              <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur rounded-full px-4 py-2 text-sm font-bold">
+            <div className="text-center">
+              <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur rounded-full px-4 py-2 text-sm font-bold mx-auto">
                 <ShieldCheck size={16} /> {t("school_badge")}
               </div>
               <h3 className="mt-3 text-2xl md:text-3xl font-black leading-tight">
@@ -447,7 +447,7 @@ export default function LandingPage() {
               <p className="mt-2 text-white/90 leading-relaxed">
                 {t("school_desc")}
               </p>
-              <div className="mt-5 flex flex-wrap gap-3">
+              <div className="mt-5 flex flex-wrap gap-3 justify-center">
                 <Link to="/register" className="h-11 px-6 rounded-xl bg-white text-stone-900 font-black text-sm hover:bg-white/90 inline-flex items-center gap-2 shadow-lg">
                   <Sparkles size={16} /> {t("school_cta")}
                 </Link>
@@ -490,8 +490,8 @@ export default function LandingPage() {
       <section className="max-w-7xl mx-auto px-4 md:px-6 py-6">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 rounded-[28px] p-6 md:p-8 text-white shadow-xl">
           <div className="grid md:grid-cols-2 gap-8 items-center">
-            <div>
-              <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur rounded-full px-4 py-2 text-sm font-bold">
+            <div className="text-center">
+              <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur rounded-full px-4 py-2 text-sm font-bold mx-auto">
                 <GraduationCap size={16} /> {t("teacher_badge")}
               </div>
               <h3 className="mt-3 text-2xl md:text-3xl font-black leading-tight">
@@ -500,7 +500,7 @@ export default function LandingPage() {
               <p className="mt-2 text-white/90 leading-relaxed">
                 {t("teacher_desc")}
               </p>
-              <div className="mt-5 flex flex-wrap gap-3">
+              <div className="mt-5 flex flex-wrap gap-3 justify-center">
                 <button onClick={() => setTeacherLoginOpen(true)} className="h-11 px-6 rounded-xl bg-white text-indigo-700 font-black text-sm hover:bg-white/90 inline-flex items-center gap-2 shadow-lg">
                   <LogIn size={16} /> {t("teacher_login")}
                 </button>
@@ -564,8 +564,8 @@ export default function LandingPage() {
       <section className="max-w-7xl mx-auto px-4 md:px-6 py-6">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-gradient-to-r from-emerald-600 via-teal-600 to-sky-600 rounded-[28px] p-6 md:p-8 text-white shadow-xl">
           <div className="grid md:grid-cols-2 gap-8 items-center">
-            <div>
-              <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur rounded-full px-4 py-2 text-sm font-bold">
+            <div className="text-center">
+              <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur rounded-full px-4 py-2 text-sm font-bold mx-auto">
                 <UserPlus size={16} /> {t("student_badge")}
               </div>
               <h3 className="mt-3 text-2xl md:text-3xl font-black leading-tight">
@@ -574,7 +574,7 @@ export default function LandingPage() {
               <p className="mt-2 text-white/90 leading-relaxed">
                 {t("student_desc")}
               </p>
-              <div className="mt-5 flex flex-wrap gap-3">
+              <div className="mt-5 flex flex-wrap gap-3 justify-center">
                 <button onClick={() => setStudentLoginOpen(true)} className="h-11 px-6 rounded-xl bg-white text-emerald-700 font-black text-sm hover:bg-white/90 inline-flex items-center gap-2 shadow-lg">
                   <LogIn size={16} /> {t("student_login")}
                 </button>
@@ -625,8 +625,8 @@ export default function LandingPage() {
 
       {/* WhatsApp CTA */}
       <section className="max-w-7xl mx-auto px-4 md:px-6 pb-10">
-        <div className="bg-stone-900 rounded-[28px] p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-4 text-white">
-          <div>
+        <div className="bg-stone-900 rounded-[28px] p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-4 text-white text-center md:text-left">
+          <div className="w-full md:w-auto">
             <h3 className="font-black text-lg">{t("whatsapp_title")}</h3>
             <p className="text-white/70 text-sm mt-1">{t("whatsapp_desc")}</p>
           </div>
@@ -640,8 +640,8 @@ export default function LandingPage() {
       <footer className="bg-stone-900 text-stone-300">
         <div className="max-w-7xl mx-auto px-4 md:px-6 py-10">
           <div className="grid md:grid-cols-4 gap-8">
-            <div className="md:col-span-1">
-              <div className="flex items-center gap-2.5 mb-3">
+            <div className="md:col-span-1 text-center md:text-left">
+              <div className="flex items-center gap-2.5 mb-3 mx-auto md:mx-0">
                 <div className="h-9 w-9 rounded-xl bg-white text-stone-900 flex items-center justify-center">
                   <GraduationCap size={18} />
                 </div>
@@ -651,7 +651,7 @@ export default function LandingPage() {
                 {t("footer_desc")}
               </p>
             </div>
-            <div>
+            <div className="text-center md:text-left">
               <h4 className="font-black text-white text-sm mb-3">{t("footer_links")}</h4>
               <ul className="space-y-2 text-sm">
                 <li><a href="#features" className="hover:text-white text-stone-400">{t("footer_link1")}</a></li>
@@ -660,27 +660,27 @@ export default function LandingPage() {
                 <li><a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${WHATSAPP_MSG}`} target="_blank" rel="noopener noreferrer" className="hover:text-white text-stone-400">{t("footer_link4")}</a></li>
               </ul>
             </div>
-            <div>
+            <div className="text-center md:text-left">
               <h4 className="font-black text-white text-sm mb-3">{t("footer_contact")}</h4>
               <ul className="space-y-2.5 text-sm">
-                <li className="flex items-center gap-2.5">
+                <li className="flex items-center gap-2.5 justify-center md:justify-start">
                   <Phone size={14} className="text-emerald-400 shrink-0" />
                   <a href={`tel:+${WHATSAPP_NUMBER}`} className="hover:text-white text-stone-300 font-bold" dir="ltr">+{WHATSAPP_NUMBER}</a>
                 </li>
-                <li className="flex items-center gap-2.5">
+                <li className="flex items-center gap-2.5 justify-center md:justify-start">
                   <MessageCircle size={14} className="text-emerald-400 shrink-0" />
                   <a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${WHATSAPP_MSG}`} target="_blank" rel="noopener noreferrer" className="hover:text-white text-stone-300">WhatsApp Business</a>
                 </li>
-                <li className="flex items-center gap-2.5">
+                <li className="flex items-center gap-2.5 justify-center md:justify-start">
                   <span className="text-emerald-400 shrink-0">@</span>
                   <a href="mailto:etrack249@gmail.com" className="hover:text-white text-stone-300">etrack249@gmail.com</a>
                 </li>
                 <li className="text-stone-500 text-xs mt-1">{t("footer_location")}</li>
               </ul>
             </div>
-            <div>
+            <div className="text-center md:text-left">
               <h4 className="font-black text-white text-sm mb-3">{t("footer_social")}</h4>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 justify-center md:justify-start">
                 <a href="https://www.facebook.com/share/1ErDcNrRYU/" target="_blank" rel="noopener noreferrer" aria-label="Facebook" className="h-9 w-9 rounded-xl bg-white/10 hover:bg-white text-white/80 hover:text-stone-900 flex items-center justify-center transition-colors">
                   <span className="font-black text-sm">f</span>
                 </a>

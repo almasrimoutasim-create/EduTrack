@@ -965,17 +965,17 @@ export default function Finance() {
       {activeTab === "dashboard" && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            <StatCard title="إجمالي الإيرادات" value={`$${financials.totalRev.toFixed(2)}`} icon={TrendingUp} sub="+12.4%" className="bg-emerald-50/50" />
-            <StatCard title="إجمالي المصروفات" value={`$${financials.totalExp.toFixed(2)}`} icon={TrendingDown} sub="+5.1%" className="bg-rose-50/50" />
+            <StatCard title="إجمالي الإيرادات" value={financials.totalRev.toFixed(2)} icon={TrendingUp} sub="+12.4%" className="bg-emerald-50/50" />
+            <StatCard title="إجمالي المصروفات" value={financials.totalExp.toFixed(2)} icon={TrendingDown} sub="+5.1%" className="bg-rose-50/50" />
             <StatCard 
               title="صافي الميزان" 
-              value={`$${financials.netBalance.toFixed(2)}`} 
+              value={financials.netBalance.toFixed(2)} 
               icon={Wallet} 
               className={financials.netBalance >= 0 ? "bg-blue-50/50 text-blue-700" : "bg-red-50/50 text-red-700"}
             />
-            <StatCard title="الرسوم المعلقة" value={`$${financials.pending.toFixed(2)}`} icon={Clock} className="bg-amber-50/50" />
-            <StatCard title="إيرادات المتجر" value={`$${financials.storeRev.toFixed(2)}`} icon={ShoppingBag} className="bg-purple-50/50" />
-            <StatCard title="التبرعات المحصلة" value={`$${financials.donRev.toFixed(2)}`} icon={Heart} className="bg-indigo-50/50" />
+            <StatCard title="الرسوم المعلقة" value={financials.pending.toFixed(2)} icon={Clock} className="bg-amber-50/50" />
+            <StatCard title="إيرادات المتجر" value={financials.storeRev.toFixed(2)} icon={ShoppingBag} className="bg-purple-50/50" />
+            <StatCard title="التبرعات المحصلة" value={financials.donRev.toFixed(2)} icon={Heart} className="bg-indigo-50/50" />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -990,7 +990,7 @@ export default function Finance() {
                     <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f4" vertical={false} />
                     <XAxis dataKey="name" tick={{ fill: '#78716c', fontSize: 12 }} />
                     <YAxis tick={{ fill: '#78716c', fontSize: 12 }} />
-                    <Tooltip formatter={(value) => `$${value}`} />
+                    <Tooltip formatter={(value) => '$' + value} />
                     <Legend />
                     <Bar dataKey="إيرادات" fill="#10b981" radius={[4, 4, 0, 0]} />
                     <Bar dataKey="مصروفات" fill="#ef4444" radius={[4, 4, 0, 0]} />
@@ -1017,10 +1017,10 @@ export default function Finance() {
                       dataKey="value"
                     >
                       {financials.pieData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
+                        <Cell key={"cell-" + index} fill={entry.color} />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(value) => `$${value}`} />
+                    <Tooltip formatter={(value) => '$' + value} />
                     <Legend layout="vertical" verticalAlign="bottom" align="center" />
                   </PieChart>
                 </ResponsiveContainer>
@@ -1049,8 +1049,8 @@ export default function Finance() {
                     <tr key={tx.id} className="border-b border-stone-50 text-sm hover:bg-stone-50/50">
                       <td className="py-4 font-bold text-stone-800">{tx.label}</td>
                       <td className="py-4 text-stone-500">{new Date(tx.date).toLocaleDateString('ar-EG')}</td>
-                      <td className={`py-4 font-black ${tx.type === 'income' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                        {tx.type === 'income' ? '+' : '-'}${parseFloat(tx.amount || 0).toFixed(2)}
+<td className={"py-4 font-black " + (tx.type === 'income' ? 'text-emerald-600' : 'text-rose-600')}>
+                            {tx.type === 'income' ? '+' : '-'}{parseFloat(tx.amount || 0).toFixed(2)}
                       </td>
                       <td className="py-4 text-stone-500 font-medium">{tx.method || 'نقدًا'}</td>
                       <td className="py-4">
