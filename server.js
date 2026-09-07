@@ -28,7 +28,7 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Founder-Auth']
 }));
 
-// ⚠️ هام جداً: إضافة محلل بيانات الـ JSON لقراءة الطلبات القادمة من الواجهة الأمامية (مثل تسجيل الدخول)
+// محلل بيانات الـ JSON لقراءة الطلبات القادمة من الواجهة الأمامية
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
@@ -49,23 +49,26 @@ app.get('/api/ice-config', (_req, res) => {
   });
 });
 
-// Health check (useful for Render) — before API handler so it's not intercepted
+// Health check (useful for Render)
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString() });
 });
 
-// Mount API routes AFTER static files
-app.use(createApiHandler());
+// تشغيل الخادم أولاً واستماع المنفذ لضمان عدم تعليق الإقلاع على Render
+const server = app.listen(PORT, '0.0.0.0', () => {
+  console.log(`[EduTrack] Server running on port ${PORT}`);
+
+  // ربط الـ API والـ WebSocket بعد استجابة الخادم لضمان سلامة الاتصال بقاعدة البيانات
+  try {
+    app.use(createApiHandler());
+    setupWebSocket(server);
+    console.log(`[EduTrack] API routes and WebSocket successfully initialized.`);
+  } catch (err) {
+    console.error(`[EduTrack] Error initializing API/WebSocket:`, err);
+  }
+});
 
 // SPA fallback for client-side routing
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
-
-const server = app.listen(PORT, '0.0.0.0', () => {
-  console.log(`[EduTrack] Server running on port ${PORT}`);
-  console.log(`[EduTrack] API available at /neon-db/*`);
-});
-
-// Attach WebSocket server for virtual classroom
-setupWebSocket(server);
