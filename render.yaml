@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: edutrack-ub8f
+    name: edutrack-2689
     runtime: node
     plan: free
     buildCommand: npm install
