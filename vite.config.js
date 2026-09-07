@@ -14,7 +14,7 @@ export default defineConfig({
   },
   build: {
     sourcemap: false,
-    chunkSizeWarningLimit: 800,
+    chunkSizeWarningLimit: 3000,
     rollupOptions: {
       output: {
         manualChunks: {
@@ -41,8 +41,6 @@ export default defineConfig({
           'form-vendor': ['react-hook-form', '@hookform/resolvers', 'zod'],
           'query-vendor': ['@tanstack/react-query'],
           'editor-vendor': ['react-quill', 'react-markdown'],
-          'three-vendor': ['three'],
-          'stripe-vendor': ['@stripe/react-stripe-js', '@stripe/stripe-js'],
           'leaflet-vendor': ['react-leaflet'],
         }
       }
