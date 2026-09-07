@@ -14,9 +14,9 @@ import {
   MoreVertical,
   Edit2,
   Trash2,
-  CreditCard,
   Wallet,
-  ArrowLeft
+  ArrowLeft,
+  Upload
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -34,12 +34,6 @@ import { Badge } from "@/components/ui/badge";
 import StoreItemFormDialog from "@/components/shared/StoreItemFormDialog";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/AuthContext";
-import { loadStripe } from "@stripe/stripe-js";
-import { Elements } from "@stripe/react-stripe-js";
-import StripePaymentForm from "@/components/portal/StripePaymentForm";
-
-// @ts-ignore
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
 const btnOutline = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border-2 border-stone-300 bg-white text-stone-850 hover:bg-stone-50 hover:border-stone-400 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
 const btnPrimary = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed";
@@ -67,7 +61,7 @@ export default function Store() {
   }, [searchParams, setSearchParams]);
   const [cart, setCart] = useState([]);
   const [showCart, setShowCart] = useState(false);
-  const [checkoutStep, setCheckoutStep] = useState("cart"); // "cart", "payment_method", "stripe"
+  const [checkoutStep, setCheckoutStep] = useState("cart"); // "cart", "payment_method", "bank_transfer"
 
   // Student specific logic
   const studentId = user?.id || localStorage.getItem("portal_user_id") || "S-505";
@@ -628,18 +622,18 @@ export default function Store() {
                       <span className="text-xs font-black text-emerald-400 num-en">${cartTotal.toFixed(2)}</span>
                     </button>
 
-                    {/* Credit Card (Stripe) Option */}
+                    {/* Bank Transfer Option */}
                     <button 
-                      onClick={() => setCheckoutStep("stripe")}
+                      onClick={() => setCheckoutStep("bank_transfer")}
                       className="flex items-center justify-between p-4 rounded-xl border border-white/20 hover:border-white/50 bg-white/5 hover:bg-white/10 transition-all text-right w-full cursor-pointer"
                     >
                       <div className="flex items-center gap-3 text-start">
-                        <div className="h-9 w-9 rounded-lg bg-indigo-500/20 text-indigo-300 flex items-center justify-center">
-                          <CreditCard size={18} />
+                        <div className="h-9 w-9 rounded-lg bg-emerald-500/20 text-emerald-300 flex items-center justify-center">
+                          <Upload size={18} />
                         </div>
                         <div>
-                          <p className="font-bold text-sm">{isRTL ? "بطاقة بنكية آمنة (Stripe)" : "Secure Credit Card (Stripe)"}</p>
-                          <p className="text-[10px] text-white/60">{isRTL ? "ادفع مباشرة بالبطاقة الائتمانية" : "Pay securely via credit card"}</p>
+                          <p className="font-bold text-sm">{isRTL ? "تحويل بنكي + رفع إيصال" : "Bank Transfer + Upload Receipt"}</p>
+                          <p className="text-[10px] text-white/60">{isRTL ? "قم بالتحويل وأرفق الإيصال للمراجعة" : "Transfer & upload receipt for review"}</p>
                         </div>
                       </div>
                       <span className="text-xs font-black text-teal-300 num-en">${cartTotal.toFixed(2)}</span>
@@ -648,24 +642,27 @@ export default function Store() {
                 </div>
               )}
 
-              {checkoutStep === "stripe" && (
+              {checkoutStep === "bank_transfer" && (
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 mb-2">
                     <button onClick={() => setCheckoutStep("payment_method")} className="p-1 hover:bg-white/10 rounded-lg text-white">
                       <ArrowLeft size={16} className={isRTL ? "rotate-180" : ""} />
                     </button>
-                    <h5 className="font-bold text-sm">{isRTL ? "الدفع ببطاقة الائتمان" : "Pay with Credit Card"}</h5>
+                    <h5 className="font-bold text-sm">{isRTL ? "تحويل بنكي" : "Bank Transfer"}</h5>
                   </div>
 
                   <div className="bg-white text-stone-900 p-4 rounded-xl">
-                    <Elements stripe={stripePromise}>
-                      <StripePaymentForm 
-                        amount={cartTotal}
-                        onSuccess={() => handleCheckout("credit_card")}
-                        onCancel={() => setCheckoutStep("payment_method")}
-                        language={language}
-                      />
-                    </Elements>
+                    <div className="text-center space-y-3">
+                      <Upload className="h-10 w-10 text-blue-600 mx-auto" />
+                      <p className="text-sm font-semibold">{isRTL ? "قم بالتحويل البنكي ثم أرفق الإيصال" : "Transfer & Upload Receipt"}</p>
+                      <p className="text-xs text-stone-500">{isRTL ? "سيتم مراجعة الإيصال وتفعيل الطلب بعد الموافقة" : "Receipt will be reviewed and order confirmed after approval"}</p>
+                      <button
+                        onClick={() => { setCheckoutStep("cart"); setShowCart(false); window.location.href = "/renew-subscription"; }}
+                        className="w-full h-11 rounded-xl bg-stone-900 text-white font-semibold hover:bg-black cursor-pointer"
+                      >
+                        {isRTL ? "عرض تفاصيل الحساب البنكي" : "View Bank Details"}
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}

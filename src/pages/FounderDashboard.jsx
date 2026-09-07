@@ -7,7 +7,7 @@ import {
   LogOut, CheckCircle2, XCircle, Bell, School as SchoolIcon, TrendingUp,
   Users, CircleDollarSign, RefreshCw, Eye, Plus, Clock, AlertTriangle,
   BarChart3, MessageCircle, Save, Download, KeyRound, PauseCircle, Timer,
-  MapPin, Calendar, Phone, Mail, Crown, Zap, Shield, Copy, Printer, Send, UserPlus, Lock, Link2, ExternalLink, GraduationCap, Trash2
+  MapPin, Calendar, Phone, Mail, Crown, Zap, Shield, Copy, Printer, Send, UserPlus, Lock, Link2, ExternalLink, GraduationCap, Trash2, SlidersHorizontal
 } from "lucide-react";
 import LandingContentEditor from "@/components/LandingContentEditor";
 
@@ -38,10 +38,333 @@ const NAV = [
   { id: "teachers", label: "إدارة المعلمين", icon: GraduationCap },
   { id: "students", label: "إدارة الطلاب", icon: Users },
   { id: "subscriptions", label: "الاشتراكات والإيرادات", icon: CreditCard },
+  { id: "tier_features", label: "ميزات الخطط", icon: SlidersHorizontal },
   { id: "support", label: "الدعم الفني", icon: LifeBuoy },
   { id: "landing", label: "محتوى الصفحة الرئيسية", icon: Settings },
   { id: "settings", label: "إعدادات المنصة", icon: Settings },
 ];
+
+function PaymentReceiptsSection() {
+  const [receipts, setReceipts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState("pending");
+  const [selectedReceipt, setSelectedReceipt] = useState(null);
+  const [reviewing, setReviewing] = useState(false);
+  const [notes, setNotes] = useState("");
+
+  const fetchReceipts = async () => {
+    try {
+      const token = localStorage.getItem("portal_jwt_token") || localStorage.getItem("jwt_token");
+      const res = await fetch("/neon-db/payment-receipts", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      setReceipts(data.receipts || []);
+    } catch (e) { console.error(e); }
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchReceipts(); }, []);
+
+  const handleReview = async (id, status) => {
+    setReviewing(true);
+    try {
+      const token = localStorage.getItem("portal_jwt_token") || localStorage.getItem("jwt_token");
+      const res = await fetch(`/neon-db/review-receipt/${id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status, reviewer_notes: notes }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      toast.success(status === "approved" ? "تمت الموافقة وتفعيل الاشتراك" : "تم رفض الإيصال");
+      setSelectedReceipt(null);
+      setNotes("");
+      fetchReceipts();
+    } catch (e) { toast.error(e.message || "خطأ"); }
+    setReviewing(false);
+  };
+
+  const filtered = receipts.filter(r => filter === "all" || r.status === filter);
+  const counts = { pending: receipts.filter(r => r.status === "pending").length, approved: receipts.filter(r => r.status === "approved").length, rejected: receipts.filter(r => r.status === "rejected").length };
+
+  return (
+    <div className="space-y-4 mt-6">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2"><CreditCard size={18} className="text-emerald-500"/> إيصالات الدفع الواردة</h3>
+        <button onClick={fetchReceipts} className="bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 hover:bg-slate-200"><RefreshCw size={13}/> تحديث</button>
+      </div>
+      <div className="flex gap-2 flex-wrap">
+        {[{id:"pending", label:"قيد المراجعة", count:counts.pending, color:"bg-amber-100 text-amber-700"}, {id:"approved", label:"تمت الموافقة", count:counts.approved, color:"bg-emerald-100 text-emerald-700"}, {id:"rejected", label:"مرفوض", count:counts.rejected, color:"bg-rose-100 text-rose-700"}, {id:"all", label:"الكل", count:receipts.length, color:"bg-slate-100 text-slate-700"}].map(f => (
+          <button key={f.id} onClick={() => setFilter(f.id)} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${filter===f.id ? f.color : "bg-slate-50 text-slate-400 hover:bg-slate-100"}`}>{f.label} ({f.count})</button>
+        ))}
+      </div>
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        {loading ? (
+          <div className="p-8 text-center"><RefreshCw className="animate-spin mx-auto text-emerald-500" size={24}/></div>
+        ) : filtered.length === 0 ? (
+          <p className="p-8 text-center text-slate-400">لا توجد إيصالات</p>
+        ) : (
+          <table className="w-full">
+            <thead><tr className="bg-slate-50 border-b border-slate-200">
+              <th className="text-right p-3 text-xs font-bold text-slate-600">المدرسة</th>
+              <th className="text-center p-3 text-xs font-bold text-slate-600">المبلغ</th>
+              <th className="text-center p-3 text-xs font-bold text-slate-600">الباقة</th>
+              <th className="text-center p-3 text-xs font-bold text-slate-600">الاسم</th>
+              <th className="text-center p-3 text-xs font-bold text-slate-600">المرجع</th>
+              <th className="text-center p-3 text-xs font-bold text-slate-600">التاريخ</th>
+              <th className="text-center p-3 text-xs font-bold text-slate-600">الحالة</th>
+              <th className="text-center p-3 text-xs font-bold text-slate-600">إجراءات</th>
+            </tr></thead>
+            <tbody>
+              {filtered.map(r => (
+                <tr key={r.id} className="border-b border-slate-100 hover:bg-slate-50">
+                  <td className="p-3 text-sm font-bold">{r.school_name || r.school_id}</td>
+                  <td className="p-3 text-center font-bold text-emerald-700">${r.amount}</td>
+                  <td className="p-3 text-center text-xs capitalize">{r.plan} • {r.billing_cycle === "yearly" ? "سنوي" : "شهري"}</td>
+                  <td className="p-3 text-center text-xs">{r.sender_name}</td>
+                  <td className="p-3 text-center text-xs font-mono">{r.transfer_reference || "—"}</td>
+                  <td className="p-3 text-center text-xs text-slate-500">{r.created_at ? new Date(r.created_at).toLocaleDateString("ar-EG") : "—"}</td>
+                  <td className="p-3 text-center">
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${r.status==="pending" ? "bg-amber-100 text-amber-700" : r.status==="approved" ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>{r.status==="pending" ? "قيد المراجعة" : r.status==="approved" ? "تمت الموافقة" : "مرفوض"}</span>
+                  </td>
+                  <td className="p-3 text-center">
+                    <button onClick={() => setSelectedReceipt(r)} className="text-blue-600 hover:bg-blue-50 p-1.5 rounded-lg"><Eye size={14}/></button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+      {/* Review Modal */}
+      {selectedReceipt && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setSelectedReceipt(null)}>
+          <div className="bg-white rounded-2xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
+            <h3 className="font-bold text-lg mb-4">تفاصيل الإيصال</h3>
+            <div className="space-y-3 text-sm">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-slate-50 rounded-xl p-3"><p className="text-xs text-slate-500">المدرسة</p><p className="font-bold">{selectedReceipt.school_name || selectedReceipt.school_id}</p></div>
+                <div className="bg-emerald-50 rounded-xl p-3"><p className="text-xs text-emerald-600">المبلغ</p><p className="font-bold text-emerald-700">${selectedReceipt.amount}</p></div>
+                <div className="bg-blue-50 rounded-xl p-3"><p className="text-xs text-blue-600">الباقة</p><p className="font-bold capitalize">{selectedReceipt.plan} • {selectedReceipt.billing_cycle === "yearly" ? "سنوي" : "شهري"}</p></div>
+                <div className="bg-slate-50 rounded-xl p-3"><p className="text-xs text-slate-500">الاسم</p><p className="font-bold">{selectedReceipt.sender_name}</p></div>
+                <div className="bg-slate-50 rounded-xl p-3"><p className="text-xs text-slate-500">البنك</p><p className="font-bold">{selectedReceipt.bank_name || "—"}</p></div>
+                <div className="bg-slate-50 rounded-xl p-3"><p className="text-xs text-slate-500">المرجع</p><p className="font-bold font-mono">{selectedReceipt.transfer_reference || "—"}</p></div>
+              </div>
+              {selectedReceipt.receipt_image && (
+                <div className="mt-3"><p className="text-xs text-slate-500 mb-1">صورة الإيصال</p><img src={selectedReceipt.receipt_image} alt="receipt" className="w-full rounded-xl border border-slate-200 max-h-64 object-contain bg-slate-50"/></div>
+              )}
+              <div><label className="text-xs font-bold text-slate-600">ملاحظات</label><textarea value={notes} onChange={e => setNotes(e.target.value)} className="w-full mt-1 rounded-xl border border-slate-200 p-2 text-sm" rows={2} placeholder="ملاحظات اختيارية"/></div>
+            </div>
+            {selectedReceipt.status === "pending" && (
+              <div className="flex gap-3 mt-5">
+                <button disabled={reviewing} onClick={() => handleReview(selectedReceipt.id, "approved")} className="flex-1 bg-emerald-600 text-white py-2.5 rounded-xl font-bold text-sm hover:bg-emerald-700 disabled:opacity-50 flex items-center justify-center gap-2"><CheckCircle2 size={16}/> {reviewing ? "..." : "موافقة وتفعيل"}</button>
+                <button disabled={reviewing} onClick={() => handleReview(selectedReceipt.id, "rejected")} className="flex-1 bg-rose-600 text-white py-2.5 rounded-xl font-bold text-sm hover:bg-rose-700 disabled:opacity-50 flex items-center justify-center gap-2"><XCircle size={16}/> {reviewing ? "..." : "رفض"}</button>
+              </div>
+            )}
+            <button onClick={() => { setSelectedReceipt(null); setNotes(""); }} className="w-full mt-3 bg-slate-100 text-slate-600 py-2 rounded-xl text-sm font-bold hover:bg-slate-200">إغلاق</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TierFeaturesSection() {
+  const [features, setFeatures] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [localTiers, setLocalTiers] = useState({});
+  const [dirty, setDirty] = useState(false);
+
+  useEffect(() => {
+    fetchFeatures();
+  }, []);
+
+  const fetchFeatures = async () => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem("portal_jwt_token") || localStorage.getItem("jwt_token");
+      const res = await fetch("/api/tier-features", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      setFeatures(data);
+      const map = {};
+      data.forEach(f => {
+        map[f.feature_key] = { ...f.tiers };
+      });
+      setLocalTiers(map);
+    } catch (e) {
+      console.error("Failed to load tier features", e);
+      toast.error("فشل تحميل ميزات الخطط");
+    }
+    setLoading(false);
+  };
+
+  const toggleFeature = (featureKey, tier) => {
+    setLocalTiers(prev => ({
+      ...prev,
+      [featureKey]: { ...prev[featureKey], [tier]: !prev[featureKey]?.[tier] }
+    }));
+    setDirty(true);
+  };
+
+  const toggleAllForTier = (tier, enabled) => {
+    setLocalTiers(prev => {
+      const next = { ...prev };
+      features.forEach(f => {
+        if (!next[f.feature_key]) next[f.feature_key] = {};
+        next[f.feature_key] = { ...next[f.feature_key], [tier]: enabled };
+      });
+      return next;
+    });
+    setDirty(true);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const token = localStorage.getItem("portal_jwt_token") || localStorage.getItem("jwt_token");
+      const tiers = {};
+      ["starter", "professional", "enterprise"].forEach(tier => {
+        tiers[tier] = {};
+        features.forEach(f => {
+          tiers[tier][f.feature_key] = !!localTiers[f.feature_key]?.[tier];
+        });
+      });
+      const res = await fetch("/api/tier-features/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ tiers }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      toast.success("تم حفظ الميزات بنجاح");
+      setDirty(false);
+    } catch (e) {
+      toast.error("فشل حفظ الميزات");
+    }
+    setSaving(false);
+  };
+
+  const categories = [...new Set(features.map(f => f.category))];
+  const categoryLabels = {
+    core: "الميزات الأساسية",
+    live: "البث المباشر والمحادثات",
+    extras: "المكتبة والإضافات",
+    finance: "المالية والمحافظ",
+    logistics: "الخدمات اللوجستية",
+    comm: "التواصل والإشعارات",
+    enterprise: "ميزات المؤسسات",
+    support: "الدعم الفني",
+  };
+
+  const tierMeta = {
+    starter: { label: "Starter", color: "bg-slate-600", price: "$49/شهر" },
+    professional: { label: "Professional", color: "bg-blue-600", price: "$99/شهر" },
+    enterprise: { label: "Enterprise", color: "bg-violet-600", price: "$199/شهر" },
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-12">
+        <RefreshCw className="animate-spin text-blue-500" size={28} />
+        <span className="mr-3 text-slate-500 text-sm">جاري تحميل الميزات...</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-extrabold text-slate-900">إدارة ميزات الخطط</h3>
+          <p className="text-sm text-slate-500 mt-1">تفعيل/تعطيل الميزات لكل خطة اشتراك — التغييرات تؤثر فوراً على المدارس</p>
+        </div>
+        <div className="flex items-center gap-3">
+          {dirty && (
+            <span className="text-xs font-bold text-amber-600 bg-amber-50 px-3 py-1 rounded-full">غيّر غير محفوظ</span>
+          )}
+          <button
+            onClick={handleSave}
+            disabled={saving || !dirty}
+            className={`px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all ${
+              dirty ? "bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-900/30" : "bg-slate-100 text-slate-400 cursor-not-allowed"
+            }`}
+          >
+            <Save size={16} />
+            {saving ? "جاري الحفظ..." : "حفظ التغييرات"}
+          </button>
+        </div>
+      </div>
+
+      {/* Tier summary cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {Object.entries(tierMeta).map(([key, meta]) => {
+          const count = features.filter(f => localTiers[f.feature_key]?.[key]).length;
+          return (
+            <div key={key} className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+              <div className="flex items-center gap-3">
+                <span className={`w-3 h-3 rounded-full ${meta.color}`} />
+                <div>
+                  <p className="font-bold text-slate-900">{meta.label}</p>
+                  <p className="text-xs text-slate-400">{meta.price}</p>
+                </div>
+              </div>
+              <p className="mt-3 text-2xl font-extrabold text-slate-900">{count}<span className="text-sm font-normal text-slate-400">/{features.length} ميزة</span></p>
+              <div className="mt-2 flex gap-2">
+                <button onClick={() => toggleAllForTier(key, true)} className="text-xs font-bold text-emerald-600 hover:text-emerald-700">تفعيل الكل</button>
+                <span className="text-slate-300">|</span>
+                <button onClick={() => toggleAllForTier(key, false)} className="text-xs font-bold text-rose-600 hover:text-rose-700">تعطيل الكل</button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Feature matrix by category */}
+      {categories.map(cat => (
+        <div key={cat} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="bg-slate-50 border-b border-slate-200 px-5 py-3">
+            <h4 className="font-bold text-slate-800 text-sm">{categoryLabels[cat] || cat}</h4>
+          </div>
+          <div className="divide-y divide-slate-100">
+            {features.filter(f => f.category === cat).map(feature => (
+              <div key={feature.feature_key} className="px-5 py-3 flex items-center gap-4">
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-sm text-slate-900">{feature.name_ar}</p>
+                  <p className="text-xs text-slate-400">{feature.name_en} · <code className="text-[10px] bg-slate-100 px-1 rounded">{feature.feature_key}</code></p>
+                </div>
+                {["starter", "professional", "enterprise"].map(tier => (
+                  <label key={tier} className="flex items-center gap-2 cursor-pointer shrink-0" title={`${tierMeta[tier].label}: ${localTiers[feature.feature_key]?.[tier] ? "مفعّل" : "معطّل"}`}>
+                    <div
+                      onClick={() => toggleFeature(feature.feature_key, tier)}
+                      className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer ${
+                        localTiers[feature.feature_key]?.[tier] ? "bg-emerald-500" : "bg-slate-200"
+                      }`}
+                    >
+                      <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                        localTiers[feature.feature_key]?.[tier] ? "right-0.5 translate-x-4" : "right-0.5"
+                      }`} />
+                    </div>
+                  </label>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+
+      {/* Tier legend */}
+      <div className="flex items-center justify-center gap-6 text-xs text-slate-400">
+        <span className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-slate-600" /> Starter</span>
+        <span className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-blue-600" /> Professional</span>
+        <span className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-violet-600" /> Enterprise</span>
+      </div>
+    </div>
+  );
+}
 
 const FounderDashboard = () => {
   const [section, setSection] = useState("overview");
@@ -2137,6 +2460,12 @@ const FounderDashboard = () => {
             </div>
           </div>
         )}
+
+        {/* ───── إيصالات الدفع البنتقالية ───── */}
+        {section === "subscriptions" && <PaymentReceiptsSection />}
+
+        {/* ───── إدارة ميزات الخطط ───── */}
+        {section === "tier_features" && <TierFeaturesSection />}
 
         {/* ───── 7️⃣ الدعم الفني ───── */}
         {section === "support" && (

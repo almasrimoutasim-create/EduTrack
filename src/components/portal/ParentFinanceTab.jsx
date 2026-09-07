@@ -7,16 +7,10 @@ import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { loadStripe } from "@stripe/stripe-js";
-import { Elements } from "@stripe/react-stripe-js";
-import StripePaymentForm from "@/components/portal/StripePaymentForm";
 import { toast } from "sonner";
 import { 
-  CreditCard, Wallet, BookOpen, Clock, Activity, Printer, Download, Plus, ArrowRight, ShieldCheck, ShoppingBag
+  Wallet, BookOpen, Clock, Activity, Printer, Download, Plus, ArrowRight, ShieldCheck, Upload
 } from "lucide-react";
-
-// @ts-ignore
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
 const btnOutline = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border-2 border-stone-300 bg-white text-stone-800 hover:bg-stone-50 hover:border-stone-400 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
 const btnPrimary = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-stone-900 text-white hover:bg-black cursor-pointer shadow-lg shadow-stone-200 disabled:opacity-50 disabled:cursor-not-allowed";
@@ -123,35 +117,25 @@ export default function ParentFinanceTab({ student, user, language }) {
   }, [feePayments, walletTx, studentFees, isRTL]);
 
   // Mutations
-  const handlePaymentSuccess = async (paymentIntent) => {
+  const handlePaymentSuccess = async () => {
     try {
       if (paymentType === "fee" && selectedFee) {
         await entities.FeePayment.create({
           student_fee_id: selectedFee.id,
           student_id: student.id,
           amount: parseFloat(selectedFee.remaining),
-          payment_method: "stripe",
-          stripe_payment_intent_id: paymentIntent.id,
-          stripe_receipt_url: paymentIntent.charges?.data?.[0]?.receipt_url || "",
+          payment_method: "bank_transfer",
           paid_by: user.id,
-          notes: "دفع آمن عبر بوابة Stripe"
+          notes: "Payment via bank transfer receipt"
         });
-
         toast.success(isRTL ? "تم سداد الرسوم الدراسية بنجاح" : "Tuition paid successfully");
-      } 
-      
-      else if (paymentType === "activity" && selectedActivity) {
-        // Update student activity fee status
+      } else if (paymentType === "activity" && selectedActivity) {
         await entities.StudentActivityFee.update(selectedActivity.id, {
           status: "paid",
-          paid_at: new Date().toISOString(),
-          stripe_payment_intent_id: paymentIntent.id
+          paid_at: new Date().toISOString()
         });
-
         toast.success(isRTL ? "تم سداد رسوم النشاط بنجاح" : "Activity fee paid successfully");
-      } 
-      
-      else if (paymentType === "topup") {
+      } else if (paymentType === "topup") {
         const topupVal = parseFloat(topupPreset || topupAmount);
         await entities.WalletTransaction.create({
           student_id: student.id,
@@ -159,14 +143,11 @@ export default function ParentFinanceTab({ student, user, language }) {
           amount: topupVal,
           balance_after: walletBalance + topupVal,
           description: "شحن رصيد المحفظة من ولي الأمر",
-          stripe_payment_intent_id: paymentIntent.id,
           created_by: user.id
         });
-
         toast.success(isRTL ? "تم شحن المحفظة بنجاح" : "Wallet topped up successfully");
       }
 
-      // Unified query key invalidation
       qc.invalidateQueries({ queryKey: ['student-fees-parent', student.id] });
       qc.invalidateQueries({ queryKey: ['student-activity-fees', student.id] });
       qc.invalidateQueries({ queryKey: ['student-wallet', student.id] });
@@ -181,7 +162,7 @@ export default function ParentFinanceTab({ student, user, language }) {
       setTopupAmount("");
     } catch (err) {
       console.error(err);
-      toast.error(isRTL ? "فشل تحديث سجلات الدفع في قاعدة البيانات" : "Failed to record payment details");
+      toast.error(isRTL ? "فشل تحديث سجلات الدفع" : "Failed to record payment");
     }
   };
 
@@ -208,8 +189,8 @@ export default function ParentFinanceTab({ student, user, language }) {
             <p><span class="bold">${isRTL ? "اسم الطالب:" : "Student Name:"}</span> ${student.full_name}</p>
             <p><span class="bold">${isRTL ? "نوع المعاملة:" : "Transaction:"}</span> ${tx.label}</p>
             <p><span class="bold">${isRTL ? "تاريخ المعاملة:" : "Date:"}</span> ${new Date(tx.created_at).toLocaleString(isRTL ? "ar-EG" : "en-US")}</p>
-            <p><span class="bold">${isRTL ? "طريقة الدفع:" : "Method:"}</span> ${tx.payment_method || "Stripe (بطاقة ائتمان)"}</p>
-            <p><span class="bold">${isRTL ? "رقم مرجع الدفع:" : "Reference ID:"}</span> ${tx.stripe_payment_intent_id || "—"}</p>
+            <p><span class="bold">${isRTL ? "طريقة الدفع:" : "Method:"}</span> ${tx.payment_method || "Bank Transfer"}</p>
+            <p><span class="bold">${isRTL ? "رقم مرجع الدفع:" : "Reference ID:"}</span> ${tx.transfer_reference || tx.id || "—"}</p>
             <p class="amount">$${parseFloat(tx.amount).toFixed(2)}</p>
             <div class="footer">نظام EduTrack المالي الآمن © ${new Date().getFullYear()}</div>
           </div>
@@ -415,10 +396,10 @@ export default function ParentFinanceTab({ student, user, language }) {
                   <td className="py-3.5 text-center">
                     <Badge className="bg-stone-100 text-stone-600 border-none rounded-lg text-[10px] font-bold px-2 py-0.5">
                       {{
-                        stripe: "Stripe",
+                        bank_transfer: "تحويل بنكي",
                         cash: "كاش",
-                        bank_transfer: "تحويل بنكي"
-                      }[tx["payment_method"]]}
+                        wallet: "محفظة"
+                      }[tx["payment_method"]] || "تحويل بنكي"}
                     </Badge>
                   </td>
                   <td className="py-3.5 text-left">
@@ -439,44 +420,59 @@ export default function ParentFinanceTab({ student, user, language }) {
         </div>
       </Card>
 
-      {/* STRIPE PAYMENT DIALOG */}
+      {/* PAYMENT DIALOG */}
       <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
-        <DialogContent className="max-w-md bg-white rounded-3xl p-8 border-none" dir="rtl">
+        <DialogContent className="max-w-sm">
           <DialogHeader className="mb-6">
-            <DialogTitle className="font-serif text-2xl font-bold text-stone-900 text-right">الدفع الآمن بالبطاقة</DialogTitle>
-            <DialogDescription className="text-right text-xs mt-1">
-              {paymentType === "fee" && selectedFee && `أنت بصدد سداد مبلغ الرسوم الدراسية المستحقة بقيمة $${parseFloat(selectedFee.remaining).toFixed(2)}`}
-              {paymentType === "activity" && selectedActivity && `أنت بصدد سداد رسوم الاشتراك بالنشاط بقيمة $${parseFloat(selectedActivity.details?.amount || 0).toFixed(2)}`}
+            <DialogTitle className="font-serif text-xl font-bold text-stone-900">
+              {isRTL ? "سداد عبر تحويل بنكي" : "Pay via Bank Transfer"}
+            </DialogTitle>
+            <DialogDescription className="text-xs mt-1">
+              {paymentType === "fee" && selectedFee && isRTL ? `سداد مبلغ الرسوم المستحقة: $${parseFloat(selectedFee.remaining).toFixed(2)}` : ""}
+              {paymentType === "fee" && selectedFee && !isRTL ? `Pay outstanding tuition: $${parseFloat(selectedFee.remaining).toFixed(2)}` : ""}
+              {paymentType === "activity" && selectedActivity && isRTL ? `سداد رسوم النشاط: $${parseFloat(selectedActivity.details?.amount || 0).toFixed(2)}` : ""}
+              {paymentType === "activity" && selectedActivity && !isRTL ? `Pay activity fee: $${parseFloat(selectedActivity.details?.amount || 0).toFixed(2)}` : ""}
             </DialogDescription>
           </DialogHeader>
-
           <div className="space-y-4">
-            <Elements stripe={stripePromise}>
-              <StripePaymentForm
-                amount={
-                  paymentType === "fee" ? parseFloat(selectedFee?.remaining || 0) :
-                  paymentType === "activity" ? parseFloat(selectedActivity?.details?.amount || 0) : 0
-                }
-                onSuccess={handlePaymentSuccess}
-                onCancel={() => setPaymentDialogOpen(false)}
-                language={language}
-              />
-            </Elements>
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center space-y-3">
+              <Upload className="h-8 w-8 text-blue-600 mx-auto" />
+              <p className="text-sm font-semibold text-blue-900">
+                {isRTL ? "قم بالتحويل البنكي ثم أرفق الإيصال" : "Transfer & Upload Receipt"}
+              </p>
+              <p className="text-xs text-blue-700">
+                {isRTL ? "سيتم مراجعة الإيصال وتفعيل الدفع بعد الموافقة" : "Receipt will be reviewed and approved by the admin"}
+              </p>
+            </div>
+            <button
+              onClick={() => { setPaymentDialogOpen(false); window.location.href = "/renew-subscription"; }}
+              className={btnPrimary + " w-full h-11"}
+            >
+              {isRTL ? "عرض تفاصيل الحساب البنكي" : "View Bank Details"}
+            </button>
+            <button
+              onClick={() => setPaymentDialogOpen(false)}
+              className={btnOutline + " w-full h-11"}
+            >
+              {isRTL ? "إلغاء" : "Cancel"}
+            </button>
           </div>
         </DialogContent>
       </Dialog>
 
       {/* TOPUP WALLET DIALOG */}
       <Dialog open={topupDialogOpen} onOpenChange={setTopupDialogOpen}>
-        <DialogContent className="max-w-md bg-white rounded-3xl p-8 border-none" dir="rtl">
+        <DialogContent className="max-w-sm">
           <DialogHeader className="mb-6">
-            <DialogTitle className="font-serif text-2xl font-bold text-stone-900 text-right">شحن رصيد بطاقة المتجر</DialogTitle>
-            <DialogDescription className="text-right text-xs mt-1">
-              حدد أو أدخل القيمة المراد شحنها بالمحفظة الإلكترونية للطالب
+            <DialogTitle className="font-serif text-xl font-bold text-stone-900">
+              {isRTL ? "شحن رصيد المحفظة" : "Top Up Wallet"}
+            </DialogTitle>
+            <DialogDescription className="text-xs mt-1">
+              {isRTL ? "حدد القيمة ثم قم بالتحويل البنكي" : "Select amount then pay via bank transfer"}
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-6">
+          <div className="space-y-4">
             {/* Preset amounts */}
             <div className="grid grid-cols-4 gap-2">
               {[10, 20, 50, 100].map(amt => (
@@ -496,38 +492,35 @@ export default function ParentFinanceTab({ student, user, language }) {
 
             {/* Custom input */}
             <div className="space-y-2">
-              <Label className="text-xs font-bold text-stone-500 uppercase tracking-widest block">أو أدخل مبلغاً مخصصاً *</Label>
+              <Label className="text-xs font-bold text-stone-500 uppercase tracking-widest block">
+                {isRTL ? "أو أدخل مبلغاً مخصصاً" : "Or enter custom amount"}
+              </Label>
               <Input
                 type="number"
                 min="5"
                 value={topupAmount}
-                onChange={e => {
-                  setTopupAmount(e.target.value);
-                  setTopupPreset(null);
-                }}
-                placeholder="أدخل قيمة الشحن (أقل قيمة $5)"
-                className="h-12 rounded-xl border border-stone-200 num-en"
+                onChange={e => { setTopupAmount(e.target.value); setTopupPreset(null); }}
+                placeholder={isRTL ? "أقل قيمة $5" : "Minimum $5"}
+                className="h-12 rounded-xl border border-stone-200"
               />
             </div>
 
-            {/* Elements wrap */}
-            {(topupPreset || (parseFloat(topupAmount) >= 5)) ? (
-              <div className="pt-4 border-t border-stone-100">
-                <Elements stripe={stripePromise}>
-                  <StripePaymentForm
-                    amount={topupPreset || parseFloat(topupAmount)}
-                    onSuccess={handlePaymentSuccess}
-                    onCancel={() => setTopupDialogOpen(false)}
-                    language={language}
-                  />
-                </Elements>
-              </div>
-            ) : (
-              <div className="p-4 bg-stone-50 border border-stone-100 rounded-2xl flex items-center justify-center gap-2 text-stone-400 text-xs font-semibold">
-                <CreditCard className="h-4 w-4" />
-                <span>يرجى تحديد أو إدخال قيمة صحيحة للشحن</span>
-              </div>
-            )}
+            {/* Actions */}
+            <div className="space-y-2 pt-2">
+              <button
+                onClick={() => { setTopupDialogOpen(false); window.location.href = "/renew-subscription"; }}
+                className={btnPrimary + " w-full h-11"}
+                disabled={!topupPreset && !(parseFloat(topupAmount) >= 5)}
+              >
+                {isRTL ? "عرض تفاصيل الحساب البنكي" : "View Bank Details"}
+              </button>
+              <button
+                onClick={() => setTopupDialogOpen(false)}
+                className={btnOutline + " w-full h-11"}
+              >
+                {isRTL ? "إلغاء" : "Cancel"}
+              </button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

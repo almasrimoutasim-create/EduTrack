@@ -4,15 +4,9 @@ import { entities } from "@/api/dbClient";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { AlertCircle, CreditCard, Wallet, Lock } from "lucide-react";
+import { AlertCircle, Wallet, Upload } from "lucide-react";
 import { toast } from "sonner";
-import { loadStripe } from "@stripe/stripe-js";
-import { Elements } from "@stripe/react-stripe-js";
-import StripePaymentForm from "./StripePaymentForm";
 import { useLanguage } from "@/lib/LanguageContext";
-
-// @ts-ignore
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
 const translateText = (text, isRTL) => {
   if (!text || !isRTL) return text;
@@ -120,13 +114,11 @@ export default function ParentFinesTab({ student, privacyMode }) {
     }
   };
 
-  const handleStripeSuccess = async (paymentIntent) => {
-    setPaying(paymentDialog.id);
-    const fineAmount = parseFloat(paymentDialog.amount) || 0;
+  const confirmPayment = async (fine) => {
+    setPaying(fine.id);
+    const fineAmount = parseFloat(fine.amount) || 0;
     try {
-      await entities.Fine.update(paymentDialog.id, { status: "paid" });
-      
-      // Track payment in financial records
+      await entities.Fine.update(fine.id, { status: "paid" });
       await entities.FinancialRecord.create({
         type: "income",
         record_type: "fine_payment",
@@ -134,21 +126,20 @@ export default function ParentFinesTab({ student, privacyMode }) {
         recipient_name: student.full_name,
         recipient_id: student.id,
         amount: fineAmount,
-        description: `Fine Payment (Stripe): ${paymentDialog.reason}`,
+        description: `Fine Payment: ${fine.reason}`,
         payment_date: new Date().toISOString().split('T')[0],
         status: "paid",
-        payment_method: "credit_card"
+        payment_method: "wallet"
       });
-
       qc.invalidateQueries({ queryKey: ["parent-fines", student.id] });
       qc.invalidateQueries({ queryKey: ["parent-fine-history", student.id] });
       qc.invalidateQueries({ queryKey: ["student-detail", student.id] });
       qc.invalidateQueries({ queryKey: ["parent-children"] });
-      
+      toast.success(isRTL ? "تم الدفع بنجاح" : "Payment successful");
       setPaymentDialog(null);
     } catch (err) {
       console.error(err);
-      toast.error(isRTL ? "فشل تحديث سجل الغرامة في قاعدة البيانات" : "Failed to update fine record in database");
+      toast.error(isRTL ? "فشل الدفع" : "Payment failed");
     } finally {
       setPaying(null);
     }
@@ -296,43 +287,25 @@ export default function ParentFinesTab({ student, privacyMode }) {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setPaymentMethod("card")}
-                    className={`p-3 rounded-lg border-2 text-left transition-all ${
-                      paymentMethod === "card"
-                        ? "border-primary bg-primary/5"
-                        : "border-stone-200 hover:border-stone-400"
-                    }`}
+                    onClick={() => window.location.href = "/renew-subscription"}
+                    className="p-3 rounded-lg border-2 text-left transition-all border-stone-200 hover:border-stone-400"
                   >
                     <div className="flex items-center gap-2">
-                      <CreditCard className={`h-5 w-5 ${paymentMethod === "card" ? "text-primary" : "text-stone-400"}`} />
+                      <Upload className="h-5 w-5 text-stone-400" />
                       <div>
-                        <p className="font-semibold text-sm">{isRTL ? "بطاقة الائتمان (Stripe)" : "Credit/Debit Card"}</p>
-                        <p className="text-xs text-stone-500">{isRTL ? "دفع رقمي آمن عبر Stripe" : "Secure digital payment via Stripe"}</p>
+                        <p className="font-semibold text-sm">{isRTL ? "تحويل بنكي + رفع إيصال" : "Bank Transfer + Upload Receipt"}</p>
+                        <p className="text-xs text-stone-500">{isRTL ? "قم بالتحويل وأرفق الإيصال للمراجعة" : "Transfer & upload receipt for review"}</p>
                       </div>
                     </div>
                   </button>
                 </div>
               </div>
 
-              {/* Stripe Payment Form */}
-              {paymentMethod === "card" && (
-                <div className="pt-4 border-t border-stone-100">
-                  <Elements stripe={stripePromise}>
-                    <StripePaymentForm
-                      amount={parseFloat(paymentDialog.amount || 0)}
-                      onSuccess={handleStripeSuccess}
-                      onCancel={() => setPaymentDialog(null)}
-                      language={language}
-                    />
-                  </Elements>
-                </div>
-              )}
-
               {/* Security Notice */}
               {paymentMethod === "wallet" && (
                 <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 flex gap-2">
-                  <Lock className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
-                  <p className="text-xs text-blue-700">{isRTL ? "جميع المعاملات مشفرة وتتم بأمان تام." : "All payments are encrypted and securely processed through our payment system."}</p>
+                  <AlertCircle className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
+                  <p className="text-xs text-blue-700">{isRTL ? "جميع المعاملات آمنة ومشفرة." : "All payments are secure and encrypted."}</p>
                 </div>
               )}
 

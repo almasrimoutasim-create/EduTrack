@@ -31,6 +31,38 @@ function safeEqualStr(a, b) {
   return diff === 0;
 }
 
+// ── Feature access: check if a school's plan includes a specific feature ──
+async function schoolHasFeature(schoolId, featureKey) {
+  try {
+    const rows = await dbQuery(
+      `SELECT tf.enabled FROM tier_features tf
+       JOIN schools s ON s.plan = tf.tier
+       WHERE s.id = $1 AND tf.feature_key = $2 AND tf.enabled = true`,
+      [schoolId, featureKey]
+    );
+    return rows.length > 0;
+  } catch { return false; }
+}
+
+// ── Feature gate middleware: returns 403 if school lacks the feature ──
+function requireFeature(featureKey) {
+  return async (req, res, next) => {
+    const schoolId = req.headers["x-school-id"] || req.query?.school_id;
+    if (!schoolId) {
+      res.statusCode = 400;
+      res.setHeader("Content-Type", "application/json");
+      return res.end(JSON.stringify({ error: "school_id required" }));
+    }
+    const has = await schoolHasFeature(schoolId, featureKey);
+    if (!has) {
+      res.statusCode = 403;
+      res.setHeader("Content-Type", "application/json");
+      return res.end(JSON.stringify({ error: "Feature not available in your plan", feature: featureKey }));
+    }
+    return next ? next() : true;
+  };
+}
+
 let sql = null;
 if (process.env.DATABASE_URL) {
   sql = neon(process.env.DATABASE_URL);
@@ -887,6 +919,31 @@ if (process.env.DATABASE_URL) {
   `.then(() => console.log('[neon] subscription_notifications table verified/created'))
     .catch(err => console.error('[neon] subscription_notifications:', err.message));
 
+  // جدول إيصالات الدفع البنكي
+  sql`
+    CREATE TABLE IF NOT EXISTS payment_receipts (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      school_id UUID NOT NULL REFERENCES schools(id),
+      amount NUMERIC NOT NULL,
+      plan TEXT NOT NULL,
+      billing_cycle TEXT NOT NULL DEFAULT 'monthly',
+      receipt_image TEXT,
+      bank_name TEXT,
+      account_holder TEXT,
+      transfer_reference TEXT,
+      sender_name TEXT,
+      status TEXT NOT NULL DEFAULT 'pending',
+      reviewer_notes TEXT,
+      reviewed_by TEXT,
+      reviewed_at TIMESTAMP WITH TIME ZONE,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `.then(() => console.log('[neon] payment_receipts table verified/created'))
+    .catch(err => console.error('[neon] payment_receipts:', err.message));
+
+  sql`CREATE INDEX IF NOT EXISTS idx_payment_receipts_school_id ON payment_receipts(school_id)`.catch(()=>{});
+  sql`CREATE INDEX IF NOT EXISTS idx_payment_receipts_status ON payment_receipts(status)`.catch(()=>{});
+
   // إنشاء فهارس للأداء
   sql`CREATE INDEX IF NOT EXISTS idx_subscription_payments_school_id ON subscription_payments(school_id)`.catch(()=>{});
   sql`CREATE INDEX IF NOT EXISTS idx_subscription_payments_status ON subscription_payments(status)`.catch(()=>{});
@@ -970,6 +1027,86 @@ if (process.env.DATABASE_URL) {
     }
   }).catch(err => console.error('[neon] subscription_pricing:', err.message));
 
+  // ── Feature Flags & Tier Features (Subscription Feature Access Control) ──
+  sql`
+    CREATE TABLE IF NOT EXISTS feature_flags (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      feature_key TEXT UNIQUE NOT NULL,
+      name_ar TEXT NOT NULL,
+      name_en TEXT NOT NULL,
+      category TEXT DEFAULT 'core',
+      description_ar TEXT,
+      is_platform_feature BOOLEAN DEFAULT true,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `.then(async () => {
+    console.log('[neon] feature_flags table verified/created');
+    const rows = await sql`SELECT COUNT(*) FROM feature_flags`;
+    if (rows[0].count === '0') {
+      await sql`INSERT INTO feature_flags (feature_key, name_ar, name_en, category, description_ar) VALUES
+        ('student_management',   'إدارة الطلاب',                 'Student Management',               'core',     'إدارة سجلات الطلاب والحضور والغياب'),
+        ('teacher_management',   'إدارة المعلمين',               'Teacher Management',               'core',     'إدارة حسابات المعلمين والتعيينات'),
+        ('attendance_tracking',  'تتبع الحضور والغياب',         'Attendance Tracking',              'core',     'نظام حضور وغياب إلكتروني'),
+        ('grade_management',     'إدارة الدرجات',                'Grade Management',                 'core',     'إدخال ومراجعة درجات الطلاب'),
+        ('reporting',            'التقارير والإحصائيات',         'Reporting & Analytics',            'core',     'تقارير أداء الطلاب والمعلمين'),
+        ('assignments',          'الواجبات والامتحانات',         'Assignments & Exams',              'core',     'إنشاء وتوزيع الواجبات والامتحانات'),
+        ('live_classes',         'الفصول المباشرة',              'Live Classes',                     'live',     'بث مباشر للحصص التعليمية'),
+        ('chat_messaging',       'الرسائل والمحادثات',          'Chat & Messaging',                 'live',     'نظام رسائل فوري بين المعلمين والطلاب'),
+        ('library_management',   'إدارة المكتبة',                'Library Management',               'extras',   'نظام استعارة وإدارة الكتب'),
+        ('financial_management', 'الإدارة المالية',               'Financial Management',             'finance',  'إدارة الرسوم والمدفوعات والميزانيات'),
+        ('student_wallet',       'محفظة الطالب',                'Student Wallet',                   'finance',  'نظام محفظة إلكترونية للطلاب'),
+        ('store_shop',           'المتجر الإلكتروني',            'Online Store',                     'finance',  'متجر لبيع المستلزمات المدرسية'),
+        ('bus_tracking',         'تتبع الحافلات',                'Bus Tracking',                     'logistics','نظام تتبع حافلات المدرسة'),
+        ('notifications',        'الإشعارات',                    'Notifications',                    'comm',     'نظام إشعارات بالبريد والرسائل'),
+        ('arabic_ui',            'واجهة عربية كاملة',            'Full Arabic UI',                   'core',     'واجهة مستخدم عربية بالكامل'),
+        ('multi_branch',         'فروع متعددة',                  'Multi-Branch',                     'enterprise','إدارة فروع مدارس متعددة'),
+        ('advanced_analytics',   'تحليلات متقدمة',               'Advanced Analytics',               'enterprise','رسوم بيانية وتحليلات متقدمة'),
+        ('custom_domain',        'نطاق مخصص',                    'Custom Domain',                    'enterprise','ربط نطاق مخصص للمدرسة'),
+        ('priority_support',     'دعم فني أولوي',                'Priority Support',                 'support',  'دعم فني سريع ومتخصص'),
+        ('api_access',           'الوصول لـ API',                'API Access',                       'enterprise','وصول برمجي لتكاملات خارجية')
+      `;
+      console.log('[neon] seeded default feature_flags');
+    }
+  }).catch(err => console.error('[neon] feature_flags:', err.message));
+
+  sql`
+    CREATE TABLE IF NOT EXISTS tier_features (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      tier TEXT NOT NULL,
+      feature_key TEXT NOT NULL REFERENCES feature_flags(feature_key),
+      enabled BOOLEAN DEFAULT true,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(tier, feature_key)
+    )
+  `.then(async () => {
+    console.log('[neon] tier_features table verified/created');
+    const rows = await sql`SELECT COUNT(*) FROM tier_features`;
+    if (rows[0].count === '0') {
+      // Starter: core basics only
+      const starterFeatures = [
+        'student_management', 'teacher_management', 'attendance_tracking',
+        'grade_management', 'reporting', 'assignments', 'notifications', 'arabic_ui'
+      ];
+      // Professional: everything in starter + live, chat, library, finance, wallet
+      const proFeatures = [
+        ...starterFeatures,
+        'live_classes', 'chat_messaging', 'library_management',
+        'financial_management', 'student_wallet', 'store_shop', 'bus_tracking', 'priority_support'
+      ];
+      // Enterprise: everything
+      const enterpriseFeatures = [
+        ...proFeatures,
+        'multi_branch', 'advanced_analytics', 'custom_domain', 'api_access'
+      ];
+      for (const [tier, features] of [['starter', starterFeatures], ['professional', proFeatures], ['enterprise', enterpriseFeatures]]) {
+        for (const fk of features) {
+          await sql`INSERT INTO tier_features (tier, feature_key, enabled) VALUES (${tier}, ${fk}, true) ON CONFLICT (tier, feature_key) DO NOTHING`;
+        }
+      }
+      console.log('[neon] seeded default tier_features');
+    }
+  }).catch(err => console.error('[neon] tier_features:', err.message));
+
 }
 
 // Map entity names to table names
@@ -1012,6 +1149,8 @@ const ENTITY_TABLE_MAP = {
   RoomVideo: 'room_videos',
   BookReview: 'book_reviews',
   MessageReadReceipt: 'message_read_receipts',
+  FeatureFlag: 'feature_flags',
+  TierFeature: 'tier_features',
   TypingIndicator: 'typing_indicators',
   Fine: 'fines',
   ParentLinkRequest: 'parent_link_requests',
@@ -1042,35 +1181,6 @@ const ENTITY_TABLE_MAP = {
   RegistrationRequest: 'registration_requests',
   School: 'schools',
 };
-
-async function createStripePaymentIntent(amount, currency) {
-  const secretKey = process.env.STRIPE_SECRET_KEY;
-  if (!secretKey) {
-    throw new Error('STRIPE_SECRET_KEY is not configured in .env');
-  }
-
-  // Convert amount to cents (Stripe expects integers in cents)
-  const amountInCents = Math.round(amount * 100);
-
-  const response = await fetch('https://api.stripe.com/v1/payment_intents', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${secretKey}`,
-      'Content-Type': 'application/x-www-form-urlencoded'
-    },
-    body: new URLSearchParams({
-      amount: amountInCents.toString(),
-      currency: currency.toLowerCase(),
-      'payment_method_types[]': 'card'
-    }).toString()
-  });
-
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data.error?.message || 'Failed to create payment intent');
-  }
-  return data;
-}
 
 const ALLOWED_TABLES = new Set(Object.values(ENTITY_TABLE_MAP));
 
@@ -1208,22 +1318,108 @@ export function createApiHandler() {
       }
     }
 
-    // Intercept Stripe payment intent creation endpoint
-    if (req.url === '/neon-db/payments/create-intent' && req.method === 'POST') {
+    // ── رفع إيصال الدفع البنكي ──
+    if (req.url === '/neon-db/upload-receipt' && req.method === 'POST') {
       res.setHeader('Content-Type', 'application/json');
       try {
+        const user = getBearerUser(req);
+        if (!user) { res.statusCode = 401; return res.end(JSON.stringify({ error: 'Unauthorized' })); }
         const body = await parseBody(req);
-        const { amount, currency = 'USD' } = body;
-        if (!amount || isNaN(amount) || parseFloat(amount) <= 0) {
+        const { amount, plan, billing_cycle, receipt_image, bank_name, account_holder, transfer_reference, sender_name } = body;
+        if (!amount || !plan) {
           res.statusCode = 400;
-          return res.end(JSON.stringify({ error: 'Valid amount is required' }));
+          return res.end(JSON.stringify({ error: 'amount and plan are required' }));
         }
-        const intent = await createStripePaymentIntent(parseFloat(amount), currency);
-        return res.end(JSON.stringify({
-          clientSecret: intent.client_secret,
-          id: intent.id
-        }));
+        const schoolId = user.school_id || user.id;
+        if (!schoolId) { res.statusCode = 400; return res.end(JSON.stringify({ error: 'No school_id' })); }
+
+        // حفظ صورة الإيصال إذا وُجدت
+        let receiptUrl = '';
+        if (receipt_image) {
+          const fs = await import('fs');
+          const pathMod = await import('path');
+          const uploadDir = pathMod.join(process.cwd(), 'public', 'uploads', 'receipts');
+          if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+          const safeName = `receipt_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.jpg`;
+          const buffer = Buffer.from(receipt_image.replace(/^data:image\/\w+;base64,/, ''), 'base64');
+          fs.writeFileSync(pathMod.join(uploadDir, safeName), buffer);
+          receiptUrl = `/uploads/receipts/${safeName}`;
+        }
+
+        const result = await sql`
+          INSERT INTO payment_receipts (school_id, amount, plan, billing_cycle, receipt_image, bank_name, account_holder, transfer_reference, sender_name, status)
+          VALUES (${schoolId}, ${parseFloat(amount)}, ${plan}, ${billing_cycle || 'monthly'}, ${receiptUrl}, ${bank_name || ''}, ${account_holder || ''}, ${transfer_reference || ''}, ${sender_name || ''}, 'pending')
+          RETURNING id
+        `;
+        return res.end(JSON.stringify({ success: true, receipt_id: result[0]?.id }));
       } catch (error) {
+        console.error('[upload-receipt]', error);
+        res.statusCode = 500;
+        return res.end(JSON.stringify({ error: error.message }));
+      }
+    }
+
+    // ── عرض إيصالات الدفع (المؤسس فقط) ──
+    if ((req.url === '/neon-db/payment-receipts' || req.url === '/neon-db/payment-receipts?') && req.method === 'GET') {
+      res.setHeader('Content-Type', 'application/json');
+      try {
+        const founder = isFounderUser(req);
+        if (!founder) { res.statusCode = 403; return res.end(JSON.stringify({ error: 'Founder access only' })); }
+        const rows = await sql`
+          SELECT r.*, s.name as school_name
+          FROM payment_receipts r
+          LEFT JOIN schools s ON s.id = r.school_id
+          ORDER BY r.created_at DESC
+          LIMIT 100
+        `;
+        return res.end(JSON.stringify({ success: true, receipts: rows }));
+      } catch (error) {
+        res.statusCode = 500;
+        return res.end(JSON.stringify({ error: error.message }));
+      }
+    }
+
+    // ── قبول/رفض إيصال الدفع (المؤسس فقط) ──
+    if (req.url.startsWith('/neon-db/review-receipt/') && req.method === 'POST') {
+      res.setHeader('Content-Type', 'application/json');
+      try {
+        const founder = isFounderUser(req);
+        if (!founder) { res.statusCode = 403; return res.end(JSON.stringify({ error: 'Founder access only' })); }
+        const receiptId = req.url.split('/neon-db/review-receipt/')[1]?.split('?')[0];
+        if (!receiptId) { res.statusCode = 400; return res.end(JSON.stringify({ error: 'Receipt ID required' })); }
+        const body = await parseBody(req);
+        const { status, reviewer_notes } = body;
+        if (!['approved', 'rejected'].includes(status)) {
+          res.statusCode = 400; return res.end(JSON.stringify({ error: 'Status must be approved or rejected' }));
+        }
+
+        // تحديث حالة الإيصال
+        const result = await sql`
+          UPDATE payment_receipts
+          SET status = ${status}, reviewer_notes = ${reviewer_notes || ''}, reviewed_by = ${founder.email || founder.id}, reviewed_at = NOW()
+          WHERE id = ${receiptId}
+          RETURNING *
+        `;
+        if (!result.length) { res.statusCode = 404; return res.end(JSON.stringify({ error: 'Receipt not found' })); }
+        const receipt = result[0];
+
+        // عند القبول: تفعيل الاشتراك
+        if (status === 'approved') {
+          await processSuccessfulPayment({
+            provider: 'bank_transfer',
+            providerPaymentId: `receipt_${receiptId}`,
+            schoolId: receipt.school_id,
+            amount: receipt.amount,
+            currency: 'USD',
+            plan: receipt.plan,
+            billingCycle: receipt.billing_cycle,
+            metadata: { receipt_id: receiptId, reviewed_by: founder.email || founder.id },
+          });
+        }
+
+        return res.end(JSON.stringify({ success: true, receipt }));
+      } catch (error) {
+        console.error('[review-receipt]', error);
         res.statusCode = 500;
         return res.end(JSON.stringify({ error: error.message }));
       }
@@ -1660,13 +1856,6 @@ export function createApiHandler() {
     // ── Webhook routes (public, no auth) ──
     if (req.url.startsWith('/webhook/')) {
       res.setHeader('Content-Type', 'application/json');
-      
-      if (req.url === '/webhook/stripe' && req.method === 'POST') {
-        return handleStripeWebhook(req, res);
-      }
-      if (req.url === '/webhook/paymob' && req.method === 'POST') {
-        return handlePaymobWebhook(req, res);
-      }
       if (req.url === '/webhook/subscription/renew' && req.method === 'POST') {
         return handleManualRenew(req, res);
       }
@@ -2258,29 +2447,6 @@ export function createApiHandler() {
         res.statusCode = 500;
         return res.end(JSON.stringify({ error: error.message }));
       }
-    }
-
-    // ── API routes for payment (require auth) ──
-    if (req.url.startsWith('/api/')) {
-      res.setHeader('Content-Type', 'application/json');
-      
-      // Verify JWT for API routes
-      const authHeader = req.headers.authorization;
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        res.statusCode = 401;
-        return res.end(JSON.stringify({ error: 'Unauthorized' }));
-      }
-      const token = authHeader.split(' ')[1];
-      let user;
-      try { user = jwt.verify(token, JWT_SECRET); } catch { res.statusCode = 401; return res.end(JSON.stringify({ error: 'Invalid token' })); }
-      req.user = user;
-
-      if (req.url === '/api/create-checkout-session' && req.method === 'POST') {
-        return handleCreateCheckoutSession(req, res, user);
-      }
-      
-      res.statusCode = 404;
-      return res.end(JSON.stringify({ error: 'API not found' }));
     }
 
     if (!req.url.startsWith('/neon-db/entities/')) return next();
@@ -2993,6 +3159,167 @@ export function createApiHandler() {
         }
       }
 
+      // ══════════════════════════════════════════════════════════
+      // ── TIER FEATURES: GET /api/tier-features — List all feature flags with tier assignments ──
+      // ══════════════════════════════════════════════════════════
+      if (req.url === '/api/tier-features' && req.method === 'GET') {
+        res.setHeader('Content-Type', 'application/json');
+        try {
+          const features = await dbQuery('SELECT * FROM feature_flags ORDER BY category, feature_key');
+          const tiers = await dbQuery('SELECT tier, feature_key, enabled FROM tier_features');
+          const tierMap = {};
+          tiers.forEach(t => {
+            if (!tierMap[t.tier]) tierMap[t.tier] = {};
+            tierMap[t.tier][t.feature_key] = t.enabled;
+          });
+          const result = features.map(f => ({
+            ...f,
+            tiers: {
+              starter: !!tierMap.starter?.[f.feature_key],
+              professional: !!tierMap.professional?.[f.feature_key],
+              enterprise: !!tierMap.enterprise?.[f.feature_key],
+            }
+          }));
+          return res.end(JSON.stringify(result));
+        } catch (error) {
+          console.error('[tier-features] GET error:', error);
+          res.statusCode = 500;
+          return res.end(JSON.stringify({ error: error.message }));
+        }
+      }
+
+      // ── GET /api/tier-features/:tier — Get features for a specific tier ──
+      if (req.url?.startsWith('/api/tier-features/') && req.method === 'GET' && !req.url.includes('/all')) {
+        const tier = req.url.split('/api/tier-features/')[1];
+        res.setHeader('Content-Type', 'application/json');
+        try {
+          const rows = await dbQuery(
+            `SELECT f.feature_key, f.name_ar, f.name_en, f.category, COALESCE(tf.enabled, false) as enabled
+             FROM feature_flags f
+             LEFT JOIN tier_features tf ON f.feature_key = tf.feature_key AND tf.tier = $1
+             ORDER BY f.category, f.feature_key`,
+            [tier]
+          );
+          return res.end(JSON.stringify(rows));
+        } catch (error) {
+          console.error('[tier-features/:tier] GET error:', error);
+          res.statusCode = 500;
+          return res.end(JSON.stringify({ error: error.message }));
+        }
+      }
+
+      // ── POST /api/tier-features — Update tier features (founder only) ──
+      if (req.url === '/api/tier-features' && req.method === 'POST') {
+        res.setHeader('Content-Type', 'application/json');
+        const founder = isFounderUser(req);
+        if (!founder) { res.statusCode = 401; return res.end(JSON.stringify({ error: 'Founder auth required' })); }
+        try {
+          const body = await parseBody(req);
+          const { tier, features } = body; // features = { feature_key: true/false, ... }
+          if (!tier || !features || typeof features !== 'object') {
+            res.statusCode = 400;
+            return res.end(JSON.stringify({ error: 'tier and features object required' }));
+          }
+          for (const [key, enabled] of Object.entries(features)) {
+            await dbQuery(
+              `INSERT INTO tier_features (tier, feature_key, enabled)
+               VALUES ($1, $2, $3)
+               ON CONFLICT (tier, feature_key) DO UPDATE SET enabled = $3`,
+              [tier, key, enabled]
+            );
+          }
+          console.log(`[tier-features] Updated ${tier}:`, Object.keys(features).length, 'features');
+          return res.end(JSON.stringify({ ok: true, tier, updated: Object.keys(features).length }));
+        } catch (error) {
+          console.error('[tier-features] POST error:', error);
+          res.statusCode = 500;
+          return res.end(JSON.stringify({ error: error.message }));
+        }
+      }
+
+      // ── POST /api/tier-features/bulk — Bulk update all tiers at once (founder only) ──
+      if (req.url === '/api/tier-features/bulk' && req.method === 'POST') {
+        res.setHeader('Content-Type', 'application/json');
+        const founder = isFounderUser(req);
+        if (!founder) { res.statusCode = 401; return res.end(JSON.stringify({ error: 'Founder auth required' })); }
+        try {
+          const body = await parseBody(req);
+          const { tiers } = body; // tiers = { starter: { key: bool }, professional: {...}, enterprise: {...} }
+          if (!tiers || typeof tiers !== 'object') {
+            res.statusCode = 400;
+            return res.end(JSON.stringify({ error: 'tiers object required' }));
+          }
+          let count = 0;
+          for (const [tier, features] of Object.entries(tiers)) {
+            if (!features || typeof features !== 'object') continue;
+            for (const [key, enabled] of Object.entries(features)) {
+              await dbQuery(
+                `INSERT INTO tier_features (tier, feature_key, enabled)
+                 VALUES ($1, $2, $3)
+                 ON CONFLICT (tier, feature_key) DO UPDATE SET enabled = $3`,
+                [tier, key, enabled]
+              );
+              count++;
+            }
+          }
+          console.log(`[tier-features] Bulk updated ${count} feature-tier mappings`);
+          return res.end(JSON.stringify({ ok: true, updated: count }));
+        } catch (error) {
+          console.error('[tier-features] BULK POST error:', error);
+          res.statusCode = 500;
+          return res.end(JSON.stringify({ error: error.message }));
+        }
+      }
+
+      // ── GET /api/school-features/:schoolId — Get enabled features for a school ──
+      if (req.url?.startsWith('/api/school-features/') && req.method === 'GET') {
+        const schoolId = req.url.split('/api/school-features/')[1];
+        res.setHeader('Content-Type', 'application/json');
+        try {
+          const schoolRows = await dbQuery('SELECT plan FROM schools WHERE id = $1', [schoolId]);
+          if (schoolRows.length === 0) { res.statusCode = 404; return res.end(JSON.stringify({ error: 'School not found' })); }
+          const plan = schoolRows[0].plan || 'starter';
+          const features = await dbQuery(
+            `SELECT tf.feature_key, f.name_ar, f.name_en, f.category
+             FROM tier_features tf
+             JOIN feature_flags f ON f.feature_key = tf.feature_key
+             WHERE tf.tier = $1 AND tf.enabled = true
+             ORDER BY f.category, f.feature_key`,
+            [plan]
+          );
+          return res.end(JSON.stringify({ plan, features }));
+        } catch (error) {
+          console.error('[school-features] GET error:', error);
+          res.statusCode = 500;
+          return res.end(JSON.stringify({ error: error.message }));
+        }
+      }
+
+      // ── POST /api/founder/school-plan — Change a school's plan (founder only) ──
+      if (req.url === '/api/founder/school-plan' && req.method === 'POST') {
+        res.setHeader('Content-Type', 'application/json');
+        const founder = isFounderUser(req);
+        if (!founder) { res.statusCode = 401; return res.end(JSON.stringify({ error: 'Founder auth required' })); }
+        try {
+          const body = await parseBody(req);
+          const { school_id, plan, billing_cycle } = body;
+          if (!school_id || !plan) {
+            res.statusCode = 400;
+            return res.end(JSON.stringify({ error: 'school_id and plan required' }));
+          }
+          await dbQuery(
+            'UPDATE schools SET plan = $1, billing_cycle = COALESCE($2, billing_cycle), updated_at = NOW() WHERE id = $3',
+            [plan, billing_cycle, school_id]
+          );
+          console.log(`[founder/school-plan] School ${school_id} → plan: ${plan}`);
+          return res.end(JSON.stringify({ ok: true, school_id, plan }));
+        } catch (error) {
+          console.error('[founder/school-plan] POST error:', error);
+          res.statusCode = 500;
+          return res.end(JSON.stringify({ error: error.message }));
+        }
+      }
+
       // ── GET /api/teacher-subscription-requests — List all teacher subscription requests (founder) ──
       if (req.url === '/api/teacher-subscription-requests' && req.method === 'GET') {
         res.setHeader('Content-Type', 'application/json');
@@ -3210,11 +3537,6 @@ export function setupWebSocket(server) {
 
 // ── Webhook Handlers ──
 
-const STRIPE_SECRET = process.env.STRIPE_SECRET_KEY;
-const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
-const PAYMOB_SECRET = process.env.PAYMOB_SECRET_KEY;
-const PAYMOB_WEBHOOK_SECRET = process.env.PAYMOB_WEBHOOK_SECRET;
-
 async function parseRawBody(req) {
   return new Promise((resolve, reject) => {
     let data = '';
@@ -3222,105 +3544,6 @@ async function parseRawBody(req) {
     req.on('end', () => resolve(data));
     req.on('error', reject);
   });
-}
-
-function verifyStripeSignature(payload, signature) {
-  if (!STRIPE_WEBHOOK_SECRET) return true;
-  return true;
-}
-
-function verifyPaymobSignature(payload, hmacHeader) {
-  if (!PAYMOB_WEBHOOK_SECRET) return true;
-  const crypto = require('crypto');
-  const expected = crypto.createHmac('sha512', PAYMOB_WEBHOOK_SECRET).update(payload).digest('hex');
-  return crypto.timingSafeEqual(Buffer.from(hmacHeader || ''), Buffer.from(expected));
-}
-
-async function handleStripeWebhook(req, res) {
-  try {
-    const rawBody = await parseRawBody(req);
-    const signature = req.headers['stripe-signature'];
-    
-    if (!verifyStripeSignature(rawBody, signature)) {
-      res.statusCode = 400;
-      return res.end(JSON.stringify({ error: 'Invalid signature' }));
-    }
-    
-    const event = JSON.parse(rawBody);
-    console.log('[stripe] webhook event:', event.type);
-    
-    if (event.type === 'checkout.session.completed') {
-      const session = event.data.object;
-      await processSuccessfulPayment({
-        provider: 'stripe',
-        providerPaymentId: session.payment_intent || session.id,
-        providerSessionId: session.id,
-        schoolId: session.metadata?.school_id,
-        amount: (session.amount_total || 0) / 100,
-        currency: (session.currency || 'usd').toUpperCase(),
-        plan: session.metadata?.plan || 'starter',
-        billingCycle: session.metadata?.billing_cycle || 'monthly',
-        metadata: session.metadata,
-      });
-    } else if (event.type === 'checkout.session.expired' || event.type === 'payment_intent.payment_failed') {
-      const session = event.data.object;
-      await recordFailedPayment({
-        provider: 'stripe',
-        providerPaymentId: session.payment_intent || session.id,
-        schoolId: session.metadata?.school_id,
-        metadata: session.metadata,
-      });
-    }
-    
-    res.end(JSON.stringify({ received: true }));
-  } catch (e) {
-    console.error('[stripe] webhook error:', e.message);
-    res.statusCode = 500;
-    res.end(JSON.stringify({ error: e.message }));
-  }
-}
-
-async function handlePaymobWebhook(req, res) {
-  try {
-    const rawBody = await parseRawBody(req);
-    const hmacHeader = req.headers['x-paymob-hmac'] || req.headers['hmac'];
-    
-    if (!verifyPaymobSignature(rawBody, hmacHeader)) {
-      res.statusCode = 400;
-      return res.end(JSON.stringify({ error: 'Invalid HMAC' }));
-    }
-    
-    const data = JSON.parse(rawBody);
-    console.log('[paymob] webhook:', data.type || data.order?.id);
-    
-    const order = data.order || data;
-    if (order && (order.status === 'PAID' || order.status === 'SUCCESS' || order.success === true)) {
-      await processSuccessfulPayment({
-        provider: 'paymob',
-        providerPaymentId: String(order.id || order.transaction_id),
-        providerSessionId: String(order.id),
-        schoolId: order.metadata?.school_id || order.items?.[0]?.metadata?.school_id,
-        amount: (order.amount_cents || order.amount || 0) / 100,
-        currency: 'EGP',
-        plan: order.metadata?.plan || 'starter',
-        billingCycle: order.metadata?.billing_cycle || 'monthly',
-        metadata: order.metadata || {},
-      });
-    } else if (order && (order.status === 'FAILED' || order.status === 'CANCELLED')) {
-      await recordFailedPayment({
-        provider: 'paymob',
-        providerPaymentId: String(order.id),
-        schoolId: order.metadata?.school_id,
-        metadata: order.metadata || {},
-      });
-    }
-    
-    res.end(JSON.stringify({ received: true }));
-  } catch (e) {
-    console.error('[paymob] webhook error:', e.message);
-    res.statusCode = 500;
-    res.end(JSON.stringify({ error: e.message }));
-  }
 }
 
 async function handleManualRenew(req, res) {
@@ -3352,87 +3575,6 @@ async function handleManualRenew(req, res) {
     });
     res.end(JSON.stringify({ success: true }));
   } catch (e) {
-    res.statusCode = 500;
-    res.end(JSON.stringify({ error: e.message }));
-  }
-}
-
-async function handleCreateCheckoutSession(req, res, user) {
-  try {
-    const rawBody = await parseRawBody(req);
-    const { school_id, plan, billing_cycle, success_url, cancel_url } = JSON.parse(rawBody || '{}');
-    
-    // التحقق من أن المستخدم يملك هذه المدرسة
-    const userSchoolId = user.school_id || user.id;
-    if (school_id && school_id !== userSchoolId) {
-      res.statusCode = 403;
-      return res.end(JSON.stringify({ error: 'Forbidden: school_id mismatch' }));
-    }
-    const targetSchoolId = school_id || userSchoolId;
-    
-    if (!targetSchoolId) {
-      res.statusCode = 400;
-      return res.end(JSON.stringify({ error: 'No school_id' }));
-    }
-
-    // جلب بيانات المدرسة
-    const schoolRows = await sql`SELECT id, name, email, plan, billing_cycle FROM schools WHERE id = ${targetSchoolId}`.catch(()=>[]);
-    if (!schoolRows.length) {
-      res.statusCode = 404;
-      return res.end(JSON.stringify({ error: 'School not found' }));
-    }
-    const school = schoolRows[0];
-    const finalPlan = plan || school.plan || 'starter';
-    const finalCycle = billing_cycle || school.billing_cycle || 'monthly';
-    
-    // أسعار الخطط
-    const planPrices = { starter: 49, professional: 99, enterprise: 199 };
-    const basePrice = planPrices[finalPlan] || 99;
-    const amount = finalCycle === 'yearly' ? Math.round(basePrice * 12 * 0.8) : basePrice; // 20% خصم للسنوي
-
-    // التحقق من وجود Stripe
-    if (!STRIPE_SECRET) {
-      res.statusCode = 500;
-      return res.end(JSON.stringify({ error: 'Stripe not configured. Set STRIPE_SECRET_KEY.' }));
-    }
-
-    // إنشاء جلسة Stripe
-    const stripe = (await import('stripe')).default(STRIPE_SECRET);
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      mode: 'payment',
-      success_url: success_url || `${process.env.FRONTEND_URL || 'https://edutrack.app'}/renew-subscription?success=true`,
-      cancel_url: cancel_url || `${process.env.FRONTEND_URL || 'https://edutrack.app'}/renew-subscription?canceled=true`,
-      customer_email: school.email || undefined,
-      metadata: {
-        school_id: targetSchoolId,
-        plan: finalPlan,
-        billing_cycle: finalCycle,
-      },
-      line_items: [{
-        price_data: {
-          currency: 'usd',
-          product_data: {
-            name: `EduTrack ${finalPlan.charAt(0).toUpperCase() + finalPlan.slice(1)} Plan`,
-            description: `${finalCycle === 'yearly' ? 'Annual' : 'Monthly'} subscription for ${school.name}`,
-            metadata: { school_id: targetSchoolId, plan: finalPlan, billing_cycle: finalCycle },
-          },
-          unit_amount: amount * 100, // Stripe uses cents
-        },
-        quantity: 1,
-      }],
-    });
-
-    // سجل الجلسة كمعلقة
-    await sql`
-      INSERT INTO subscription_payments (school_id, provider, provider_payment_id, provider_session_id, amount, currency, status, billing_cycle, plan, metadata)
-      VALUES (${targetSchoolId}, 'stripe', ${session.id}, ${session.id}, ${amount}, 'USD', 'pending', ${finalCycle}, ${finalPlan}, ${JSON.stringify({ stripe_session_id: session.id })})
-      ON CONFLICT (provider, provider_payment_id) DO UPDATE SET status = 'pending', updated_at = NOW()
-    `.catch(e => console.error('[checkout] insert failed:', e.message));
-
-    res.end(JSON.stringify({ url: session.url, session_id: session.id }));
-  } catch (e) {
-    console.error('[checkout] error:', e.message);
     res.statusCode = 500;
     res.end(JSON.stringify({ error: e.message }));
   }

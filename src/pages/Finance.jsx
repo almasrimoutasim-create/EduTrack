@@ -216,7 +216,7 @@ export default function Finance() {
     // آخر 15 معاملة مدمجة
     const allTx = [
       ...feePayments.map(p => ({ id: `fp-${p.id}`, date: p.created_at, label: 'رسوم دراسية', amount: p.amount, method: p.payment_method, type: 'income' })),
-      ...walletTx.filter(t => t.type === 'topup').map(t => ({ id: `wt-${t.id}`, date: t.created_at, label: 'شحن محفظة', amount: t.amount, method: 'stripe', type: 'income' })),
+      ...walletTx.filter(t => t.type === 'topup').map(t => ({ id: `wt-${t.id}`, date: t.created_at, label: 'شحن محفظة', amount: t.amount, method: 'bank_transfer', type: 'income' })),
       ...purchases.map(p => ({ id: `pu-${p.id}`, date: p.created_at, label: `متجر: ${p.item_name || 'شراء منتج'}`, amount: p.total_price || p.total_amount, method: p.payment_method, type: 'income' })),
       ...hallRentals.filter(r => r.status === 'paid').map(r => ({ id: `hr-${r.id}`, date: r.created_at, label: `إيجار: ${r.hall_name}`, amount: r.amount, method: r.payment_method, type: 'income' })),
       ...donations.map(d => ({ id: `dn-${d.id}`, date: d.created_at, label: `تبرع: ${d.is_anonymous ? 'مجهول' : d.donor_name}`, amount: d.amount, method: d.payment_method, type: 'income' })),
@@ -1271,8 +1271,7 @@ export default function Finance() {
                     className="w-full bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 focus:outline-none"
                   >
                     <option value="cash">نقداً (كاش)</option>
-                    <option value="bank">تحويل بنكي</option>
-                    <option value="stripe">بطاقة ائتمانية (بوابة إلكترونية)</option>
+                    <option value="bank_transfer">تحويل بنكي</option>
                   </select>
                 </div>
 

@@ -534,7 +534,7 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
             ? (isRTL ? "شحن بطاقة ذكية" : "Smart Card Top-up")
             : (isRTL ? "مشتريات المتجر" : "Store Purchase"),
           amount: parseFloat(t.amount) || 0,
-          method: getPaymentMethodLabel(t.payment_method || "stripe"),
+          method: getPaymentMethodLabel(t.payment_method || "bank_transfer"),
           status: "completed"
         })),
         ...dbFinancialRecords.map(r => ({

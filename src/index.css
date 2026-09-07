@@ -79,6 +79,7 @@
   border-radius: 8px;
   padding: 8px 12px;
   margin-bottom: 8px;
+  text-align: right;
 }
 
 .sudan-table-container {
@@ -119,6 +120,7 @@
   border: 1px solid #000;
   padding: 2.5px;
   font-size: 9.5px;
+  text-align: center;
 }
 
 .sudan-tafqeet-bar {
@@ -129,6 +131,7 @@
   border-radius: 8px;
   margin: 6px 0;
   border: 1.5px solid #000;
+  text-align: right;
 }
 
 .sudan-signatures-bar {
@@ -171,6 +174,7 @@
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  text-align: right;
 }
 
 /* ── كشف عرضي Landscape ── */
@@ -216,6 +220,7 @@
   width: 170px;
   height: 72px;
   box-sizing: border-box;
+  text-align: center;
 }
 
 .header-box-center {
@@ -264,8 +269,10 @@
   margin-bottom: 6px;
 }
 
-.meta-left p, .meta-right p {
+.meta-left p,
+.meta-right p {
   font-size: 12.5px;
+  text-align: right;
 }
 
 .pro-table-wrapper {
@@ -291,12 +298,16 @@
   font-size: 12px;
 }
 
-.th-label-side, .td-label-side {
+.th-label-side,
+.td-label-side {
   font-weight: 900;
   width: 115px;
+  text-align: right;
+  padding-right: 8px;
 }
 
-.th-total-col, .td-total-col {
+.th-total-col,
+.td-total-col {
   width: 85px;
 }
 
@@ -314,6 +325,7 @@
 .details-col {
   width: 55%;
   position: relative;
+  text-align: right;
 }
 
 .detail-line {
@@ -382,6 +394,7 @@
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  text-align: right;
 }
 
 .pro-footer-warning {
@@ -400,6 +413,7 @@
   gap: 24px;
   height: 100%;
   box-sizing: border-box;
+  text-align: right;
 }
 
 .pro-rounded-panel {
@@ -414,6 +428,7 @@
   list-style: none;
   padding: 0;
   margin: 0;
+  text-align: right;
 }
 
 .pro-bullet-list li {
@@ -422,6 +437,7 @@
   line-height: 1.7;
   position: relative;
   padding-right: 16px;
+  text-align: right;
 }
 
 .pro-bullet-list li::before {
@@ -444,17 +460,24 @@
   padding: 2px 20px;
   font-size: 13px;
   font-weight: 900;
+  text-align: center;
 }
 
-.ribbon-tail-r, .ribbon-tail-l {
+.ribbon-tail-r,
+.ribbon-tail-l {
   width: 0;
   height: 0;
   border-top: 10px solid transparent;
   border-bottom: 10px solid transparent;
 }
 
-.ribbon-tail-r { border-right: 10px solid #000; }
-.ribbon-tail-l { border-left: 10px solid #000; }
+.ribbon-tail-r {
+  border-right: 10px solid #000;
+}
+
+.ribbon-tail-l {
+  border-left: 10px solid #000;
+}
 
 .pro-scroll-banner {
   border: 1.5px solid #000;
@@ -471,6 +494,7 @@
   padding: 5px 18px;
   margin: 10px auto;
   width: 75%;
+  text-align: center;
 }
 
 .pro-hexagon-badge {
@@ -479,14 +503,21 @@
   font-size: 12px;
   font-weight: 900;
   clip-path: polygon(10% 0%, 90% 0%, 100% 50%, 90% 100%, 10% 100%, 0% 50%);
+  text-align: center;
 }
 
-.pro-student-cover-info { text-align: center; }
+.pro-student-cover-info {
+  text-align: center;
+}
 
 /* ── مساعدات تخطيط ── */
-.bg-black-subtle { background-color: rgba(0,0,0,0.02); }
+.bg-black-subtle {
+  background-color: rgba(0, 0, 0, 0.02);
+}
 
-.bismillah { font-family: 'Amiri', serif; }
+.bismillah {
+  font-family: 'Amiri', serif;
+}
 
 @layer base {
   :root {
@@ -560,21 +591,40 @@
 }
 
 @layer base {
-  * { @apply border-border outline-ring/50; }
+  * {
+    @apply border-border outline-ring/50;
+  }
+
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-sans);
-  }
-  
-  /* Force English numerals in RTL mode */
-  html[dir="rtl"] body,
-  html[dir="rtl"] * {
     direction: rtl;
-    text-align: center;
+    text-align: right;
+    /* تم ضبط المحاذاة الافتراضية لليمين بدلاً من التوسيط الشامل */
+  }
+
+  /* معالجة اتجاه الـ RTL ونظم النصوص بشكل مهني واحترافي */
+  html[dir="rtl"] body,
+  html[dir="rtl"] :not(.sudan-cert-portrait *, .pro-cert-page-landscape *, .text-center) {
+    direction: rtl;
     font-family: var(--font-sans);
     font-variant-numeric: tabular-nums;
   }
-  
+
+  /* الحفاظ على التوسيط فقط للعناصر التي تتطلب ذلك بنيةً وتصميماً */
+  html[dir="rtl"] .text-center,
+  html[dir="rtl"] th,
+  html[dir="rtl"] td.text-center {
+    text-align: center;
+  }
+
+  /* ضمان بقية النصوص تبدأ من اليمين (RTL Start) */
+  html[dir="rtl"] p,
+  html[dir="rtl"] span,
+  html[dir="rtl"] div:not(.text-center) {
+    text-align: right;
+  }
+
   /* Ensure numbers always render in Latin/English */
   .num-en,
   .num-en * {
@@ -585,20 +635,28 @@
 }
 
 @media print {
-  .no-print { display: none !important; }
-  body { background: white !important; }
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background: white !important;
+  }
+
   .print-card-container {
     display: flex !important;
     flex-direction: column !important;
     align-items: center !important;
     gap: 16px !important;
   }
-  .print-card-container > div {
+
+  .print-card-container>div {
     width: 400px !important;
     max-width: 400px !important;
     box-shadow: none !important;
     break-inside: avoid !important;
   }
+
   @page {
     margin: 1cm;
     size: A4 portrait;

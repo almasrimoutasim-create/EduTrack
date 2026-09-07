@@ -6,7 +6,6 @@ import {
   ClipboardCheck, 
   Users, 
   Calendar, 
-  CreditCard, 
   Bell, 
   MessageCircle, 
   Award,
@@ -15,7 +14,6 @@ import {
   Wallet,
   DollarSign,
   RefreshCw,
-  ShoppingBag,
   Clock,
   Sparkles,
   BookOpen,
@@ -27,7 +25,8 @@ import {
   ChevronDown,
   FileText,
   AlertTriangle,
-  Megaphone
+  Megaphone,
+  Upload
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useLanguage } from "@/lib/LanguageContext";
@@ -37,9 +36,6 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import ParentSidebar from "@/components/layout/ParentSidebar";
 import { useSearchParams } from "react-router-dom";
-import { loadStripe } from "@stripe/stripe-js";
-import { Elements } from "@stripe/react-stripe-js";
-import StripePaymentForm from "@/components/portal/StripePaymentForm";
 import ParentFinanceTab from "@/components/portal/ParentFinanceTab";
 import ParentTeacherChat from "@/components/portal/ParentTeacherChat";
 import CounselingParentView from "@/components/portal/CounselingParentView";
@@ -47,9 +43,6 @@ import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-
-// @ts-ignore
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
 const btnOutline = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-sm font-semibold transition-all border-2 border-stone-300 bg-white text-stone-800 hover:bg-stone-50 hover:border-stone-400 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
 const btnPrimary = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-sm font-semibold transition-all bg-stone-900 text-white hover:bg-black cursor-pointer shadow-lg shadow-stone-200 disabled:opacity-50 disabled:cursor-not-allowed";
@@ -86,7 +79,7 @@ export default function ParentPortal() {
   const [isTuitionDialogOpen, setIsTuitionDialogOpen] = React.useState(false);
   const [tuitionPayAmount, setTuitionPayAmount] = React.useState(0);
   const [customTuitionPay, setCustomTuitionPay] = React.useState("");
-  const [tuitionPayMethod, setTuitionPayMethod] = React.useState("stripe"); // "stripe" | "wallet"
+  const [tuitionPayMethod, setTuitionPayMethod] = React.useState("wallet");
   const [isSubmittingTuition, setIsSubmittingTuition] = React.useState(false);
 
   // Parse parent credentials from auth context
@@ -144,7 +137,7 @@ export default function ParentPortal() {
         recipient_name: currentStudent.full_name,
         recipient_id: currentStudent.id,
         amount: topUpAmount,
-        description: `Smart Card Top-up (Stripe)`,
+        description: `Smart Card Top-up (Bank Transfer)`,
         payment_date: new Date().toISOString().split('T')[0],
         status: "paid",
         payment_method: "credit_card"
@@ -210,7 +203,7 @@ export default function ParentPortal() {
         recipient_name: currentStudent.full_name,
         recipient_id: currentStudent.id,
         amount: tuitionPayAmount,
-        description: `Tuition Installment Payment (Stripe)`,
+        description: `Tuition Installment Payment (Bank Transfer)`,
         payment_date: new Date().toISOString().split('T')[0],
         status: "paid",
         payment_method: "credit_card"
