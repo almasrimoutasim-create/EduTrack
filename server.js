@@ -20,6 +20,7 @@ app.use(cors({
     /^https:\/\/.*\.vercel\.app$/,
     'https://edutrack-ey49.onrender.com',
     'https://edutrack-ub8f.onrender.com',
+    'https://edutrack-2689.onrender.com',
     'http://localhost:5173',
     'http://localhost:3000'
   ],
