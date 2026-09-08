@@ -54,17 +54,23 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString() });
 });
 
-// تشغيل الخادم أولاً واستماع المنفذ لضمان عدم تعليق الإقلاع على Render
+// Register API routes before accepting requests so Render never serves the SPA
+// fallback for an API call during startup.
+let apiHandler;
+try {
+  apiHandler = createApiHandler();
+  app.use(apiHandler);
+} catch (err) {
+  console.error(`[EduTrack] Error initializing API:`, err);
+}
+
 const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`[EduTrack] Server running on port ${PORT}`);
-
-  // ربط الـ API والـ WebSocket بعد استجابة الخادم لضمان سلامة الاتصال بقاعدة البيانات
   try {
-    app.use(createApiHandler());
     setupWebSocket(server);
-    console.log(`[EduTrack] API routes and WebSocket successfully initialized.`);
+    console.log(`[EduTrack] WebSocket successfully initialized.`);
   } catch (err) {
-    console.error(`[EduTrack] Error initializing API/WebSocket:`, err);
+    console.error(`[EduTrack] Error initializing WebSocket:`, err);
   }
 });
 
