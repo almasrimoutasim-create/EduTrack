@@ -184,13 +184,13 @@ export default function IndependentTeacherPortal() {
 
               <div>
                 <label className="block text-sm font-bold text-stone-700 mb-1.5">
-                  {isRTL ? "البريد الإلكتروني أو الرقم الوظيفي" : "Email or Employee ID"}
+                  {isRTL ? "البريد الإلكتروني أو رقم الهوية " : "Email or Employee ID"}
                 </label>
                 <input
                   type="text"
                   value={loginEmail}
                   onChange={(e) => setLoginEmail(e.target.value)}
-                  placeholder={isRTL ? "أدخل البريد الإلكتروني أو الرقم الوظيفي" : "Enter email or employee ID"}
+                  placeholder={isRTL ? "أدخل البريد الإلكتروني أو رقم الهوية " : "Enter email or employee ID"}
                   className="w-full h-12 rounded-xl border-2 border-stone-200 bg-white px-4 text-sm font-bold focus:border-emerald-500 focus:ring-0 outline-none"
                   required
                 />

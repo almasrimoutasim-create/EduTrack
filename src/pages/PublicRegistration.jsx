@@ -86,10 +86,10 @@ export default function PublicRegistration() {
             </div>
             <h2 className="text-xl font-black text-stone-900 mb-2">{isRTL ? "الطلب قيد المراجعة" : "Request Under Review"}</h2>
             <p className="text-sm text-stone-500 leading-relaxed mb-2">
-              {isRTL ? "شكراً لتسجيل مدرستكم! تم إرسال طلبكم إلى مالك المنصة وسيتم مراجعته قريباً." : "Thanks for registering your school! Your request has been sent to the platform owner."}
+              {isRTL ? "شكراً لتسجيل مدرستكم! تم إرسال طلبكم سيتم مراجعته قريباً." : "Thanks for registering your school! Your request has been sent to the platform owner."}
             </p>
             <p className="text-xs text-stone-400 bg-stone-50 rounded-xl p-3 mb-6">
-              {isRTL ? "ستظهر مدرستكم في لوحة تحكم المؤسس وسيتم تفعيل اشتراككم بعد الموافقة. سيتواصل معكم فريق EduTrack عبر البريد والهاتف." : "Your school will appear in the founder dashboard and will be activated after approval. EduTrack will contact you by email/phone."}
+              {isRTL ? "سيتم تفعيل اشتراككم بعد الموافقة. سيتواصل معكم فريقنا EduTrack عبر البريد والهاتف." : "Your school will appear in the founder dashboard and will be activated after approval. EduTrack will contact you by email/phone."}
             </p>
             <button onClick={() => window.location.href = "/"} className="w-full h-11 rounded-xl bg-stone-900 text-white font-bold text-sm hover:bg-black flex items-center justify-center gap-2">
               <ArrowLeft size={16} className={isRTL ? "" : "rotate-180"} />
@@ -106,33 +106,32 @@ export default function PublicRegistration() {
       <div className="max-w-2xl mx-auto">
         <div className="text-center mb-6">
           <div className="inline-flex items-center gap-2 bg-white border border-stone-200 rounded-full px-4 py-1.5 text-xs font-bold text-stone-600 shadow-sm">
-            <Building2 size={14} className="text-blue-600"/> {schoolName} — {isRTL ? "تسجيل مدرسة جديدة" : "Register your school"}
+            {isRTL ? "تسجيل مدرسة جديدة" : "Register your school"}
           </div>
           <h1 className="text-2xl font-black text-stone-900 mt-3">{isRTL ? "تسجيل مدرسة جديدة" : "Register a new school"}</h1>
-          <p className="text-sm text-stone-500 mt-1">{isRTL ? "املأ بيانات مدرستك واختر الباقة — يصل الطلب مباشرة إلى لوحة تحكم المؤسس للموافقة" : "Fill your school data and pick a plan — request goes directly to founder dashboard for approval"}</p>
         </div>
 
         <Card className="p-6 md:p-8 rounded-[28px] border-none shadow-lg bg-white">
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5 md:col-span-2">
-                <label className="text-xs font-bold text-stone-600 flex items-center gap-1"><Building2 size={12}/> {isRTL ? "اسم المدرسة *" : "School name *"}</label>
-                <Input value={form.school_name} onChange={e => update("school_name", e.target.value)} placeholder={isRTL ? "مثال: مدارس النور الأهلية" : "e.g. Al-Noor Private Schools"} className="h-11 rounded-xl" required />
+                <label className="text-xs font-bold text-stone-600 flex items-center gap-1"><Building2 size={12} /> {isRTL ? "اسم المدرسة *" : "School name *"}</label>
+                <Input value={form.school_name} onChange={e => update("school_name", e.target.value)} placeholder={isRTL ? "مثال: مدارس إيديوتراك العالمية" : "e.g. Al-Noor Private Schools"} className="h-11 rounded-xl" required />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-stone-600 flex items-center gap-1"><User size={12}/> {isRTL ? "اسم المسؤول *" : "Director name *"}</label>
+                <label className="text-xs font-bold text-stone-600 flex items-center gap-1"><User size={12} /> {isRTL ? "اسم المسؤول *" : "Director name *"}</label>
                 <Input value={form.director_name} onChange={e => update("director_name", e.target.value)} placeholder={isRTL ? "الاسم الكامل للمسؤول" : "Full name"} className="h-11 rounded-xl" required />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-stone-600 flex items-center gap-1"><MapPin size={12}/> {isRTL ? "البلد" : "Country"}</label>
+                <label className="text-xs font-bold text-stone-600 flex items-center gap-1"><MapPin size={12} /> {isRTL ? "البلد" : "Country"}</label>
                 <Input value={form.country} onChange={e => update("country", e.target.value)} placeholder="السودان" className="h-11 rounded-xl" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-stone-600 flex items-center gap-1"><Mail size={12}/> {isRTL ? "البريد الإلكتروني *" : "Email *"}</label>
+                <label className="text-xs font-bold text-stone-600 flex items-center gap-1"><Mail size={12} /> {isRTL ? "البريد الإلكتروني *" : "Email *"}</label>
                 <Input type="email" value={form.email} onChange={e => update("email", e.target.value)} placeholder="school@email.com" className="h-11 rounded-xl" required dir="ltr" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-stone-600 flex items-center gap-1"><Phone size={12}/> {isRTL ? "رقم الهاتف *" : "Phone *"}</label>
+                <label className="text-xs font-bold text-stone-600 flex items-center gap-1"><Phone size={12} /> {isRTL ? "رقم الهاتف *" : "Phone *"}</label>
                 <Input value={form.phone} onChange={e => update("phone", e.target.value)} placeholder={isRTL ? "مع رمز البلد" : "With country code"} className="h-11 rounded-xl" dir="ltr" required />
               </div>
             </div>
@@ -173,12 +172,12 @@ export default function PublicRegistration() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-stone-600 flex items-center gap-1"><FileText size={12}/> {isRTL ? "ملاحظات" : "Notes"}</label>
+              <label className="text-xs font-bold text-stone-600 flex items-center gap-1"><FileText size={12} /> {isRTL ? "ملاحظات" : "Notes"}</label>
               <textarea value={form.notes} onChange={e => update("notes", e.target.value)} placeholder={isRTL ? "أي معلومات إضافية عن المدرسة..." : "Any extra info..."} rows={2} className="w-full rounded-xl border border-stone-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/10" />
             </div>
 
             <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 text-xs text-blue-800 flex gap-2">
-              <Shield size={14} className="shrink-0 mt-0.5"/> <span>{isRTL ? "بعد الإرسال، يظهر طلبك فوراً في لوحة تحكم المؤسس (طلبات التسجيل) مع زر قبول/رفض/تعليق. عند القبول يُنشأ حساب مدرستك تلقائياً." : "After submit, your request appears instantly in founder dashboard (Registration Requests) with Accept/Reject/Hold. On accept, your school account is auto-created."}</span>
+              <Shield size={14} className="shrink-0 mt-0.5" /> <span>{isRTL ? "بعد الإرسال، يظهر طلبك فوراً في لوحة تحكم المؤسس (طلبات التسجيل) مع زر قبول/رفض/تعليق. عند القبول يُنشأ حساب مدرستك تلقائياً." : "After submit, your request appears instantly in founder dashboard (Registration Requests) with Accept/Reject/Hold. On accept, your school account is auto-created."}</span>
             </div>
 
             <div className="flex gap-3 pt-2">

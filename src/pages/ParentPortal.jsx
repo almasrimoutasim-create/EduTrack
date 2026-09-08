@@ -781,7 +781,7 @@ export default function ParentPortal() {
                     </Card>
                   ) : perfTab === "attendance" ? (
                     <Card className="p-8 border-none shadow-sm bg-white rounded-[40px] space-y-6">
-                      <h4 className="font-serif text-xl font-bold text-stone-900">{isRTL ? "كشف حركة الحضور والغياب" : "Attendance Tracking"}</h4>
+                      <h4 className="font-serif text-xl font-bold text-stone-900 text-center">{isRTL ? "كشف حركة الحضور والغياب" : "Attendance Tracking"}</h4>
                       {attendanceLogs.length === 0 ? (
                         <div className="text-center py-10 text-stone-400 text-sm font-semibold">
                           {isRTL ? "لا توجد حركات حضور مسجلة اليوم." : "No attendance records found."}

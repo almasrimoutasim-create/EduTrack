@@ -315,7 +315,7 @@ export default function LandingPage() {
               <div className="inline-flex items-center gap-2 bg-white border border-stone-100 rounded-full px-3 py-1.5 shadow-sm text-xs font-bold text-stone-600 mx-auto">
                 <Sparkles size={14} className="text-amber-500" />{t("hero_badge")}
               </div>
-              <h1 className="mt-4 text-3xl md:text-5xl font-black leading-tight">
+              <h1 className="mt-4 text-3xl md:text-5xl font-black leading-tight text-right">
                 {t("hero_title_1")} <span className="text-emerald-600">{t("hero_highlight")}</span><br />
                 {t("hero_title_2")}
               </h1>
