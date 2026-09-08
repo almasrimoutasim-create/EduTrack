@@ -69,6 +69,6 @@ const server = app.listen(PORT, '0.0.0.0', () => {
 });
 
 // SPA fallback for client-side routing
-app.get('*', (req, res) => {
+app.get('/*splat', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });

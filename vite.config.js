@@ -40,7 +40,7 @@ export default defineConfig({
           'animation-vendor': ['framer-motion', 'canvas-confetti'],
           'form-vendor': ['react-hook-form', '@hookform/resolvers', 'zod'],
           'query-vendor': ['@tanstack/react-query'],
-          'editor-vendor': ['react-quill', 'react-markdown'],
+          'editor-vendor': ['react-markdown'],
           'leaflet-vendor': ['react-leaflet'],
         }
       }

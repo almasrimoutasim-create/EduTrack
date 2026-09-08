@@ -14,6 +14,10 @@ import RoleGate from './components/RoleGate';
 import FounderGuard from './components/founder/FounderGuard';
 import RoleLogin from './pages/RoleLogin';
 import Gateway from './pages/Gateway';
+import TeacherLogin from './pages/TeacherLogin';
+import StudentLogin from './pages/StudentLogin';
+import FounderLogin from './pages/FounderLogin';
+import FounderDashboard from './pages/FounderDashboard';
 
 const PageLoader = () => (
   <div className="fixed inset-0 flex items-center justify-center bg-background">
@@ -72,8 +76,6 @@ const HRReports = lazy(() => import('./pages/HRReports'));
 const Departments = lazy(() => import('./pages/Departments'));
 const CareerLadder = lazy(() => import('./pages/CareerLadder'));
 const Settings = lazy(() => import('./pages/Settings'));
-const FounderLogin = lazy(() => import('./pages/FounderLogin'));
-const FounderDashboard = lazy(() => import('./pages/FounderDashboard'));
 const StoreInventory = lazy(() => import('./pages/StoreInventory'));
 const StoreCategories = lazy(() => import('./pages/StoreCategories'));
 const StorePOS = lazy(() => import('./pages/StorePOS'));
@@ -90,8 +92,6 @@ const RenewSubscription = lazy(() => import('./pages/RenewSubscription'));
 const IndependentTeacherPortal = lazy(() => import('./pages/IndependentTeacherPortal'));
 const EnhancedStudentPortal = lazy(() => import('./pages/EnhancedStudentPortal'));
 const LandingPage = lazy(() => import('./pages/LandingPage'));
-const TeacherLogin = lazy(() => import('./pages/TeacherLogin'));
-const StudentLogin = lazy(() => import('./pages/StudentLogin'));
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -125,10 +125,10 @@ const AuthenticatedApp = () => {
         <Route path="/registration" element={<PublicRegistration />} />
         <Route path="/student-register" element={<StudentRegister />} />
         <Route path="/teacher-register" element={<TeacherRegister />} />
+
         <Route element={<AppLayout />}>
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/admin-dashboard" element={<Dashboard />} />
-
           <Route path="/settings" element={<Settings />} />
           <Route path="/portal-access" element={<PortalAccessAdmin />} />
           <Route path="/students" element={<Students />} />
@@ -139,7 +139,6 @@ const AuthenticatedApp = () => {
           <Route path="/weekly-attendance" element={<WeeklyAttendanceSummary />} />
           <Route path="/materials" element={<Materials />} />
           <Route path="/schedules" element={<Schedules />} />
-
           <Route path="/store" element={<Store />} />
           <Route path="/store/inventory" element={<StoreInventory />} />
           <Route path="/store/categories" element={<StoreCategories />} />
@@ -173,7 +172,7 @@ const AuthenticatedApp = () => {
           <Route path="/grades" element={<Grades />} />
           <Route path="/print-results" element={<PrintResults />} />
           <Route path="/audit-log" element={<AuditLog />} />
-          <Route path="/library" element={<Library />} />
+          <Route path="/library" element:<Library />} />
           <Route path="/arabic-showcase" element={<ArabicShowcase />} />
           <Route path="/virtual-classroom/:id" element={<VirtualClassroom />} />
           <Route path="/admin-virtual-classrooms" element={<AdminVirtualClassrooms />} />
@@ -185,6 +184,7 @@ const AuthenticatedApp = () => {
           <Route path="/bus-routes" element={<BusRouteManagement />} />
           <Route path="/renew-subscription" element={<RenewSubscription />} />
         </Route>
+
         <Route path="/student-portal" element={<StudentPortal />} />
         <Route path="/student-panel" element={<EnhancedStudentPortal />} />
         <Route path="/teacher-portal" element={<TeacherPortal />} />
