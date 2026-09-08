@@ -172,7 +172,7 @@ const AuthenticatedApp = () => {
           <Route path="/grades" element={<Grades />} />
           <Route path="/print-results" element={<PrintResults />} />
           <Route path="/audit-log" element={<AuditLog />} />
-          <Route path="/library" element:<Library />} />
+          <Route path="/library" element={<Library />} />
           <Route path="/arabic-showcase" element={<ArabicShowcase />} />
           <Route path="/virtual-classroom/:id" element={<VirtualClassroom />} />
           <Route path="/admin-virtual-classrooms" element={<AdminVirtualClassrooms />} />
