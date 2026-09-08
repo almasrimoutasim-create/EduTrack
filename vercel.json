@@ -4,11 +4,11 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://edutrack-2689.onrender.com/api/:path*"
+      "destination": "https://edutrack-ey49.onrender.com/api/:path*"
     },
     {
       "source": "/neon-db/:path*",
-      "destination": "https://edutrack-2689.onrender.com/neon-db/:path*"
+      "destination": "https://edutrack-ey49.onrender.com/neon-db/:path*"
     },
     {
       "source": "/((?!assets/|uploads/|manifest.json).*)",

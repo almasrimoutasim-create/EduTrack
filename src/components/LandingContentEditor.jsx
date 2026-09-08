@@ -117,7 +117,7 @@ export default function LandingContentEditor() {
   const renderImageField = (key, label) => (
     <div key={key} className="space-y-1 text-center">
       <label className="text-xs font-bold text-slate-500 flex items-center justify-center gap-1">
-        <ImageIcon size={12}/> {label}
+        <ImageIcon size={12} /> {label}
       </label>
       <input
         type="url"
@@ -135,7 +135,7 @@ export default function LandingContentEditor() {
     </div>
   );
 
-  if (loading) return <div className="flex items-center justify-center gap-2 text-slate-500 p-6"><Loader2 className="animate-spin" size={18}/> جاري التحميل...</div>;
+  if (loading) return <div className="flex items-center justify-center gap-2 text-slate-500 p-6"><Loader2 className="animate-spin" size={18} /> جاري التحميل...</div>;
 
   const renderSection = (sectionKey, fields) => {
     const isOpen = openSections[sectionKey];
@@ -145,10 +145,10 @@ export default function LandingContentEditor() {
       <div key={sectionKey} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <button onClick={() => toggleSection(sectionKey)} className="w-full flex items-center justify-between px-5 py-4 hover:bg-slate-50 transition text-center">
           <div className="flex items-center gap-3 mx-auto">
-            <Icon size={16} className="text-blue-500 shrink-0"/>
+            <Icon size={16} className="text-blue-500 shrink-0" />
             <span className="font-bold text-slate-800">{sectionDef?.label}</span>
           </div>
-          {isOpen ? <ChevronDown size={16} className="text-slate-400 shrink-0"/> : <ChevronRight size={16} className="text-slate-400 shrink-0"/>}
+          {isOpen ? <ChevronDown size={16} className="text-slate-400 shrink-0" /> : <ChevronRight size={16} className="text-slate-400 shrink-0" />}
         </button>
         {isOpen && <div className="px-5 pb-5 space-y-3 border-t border-slate-100">{fields}</div>}
       </div>
@@ -174,7 +174,7 @@ export default function LandingContentEditor() {
         {renderField("hero_trust_1", "ثقة 1")}
         {renderField("hero_trust_2", "ثقة 2")}
         <div className="grid grid-cols-2 gap-3">
-          {[1,2,3,4].map(n => (
+          {[1, 2, 3, 4].map(n => (
             <React.Fragment key={n}>
               {renderImageField(`hero_slide_${n}_img`, `صورة ${n}`)}
               {renderField(`hero_slide_${n}_caption`, `تعليق ${n}`)}
@@ -187,7 +187,7 @@ export default function LandingContentEditor() {
       {renderSection("features", <>
         {renderField("features_title", "عنوان القسم")}
         {renderField("features_desc", "وصف القسم")}
-        {[1,2,3,4,5,6].map(n => (
+        {[1, 2, 3, 4, 5, 6].map(n => (
           <div key={n} className="bg-slate-50 rounded-xl p-3 space-y-2 border border-slate-100 text-center">
             <div className="text-xs font-bold text-blue-600 text-center">الميزة {n}</div>
             {renderField(`feature_${n}_title`, "العنوان")}
@@ -333,7 +333,7 @@ export default function LandingContentEditor() {
           disabled={saveMutation.isPending}
           className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-bold shadow-lg transition disabled:opacity-50 text-center"
         >
-          {saveMutation.isPending ? <Loader2 className="animate-spin" size={16}/> : <Save size={16}/>}
+          {saveMutation.isPending ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
           {saveMutation.isPending ? "جاري الحفظ..." : "حفظ جميع التغييرات"}
         </button>
       </div>
