@@ -19,10 +19,10 @@ const WHATSAPP_MSG = encodeURIComponent("مرحباً، أرغب في طلب ن�
 /* ─── hardcoded defaults (used if API doesn't provide a value) ─── */
 const DEFAULTS = {
   hero_badge_ar: "نظام شامل لإدارة المدارس الذكية", hero_badge_en: "All-in-one Smart School Management",
-  hero_title_1_ar: "منصة المدارس ", hero_title_1_en: "Manage your school",
-  hero_highlight_ar: "الإلكترونية", hero_highlight_en: "smartly",
-  hero_title_2_ar: " المدرسة الإلكترونية ", hero_title_2_en: "from one place",
-  hero_desc_ar: "منصة EduTrack تغطي النتائج والشهادات السودانية، شؤون الطلاب، الرسوم، الحضور، والمزيد — بواجهة عربية احترافية وطباعة بجودة الوزارة.",
+  hero_title_1_ar: "منصة إدارة ", hero_title_1_en: "Manage your school",
+  hero_highlight_ar: "المدارس", hero_highlight_en: "smartly",
+  hero_title_2_ar: "   ", hero_title_2_en: "from one place",
+  hero_desc_ar: "منصة EduTrack تغطي النتائج والبث المباشر،الواجبات ، شؤون الطلاب، الرسوم، الحضور، والمزيد — .",
   hero_desc_en: "EduTrack covers results & Sudanese certificates, students, fees, attendance and more — with Arabic UI and ministry-grade print.",
   hero_cta_ar: "طلب نسخة تجريبية", hero_cta_en: "Request Demo",
   hero_trust1_ar: "دعم فني مخصص", hero_trust1_en: "Local support",
@@ -36,7 +36,7 @@ const DEFAULTS = {
   slide4_img: "https://images.unsplash.com/photo-1516534775068-ba3e7458af70?q=80&w=800&auto=format&fit=crop",
   slide4_cap_ar: "المراجعة والتحضير", slide4_cap_en: "Review & preparation",
   features_title_ar: "مميزات المنصة", features_title_en: "Platform Features",
-  features_desc_ar: "كل ما تحتاجه المدرسة السودانية في مكان واحد", features_desc_en: "Everything a Sudanese school needs in one place",
+  features_desc_ar: "كل ما تحتاجه المدرسة في مكان واحد", features_desc_en: "Everything a Sudanese school needs in one place",
   /* feature icons + images stay in code — only titles/descs are editable */
   f1_title_ar: "طباعة النتائج ", f1_title_en: "Sudanese Results & Certificates",
   f1_desc_ar: "كشف درجات أفقي وعمودي مطابق  مع طباعة احترافية وختم وتقديرات.", f1_desc_en: "Landscape & portrait marksheets per Sudanese standards with professional print.",
@@ -82,7 +82,7 @@ const DEFAULTS = {
   f6_p4_ar: "تحليلات تنبؤية", f6_p4_en: "Predictive analytics",
   school_badge_ar: "بوابة المدرسة", school_badge_en: "School Portal",
   school_title_ar: "أدر مدرستك بالكامل — نتائج، رسوم، حضور، وتقارير", school_title_en: "Manage your entire school — results, fees, attendance & reports",
-  school_desc_ar: "لوحة تحكم شاملة للمديرين: إدارة الطلاب والمعلمين، النتائج والشهادات السودانية، الرسوم المالية، الحضور والغياب، والتقارير الذكية. كل ما تحتاجه لإدارة مدرستك في مكان واحد.", school_desc_en: "Comprehensive admin dashboard: manage students & teachers, Sudanese results & certificates, financial fees, attendance, and smart reports. Everything you need in one place.",
+  school_desc_ar: "لوحة تحكم شاملة للمديرين: إدارة الطلاب والمعلمين، النتائج والشهادات، الرسوم المالية، الحضور والغياب، والتقارير الذكية. كل ما تحتاجه لإدارة مدرستك في مكان واحد.", school_desc_en: "Comprehensive admin dashboard: manage students & teachers, Sudanese results & certificates, financial fees, attendance, and smart reports. Everything you need in one place.",
   school_cta_ar: "طلب نسخة تجريبية", school_cta_en: "Request Demo",
   school_wa_ar: "استفسار عبر الواتساب", school_wa_en: "WhatsApp Inquiry",
   teacher_badge_ar: "بوابة المعلم المستقل", teacher_badge_en: "Independent Teacher Portal",
@@ -100,7 +100,7 @@ const DEFAULTS = {
   whatsapp_title_ar: "تواصل سريع عبر واتساب", whatsapp_title_en: "Quick WhatsApp Contact",
   whatsapp_desc_ar: "رد فوري من فريق EduTrack على الرقم الموحد", whatsapp_desc_en: "Instant reply from EduTrack team",
   whatsapp_cta_ar: "فتح واتساب", whatsapp_cta_en: "Open WhatsApp",
-  footer_desc_ar: "منصة سودانية ذكية لإدارة المدارس — نتائج، رسوم، حضور، ومتابعة شاملة بواجهة عربية وطباعة وزارية.", footer_desc_en: "Smart Sudanese school management — results, fees, attendance and full follow-up with Arabic UI and ministry-grade print.",
+  footer_desc_ar: "منصة ذكية لإدارة المدارس — نتائج، رسوم، حضور، ومتابعة شاملة بواجهة عربية.", footer_desc_en: "Smart Sudanese school management — results, fees, attendance and full follow-up with Arabic UI and ministry-grade print.",
   footer_links_ar: "روابط سريعة", footer_links_en: "Quick Links",
   footer_link1_ar: "مميزات المنصة", footer_link1_en: "Features",
   footer_link2_ar: "الباقات والأسعار", footer_link2_en: "Pricing",
@@ -382,7 +382,7 @@ export default function LandingPage() {
         </div>
         <div className="grid md:grid-cols-3 gap-4 mt-8">
           {features.map((f) => (
-            <button key={f.title} onClick={() => setSelectedFeature(f)} className="bg-white rounded-2xl border border-stone-100 p-5 pt-6 shadow-sm hover:shadow-lg hover:border-stone-200 hover:-translate-y-1 transition-all w-full h-full min-h-[218px] group flex flex-col items-center justify-start text-center">
+            <button key={f.title} onClick={() => setSelectedFeature(f)} className="bg-white rounded-2xl border border-stone-100 p-5 pt-6 shadow-sm hover:shadow-lg hover:border-stone-200 hover:-translate-y-1 transition-all w-full h-full min-h-[218px] group flex flex-col items-start justify-start text-start">
               <div className="h-11 w-11 rounded-2xl bg-stone-900 text-white flex items-center justify-center mb-3 shrink-0 shadow-sm mx-auto group-hover:scale-110 transition-transform">
                 <f.icon size={20} />
               </div>

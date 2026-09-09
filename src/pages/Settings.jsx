@@ -416,7 +416,7 @@ export default function Settings() {
                     required
                     value={formData.school_name_ar}
                     onChange={(e) => setFormData({...formData, school_name_ar: e.target.value})}
-                    placeholder={isRTL ? "مدارس إديوتراك النموذجية العالمية" : "EduTrack Model School"}
+                    placeholder={isRTL ? "مدارس إديوتراك العالمية" : "EduTrack International School"}
                     className="h-12 bg-stone-50 border-stone-200 focus:bg-white"
                   />
                 </div>
@@ -430,7 +430,7 @@ export default function Settings() {
                     required
                     value={formData.school_name_en}
                     onChange={(e) => setFormData({...formData, school_name_en: e.target.value})}
-                    placeholder="EduTrack Model School"
+                    placeholder="EduTrack International School"
                     className="h-12 bg-stone-50 border-stone-200 focus:bg-white"
                   />
                 </div>
@@ -519,7 +519,7 @@ export default function Settings() {
 
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-stone-700">{isRTL ? "الاسم المختصر للسايدبار" : "Sidebar short name"}</label>
-                  <Input value={formData.sidebar_short_name} onChange={(e) => setFormData({...formData, sidebar_short_name: e.target.value})} placeholder={isRTL ? "مثال: المجد" : "e.g. Almajd"} className="h-12 bg-stone-50 border-stone-200 focus:bg-white" maxLength={20} />
+                  <Input value={formData.sidebar_short_name} onChange={(e) => setFormData({...formData, sidebar_short_name: e.target.value})} placeholder={isRTL ? "مثال: إيديوترات" : "e.g. EduTack"} className="h-12 bg-stone-50 border-stone-200 focus:bg-white" maxLength={20} />
                   <p className="text-[11px] text-stone-400">{isRTL ? "كلمة واحدة مختصرة — تظهر تحت الشعار بخط جميل" : "One short word shown under logo"}</p>
                 </div>
               </div>
