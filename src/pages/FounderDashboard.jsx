@@ -90,10 +90,12 @@ function PaymentReceiptsSection() {
 
   return (
     <div className="space-y-4 mt-6">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2"><CreditCard size={18} className="text-emerald-500"/> إيصالات الدفع الواردة</h3>
-        <button onClick={fetchReceipts} className="bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 hover:bg-slate-200"><RefreshCw size={13}/> تحديث</button>
-      </div>
+      <div className="flex items-center justify-between flex-wrap gap-2">
+          <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2"><CreditCard size={18} className="text-emerald-500"/> طلبات الاشتراك — قيد الانتظار</h3>
+          <span className="text-xs bg-amber-100 text-amber-700 px-3 py-1 rounded-full font-bold">{counts.pending} طلب جديد</span>
+          <button onClick={fetchReceipts} className="bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 hover:bg-slate-200"><RefreshCw size={13}/> تحديث</button>
+        </div>
+        <p className="text-xs text-slate-500 -mt-2">تظهر هنا فقط طلبات ترقية الباقات التي أرسلها مديرو المدارس مع إيصال الدفع — عند الموافقة يتم تفعيل الباقة فوراً</p>
       <div className="flex gap-2 flex-wrap">
         {[{id:"pending", label:"قيد المراجعة", count:counts.pending, color:"bg-amber-100 text-amber-700"}, {id:"approved", label:"تمت الموافقة", count:counts.approved, color:"bg-emerald-100 text-emerald-700"}, {id:"rejected", label:"مرفوض", count:counts.rejected, color:"bg-rose-100 text-rose-700"}, {id:"all", label:"الكل", count:receipts.length, color:"bg-slate-100 text-slate-700"}].map(f => (
           <button key={f.id} onClick={() => setFilter(f.id)} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${filter===f.id ? f.color : "bg-slate-50 text-slate-400 hover:bg-slate-100"}`}>{f.label} ({f.count})</button>
@@ -152,7 +154,13 @@ function PaymentReceiptsSection() {
                 <div className="bg-slate-50 rounded-xl p-3"><p className="text-xs text-slate-500">المرجع</p><p className="font-bold font-mono">{selectedReceipt.transfer_reference || "—"}</p></div>
               </div>
               {selectedReceipt.receipt_image && (
-                <div className="mt-3"><p className="text-xs text-slate-500 mb-1">صورة الإيصال</p><img src={selectedReceipt.receipt_image} alt="receipt" className="w-full rounded-xl border border-slate-200 max-h-64 object-contain bg-slate-50"/></div>
+                <div className="mt-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-xs text-slate-500">صورة الإيصال</p>
+                    <a href={selectedReceipt.receipt_image} target="_blank" rel="noopener noreferrer" download className="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1"><Download size={12}/> تحميل / معاينة</a>
+                  </div>
+                  <img src={selectedReceipt.receipt_image} alt="receipt" className="w-full rounded-xl border border-slate-200 max-h-64 object-contain bg-slate-50"/>
+                </div>
               )}
               <div><label className="text-xs font-bold text-slate-600">ملاحظات</label><textarea value={notes} onChange={e => setNotes(e.target.value)} className="w-full mt-1 rounded-xl border border-slate-200 p-2 text-sm" rows={2} placeholder="ملاحظات اختيارية"/></div>
             </div>
@@ -740,7 +748,7 @@ const FounderDashboard = () => {
     return diff > 0 && diff < 7 * 24 * 60 * 60 * 1000;
   });
 
-  const last5Requests = [...requests].slice(0, 5);
+  const last5Requests = pendingBase.slice(0, 5);
   const last5Schools = [...schools].slice(0, 5);
 
   // ── Teacher/Student filtered lists ──
@@ -761,9 +769,12 @@ const FounderDashboard = () => {
   const activeStudents = allStudents.filter(s => s.status === "active").length;
 
   // ── Pre-computed IIFE replacements (TDZ safety) ──
-  const filteredReqs = requests.filter(r => {
-    const isStudent = r.role_requested === 'student' || r.plan === 'student_free';
-    const isTeacher = r.role_requested === 'teacher' || r.plan === 'teacher_free';
+  // صفحة طلبات التسجيل: عرض الطلبات الجديدة قيد الانتظار فقط — إخفاء المقبولة/المرفوضة
+  const isPendingStatus = (s) => !s || s === "pending" || s === "on_hold";
+  const pendingBase = requests.filter((r) => isPendingStatus(r.status));
+  const filteredReqs = pendingBase.filter((r) => {
+    const isStudent = r.role_requested === "student" || r.plan === "student_free";
+    const isTeacher = r.role_requested === "teacher" || r.plan === "teacher_free";
     const isSchool = !isStudent && !isTeacher;
     if (reqFilter === "schools") return isSchool;
     if (reqFilter === "students") return isStudent;
@@ -1667,30 +1678,30 @@ const FounderDashboard = () => {
           <div className="space-y-4">
             {/* Filter Sub-Tabs */}
             <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-slate-200 shadow-sm">
-              <div className="flex items-center gap-1.5 flex-wrap">
+<div className="flex items-center gap-1.5 flex-wrap">
                 <button
                   onClick={() => setReqFilter("all")}
                   className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${reqFilter === "all" ? "bg-slate-900 text-white shadow" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
                 >
-                  جميع الطلبات ({requests.length})
+                  جميع الطلبات قيد الانتظار ({pendingBase.length})
                 </button>
                 <button
                   onClick={() => setReqFilter("schools")}
                   className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1 ${reqFilter === "schools" ? "bg-blue-600 text-white shadow" : "bg-blue-50 text-blue-700 hover:bg-blue-100"}`}
                 >
-                  <Building2 size={13}/> طلبات المدارس ({requests.filter(r => r.role_requested !== 'student' && r.role_requested !== 'teacher' && r.plan !== 'student_free' && r.plan !== 'teacher_free').length})
+                  <Building2 size={13}/> طلبات المدارس ({pendingBase.filter(r => r.role_requested !== 'student' && r.role_requested !== 'teacher' && r.plan !== 'student_free' && r.plan !== 'teacher_free').length})
                 </button>
                 <button
                   onClick={() => setReqFilter("students")}
                   className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1 ${reqFilter === "students" ? "bg-emerald-600 text-white shadow" : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"}`}
                 >
-                  <Users size={13}/> طلبات الطلاب ({requests.filter(r => r.role_requested === 'student' || r.plan === 'student_free').length})
+                  <Users size={13}/> طلبات الطلاب ({pendingBase.filter(r => r.role_requested === 'student' || r.plan === 'student_free').length})
                 </button>
                 <button
                   onClick={() => setReqFilter("teachers")}
                   className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1 ${reqFilter === "teachers" ? "bg-indigo-600 text-white shadow" : "bg-indigo-50 text-indigo-700 hover:bg-indigo-100"}`}
                 >
-                  <GraduationCap size={13}/> طلبات المعلمين ({requests.filter(r => r.role_requested === 'teacher' || r.plan === 'teacher_free').length})
+                  <GraduationCap size={13}/> طلبات المعلمين ({pendingBase.filter(r => r.role_requested === 'teacher' || r.plan === 'teacher_free').length})
                 </button>
               </div>
               <button

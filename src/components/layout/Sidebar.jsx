@@ -71,6 +71,39 @@ const BRAND_CONFIGS = {
   }
 };
 
+const FEATURE_ROUTE_MAP = {
+  '/students': 'student_management',
+  '/student-directory': 'student_management',
+  '/registrar/enrollment': 'student_management',
+  '/registrar/files': 'student_management',
+  '/registrar/archive': 'student_management',
+  '/teachers': 'teacher_management',
+  '/subjects': 'teacher_management',
+  '/attendance': 'attendance_tracking',
+  '/attendance-summary': 'attendance_tracking',
+  '/staff/attendance': 'attendance_tracking',
+  '/grades': 'grade_management',
+  '/print-results': 'grade_management',
+  '/schedules': 'attendance_tracking',
+  '/materials': 'assignments',
+  '/activity': 'assignments',
+  '/awards': 'assignments',
+  '/admin-virtual-classrooms': 'live_classes',
+  '/admin-chats': 'chat_messaging',
+  '/library': 'library_management',
+  '/finance': 'financial_management',
+  '/store': 'store_shop',
+  '/store/categories': 'store_shop',
+  '/store/inventory': 'store_shop',
+  '/store/orders': 'store_shop',
+  '/store/pos': 'store_shop',
+  '/bus-routes': 'bus_tracking',
+  '/bus-supervisor': 'bus_tracking',
+  '/official-announcements': 'notifications',
+  '/counseling': 'student_management',
+  '/counseling/cases': 'student_management',
+};
+
 export default function Sidebar() {
   const location = useLocation();
   const [open, setOpen] = useState(false);
@@ -78,6 +111,23 @@ export default function Sidebar() {
   const { language } = useLanguage();
   const { logout } = useAuth();
   const isRTL = language === "ar";
+  const [enabledFeatures, setEnabledFeatures] = useState(null);
+  const portalRoleSidebar = localStorage.getItem("portal_role") || "admin";
+
+  useEffect(() => {
+    if (portalRoleSidebar !== 'admin') { setEnabledFeatures(new Set(['all'])); return; }
+    const sid = localStorage.getItem('portal_school_id');
+    if (!sid) { setEnabledFeatures(new Set(['all'])); return; }
+    const apiBase = (import.meta.env.VITE_BACKEND_URL || '').replace(/\/$/, '');
+    const url = apiBase ? `${apiBase}/api/school-features/${sid}` : `/api/school-features/${sid}`;
+    fetch(url, { headers: { Authorization: `Bearer ${localStorage.getItem('portal_jwt_token') || localStorage.getItem('jwt_token') || ''}` } })
+      .then(r => r.ok ? r.json() : { features: [] })
+      .then(d => {
+        const feats = d.features ? d.features.map(f => f.feature_key) : [];
+        setEnabledFeatures(new Set(feats));
+      })
+      .catch(() => setEnabledFeatures(new Set(['all'])));
+  }, [portalRoleSidebar]);
 
   const toggleMenu = (menuLabel) => {
     setExpandedMenus(prev => ({
@@ -368,7 +418,27 @@ export default function Sidebar() {
     }
   };
 
-  const navGroups = getNavGroups();
+  const isRouteEnabled = (path) => {
+    if (!enabledFeatures || enabledFeatures.has('all')) return true;
+    const clean = path.split('?')[0].split('#')[0];
+    const key = FEATURE_ROUTE_MAP[clean] || FEATURE_ROUTE_MAP[path];
+    if (!key) return true;
+    return enabledFeatures.has(key);
+  };
+  const rawGroups = getNavGroups();
+  const navGroups = rawGroups.map(g => ({
+    ...g,
+    items: g.items.filter(item => {
+      if (item.path === '/' || item.path === '/settings') return true;
+      if (item.subItems) {
+        const filteredSubs = item.subItems.filter(s => isRouteEnabled(s.path));
+        if (filteredSubs.length === 0 && !isRouteEnabled(item.path)) return false;
+        item.subItems = filteredSubs;
+        return true;
+      }
+      return isRouteEnabled(item.path);
+    })
+  })).filter(g => g.items.length > 0);
 
   return (
     <>

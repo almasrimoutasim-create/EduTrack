@@ -4,10 +4,11 @@ import { entities } from '@/api/dbClient';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
 import { toast } from 'sonner';
-import { Settings as SettingsIcon, Save, Image as ImageIcon, Building2, Globe, Shield, UserPlus, Key, Trash2, Upload, Users, Edit, X } from 'lucide-react';
+import { Settings as SettingsIcon, Save, Image as ImageIcon, Building2, Globe, Shield, UserPlus, Key, Trash2, Upload, Users, Edit, X, Crown, Zap, Loader2, CheckCircle, AlertCircle, Calendar, CreditCard, Eye, Download, RefreshCw } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 
 export default function Settings() {
   const { language } = useLanguage();
@@ -30,6 +31,29 @@ export default function Settings() {
   const [editingGateway, setEditingGateway] = useState(null);
   const [editingAdmin, setEditingAdmin] = useState(null);
 
+  // ── اشتراك الباقات (مدير المدرسة) ──
+  const schoolId = localStorage.getItem('portal_school_id') || user?.school_id || null;
+  const [upgradePlan, setUpgradePlan] = useState(null);
+  const [billingCycleLocal, setBillingCycleLocal] = useState('monthly');
+  const [receiptFile, setReceiptFile] = useState(null);
+  const [receiptPreview, setReceiptPreview] = useState(null);
+  const [senderName, setSenderName] = useState('');
+  const [transferRef, setTransferRef] = useState('');
+  const [bankNameLocal, setBankNameLocal] = useState('');
+  const [uploadingReceipt, setUploadingReceipt] = useState(false);
+  const [showSuccessReceipt, setShowSuccessReceipt] = useState(false);
+
+  const PLAN_DEFS = {
+    starter: { name: 'Starter', price: 49, icon: Shield, color: 'border-slate-200', bg: 'bg-slate-50', accent: 'text-slate-600', descAr: 'مدرسة صغيرة حتى 200 طالب', descEn: 'Small school up to 200 students' },
+    professional: { name: 'Professional', price: 99, icon: Zap, color: 'border-blue-300', bg: 'bg-blue-50/50', accent: 'text-blue-600', popular: true, descAr: 'الأكثر طلباً — كل الميزات', descEn: 'Most popular — all features' },
+    enterprise: { name: 'Enterprise', price: 199, icon: Crown, color: 'border-violet-300', bg: 'bg-violet-50/50', accent: 'text-violet-600', descAr: 'شبكة مدارس بلا حدود', descEn: 'Unlimited network' },
+  };
+  const calcPriceLocal = (plan, cycle) => {
+    const base = PLAN_DEFS[plan]?.price || 99;
+    if (cycle === 'yearly') return Math.round(base * 12 * 0.8);
+    return base;
+  };
+
   const { data: gatewayAccounts, isLoading: isLoadingAccounts } = useQuery({
     queryKey: ['gateway-accounts'],
     queryFn: () => entities.GatewayAccount.list("-created_at", 50)
@@ -38,6 +62,27 @@ export default function Settings() {
   const { data: systemAdmins, isLoading: isLoadingAdmins } = useQuery({
     queryKey: ['system-admins'],
     queryFn: () => entities.SystemAdmin.list("-created_at", 50)
+  });
+
+  const { data: currentSchool } = useQuery({
+    queryKey: ['current-school', schoolId],
+    enabled: !!schoolId,
+    queryFn: async () => {
+      try { return await entities.School.get(schoolId); } catch { return null; }
+    }
+  });
+  const { data: tierFeaturesList = [] } = useQuery({
+    queryKey: ['tier-features-settings'],
+    queryFn: async () => {
+      try {
+        const token = localStorage.getItem('portal_jwt_token') || localStorage.getItem('jwt_token') || '';
+        const apiBase = (import.meta.env.VITE_BACKEND_URL || '').replace(/\/$/, '');
+        const url = apiBase ? `${apiBase}/api/tier-features` : '/api/tier-features';
+        const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+        if (!res.ok) return [];
+        return await res.json();
+      } catch { return []; }
+    }
   });
 
   const { data: settingsList, isLoading } = useQuery({
@@ -189,6 +234,51 @@ export default function Settings() {
     });
   };
 
+  // ── رفع إيصال ترقية الباقة ──
+  const handleReceiptSelect = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { toast.error(isRTL ? 'الحد الأقصى 5 ميجا' : 'Max 5MB'); return; }
+    setReceiptFile(file);
+    const reader = new FileReader();
+    reader.onload = (ev) => setReceiptPreview(ev.target.result);
+    reader.readAsDataURL(file);
+  };
+  const handleUploadUpgradeReceipt = async () => {
+    if (!receiptFile || !upgradePlan || !currentSchool) return;
+    if (!senderName.trim()) { toast.error(isRTL ? 'أدخل اسم المرسل' : 'Enter sender name'); return; }
+    setUploadingReceipt(true);
+    try {
+      const base64 = await new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(r.result);
+        r.onerror = reject;
+        r.readAsDataURL(receiptFile);
+      });
+      const apiBase = (import.meta.env.VITE_BACKEND_URL || '').replace(/\/$/, '');
+      const url = apiBase ? `${apiBase}/neon-db/upload-receipt` : '/neon-db/upload-receipt';
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('portal_jwt_token') || localStorage.getItem('jwt_token') || ''}` },
+        body: JSON.stringify({
+          amount: calcPriceLocal(upgradePlan, billingCycleLocal),
+          plan: upgradePlan,
+          billing_cycle: billingCycleLocal,
+          receipt_image: base64,
+          bank_name: bankNameLocal || 'Bank',
+          account_holder: 'EduTrack',
+          transfer_reference: transferRef,
+          sender_name: senderName,
+        })
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      toast.success(isRTL ? 'تم إرسال طلب الترقية — بانتظار موافقة المؤسس' : 'Upgrade request sent — pending founder approval');
+      setShowSuccessReceipt(true);
+      setReceiptFile(null); setReceiptPreview(null); setSenderName(''); setTransferRef(''); setBankNameLocal(''); setUpgradePlan(null);
+    } catch (e) { toast.error(e.message || 'فشل الإرسال'); } finally { setUploadingReceipt(false); }
+  };
+
   const createGatewayMutation = useMutation({
     mutationFn: async (data) => await entities.GatewayAccount.create(data),
     onSuccess: () => {
@@ -298,7 +388,7 @@ export default function Settings() {
                     required
                     value={formData.school_name_ar}
                     onChange={(e) => setFormData({...formData, school_name_ar: e.target.value})}
-                    placeholder={isRTL ? "مدارس إديوتراك النموذجية الخاصة" : "EduTrack Model School"}
+                    placeholder={isRTL ? "مدارس إديوتراك النموذجية العالمية" : "EduTrack Model School"}
                     className="h-12 bg-stone-50 border-stone-200 focus:bg-white"
                   />
                 </div>
@@ -380,7 +470,7 @@ export default function Settings() {
                   <span className="h-6 w-6 rounded-lg bg-violet-100 text-violet-600 flex items-center justify-center text-xs">≡</span>
                   {isRTL ? "إعدادات السايدبار (الشعار + الاسم المختصر)" : "Sidebar branding"}
                 </h4>
-                <p className="text-xs text-stone-500 -mt-2">{isRTL ? "ارفع شعار السايدبار واكتب كلمة مختصرة (مثلاً: المجد) — يظهر الشعار فوق والاسم تحته بتنسيق جميل" : "Upload sidebar logo and write a short name"}</p>
+                <p className="text-xs text-stone-500 -mt-2">{isRTL ? "ارفع شعار السايدبار واكتب كلمة مختصرة (مثلاً: إيديوتراك) — يظهر الشعار فوق والاسم تحته بتنسيق جميل" : "Upload sidebar logo and write a short name"}</p>
 
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-stone-700 flex items-center gap-2">
@@ -482,6 +572,113 @@ export default function Settings() {
           </Card>
         </div>
       </div>
+
+      {/* ── اشتراك الباقات (Subscription Plans) — مدير النظام ── */}
+      <Card className="border-2 border-slate-200 rounded-[28px] p-6 md:p-8 bg-white shadow-sm mt-6">
+        <div className="flex items-center gap-3 border-b border-slate-100 pb-4 mb-6">
+          <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center text-amber-600"><CreditCard size={20} /></div>
+          <div className="flex-1">
+            <h2 className="text-lg font-black text-slate-900">{isRTL ? 'اشتراك الباقات' : 'Subscription Plans'}</h2>
+            <p className="text-xs text-slate-500 mt-0.5">{isRTL ? 'الباقة الحالية مميزة — يمكنك طلب ترقية لأي باقة أخرى عبر رفع إيصال الدفع' : 'Current plan highlighted — request upgrade to any other plan by uploading receipt'}</p>
+          </div>
+          {currentSchool && <span className="text-xs font-bold bg-slate-900 text-white px-3 py-1.5 rounded-full">{isRTL ? 'الحالية: ' : 'Current: '}{(currentSchool.plan || 'starter').toUpperCase()}</span>}
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {Object.entries(PLAN_DEFS).map(([key, p]) => {
+            const isCurrent = (currentSchool?.plan || 'starter') === key;
+            const Icon = p.icon;
+            const priceDisplay = `${p.price}`;
+            return (
+              <div key={key} className={`relative rounded-2xl border-2 p-5 text-center transition-all ${isCurrent ? 'border-emerald-400 bg-emerald-50/60 shadow-lg' : `border-slate-200 ${p.bg} hover:shadow-md`}`}>
+                {p.popular && <span className="absolute -top-2 right-3 bg-blue-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">{isRTL ? 'الأكثر طلباً' : 'Popular'}</span>}
+                {isCurrent && <span className="absolute -top-2 left-3 bg-emerald-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold flex items-center gap-1"><CheckCircle size={10}/>{isRTL ? 'الباقة الحالية' : 'Current'}</span>}
+                <Icon size={24} className={`mx-auto mb-2 ${isCurrent ? 'text-emerald-600' : p.accent}`} />
+                <div className="text-base font-black text-slate-900">{p.name}</div>
+                <div className="text-2xl font-extrabold text-slate-900">${priceDisplay}<span className="text-xs font-normal text-slate-500">/شهر</span></div>
+                <p className="text-xs text-slate-500 mt-1">{isRTL ? p.descAr : p.descEn}</p>
+                {isCurrent ? (
+                  <div className="mt-4 py-2.5 rounded-xl bg-emerald-100 text-emerald-700 font-bold text-xs flex items-center justify-center gap-1"><CheckCircle size={14}/>{isRTL ? 'مفعلة حالياً' : 'Active'}</div>
+                ) : (
+                  <button onClick={() => { setUpgradePlan(key); setBillingCycleLocal(currentSchool?.billing_cycle || 'monthly'); }} className={`mt-4 w-full py-2.5 rounded-xl font-bold text-sm transition ${upgradePlan===key ? 'bg-slate-900 text-white' : 'bg-white border border-slate-200 hover:bg-slate-900 hover:text-white'}`}>{isRTL ? `ترقية إلى ${p.name}` : `Upgrade to ${p.name}`}</button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* تفاصيل الباقة المختارة + رفع الإيصال */}
+        {upgradePlan && (
+          <div className="mt-6 rounded-2xl border-2 border-slate-900 bg-slate-50 p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-black text-slate-900 flex items-center gap-2"><Upload size={16} className="text-blue-600"/>{isRTL ? `طلب ترقية إلى ${PLAN_DEFS[upgradePlan].name}` : `Upgrade to ${PLAN_DEFS[upgradePlan].name}`}</h3>
+              <button onClick={()=>{ setUpgradePlan(null); setReceiptFile(null); setReceiptPreview(null);}} className="text-xs text-slate-500 hover:text-slate-900"><X size={16}/></button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+              <button onClick={()=>setBillingCycleLocal('monthly')} className={`p-3 rounded-xl border-2 text-center ${billingCycleLocal==='monthly' ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white'}`}>
+                <div className="font-bold text-sm">{isRTL ? 'شهري' : 'Monthly'}</div><div className="text-lg font-extrabold">${PLAN_DEFS[upgradePlan].price}</div>
+              </button>
+              <button onClick={()=>setBillingCycleLocal('yearly')} className={`p-3 rounded-xl border-2 text-center ${billingCycleLocal==='yearly' ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white'}`}>
+                <div className="font-bold text-sm">{isRTL ? 'سنوي (توفير 20%)' : 'Yearly (Save 20%)'}</div><div className="text-lg font-extrabold">${calcPriceLocal(upgradePlan,'yearly')}<span className="text-xs font-normal">/سنة</span></div>
+              </button>
+            </div>
+            <div className="bg-white rounded-xl p-4 border border-slate-200 space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div><label className="text-xs font-bold text-slate-600">{isRTL ? 'اسم المرسل *' : 'Sender name *'}</label><Input value={senderName} onChange={e=>setSenderName(e.target.value)} placeholder={isRTL ? 'كما في الإيصال' : 'As on receipt'} className="mt-1"/></div>
+                <div><label className="text-xs font-bold text-slate-600">{isRTL ? 'رقم المرجع' : 'Reference'}</label><Input value={transferRef} onChange={e=>setTransferRef(e.target.value)} placeholder="Ref #" className="mt-1"/></div>
+              </div>
+              <div><label className="text-xs font-bold text-slate-600">{isRTL ? 'البنك المرسل' : 'Sender bank'}</label><Input value={bankNameLocal} onChange={e=>setBankNameLocal(e.target.value)} placeholder={isRTL ? 'اسم البنك' : 'Bank name'} className="mt-1"/></div>
+              <div>
+                <label className="text-xs font-bold text-slate-600">{isRTL ? 'صورة الإيصال *' : 'Receipt image *'}</label>
+                <label className="mt-1 flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-slate-300 rounded-xl bg-slate-50 cursor-pointer hover:bg-slate-100">
+                  {receiptPreview ? <img src={receiptPreview} alt="receipt" className="max-h-28 rounded-lg object-contain"/> : <div className="text-center"><Upload size={24} className="mx-auto text-slate-400 mb-1"/><p className="text-xs text-slate-500">{isRTL ? 'اضغط لاختيار صورة' : 'Click to select'}</p></div>}
+                  <input type="file" accept="image/*" onChange={handleReceiptSelect} className="hidden" />
+                </label>
+              </div>
+              <div className="flex items-center justify-between bg-slate-900 text-white rounded-xl px-4 py-3">
+                <span className="text-sm">{isRTL ? 'المبلغ' : 'Amount'}</span><span className="text-xl font-black">${calcPriceLocal(upgradePlan, billingCycleLocal)} <span className="text-xs font-normal opacity-60">{billingCycleLocal==='yearly' ? '/سنة' : '/شهر'}</span></span>
+              </div>
+              <Button onClick={handleUploadUpgradeReceipt} disabled={uploadingReceipt || !receiptFile || !senderName.trim()} className="w-full h-11 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold disabled:opacity-50">
+                {uploadingReceipt ? <><Loader2 className="animate-spin" size={16}/>{isRTL ? 'جاري الإرسال...' : 'Sending...'}</> : <><Upload size={16}/>{isRTL ? 'إرسال طلب الترقية' : 'Send Upgrade Request'}</>}
+              </Button>
+              <p className="text-xs text-slate-400 text-center">{isRTL ? 'سيتم مراجعة الإيصال من المؤسس وتفعيل الباقة فور الموافقة' : 'Receipt will be reviewed by founder and plan activated on approval'}</p>
+            </div>
+          </div>
+        )}
+
+        {/* مقارنة الميزات */}
+        {tierFeaturesList.length > 0 && (
+          <div className="mt-6 border border-slate-200 rounded-2xl overflow-hidden">
+            <div className="bg-slate-50 px-4 py-3 font-bold text-sm text-slate-800 flex items-center gap-2"><Zap size={16} className="text-amber-500"/>{isRTL ? 'مقارنة سريعة للميزات' : 'Quick feature comparison'}</div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead><tr className="bg-white border-b"><th className="text-right p-3 text-slate-500">{isRTL ? 'الميزة' : 'Feature'}</th>{Object.keys(PLAN_DEFS).map(k => <th key={k} className="text-center p-3 font-black capitalize">{k}</th>)}</tr></thead>
+                <tbody className="divide-y divide-slate-100">
+                  {[...new Set(tierFeaturesList.map(f=>f.category))].slice(0,3).map(cat => (
+                    <React.Fragment key={cat}>
+                      {tierFeaturesList.filter(f=>f.category===cat).slice(0,4).map(fe => (
+                        <tr key={fe.feature_key}><td className="p-2.5 text-right font-bold text-slate-700">{isRTL ? fe.name_ar : fe.name_en}</td>
+                          {Object.keys(PLAN_DEFS).map(tier => <td key={tier} className="text-center">{fe.tiers?.[tier] ? <span className="inline-flex w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 items-center justify-center"><CheckCircle size={12}/></span> : <span className="inline-flex w-5 h-5 rounded-full bg-slate-100 text-slate-400 items-center justify-center"><X size={10}/></span>}</td>)}
+                        </tr>
+                      ))}
+                    </React.Fragment>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </Card>
+
+      {showSuccessReceipt && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={()=>setShowSuccessReceipt(false)}>
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full text-center" onClick={e=>e.stopPropagation()}>
+            <div className="w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-3"><CheckCircle size={28}/></div>
+            <h3 className="font-black text-slate-900">{isRTL ? 'تم الإرسال' : 'Sent!'}</h3><p className="text-sm text-slate-500 mt-1">{isRTL ? 'تم إرسال طلب الترقية للمؤسس — سيتم تفعيل الباقة بعد الموافقة' : 'Upgrade request sent — founder will activate soon'}</p>
+            <Button onClick={()=>setShowSuccessReceipt(false)} className="w-full mt-4 bg-slate-900 text-white rounded-xl">OK</Button>
+          </div>
+        </div>
+      )}
 
       {/* Gateway Accounts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
