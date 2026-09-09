@@ -919,11 +919,11 @@ if (process.env.DATABASE_URL) {
   `.then(() => console.log('[neon] subscription_notifications table verified/created'))
     .catch(err => console.error('[neon] subscription_notifications:', err.message));
 
-  // جدول إيصالات الدفع البنكي
+  // جدول إيصالات الدفع البنكي — school_id كنص ليتوافق مع schools.id من نوع varchar
   sql`
     CREATE TABLE IF NOT EXISTS payment_receipts (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      school_id UUID NOT NULL REFERENCES schools(id),
+      school_id TEXT NOT NULL,
       amount NUMERIC NOT NULL,
       plan TEXT NOT NULL,
       billing_cycle TEXT NOT NULL DEFAULT 'monthly',
