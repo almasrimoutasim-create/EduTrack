@@ -943,6 +943,9 @@ if (process.env.DATABASE_URL) {
 
   sql`CREATE INDEX IF NOT EXISTS idx_payment_receipts_school_id ON payment_receipts(school_id)`.catch(()=>{});
   sql`CREATE INDEX IF NOT EXISTS idx_payment_receipts_status ON payment_receipts(status)`.catch(()=>{});
+  // حقل ترخيص المدرسة لطلب الترقية — إضافة إذا لم يكن موجوداً
+  sql`ALTER TABLE payment_receipts ADD COLUMN IF NOT EXISTS license_image TEXT`.catch(()=>{});
+  sql`ALTER TABLE payment_receipts ADD COLUMN IF NOT EXISTS license_filename TEXT`.catch(()=>{});
 
   // إنشاء فهارس للأداء
   sql`CREATE INDEX IF NOT EXISTS idx_subscription_payments_school_id ON subscription_payments(school_id)`.catch(()=>{});
@@ -1325,7 +1328,7 @@ export function createApiHandler() {
         const user = getBearerUser(req);
         if (!user) { res.statusCode = 401; return res.end(JSON.stringify({ error: 'Unauthorized' })); }
         const body = await parseBody(req);
-        const { amount, plan, billing_cycle, receipt_image, bank_name, account_holder, transfer_reference, sender_name } = body;
+        const { amount, plan, billing_cycle, receipt_image, bank_name, account_holder, transfer_reference, sender_name, license_image, license_filename } = body;
         if (!amount || !plan) {
           res.statusCode = 400;
           return res.end(JSON.stringify({ error: 'amount and plan are required' }));
@@ -1341,14 +1344,27 @@ export function createApiHandler() {
           const uploadDir = pathMod.join(process.cwd(), 'public', 'uploads', 'receipts');
           if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
           const safeName = `receipt_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.jpg`;
-          const buffer = Buffer.from(receipt_image.replace(/^data:image\/\w+;base64,/, ''), 'base64');
+          const buffer = Buffer.from(receipt_image.replace(/^data:.*?;base64,/, ''), 'base64');
           fs.writeFileSync(pathMod.join(uploadDir, safeName), buffer);
           receiptUrl = `/uploads/receipts/${safeName}`;
         }
+        // حفظ ترخيص المدرسة إذا وُجد
+        let licenseUrl = '';
+        if (license_image) {
+          const fs = await import('fs');
+          const pathMod = await import('path');
+          const uploadDir = pathMod.join(process.cwd(), 'public', 'uploads', 'licenses');
+          if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+          const ext = (license_filename && license_filename.includes('.')) ? license_filename.split('.').pop().toLowerCase() : 'pdf';
+          const safeLicense = `license_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
+          const buffer = Buffer.from(license_image.replace(/^data:.*?;base64,/, ''), 'base64');
+          fs.writeFileSync(pathMod.join(uploadDir, safeLicense), buffer);
+          licenseUrl = `/uploads/licenses/${safeLicense}`;
+        }
 
         const result = await sql`
-          INSERT INTO payment_receipts (school_id, amount, plan, billing_cycle, receipt_image, bank_name, account_holder, transfer_reference, sender_name, status)
-          VALUES (${schoolId}, ${parseFloat(amount)}, ${plan}, ${billing_cycle || 'monthly'}, ${receiptUrl}, ${bank_name || ''}, ${account_holder || ''}, ${transfer_reference || ''}, ${sender_name || ''}, 'pending')
+          INSERT INTO payment_receipts (school_id, amount, plan, billing_cycle, receipt_image, bank_name, account_holder, transfer_reference, sender_name, license_image, license_filename, status)
+          VALUES (${schoolId}, ${parseFloat(amount)}, ${plan}, ${billing_cycle || 'monthly'}, ${receiptUrl}, ${bank_name || ''}, ${account_holder || ''}, ${transfer_reference || ''}, ${sender_name || ''}, ${licenseUrl}, ${license_filename || ''}, 'pending')
           RETURNING id
         `;
         return res.end(JSON.stringify({ success: true, receipt_id: result[0]?.id }));

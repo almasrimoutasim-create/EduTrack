@@ -4,7 +4,7 @@ import { entities } from '@/api/dbClient';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
 import { toast } from 'sonner';
-import { Settings as SettingsIcon, Save, Image as ImageIcon, Building2, Globe, Shield, UserPlus, Key, Trash2, Upload, Users, Edit, X, Crown, Zap, Loader2, CheckCircle, AlertCircle, Calendar, CreditCard, Eye, Download, RefreshCw } from 'lucide-react';
+import { Settings as SettingsIcon, Save, Image as ImageIcon, Building2, Globe, Shield, UserPlus, Key, Trash2, Upload, Users, Edit, X, Crown, Zap, Loader2, CheckCircle, AlertCircle, Calendar, CreditCard, Eye, Download, RefreshCw, FileText } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -37,6 +37,8 @@ export default function Settings() {
   const [billingCycleLocal, setBillingCycleLocal] = useState('monthly');
   const [receiptFile, setReceiptFile] = useState(null);
   const [receiptPreview, setReceiptPreview] = useState(null);
+  const [licenseFile, setLicenseFile] = useState(null);
+  const [licensePreview, setLicensePreview] = useState(null);
   const [senderName, setSenderName] = useState('');
   const [transferRef, setTransferRef] = useState('');
   const [bankNameLocal, setBankNameLocal] = useState('');
@@ -234,7 +236,7 @@ export default function Settings() {
     });
   };
 
-  // ── رفع إيصال ترقية الباقة ──
+  // ── رفع إيصال ترقية الباقة + ترخيص المدرسة ──
   const handleReceiptSelect = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -243,6 +245,19 @@ export default function Settings() {
     const reader = new FileReader();
     reader.onload = (ev) => setReceiptPreview(ev.target.result);
     reader.readAsDataURL(file);
+  };
+  const handleLicenseSelect = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { toast.error(isRTL ? 'الحد الأقصى 5 ميجا' : 'Max 5MB'); return; }
+    setLicenseFile(file);
+    if (file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (ev) => setLicensePreview(ev.target.result);
+      reader.readAsDataURL(file);
+    } else {
+      setLicensePreview(null);
+    }
   };
   const handleUploadUpgradeReceipt = async () => {
     if (!receiptFile || !upgradePlan || !currentSchool) return;
@@ -255,6 +270,17 @@ export default function Settings() {
         r.onerror = reject;
         r.readAsDataURL(receiptFile);
       });
+      let licenseBase64 = null;
+      let licenseFilename = null;
+      if (licenseFile) {
+        licenseBase64 = await new Promise((resolve, reject) => {
+          const r = new FileReader();
+          r.onload = () => resolve(r.result);
+          r.onerror = reject;
+          r.readAsDataURL(licenseFile);
+        });
+        licenseFilename = licenseFile.name;
+      }
       const apiBase = (import.meta.env.VITE_BACKEND_URL || '').replace(/\/$/, '');
       const url = apiBase ? `${apiBase}/neon-db/upload-receipt` : '/neon-db/upload-receipt';
       const res = await fetch(url, {
@@ -269,13 +295,15 @@ export default function Settings() {
           account_holder: 'EduTrack',
           transfer_reference: transferRef,
           sender_name: senderName,
+          license_image: licenseBase64,
+          license_filename: licenseFilename,
         })
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       toast.success(isRTL ? 'تم إرسال طلب الترقية — بانتظار موافقة المؤسس' : 'Upgrade request sent — pending founder approval');
       setShowSuccessReceipt(true);
-      setReceiptFile(null); setReceiptPreview(null); setSenderName(''); setTransferRef(''); setBankNameLocal(''); setUpgradePlan(null);
+      setReceiptFile(null); setReceiptPreview(null); setLicenseFile(null); setLicensePreview(null); setSenderName(''); setTransferRef(''); setBankNameLocal(''); setUpgradePlan(null);
     } catch (e) { toast.error(e.message || 'فشل الإرسال'); } finally { setUploadingReceipt(false); }
   };
 
@@ -612,7 +640,7 @@ export default function Settings() {
           <div className="mt-6 rounded-2xl border-2 border-slate-900 bg-slate-50 p-5">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-black text-slate-900 flex items-center gap-2"><Upload size={16} className="text-blue-600"/>{isRTL ? `طلب ترقية إلى ${PLAN_DEFS[upgradePlan].name}` : `Upgrade to ${PLAN_DEFS[upgradePlan].name}`}</h3>
-              <button onClick={()=>{ setUpgradePlan(null); setReceiptFile(null); setReceiptPreview(null);}} className="text-xs text-slate-500 hover:text-slate-900"><X size={16}/></button>
+              <button onClick={()=>{ setUpgradePlan(null); setReceiptFile(null); setReceiptPreview(null); setLicenseFile(null); setLicensePreview(null);}} className="text-xs text-slate-500 hover:text-slate-900"><X size={16}/></button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
               <button onClick={()=>setBillingCycleLocal('monthly')} className={`p-3 rounded-xl border-2 text-center ${billingCycleLocal==='monthly' ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white'}`}>
@@ -633,6 +661,21 @@ export default function Settings() {
                 <label className="mt-1 flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-slate-300 rounded-xl bg-slate-50 cursor-pointer hover:bg-slate-100">
                   {receiptPreview ? <img src={receiptPreview} alt="receipt" className="max-h-28 rounded-lg object-contain"/> : <div className="text-center"><Upload size={24} className="mx-auto text-slate-400 mb-1"/><p className="text-xs text-slate-500">{isRTL ? 'اضغط لاختيار صورة' : 'Click to select'}</p></div>}
                   <input type="file" accept="image/*" onChange={handleReceiptSelect} className="hidden" />
+                </label>
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-600">{isRTL ? 'ترخيص المدرسة (صورة أو PDF)' : 'School License (image or PDF)'}</label>
+                <label className="mt-1 flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-amber-300 rounded-xl bg-amber-50/50 cursor-pointer hover:bg-amber-50">
+                  {licenseFile ? (
+                    <div className="text-center p-2">
+                      {licensePreview ? <img src={licensePreview} alt="license" className="max-h-20 rounded-lg object-contain mx-auto"/> : <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center mx-auto mb-1"><FileText size={18} className="text-amber-600"/></div>}
+                      <p className="text-xs font-bold text-amber-700 truncate max-w-[200px]">{licenseFile.name}</p>
+                      <p className="text-[10px] text-slate-400">{(licenseFile.size/1024).toFixed(0)} KB</p>
+                    </div>
+                  ) : (
+                    <div className="text-center"><Upload size={20} className="mx-auto text-amber-400 mb-1"/><p className="text-xs text-slate-500">{isRTL ? 'ارفع ترخيص المدرسة' : 'Upload license'}</p><p className="text-[10px] text-slate-400">JPG, PNG, PDF — 5MB</p></div>
+                  )}
+                  <input type="file" accept="image/*,.pdf" onChange={handleLicenseSelect} className="hidden" />
                 </label>
               </div>
               <div className="flex items-center justify-between bg-slate-900 text-white rounded-xl px-4 py-3">

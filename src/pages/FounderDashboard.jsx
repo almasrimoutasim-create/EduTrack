@@ -1683,6 +1683,17 @@ const FounderDashboard = () => {
                             <img src={r.receipt_image} alt="receipt" className="w-full rounded-xl border max-h-64 object-contain bg-white"/>
                           </div>
                         )}
+                        {r.license_image && (
+                          <div className="mb-3">
+                            <div className="flex items-center justify-between mb-1"><p className="text-xs text-slate-500">ترخيص المدرسة {r.license_filename ? `— ${r.license_filename}` : ''}</p><a href={r.license_image} target="_blank" rel="noreferrer" download className="text-xs font-bold text-amber-600 hover:underline flex items-center gap-1"><Download size={12}/> تحميل الترخيص</a></div>
+                            {r.license_image.toLowerCase().endsWith('.pdf') || r.license_filename?.toLowerCase().endsWith('.pdf') ? (
+                              <div className="w-full rounded-xl border bg-white p-4 flex items-center gap-3"><FileText size={24} className="text-amber-600"/><span className="font-bold text-sm">{r.license_filename || 'ترخيص.pdf'}</span><a href={r.license_image} target="_blank" className="mr-auto text-xs bg-amber-100 text-amber-700 px-3 py-1 rounded-full font-bold">فتح PDF</a></div>
+                            ) : (
+                              <img src={r.license_image} alt="license" className="w-full rounded-xl border max-h-64 object-contain bg-white"/>
+                            )}
+                          </div>
+                        )}
+                        {!r.license_image && <p className="text-xs text-slate-400 mb-3">لم يُرفق ترخيص مع هذا الطلب</p>}
                         <div className="flex gap-2">
                           <button disabled={upgradeReviewing} onClick={()=>handleUpgradeReview(r.id,'approved', viewUpgradeSchool.school.name)} className="flex-1 bg-emerald-600 text-white py-2 rounded-xl font-bold text-sm hover:bg-emerald-700 disabled:opacity-50 flex items-center justify-center gap-1"><CheckCircle2 size={14}/> {upgradeReviewing?'...':'موافقة وتفعيل'}</button>
                           <button disabled={upgradeReviewing} onClick={()=>handleUpgradeReview(r.id,'rejected', viewUpgradeSchool.school.name)} className="flex-1 bg-rose-100 text-rose-700 py-2 rounded-xl font-bold text-sm hover:bg-rose-200 disabled:opacity-50">رفض</button>
