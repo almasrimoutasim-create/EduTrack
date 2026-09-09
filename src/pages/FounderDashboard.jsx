@@ -748,8 +748,9 @@ const FounderDashboard = () => {
     return diff > 0 && diff < 7 * 24 * 60 * 60 * 1000;
   });
 
-  const last5Requests = pendingBase.slice(0, 5);
   const last5Schools = [...schools].slice(0, 5);
+  // last5Requests محسوبة بعد تعريف pendingBase لتجنب TDZ — تعرّف مؤقتاً كـ pending مباشرة
+  const last5Requests = [...requests].filter(r => !r.status || r.status === "pending" || r.status === "on_hold").slice(0, 5);
 
   // ── Teacher/Student filtered lists ──
   const filteredTeachers = allTeachers.filter(t => {

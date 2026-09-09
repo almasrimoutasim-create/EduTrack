@@ -55,6 +55,11 @@ export default function Dashboard() {
     queryFn: () => entities.StudyMaterial.list("-created_date", 100),
     staleTime: 1000 * 60 * 10 // rare changes
   });
+  const { data: awards = [] } = useQuery({ 
+    queryKey: ["awards-dashboard"], 
+    queryFn: () => entities.StudentAward.list("-date", 100),
+    staleTime: 1000 * 60 * 10
+  });
 
   const activeStudents = students.filter(s => s.status === "active").length;
   const todayDate = format(new Date(), "yyyy-MM-dd");
@@ -122,9 +127,10 @@ export default function Dashboard() {
         <motion.div variants={itemVariants} className="group">
           <StatCard 
             title={t("common.awards", language)} 
-            value="12" 
+            value={awards.length} 
             icon={Award} 
             color="amber" 
+            sub={awards.length === 0 ? (isRTL ? "لا جوائز بعد" : "No awards yet") : `${awards.length} ${isRTL ? "جائزة" : "awards"}`}
             className="border-none shadow-sm hover:shadow-xl hover:bg-amber-50/50 transition-all duration-500"
           />
         </motion.div>

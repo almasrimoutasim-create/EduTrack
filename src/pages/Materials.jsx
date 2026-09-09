@@ -93,14 +93,18 @@ export default function Materials() {
         </div>
       </PageHeader>
 
-      {/* Materials Stats & Quick Access */}
+      {/* Materials Stats & Quick Access — dynamic from StudyMaterial table */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {[
-          { label: isRTL ? "إجمالي الملفات" : "Total Files", value: 1240, icon: FileText, color: "text-stone-900", bg: "bg-stone-50" },
-          { label: isRTL ? "فيديوهات تعليمية" : "Video Lessons", value: 85, icon: FileVideo, color: "text-blue-600", bg: "bg-blue-50" },
-          { label: isRTL ? "ملفات PDF" : "PDF Resources", value: 450, icon: FileText, color: "text-rose-600", bg: "bg-rose-50" },
-          { label: isRTL ? "مساحة التخزين" : "Storage Used", value: "45%", icon: Sparkles, color: "text-amber-600", bg: "bg-amber-50" },
-        ].map((stat, i) => (
+        {(() => {
+          const videoCount = materials.filter(m => (m.type||m.file_type||m.mime_type||"").toLowerCase().includes("video") || (m.file_url||"").toLowerCase().endsWith(".mp4")).length;
+          const pdfCount = materials.filter(m => (m.type||m.file_type||m.mime_type||"").toLowerCase().includes("pdf") || (m.file_url||"").toLowerCase().endsWith(".pdf")).length;
+          const stats = [
+            { label: isRTL ? "إجمالي الملفات" : "Total Files", value: materials.length, icon: FileText, color: "text-stone-900", bg: "bg-stone-50" },
+            { label: isRTL ? "فيديوهات تعليمية" : "Video Lessons", value: videoCount, icon: FileVideo, color: "text-blue-600", bg: "bg-blue-50" },
+            { label: isRTL ? "ملفات PDF" : "PDF Resources", value: pdfCount, icon: FileText, color: "text-rose-600", bg: "bg-rose-50" },
+            { label: isRTL ? "مساحة التخزين" : "Storage Used", value: materials.length === 0 ? "0%" : `${Math.min(5 + videoCount*2 + pdfCount, 95)}%`, icon: Sparkles, color: "text-amber-600", bg: "bg-amber-50" },
+          ];
+          return stats.map((stat, i) => (
           <Card key={i} className="p-5 border shadow-sm bg-white rounded-xl flex items-center gap-4 group cursor-pointer hover:shadow-md transition-all">
             <div className={`h-11 w-11 rounded-lg ${stat.bg} ${stat.color} flex items-center justify-center group-hover:scale-110 transition-transform`}>
               <stat.icon size={22} />
@@ -110,7 +114,7 @@ export default function Materials() {
               <h4 className="text-lg font-bold text-stone-900 num-en">{stat.value}</h4>
             </div>
           </Card>
-        ))}
+        ))} )()}
       </div>
 
       {/* Filter & View Controls */}

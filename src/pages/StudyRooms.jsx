@@ -74,27 +74,42 @@ export default function StudyRooms() {
         </div>
       </PageHeader>
 
-      {/* Capacity & Usage Stats */}
+      {/* Capacity & Usage Stats — dynamic, 0 if no rooms */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Card className="p-6 bg-primary text-white rounded-xl shadow-lg relative overflow-hidden flex flex-col justify-between">
-          <div className="relative z-10">
-            <h4 className="text-lg font-bold mb-6">{isRTL ? "الإشغال الحالي" : "Current Occupancy"}</h4>
-            <div className="flex items-end gap-2 mb-2">
-              <span className="text-4xl font-bold num-en">75%</span>
-              <span className="text-white/50 text-xs font-semibold mb-1 uppercase">{isRTL ? "قيد الاستخدام" : "In Use"}</span>
-            </div>
-            <Progress value={75} className="h-2 bg-white/10 mb-6" />
-            <p className="text-white/50 text-xs leading-relaxed">
-              {isRTL ? "١٥ من أصل ٢٠ قاعة مشغولة حالياً. من المتوقع توفر قاعات إضافية خلال ساعة." : "15 out of 20 rooms are currently occupied. More rooms expected to be available in 1 hour."}
-            </p>
-          </div>
-          <div className="absolute -bottom-8 -right-8 w-32 h-32 bg-white/5 rounded-full blur-2xl" />
-        </Card>
+        {(() => {
+          const totalRooms = studyRooms.length;
+          const occupiedRooms = studyRooms.filter(r => r.status === "live" || r.status === "occupied").length;
+          const occupancyPct = totalRooms === 0 ? 0 : Math.round((occupiedRooms / totalRooms) * 100);
+          return (
+            <Card className="p-6 bg-primary text-white rounded-xl shadow-lg relative overflow-hidden flex flex-col justify-between">
+              <div className="relative z-10">
+                <h4 className="text-lg font-bold mb-6">{isRTL ? "الإشغال الحالي" : "Current Occupancy"}</h4>
+                <div className="flex items-end gap-2 mb-2">
+                  <span className="text-4xl font-bold num-en">{occupancyPct}%</span>
+                  <span className="text-white/50 text-xs font-semibold mb-1 uppercase">{isRTL ? "قيد الاستخدام" : "In Use"}</span>
+                </div>
+                <Progress value={occupancyPct} className="h-2 bg-white/10 mb-6" />
+                <p className="text-white/50 text-xs leading-relaxed">
+                  {isRTL ? `${occupiedRooms} من أصل ${totalRooms} قاعة مشغولة حالياً.` : `${occupiedRooms} out of ${totalRooms} rooms are currently occupied.`} {totalRooms === 0 ? (isRTL ? "لا توجد قاعات بعد." : "No rooms yet.") : (isRTL ? "من المتوقع توفر قاعات إضافية قريباً." : "More rooms expected soon.")}
+                </p>
+              </div>
+              <div className="absolute -bottom-8 -right-8 w-32 h-32 bg-white/5 rounded-full blur-2xl" />
+            </Card>
+          );
+        })()}
 
-        {[
-          { label: isRTL ? "متوسط وقت الدراسة" : "Avg Study Time", value: "45 min", icon: Clock, color: "text-blue-600", bg: "bg-blue-50" },
-          { label: isRTL ? "الطلاب النشطون" : "Active Students", value: 128, icon: Users, color: "text-emerald-600", bg: "bg-emerald-50" },
-        ].map((stat, i) => (
+        {(() => {
+          const avgMinutes = (() => {
+            const durations = studyRooms.map(r => r.duration_minutes).filter(v => typeof v === "number" && v > 0);
+            if (!durations.length) return 0;
+            return Math.round(durations.reduce((a,b)=>a+b,0)/durations.length);
+          })();
+          const activeStudentsCount = studyRooms.reduce((sum, r) => sum + (Number(r.current_participants) || Number(r.participants) || 0), 0);
+          const stats = [
+            { label: isRTL ? "متوسط وقت الدراسة" : "Avg Study Time", value: avgMinutes === 0 ? "—" : `${avgMinutes} min`, icon: Clock, color: "text-blue-600", bg: "bg-blue-50" },
+            { label: isRTL ? "الطلاب النشطون" : "Active Students", value: activeStudentsCount, icon: Users, color: "text-emerald-600", bg: "bg-emerald-50" },
+          ];
+          return stats.map((stat, i) => (
           <Card key={i} className="p-6 border shadow-sm bg-white rounded-xl flex flex-col justify-between">
             <div className={`h-12 w-12 rounded-lg ${stat.bg} ${stat.color} flex items-center justify-center`}>
               <stat.icon size={24} />
@@ -104,7 +119,7 @@ export default function StudyRooms() {
               <h4 className="text-2xl font-bold text-stone-900 num-en">{stat.value}</h4>
             </div>
           </Card>
-        ))}
+        ))} )()}
       </div>
 
       {/* Room Selection Grid */}

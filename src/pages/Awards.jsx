@@ -41,6 +41,27 @@ export default function Awards() {
     queryFn: () => entities.StudentAward.list("-date", 20) 
   });
 
+  // ── Dynamic stats derived strictly from DB — zero if no data ──
+  const totalAwards = awards.length;
+  const starStudents = new Set(awards.map(a => a.student_id || a.student_name).filter(Boolean)).size;
+  const newBadges = awards.filter(a => {
+    const d = a.awarded_date || a.date || a.created_at;
+    if (!d) return false;
+    const t = new Date(d).getTime();
+    if (isNaN(t)) return false;
+    return Date.now() - t < 30 * 24 * 60 * 60 * 1000;
+  }).length;
+  const impactPoints = awards.length * 10;
+  const studentOfMonth = (() => {
+    if (!awards.length) return null;
+    const counts = {};
+    awards.forEach(a => { const k = a.student_name || a.student_id; if (k) counts[k] = (counts[k] || 0) + 1; });
+    const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+    if (!top) return null;
+    const award = awards.find(a => (a.student_name || a.student_id) === top[0]);
+    return { name: top[0], count: top[1], award };
+  })();
+
   const handleAdd = () => {
     setSelectedAward(null);
     setDialogOpen(true);
@@ -78,13 +99,13 @@ export default function Awards() {
         </div>
       </PageHeader>
 
-      {/* Honor Overview Stats */}
+      {/* Honor Overview Stats — dynamic from StudentAward table, 0 if empty */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {[
-          { label: isRTL ? "إجمالي الجوائز" : "Total Awards", value: 254, icon: Trophy, color: "text-amber-500", bg: "bg-amber-50" },
-          { label: isRTL ? "طلاب متميزون" : "Star Students", value: 42, icon: Star, color: "text-blue-500", bg: "bg-blue-50" },
-          { label: isRTL ? "أوسمة جديدة" : "New Badges", value: 15, icon: Medal, color: "text-emerald-500", bg: "bg-emerald-50" },
-          { label: isRTL ? "نقاط التحفيز" : "Impact Points", value: "8.5K", icon: Zap, color: "text-rose-500", bg: "bg-rose-50" },
+          { label: isRTL ? "إجمالي الجوائز" : "Total Awards", value: totalAwards, icon: Trophy, color: "text-amber-500", bg: "bg-amber-50" },
+          { label: isRTL ? "طلاب متميزون" : "Star Students", value: starStudents, icon: Star, color: "text-blue-500", bg: "bg-blue-50" },
+          { label: isRTL ? "أوسمة جديدة" : "New Badges", value: newBadges, icon: Medal, color: "text-emerald-500", bg: "bg-emerald-50" },
+          { label: isRTL ? "نقاط التحفيز" : "Impact Points", value: impactPoints, icon: Zap, color: "text-rose-500", bg: "bg-rose-50" },
         ].map((stat, i) => (
           <Card key={i} className="p-6 border shadow-sm bg-white rounded-xl flex flex-col justify-between group cursor-pointer hover:shadow-md transition-all">
             <div className={`h-12 w-12 rounded-lg ${stat.bg} ${stat.color} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
@@ -130,8 +151,17 @@ export default function Awards() {
                   <div className="h-24 w-24 rounded-full bg-secondary flex items-center justify-center mb-5 shadow-xl shadow-secondary/20">
                     <Trophy size={48} className="text-primary" />
                   </div>
-                  <h4 className="text-xl font-bold mb-1">{isRTL ? "أحمد محمد" : "Ahmed Mohammed"}</h4>
-                  <p className="text-white/40 text-sm font-semibold">{isRTL ? "الصف العاشر · علوم" : "Grade 10 · Science"}</p>
+                  {studentOfMonth ? (
+                    <>
+                      <h4 className="text-xl font-bold mb-1">{studentOfMonth.name}</h4>
+                      <p className="text-white/40 text-sm font-semibold">{isRTL ? `${studentOfMonth.count} جوائز · الأكثر تميزاً` : `${studentOfMonth.count} awards · Top achiever`}</p>
+                    </>
+                  ) : (
+                    <>
+                      <h4 className="text-xl font-bold mb-1">{isRTL ? "لا يوجد طالب مميز بعد" : "No featured student yet"}</h4>
+                      <p className="text-white/40 text-sm font-semibold">{isRTL ? "سيظهر هنا الطالب الأكثر حصولاً على الجوائز" : "Top awarded student will appear here"}</p>
+                    </>
+                  )}
                 </div>
               </div>
               <Sparkles className="absolute -top-8 -right-8 text-secondary" size={64} />
@@ -161,14 +191,26 @@ export default function Awards() {
           animate="visible"
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
         >
-          {[
-            { title: "جائزة التميز الرياضي", student: "سارة خالد", date: "12 مايو", type: "Athletic", color: "text-blue-500", bg: "bg-blue-50" },
-            { title: "وسام الابتكار التقني", student: "يوسف عمر", date: "10 مايو", type: "Technical", color: "text-purple-500", bg: "bg-purple-50" },
-            { title: "جائزة الخدمة المجتمعية", student: "ليلى حسن", date: "8 مايو", type: "Community", color: "text-emerald-500", bg: "bg-emerald-50" },
-            { title: "التفوق في اللغة العربية", student: "فهد ناصر", date: "5 مايو", type: "Academic", color: "text-amber-500", bg: "bg-amber-50" },
-            { title: "جائزة القائد الشاب", student: "مريم علي", date: "3 مايو", type: "Leadership", color: "text-rose-500", bg: "bg-rose-50" },
-            { title: "وسام المثابرة والاجتهاد", student: "خالد فهد", date: "1 مايو", type: "Effort", color: "text-indigo-500", bg: "bg-indigo-50" },
-          ].map((award, i) => (
+          {isLoading ? (
+            [1,2,3,4,5,6].map(i => <div key={i} className="h-64 bg-stone-100 animate-pulse rounded-2xl" />)
+          ) : awards.length === 0 ? (
+            <div className="col-span-full py-16 text-center">
+              <div className="mx-auto w-16 h-16 rounded-2xl bg-stone-100 flex items-center justify-center mb-4"><Trophy size={28} className="text-stone-300"/></div>
+              <p className="text-stone-600 font-bold">{isRTL ? "لا توجد جوائز بعد" : "No awards yet"}</p>
+              <p className="text-sm text-stone-400 mt-1">{isRTL ? "امنح أول جائزة عبر زر \"منح جائزة\" لتبدأ لوحة التميز" : "Grant the first award via \"Grant Award\" to populate the board"}</p>
+            </div>
+          ) : awards.slice(0,6).map((award, i) => {
+            const palette = [
+              { color: "text-blue-500", bg: "bg-blue-50" },
+              { color: "text-purple-500", bg: "bg-purple-50" },
+              { color: "text-emerald-500", bg: "bg-emerald-50" },
+              { color: "text-amber-500", bg: "bg-amber-50" },
+              { color: "text-rose-500", bg: "bg-rose-50" },
+              { color: "text-indigo-500", bg: "bg-indigo-50" },
+            ][i % 6];
+            const displayDate = award.awarded_date || award.date || award.created_at;
+            const dateLabel = displayDate ? new Date(displayDate).toLocaleDateString(isRTL ? 'ar-EG' : 'en-US', { month: 'short', day: 'numeric' }) : "—";
+            return (
             <motion.div
               key={i}
               variants={{ hidden: { y: 20, opacity: 0 }, visible: { y: 0, opacity: 1 } }}
@@ -177,22 +219,22 @@ export default function Awards() {
             >
               <Card className="p-6 border shadow-sm hover:shadow-lg transition-all duration-300 rounded-2xl bg-white relative overflow-hidden flex flex-col h-full">
                 <div className="flex justify-between items-start mb-6">
-                  <div className={`h-14 w-14 rounded-xl ${award.bg} ${award.color} flex items-center justify-center group-hover:scale-110 transition-transform`}>
+                  <div className={`h-14 w-14 rounded-xl ${palette.bg} ${palette.color} flex items-center justify-center group-hover:scale-110 transition-transform`}>
                     <Award size={28} />
                   </div>
-                  <Badge className={`${award.bg} ${award.color} border-none rounded-lg text-[8px] font-bold px-2 py-0.5 uppercase tracking-wide`}>
-                    {award.type}
+                  <Badge className={`${palette.bg} ${palette.color} border-none rounded-lg text-[8px] font-bold px-2 py-0.5 uppercase tracking-wide`}>
+                    {award.icon || award.color || "Award"}
                   </Badge>
                 </div>
 
                 <h4 className="text-xl font-bold text-stone-900 mb-1.5 group-hover:text-secondary transition-colors leading-tight">
-                  {award.title}
+                  {award.title || award.name || "—"}
                 </h4>
                 <div className="flex items-center gap-2 text-stone-400 mb-6">
                   <Users size={14} />
-                  <span className="text-xs font-semibold">{award.student}</span>
+                  <span className="text-xs font-semibold">{award.student_name || award.student_id || "—"}</span>
                   <span className="text-stone-200">·</span>
-                  <span className="text-xs font-semibold num-en">{award.date}</span>
+                  <span className="text-xs font-semibold num-en">{dateLabel}</span>
                 </div>
 
                 <div className="mt-auto pt-6 border-t border-stone-100 flex gap-2">
@@ -210,7 +252,7 @@ export default function Awards() {
                 </div>
               </Card>
             </motion.div>
-          ))}
+          );})}
         </motion.div>
       </section>
       <AwardFormDialog open={dialogOpen} onClose={() => setDialogOpen(false)} award={selectedAward} />

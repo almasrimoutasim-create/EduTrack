@@ -965,8 +965,8 @@ export default function Finance() {
       {activeTab === "dashboard" && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            <StatCard title="إجمالي الإيرادات" value={financials.totalRev.toFixed(2)} icon={TrendingUp} sub="+12.4%" className="bg-emerald-50/50" />
-            <StatCard title="إجمالي المصروفات" value={financials.totalExp.toFixed(2)} icon={TrendingDown} sub="+5.1%" className="bg-rose-50/50" />
+            <StatCard title="إجمالي الإيرادات" value={financials.totalRev.toFixed(2)} icon={TrendingUp} sub={financials.totalRev === 0 ? "—" : "USD"} className="bg-emerald-50/50" />
+            <StatCard title="إجمالي المصروفات" value={financials.totalExp.toFixed(2)} icon={TrendingDown} sub={financials.totalExp === 0 ? "—" : "USD"} className="bg-rose-50/50" />
             <StatCard 
               title="صافي الميزان" 
               value={financials.netBalance.toFixed(2)} 

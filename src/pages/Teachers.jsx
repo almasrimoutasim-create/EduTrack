@@ -182,7 +182,7 @@ export default function Teachers() {
                       </div>
                       <div className="bg-stone-50 p-3 rounded-xl border border-stone-100">
                         <p className="text-[10px] font-semibold text-stone-400 mb-1">{isRTL ? "الفصول" : "Classes"}</p>
-                        <p className="text-sm font-bold text-stone-800 num-en">4 {isRTL ? "فصول" : "Classes"}</p>
+                        <p className="text-sm font-bold text-stone-800 num-en">{(Array.isArray(teacher.classes) ? teacher.classes.length : (teacher.class_count ?? teacher.classes_count ?? (teacher.subject ? 1 : 0)))} {isRTL ? "فصول" : "Classes"}</p>
                       </div>
                     </div>
 
