@@ -677,6 +677,38 @@ const FounderDashboard = () => {
     },
   });
 
+  // ── Payment receipts (upgrade requests) — للترقية أمام كل مدرسة ──
+  const { data: paymentReceiptsRaw = [], refetch: refetchPaymentReceipts } = useQuery({
+    queryKey: ["founder-payment-receipts"],
+    queryFn: async () => {
+      try {
+        const token = localStorage.getItem("founder_token") || "";
+        const apiBase = (import.meta.env.VITE_BACKEND_URL || '').replace(/\/$/, '');
+        const url = apiBase ? `${apiBase}/neon-db/payment-receipts` : '/neon-db/payment-receipts';
+        const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+        const data = await res.json();
+        return data.receipts || data || [];
+      } catch (err) { console.error("[founder-payment-receipts] failed", err); return []; }
+    },
+  });
+  const [viewUpgradeSchool, setViewUpgradeSchool] = useState(null);
+  const [upgradeReviewing, setUpgradeReviewing] = useState(false);
+  const handleUpgradeReview = async (receiptId, status, schoolName) => {
+    setUpgradeReviewing(true);
+    try {
+      const token = localStorage.getItem("founder_token") || "";
+      const apiBase = (import.meta.env.VITE_BACKEND_URL || '').replace(/\/$/, '');
+      const url = apiBase ? `${apiBase}/neon-db/review-receipt/${receiptId}` : `/neon-db/review-receipt/${receiptId}`;
+      const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ status, reviewer_notes: "" }) });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      toast.success(status === "approved" ? `تمت الموافقة وتفعيل ${schoolName}` : "تم رفض الطلب");
+      await Promise.all([refetchPaymentReceipts(), queryClient.invalidateQueries({ queryKey: ["founder-schools"] }), queryClient.invalidateQueries({ queryKey: ["founder-payment-receipts"] })]);
+      setViewUpgradeSchool(null);
+    } catch (e) { toast.error(e.message || "فشل"); }
+    setUpgradeReviewing(false);
+  };
+
   // ── Support tickets (localStorage) ──
   const [tickets, setTickets] = useState(() => {
     try { return JSON.parse(localStorage.getItem("founder_support_tickets")) || SUPPORT_SEED; }
@@ -1486,6 +1518,15 @@ const FounderDashboard = () => {
                         </td>
                         <td className="p-4 flex gap-1 flex-wrap">
                           <a href={`/gateway/${s.slug || s.domain_subdomain || s.id}`} target="_blank" rel="noreferrer" title="فتح بوابة المدرسة" className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-900 text-white text-xs font-bold hover:bg-black"><ExternalLink size={12}/> البوابة</a>
+                          {(() => {
+                            const pendingForSchool = paymentReceiptsRaw.filter(r => r.school_id === s.id && r.status === 'pending');
+                            if (pendingForSchool.length === 0) return null;
+                            return (
+                              <button onClick={()=>setViewUpgradeSchool({ school: s, receipts: pendingForSchool })} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500 text-white text-xs font-bold hover:bg-amber-600 animate-pulse shadow-md">
+                                <CreditCard size={12}/> طلب ترقية ({pendingForSchool.length})
+                              </button>
+                            );
+                          })()}
                           <button onClick={()=>updateSchool.mutate({id:s.id, status:"active"})} className="px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-bold hover:bg-emerald-100">تفعيل</button>
                           <button onClick={()=>updateSchool.mutate({id:s.id, status:"inactive"})} className="px-2 py-1 rounded-lg bg-amber-50 text-amber-700 text-xs font-bold hover:bg-amber-100">تعليق</button>
                           <button onClick={()=>renewSubscription(s)} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-blue-600 text-white text-xs font-bold hover:bg-blue-700"><RefreshCw size={12}/> تجديد</button>
@@ -1617,6 +1658,39 @@ const FounderDashboard = () => {
                       className="flex-1 h-10 rounded-xl bg-slate-900 text-white font-bold text-sm hover:bg-black"
                     >إغلاق</button>
                   </div>
+                </div>
+              </div>
+            )}
+            {/* نافذة طلبات ترقية المدرسة — إيصال + بيانات + موافقة */}
+            {viewUpgradeSchool && (
+              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={()=>setViewUpgradeSchool(null)}>
+                <div className="bg-white rounded-2xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl" onClick={e=>e.stopPropagation()} dir="rtl">
+                  <h3 className="font-black text-lg mb-1 flex items-center gap-2"><CreditCard size={18} className="text-amber-500"/> طلبات ترقية — {viewUpgradeSchool.school.name}</h3>
+                  <p className="text-xs text-slate-500 mb-4">الباقة الحالية: <b>{viewUpgradeSchool.school.plan}</b> • الدورة: {viewUpgradeSchool.school.billing_cycle}</p>
+                  <div className="space-y-4">
+                    {viewUpgradeSchool.receipts.map(r => (
+                      <div key={r.id} className="border border-slate-200 rounded-xl p-4 bg-slate-50">
+                        <div className="grid grid-cols-2 gap-2 text-xs mb-3">
+                          <div className="bg-white rounded-lg p-2"><p className="text-slate-500">الباقة المطلوبة</p><p className="font-bold text-violet-700">{r.plan} • {r.billing_cycle==='yearly'?'سنوي':'شهري'}</p></div>
+                          <div className="bg-white rounded-lg p-2"><p className="text-slate-500">المبلغ</p><p className="font-bold text-emerald-700">${r.amount}</p></div>
+                          <div className="bg-white rounded-lg p-2"><p className="text-slate-500">المرسل</p><p className="font-bold">{r.sender_name}</p></div>
+                          <div className="bg-white rounded-lg p-2"><p className="text-slate-500">البنك</p><p className="font-bold">{r.bank_name||'—'}</p></div>
+                          <div className="bg-white rounded-lg p-2 col-span-2"><p className="text-slate-500">المرجع</p><p className="font-mono font-bold">{r.transfer_reference||'—'}</p></div>
+                        </div>
+                        {r.receipt_image && (
+                          <div className="mb-3">
+                            <div className="flex items-center justify-between mb-1"><p className="text-xs text-slate-500">إيصال الدفع</p><a href={r.receipt_image} target="_blank" rel="noreferrer" className="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1"><Download size={12}/> تحميل / معاينة</a></div>
+                            <img src={r.receipt_image} alt="receipt" className="w-full rounded-xl border max-h-64 object-contain bg-white"/>
+                          </div>
+                        )}
+                        <div className="flex gap-2">
+                          <button disabled={upgradeReviewing} onClick={()=>handleUpgradeReview(r.id,'approved', viewUpgradeSchool.school.name)} className="flex-1 bg-emerald-600 text-white py-2 rounded-xl font-bold text-sm hover:bg-emerald-700 disabled:opacity-50 flex items-center justify-center gap-1"><CheckCircle2 size={14}/> {upgradeReviewing?'...':'موافقة وتفعيل'}</button>
+                          <button disabled={upgradeReviewing} onClick={()=>handleUpgradeReview(r.id,'rejected', viewUpgradeSchool.school.name)} className="flex-1 bg-rose-100 text-rose-700 py-2 rounded-xl font-bold text-sm hover:bg-rose-200 disabled:opacity-50">رفض</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <button onClick={()=>setViewUpgradeSchool(null)} className="w-full mt-4 bg-slate-100 py-2 rounded-xl font-bold text-sm hover:bg-slate-200">إغلاق</button>
                 </div>
               </div>
             )}
