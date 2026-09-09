@@ -1447,7 +1447,7 @@ const FounderDashboard = () => {
                       <th className="text-right p-4 font-semibold">بدء الاشتراك</th>
                       <th className="text-right p-4 font-semibold">ينتهي في</th>
                       <th className="text-right p-4 font-semibold">حالة الاشتراك</th>
-                      <th className="text-right p-4 font-semibold">إجراءات</th>
+                      <th className="text-right p-4 font-semibold min-w-[320px]">إجراءات</th>
                     </tr>
                   </thead>
                   <tbody>
