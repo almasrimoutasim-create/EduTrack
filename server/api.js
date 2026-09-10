@@ -1336,35 +1336,24 @@ export function createApiHandler() {
         const schoolId = user.school_id || user.id;
         if (!schoolId) { res.statusCode = 400; return res.end(JSON.stringify({ error: 'No school_id' })); }
 
-        // حفظ صورة الإيصال إذا وُجدت
-        let receiptUrl = '';
+        // حفظ صورة الإيصال إذا وُجدت (base64 directly in DB)
+        let receiptData = '';
         if (receipt_image) {
-          const fs = await import('fs');
-          const pathMod = await import('path');
-          const uploadDir = pathMod.join(process.cwd(), 'public', 'uploads', 'receipts');
-          if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-          const safeName = `receipt_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.jpg`;
-          const buffer = Buffer.from(receipt_image.replace(/^data:.*?;base64,/, ''), 'base64');
-          fs.writeFileSync(pathMod.join(uploadDir, safeName), buffer);
-          receiptUrl = `/uploads/receipts/${safeName}`;
+          receiptData = receipt_image.startsWith('data:')
+            ? receipt_image
+            : `data:image/jpeg;base64,${receipt_image}`;
         }
-        // حفظ ترخيص المدرسة إذا وُجد
-        let licenseUrl = '';
+        // حفظ ترخيص المدرسة إذا وُجد (base64 directly in DB)
+        let licenseData = '';
         if (license_image) {
-          const fs = await import('fs');
-          const pathMod = await import('path');
-          const uploadDir = pathMod.join(process.cwd(), 'public', 'uploads', 'licenses');
-          if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-          const ext = (license_filename && license_filename.includes('.')) ? license_filename.split('.').pop().toLowerCase() : 'pdf';
-          const safeLicense = `license_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
-          const buffer = Buffer.from(license_image.replace(/^data:.*?;base64,/, ''), 'base64');
-          fs.writeFileSync(pathMod.join(uploadDir, safeLicense), buffer);
-          licenseUrl = `/uploads/licenses/${safeLicense}`;
+          licenseData = license_image.startsWith('data:')
+            ? license_image
+            : `data:application/octet-stream;base64,${license_image}`;
         }
 
         const result = await sql`
           INSERT INTO payment_receipts (school_id, amount, plan, billing_cycle, receipt_image, bank_name, account_holder, transfer_reference, sender_name, license_image, license_filename, status)
-          VALUES (${schoolId}, ${parseFloat(amount)}, ${plan}, ${billing_cycle || 'monthly'}, ${receiptUrl}, ${bank_name || ''}, ${account_holder || ''}, ${transfer_reference || ''}, ${sender_name || ''}, ${licenseUrl}, ${license_filename || ''}, 'pending')
+          VALUES (${schoolId}, ${parseFloat(amount)}, ${plan}, ${billing_cycle || 'monthly'}, ${receiptData}, ${bank_name || ''}, ${account_holder || ''}, ${transfer_reference || ''}, ${sender_name || ''}, ${licenseData}, ${license_filename || ''}, 'pending')
           RETURNING id
         `;
         return res.end(JSON.stringify({ success: true, receipt_id: result[0]?.id }));
