@@ -4,7 +4,7 @@ import { entities } from '@/api/dbClient';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
 import { toast } from 'sonner';
-import { Settings as SettingsIcon, Save, Image as ImageIcon, Building2, Globe, Shield, UserPlus, Key, Trash2, Upload, Users, Edit, X, Crown, Zap, Loader2, CheckCircle, AlertCircle, Calendar, CreditCard, Eye, Download, RefreshCw, FileText } from 'lucide-react';
+import { Settings as SettingsIcon, Save, Image as ImageIcon, Building2, Globe, Shield, UserPlus, Key, Trash2, Upload, Users, Edit, X, Crown, Zap, Loader2, CheckCircle, AlertCircle, Calendar, CreditCard, Eye, Download, RefreshCw, FileText, Clock } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
