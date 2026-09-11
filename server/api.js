@@ -1384,6 +1384,27 @@ export function createApiHandler() {
       }
     }
 
+    // ── إيصالات الدفع للمدرسة (المدير فقط لطلباته) ──
+    if (req.url === '/neon-db/my-receipts' && req.method === 'GET') {
+      res.setHeader('Content-Type', 'application/json');
+      try {
+        const user = getBearerUser(req);
+        if (!user) { res.statusCode = 401; return res.end(JSON.stringify({ error: 'Unauthorized' })); }
+        const schoolId = user.school_id || user.id;
+        if (!schoolId) { res.statusCode = 400; return res.end(JSON.stringify({ error: 'No school_id' })); }
+        const rows = await sql`
+          SELECT * FROM payment_receipts
+          WHERE school_id = ${schoolId}
+          ORDER BY created_at DESC
+          LIMIT 20
+        `;
+        return res.end(JSON.stringify({ success: true, receipts: rows }));
+      } catch (error) {
+        res.statusCode = 500;
+        return res.end(JSON.stringify({ error: error.message }));
+      }
+    }
+
     // ── قبول/رفض إيصال الدفع (المؤسس فقط) ──
     if (req.url.startsWith('/neon-db/review-receipt/') && req.method === 'POST') {
       res.setHeader('Content-Type', 'application/json');

@@ -95,10 +95,10 @@ export default function Settings() {
       try {
         const token = localStorage.getItem('portal_jwt_token') || localStorage.getItem('jwt_token') || '';
         const apiBase = (import.meta.env.VITE_BACKEND_URL || '').replace(/\/$/, '');
-        const url = apiBase ? `${apiBase}/neon-db/payment-receipts` : '/neon-db/payment-receipts';
+        const url = apiBase ? `${apiBase}/neon-db/my-receipts` : '/neon-db/my-receipts';
         const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
         const data = await res.json();
-        return (data.receipts || []).filter(r => String(r.school_id) === String(schoolId));
+        return data.receipts || [];
       } catch { return []; }
     }
   });
@@ -1065,14 +1065,11 @@ function MyReceiptStatus() {
         const token = localStorage.getItem('portal_jwt_token') || localStorage.getItem('jwt_token');
         const schoolId = user?.school_id || user?.id;
         if (!schoolId || !token) return;
-        const res = await fetch(`${apiBase}/neon-db/payment-receipts`, {
+        const res = await fetch(`${apiBase}/neon-db/my-receipts`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await res.json();
-        const myReceipts = (data.receipts || []).filter(
-          r => String(r.school_id) === String(schoolId)
-        );
-        setReceipts(myReceipts);
+        setReceipts(data.receipts || []);
       } catch (e) { console.error(e); }
       setLoading(false);
     };
