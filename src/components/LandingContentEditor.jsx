@@ -112,13 +112,13 @@ export default function LandingContentEditor() {
     const isAr = activeTab === "ar";
     return (
       <div key={key} className="space-y-1">
-        <label className={`text-xs font-bold text-slate-500 block ${isAr ? "text-end" : "text-start"}`}>{label}</label>
+        <label className={`text-xs font-bold text-slate-500 block ${isAr ? "text-right" : "text-left"}`}>{label}</label>
         {isAr ? (
           <input
             type={type}
             value={getVal(key, "ar")}
             onChange={e => setVal(key, "ar", e.target.value)}
-            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white text-end"
+            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white text-right"
             dir="rtl"
           />
         ) : (
@@ -126,7 +126,7 @@ export default function LandingContentEditor() {
             type={type}
             value={getVal(key, "en")}
             onChange={e => setVal(key, "en", e.target.value)}
-            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white text-start"
+            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white text-left"
             dir="ltr"
           />
         )}
@@ -136,14 +136,14 @@ export default function LandingContentEditor() {
 
   const renderImageField = (key, label) => (
     <div key={key} className="space-y-1">
-      <label className="text-xs font-bold text-slate-500 flex items-center gap-1 text-end">
+      <label className="text-xs font-bold text-slate-500 flex items-center gap-1 text-right">
         <ImageIcon size={12} /> {label}
       </label>
       <input
         type="url"
         value={getVal(key, "ar")}
         onChange={e => setVal(key, "ar", e.target.value)}
-        className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white font-mono text-xs text-start"
+        className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white font-mono text-xs text-left"
         dir="ltr"
         placeholder="https://..."
       />
@@ -163,7 +163,7 @@ export default function LandingContentEditor() {
     const Icon = sectionDef?.icon || Type;
     return (
       <div key={sectionKey} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <button onClick={() => toggleSection(sectionKey)} className="w-full flex items-center justify-between px-5 py-4 hover:bg-slate-50 transition text-end">
+        <button onClick={() => toggleSection(sectionKey)} className="w-full flex items-center justify-between px-5 py-4 hover:bg-slate-50 transition text-right">
           <div className="flex items-center gap-3">
             <Icon size={16} className="text-blue-500 shrink-0" />
             <span className="font-bold text-slate-800">{sectionDef?.label}</span>
@@ -209,7 +209,7 @@ export default function LandingContentEditor() {
         {renderField("features_desc", "وصف القسم")}
         {[1, 2, 3, 4, 5, 6].map(n => (
           <div key={n} className="bg-slate-50 rounded-xl p-3 space-y-2 border border-slate-100">
-            <div className="text-xs font-bold text-blue-600 text-end">الميزة {n}</div>
+            <div className="text-xs font-bold text-blue-600 text-right">الميزة {n}</div>
             {renderField(`feature_${n}_title`, "العنوان")}
             {renderField(`feature_${n}_desc`, "الوصف القصير")}
             {renderField(`feature_${n}_longDesc`, "الوصف الطويل")}
@@ -283,27 +283,27 @@ export default function LandingContentEditor() {
       {/* Pricing */}
       {renderSection("pricing", <>
         <div className="bg-amber-50 rounded-xl p-3 border border-amber-200 mb-2">
-          <p className="text-xs text-amber-700 font-bold text-end">هذه الأسعار تظهر في قسم "بوابة المعلم المستقل" في الصفحة الرئيسية</p>
+          <p className="text-xs text-amber-700 font-bold text-right">هذه الأسعار تظهر في قسم "بوابة المعلم المستقل" في الصفحة الرئيسية</p>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-500 block text-end">السعر الشهري (رقم فقط)</label>
+            <label className="text-xs font-bold text-slate-500 block text-right">السعر الشهري (رقم فقط)</label>
             <input
               type="text"
               value={getVal("pricing_monthly_price", activeTab === "ar" ? "ar" : "en")}
               onChange={e => setVal("pricing_monthly_price", activeTab === "ar" ? "ar" : "en", e.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white text-start"
+              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white text-left"
               dir="ltr"
               placeholder="49,000"
             />
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-500 block text-end">السعر السنوي (رقم فقط)</label>
+            <label className="text-xs font-bold text-slate-500 block text-right">السعر السنوي (رقم فقط)</label>
             <input
               type="text"
               value={getVal("pricing_yearly_price", activeTab === "ar" ? "ar" : "en")}
               onChange={e => setVal("pricing_yearly_price", activeTab === "ar" ? "ar" : "en", e.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white text-start"
+              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white text-left"
               dir="ltr"
               placeholder="350,000"
             />
@@ -311,34 +311,34 @@ export default function LandingContentEditor() {
         </div>
         <div className="grid grid-cols-3 gap-3">
           <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-500 block text-end">العملة</label>
+            <label className="text-xs font-bold text-slate-500 block text-right">العملة</label>
             <input
               type="text"
               value={getVal("pricing_currency", activeTab === "ar" ? "ar" : "en")}
               onChange={e => setVal("pricing_currency", activeTab === "ar" ? "ar" : "en", e.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white text-start"
+              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white text-left"
               dir={activeTab === "ar" ? "rtl" : "ltr"}
               placeholder="ج.س"
             />
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-500 block text-end">شارة التجربة المجانية</label>
+            <label className="text-xs font-bold text-slate-500 block text-right">شارة التجربة المجانية</label>
             <input
               type="text"
               value={getVal("pricing_trial_badge", activeTab === "ar" ? "ar" : "en")}
               onChange={e => setVal("pricing_trial_badge", activeTab === "ar" ? "ar" : "en", e.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white text-start"
+              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white text-left"
               dir={activeTab === "ar" ? "rtl" : "ltr"}
               placeholder="شهر مجاني"
             />
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-500 block text-end">شارة الخصم</label>
+            <label className="text-xs font-bold text-slate-500 block text-right">شارة الخصم</label>
             <input
               type="text"
               value={getVal("pricing_discount_badge", activeTab === "ar" ? "ar" : "en")}
               onChange={e => setVal("pricing_discount_badge", activeTab === "ar" ? "ar" : "en", e.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white text-start"
+              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white text-left"
               dir="ltr"
               placeholder="41% OFF"
             />
