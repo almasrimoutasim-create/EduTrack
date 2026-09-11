@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Save, Loader2, Globe, Image as ImageIcon, ChevronDown, ChevronRight, Type, Hash, CreditCard } from "lucide-react";
 
@@ -44,16 +44,22 @@ const DEFAULT_VALUES = {
 export default function LandingContentEditor() {
   const queryClient = useQueryClient();
   const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [openSections, setOpenSections] = useState({ hero: true });
   const [activeTab, setActiveTab] = useState("ar");
 
+  const { data, isLoading } = useQuery({
+    queryKey: ["landing-content"],
+    queryFn: async () => {
+      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL || ""}/api/landing-content`);
+      if (!res.ok) throw new Error("Failed to load");
+      return res.json();
+    },
+    refetchOnWindowFocus: false,
+  });
+
   useEffect(() => {
-    fetch(`${import.meta.env.VITE_BACKEND_URL || ""}/api/landing-content`)
-      .then(r => r.json())
-      .then(d => { setItems(d.items || []); setLoading(false); })
-      .catch(() => { setLoading(false); toast.error("فشل تحميل المحتوى"); });
-  }, []);
+    if (data?.items) setItems(data.items);
+  }, [data]);
 
   const getVal = (key, lang = "ar") => {
     const item = items.find(i => i.content_key === key);
@@ -76,66 +82,80 @@ export default function LandingContentEditor() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      const token = localStorage.getItem("founder_token") || "";
+      if (!token) {
+        throw new Error("لا يوجد رمز مصادقة — يرجى تسجيل الدخول مرة أخرى");
+      }
       const res = await fetch(`${import.meta.env.VITE_BACKEND_URL || ""}/api/landing-content`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("founder_token") || ""}` },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ items }),
       });
-      if (!res.ok) throw new Error("Save failed");
-      return res.json();
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Save failed");
+      }
+      return data;
     },
-    onSuccess: () => { toast.success("تم حفظ المحتوى بنجاح"); queryClient.invalidateQueries(["landing-content"]); },
-    onError: () => toast.error("فشل الحفظ"),
+    onSuccess: () => {
+      toast.success("تم حفظ المحتوى بنجاح");
+      queryClient.invalidateQueries(["landing-content"]);
+    },
+    onError: (err) => {
+      toast.error(err.message || "فشل الحفظ");
+    },
   });
 
   const toggleSection = (key) => setOpenSections(prev => ({ ...prev, [key]: !prev[key] }));
 
-  // تم ضبط الحقول لتكون في المنتصف (text-center)
-  const renderField = (key, label, type = "text") => (
-    <div key={key} className="space-y-1 text-center">
-      <label className="text-xs font-bold text-slate-500 block text-center">{label}</label>
-      {activeTab === "ar" ? (
-        <input
-          type={type}
-          value={getVal(key, "ar")}
-          onChange={e => setVal(key, "ar", e.target.value)}
-          className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white text-center"
-          dir="rtl"
-        />
-      ) : (
-        <input
-          type={type}
-          value={getVal(key, "en")}
-          onChange={e => setVal(key, "en", e.target.value)}
-          className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white text-center"
-          dir="ltr"
-        />
-      )}
-    </div>
-  );
+  const renderField = (key, label, type = "text") => {
+    const isAr = activeTab === "ar";
+    return (
+      <div key={key} className="space-y-1">
+        <label className={`text-xs font-bold text-slate-500 block ${isAr ? "text-end" : "text-start"}`}>{label}</label>
+        {isAr ? (
+          <input
+            type={type}
+            value={getVal(key, "ar")}
+            onChange={e => setVal(key, "ar", e.target.value)}
+            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white text-end"
+            dir="rtl"
+          />
+        ) : (
+          <input
+            type={type}
+            value={getVal(key, "en")}
+            onChange={e => setVal(key, "en", e.target.value)}
+            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white text-start"
+            dir="ltr"
+          />
+        )}
+      </div>
+    );
+  };
 
   const renderImageField = (key, label) => (
-    <div key={key} className="space-y-1 text-center">
-      <label className="text-xs font-bold text-slate-500 flex items-center justify-center gap-1">
+    <div key={key} className="space-y-1">
+      <label className="text-xs font-bold text-slate-500 flex items-center gap-1 text-end">
         <ImageIcon size={12} /> {label}
       </label>
       <input
         type="url"
         value={getVal(key, "ar")}
         onChange={e => setVal(key, "ar", e.target.value)}
-        className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white font-mono text-xs text-center"
+        className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white font-mono text-xs text-start"
         dir="ltr"
         placeholder="https://..."
       />
       {getVal(key, "ar") && (
-        <div className="flex justify-center">
+        <div className="flex justify-end">
           <img src={getVal(key, "ar")} alt="" className="h-16 rounded-lg object-cover border mt-1" onError={e => e.target.style.display = 'none'} />
         </div>
       )}
     </div>
   );
 
-  if (loading) return <div className="flex items-center justify-center gap-2 text-slate-500 p-6"><Loader2 className="animate-spin" size={18} /> جاري التحميل...</div>;
+  if (isLoading) return <div className="flex items-center justify-center gap-2 text-slate-500 p-6"><Loader2 className="animate-spin" size={18} /> جاري التحميل...</div>;
 
   const renderSection = (sectionKey, fields) => {
     const isOpen = openSections[sectionKey];
@@ -143,8 +163,8 @@ export default function LandingContentEditor() {
     const Icon = sectionDef?.icon || Type;
     return (
       <div key={sectionKey} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <button onClick={() => toggleSection(sectionKey)} className="w-full flex items-center justify-between px-5 py-4 hover:bg-slate-50 transition text-center">
-          <div className="flex items-center gap-3 mx-auto">
+        <button onClick={() => toggleSection(sectionKey)} className="w-full flex items-center justify-between px-5 py-4 hover:bg-slate-50 transition text-end">
+          <div className="flex items-center gap-3">
             <Icon size={16} className="text-blue-500 shrink-0" />
             <span className="font-bold text-slate-800">{sectionDef?.label}</span>
           </div>
@@ -157,7 +177,7 @@ export default function LandingContentEditor() {
 
   return (
     <div className="space-y-4 max-w-3xl mx-auto">
-      {/* Tabs - متمركزة في المنتصف */}
+      {/* Tabs */}
       <div className="flex justify-center gap-2">
         <button onClick={() => setActiveTab("ar")} className={`px-4 py-2 rounded-xl text-sm font-bold transition ${activeTab === "ar" ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>العربية</button>
         <button onClick={() => setActiveTab("en")} className={`px-4 py-2 rounded-xl text-sm font-bold transition ${activeTab === "en" ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>English</button>
@@ -188,8 +208,8 @@ export default function LandingContentEditor() {
         {renderField("features_title", "عنوان القسم")}
         {renderField("features_desc", "وصف القسم")}
         {[1, 2, 3, 4, 5, 6].map(n => (
-          <div key={n} className="bg-slate-50 rounded-xl p-3 space-y-2 border border-slate-100 text-center">
-            <div className="text-xs font-bold text-blue-600 text-center">الميزة {n}</div>
+          <div key={n} className="bg-slate-50 rounded-xl p-3 space-y-2 border border-slate-100">
+            <div className="text-xs font-bold text-blue-600 text-end">الميزة {n}</div>
             {renderField(`feature_${n}_title`, "العنوان")}
             {renderField(`feature_${n}_desc`, "الوصف القصير")}
             {renderField(`feature_${n}_longDesc`, "الوصف الطويل")}
@@ -262,63 +282,63 @@ export default function LandingContentEditor() {
 
       {/* Pricing */}
       {renderSection("pricing", <>
-        <div className="bg-amber-50 rounded-xl p-3 border border-amber-200 mb-2 text-center">
-          <p className="text-xs text-amber-700 font-bold text-center">هذه الأسعار تظهر في قسم "بوابة المعلم المستقل" في الصفحة الرئيسية</p>
+        <div className="bg-amber-50 rounded-xl p-3 border border-amber-200 mb-2">
+          <p className="text-xs text-amber-700 font-bold text-end">هذه الأسعار تظهر في قسم "بوابة المعلم المستقل" في الصفحة الرئيسية</p>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1 text-center">
-            <label className="text-xs font-bold text-slate-500 block text-center">السعر الشهري (رقم فقط)</label>
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-slate-500 block text-end">السعر الشهري (رقم فقط)</label>
             <input
               type="text"
               value={getVal("pricing_monthly_price", activeTab === "ar" ? "ar" : "en")}
               onChange={e => setVal("pricing_monthly_price", activeTab === "ar" ? "ar" : "en", e.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white text-center"
+              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white text-start"
               dir="ltr"
               placeholder="49,000"
             />
           </div>
-          <div className="space-y-1 text-center">
-            <label className="text-xs font-bold text-slate-500 block text-center">السعر السنوي (رقم فقط)</label>
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-slate-500 block text-end">السعر السنوي (رقم فقط)</label>
             <input
               type="text"
               value={getVal("pricing_yearly_price", activeTab === "ar" ? "ar" : "en")}
               onChange={e => setVal("pricing_yearly_price", activeTab === "ar" ? "ar" : "en", e.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white text-center"
+              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white text-start"
               dir="ltr"
               placeholder="350,000"
             />
           </div>
         </div>
         <div className="grid grid-cols-3 gap-3">
-          <div className="space-y-1 text-center">
-            <label className="text-xs font-bold text-slate-500 block text-center">العملة</label>
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-slate-500 block text-end">العملة</label>
             <input
               type="text"
               value={getVal("pricing_currency", activeTab === "ar" ? "ar" : "en")}
               onChange={e => setVal("pricing_currency", activeTab === "ar" ? "ar" : "en", e.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white text-center"
+              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white text-start"
               dir={activeTab === "ar" ? "rtl" : "ltr"}
               placeholder="ج.س"
             />
           </div>
-          <div className="space-y-1 text-center">
-            <label className="text-xs font-bold text-slate-500 block text-center">شارة التجربة المجانية</label>
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-slate-500 block text-end">شارة التجربة المجانية</label>
             <input
               type="text"
               value={getVal("pricing_trial_badge", activeTab === "ar" ? "ar" : "en")}
               onChange={e => setVal("pricing_trial_badge", activeTab === "ar" ? "ar" : "en", e.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white text-center"
+              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white text-start"
               dir={activeTab === "ar" ? "rtl" : "ltr"}
               placeholder="شهر مجاني"
             />
           </div>
-          <div className="space-y-1 text-center">
-            <label className="text-xs font-bold text-slate-500 block text-center">شارة الخصم</label>
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-slate-500 block text-end">شارة الخصم</label>
             <input
               type="text"
               value={getVal("pricing_discount_badge", activeTab === "ar" ? "ar" : "en")}
               onChange={e => setVal("pricing_discount_badge", activeTab === "ar" ? "ar" : "en", e.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white text-center"
+              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white text-start"
               dir="ltr"
               placeholder="41% OFF"
             />
@@ -326,12 +346,12 @@ export default function LandingContentEditor() {
         </div>
       </>)}
 
-      {/* Save Button - زر الحفظ في المنتصف */}
+      {/* Save Button */}
       <div className="flex justify-center sticky bottom-4">
         <button
           onClick={() => saveMutation.mutate()}
           disabled={saveMutation.isPending}
-          className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-bold shadow-lg transition disabled:opacity-50 text-center"
+          className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-bold shadow-lg transition disabled:opacity-50"
         >
           {saveMutation.isPending ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
           {saveMutation.isPending ? "جاري الحفظ..." : "حفظ جميع التغييرات"}
