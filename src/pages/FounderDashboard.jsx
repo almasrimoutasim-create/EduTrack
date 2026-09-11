@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import {
   LayoutDashboard, Building2, FileText, CreditCard, LifeBuoy, Settings,
   LogOut, CheckCircle2, XCircle, Bell, School as SchoolIcon, TrendingUp,
-  Users, CircleDollarSign, RefreshCw, Eye, Plus, Clock, AlertTriangle,
+  Users, CircleDollarSign, RefreshCw, Eye, Plus, Clock, AlertTriangle, AlertCircle, ImageIcon,
   BarChart3, MessageCircle, Save, Download, KeyRound, PauseCircle, Timer,
   MapPin, Calendar, Phone, Mail, Crown, Zap, Shield, Copy, Printer, Send, UserPlus, Lock, Link2, ExternalLink, GraduationCap, Trash2, SlidersHorizontal
 } from "lucide-react";
@@ -45,32 +45,29 @@ const NAV = [
 ];
 
 function PaymentReceiptsSection() {
-  const [receipts, setReceipts] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("pending");
   const [selectedReceipt, setSelectedReceipt] = useState(null);
   const [reviewing, setReviewing] = useState(false);
   const [notes, setNotes] = useState("");
 
-  const fetchReceipts = async () => {
-    try {
+  const { data: receipts = [], isLoading: loading, refetch } = useQuery({
+    queryKey: ["founder-payment-receipts"],
+    queryFn: async () => {
       const token = localStorage.getItem("portal_jwt_token") || localStorage.getItem("jwt_token");
-      const res = await fetch("/neon-db/payment-receipts", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const apiBase = "https://edutrack-ey49.onrender.com";
+      const url = `${apiBase}/neon-db/payment-receipts`;
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
-      setReceipts(data.receipts || []);
-    } catch (e) { console.error(e); }
-    setLoading(false);
-  };
-
-  useEffect(() => { fetchReceipts(); }, []);
+      return data.receipts || [];
+    },
+  });
 
   const handleReview = async (id, status) => {
     setReviewing(true);
     try {
       const token = localStorage.getItem("portal_jwt_token") || localStorage.getItem("jwt_token");
-      const res = await fetch(`/neon-db/review-receipt/${id}`, {
+      const apiBase = "https://edutrack-ey49.onrender.com";
+      const res = await fetch(`${apiBase}/neon-db/review-receipt/${id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ status, reviewer_notes: notes }),
@@ -80,7 +77,7 @@ function PaymentReceiptsSection() {
       toast.success(status === "approved" ? "تمت الموافقة وتفعيل الاشتراك" : "تم رفض الإيصال");
       setSelectedReceipt(null);
       setNotes("");
-      fetchReceipts();
+      refetch();
     } catch (e) { toast.error(e.message || "خطأ"); }
     setReviewing(false);
   };
@@ -88,14 +85,16 @@ function PaymentReceiptsSection() {
   const filtered = receipts.filter(r => filter === "all" || r.status === filter);
   const counts = { pending: receipts.filter(r => r.status === "pending").length, approved: receipts.filter(r => r.status === "approved").length, rejected: receipts.filter(r => r.status === "rejected").length };
 
+  const isPdf = (dataUrl) => dataUrl && dataUrl.startsWith("data:application/pdf");
+
   return (
     <div className="space-y-4 mt-6">
       <div className="flex items-center justify-between flex-wrap gap-2">
-          <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2"><CreditCard size={18} className="text-emerald-500"/> طلبات الاشتراك — قيد الانتظار</h3>
+          <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2"><CreditCard size={18} className="text-emerald-500"/> طلبات ترقية الباقات</h3>
           <span className="text-xs bg-amber-100 text-amber-700 px-3 py-1 rounded-full font-bold">{counts.pending} طلب جديد</span>
-          <button onClick={fetchReceipts} className="bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 hover:bg-slate-200"><RefreshCw size={13}/> تحديث</button>
+          <button onClick={()=>refetch()} className="bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 hover:bg-slate-200"><RefreshCw size={13}/> تحديث</button>
         </div>
-        <p className="text-xs text-slate-500 -mt-2">تظهر هنا فقط طلبات ترقية الباقات التي أرسلها مديرو المدارس مع إيصال الدفع — عند الموافقة يتم تفعيل الباقة فوراً</p>
+        <p className="text-xs text-slate-500 -mt-2">طلبات ترقية الباقات التي أرسلها مديرو المدارس مع إيصال الدفع وترخيص المدرسة — عند الموافقة يتم تفعيل الباقة فوراً</p>
       <div className="flex gap-2 flex-wrap">
         {[{id:"pending", label:"قيد المراجعة", count:counts.pending, color:"bg-amber-100 text-amber-700"}, {id:"approved", label:"تمت الموافقة", count:counts.approved, color:"bg-emerald-100 text-emerald-700"}, {id:"rejected", label:"مرفوض", count:counts.rejected, color:"bg-rose-100 text-rose-700"}, {id:"all", label:"الكل", count:receipts.length, color:"bg-slate-100 text-slate-700"}].map(f => (
           <button key={f.id} onClick={() => setFilter(f.id)} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${filter===f.id ? f.color : "bg-slate-50 text-slate-400 hover:bg-slate-100"}`}>{f.label} ({f.count})</button>
@@ -112,7 +111,7 @@ function PaymentReceiptsSection() {
               <th className="text-right p-3 text-xs font-bold text-slate-600">المدرسة</th>
               <th className="text-center p-3 text-xs font-bold text-slate-600">المبلغ</th>
               <th className="text-center p-3 text-xs font-bold text-slate-600">الباقة</th>
-              <th className="text-center p-3 text-xs font-bold text-slate-600">الاسم</th>
+              <th className="text-center p-3 text-xs font-bold text-slate-600">الترخيص</th>
               <th className="text-center p-3 text-xs font-bold text-slate-600">المرجع</th>
               <th className="text-center p-3 text-xs font-bold text-slate-600">التاريخ</th>
               <th className="text-center p-3 text-xs font-bold text-slate-600">الحالة</th>
@@ -124,7 +123,13 @@ function PaymentReceiptsSection() {
                   <td className="p-3 text-sm font-bold">{r.school_name || r.school_id}</td>
                   <td className="p-3 text-center font-bold text-emerald-700">${r.amount}</td>
                   <td className="p-3 text-center text-xs capitalize">{r.plan} • {r.billing_cycle === "yearly" ? "سنوي" : "شهري"}</td>
-                  <td className="p-3 text-center text-xs">{r.sender_name}</td>
+                  <td className="p-3 text-center">
+                    {r.license_image ? (
+                      isPdf(r.license_image)
+                        ? <span className="inline-flex items-center gap-1 text-xs font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full"><FileText size={11}/> PDF</span>
+                        : <img src={r.license_image} alt="license" className="w-8 h-8 rounded-lg object-cover border border-slate-200"/>
+                    ) : <span className="text-xs text-slate-300">—</span>}
+                  </td>
                   <td className="p-3 text-center text-xs font-mono">{r.transfer_reference || "—"}</td>
                   <td className="p-3 text-center text-xs text-slate-500">{r.created_at ? new Date(r.created_at).toLocaleDateString("ar-EG") : "—"}</td>
                   <td className="p-3 text-center">
@@ -143,31 +148,60 @@ function PaymentReceiptsSection() {
       {selectedReceipt && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setSelectedReceipt(null)}>
           <div className="bg-white rounded-2xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
-            <h3 className="font-bold text-lg mb-4">تفاصيل الإيصال</h3>
+            <h3 className="font-bold text-lg mb-4">تفاصيل طلب الترقية</h3>
             <div className="space-y-3 text-sm">
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-slate-50 rounded-xl p-3"><p className="text-xs text-slate-500">المدرسة</p><p className="font-bold">{selectedReceipt.school_name || selectedReceipt.school_id}</p></div>
                 <div className="bg-emerald-50 rounded-xl p-3"><p className="text-xs text-emerald-600">المبلغ</p><p className="font-bold text-emerald-700">${selectedReceipt.amount}</p></div>
                 <div className="bg-blue-50 rounded-xl p-3"><p className="text-xs text-blue-600">الباقة</p><p className="font-bold capitalize">{selectedReceipt.plan} • {selectedReceipt.billing_cycle === "yearly" ? "سنوي" : "شهري"}</p></div>
-                <div className="bg-slate-50 rounded-xl p-3"><p className="text-xs text-slate-500">الاسم</p><p className="font-bold">{selectedReceipt.sender_name}</p></div>
+                <div className="bg-slate-50 rounded-xl p-3"><p className="text-xs text-slate-500">المدير</p><p className="font-bold">{selectedReceipt.sender_name}</p></div>
                 <div className="bg-slate-50 rounded-xl p-3"><p className="text-xs text-slate-500">البنك</p><p className="font-bold">{selectedReceipt.bank_name || "—"}</p></div>
                 <div className="bg-slate-50 rounded-xl p-3"><p className="text-xs text-slate-500">المرجع</p><p className="font-bold font-mono">{selectedReceipt.transfer_reference || "—"}</p></div>
               </div>
+              {selectedReceipt.reviewer_notes && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3"><p className="text-xs font-bold text-amber-700 mb-1">ملاحظات المراجع:</p><p className="text-sm text-slate-700">{selectedReceipt.reviewer_notes}</p></div>
+              )}
+              {/* ── صورة الإيصال ── */}
               {selectedReceipt.receipt_image && (
                 <div className="mt-3">
                   <div className="flex items-center justify-between mb-1">
-                    <p className="text-xs text-slate-500">صورة الإيصال</p>
-                    <a href={selectedReceipt.receipt_image} target="_blank" rel="noopener noreferrer" download className="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1"><Download size={12}/> تحميل / معاينة</a>
+                    <p className="text-xs font-bold text-slate-600 flex items-center gap-1"><ImageIcon size={12}/> صورة الإيصال البنكي</p>
+                    <a href={selectedReceipt.receipt_image} target="_blank" rel="noopener noreferrer" download={`${selectedReceipt.school_name || 'receipt'}_payment.jpg`} className="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1"><Download size={12}/> تحميل</a>
                   </div>
-                  <img src={selectedReceipt.receipt_image} alt="receipt" className="w-full rounded-xl border border-slate-200 max-h-64 object-contain bg-slate-50"/>
+                  {isPdf(selectedReceipt.receipt_image) ? (
+                    <iframe src={selectedReceipt.receipt_image} className="w-full h-64 rounded-xl border border-slate-200" title="receipt"/>
+                  ) : (
+                    <img src={selectedReceipt.receipt_image} alt="receipt" className="w-full rounded-xl border border-slate-200 max-h-64 object-contain bg-slate-50"/>
+                  )}
                 </div>
               )}
-              <div><label className="text-xs font-bold text-slate-600">ملاحظات</label><textarea value={notes} onChange={e => setNotes(e.target.value)} className="w-full mt-1 rounded-xl border border-slate-200 p-2 text-sm" rows={2} placeholder="ملاحظات اختيارية"/></div>
+              {/* ── ترخيص المدرسة ── */}
+              {selectedReceipt.license_image && (
+                <div className="mt-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-xs font-bold text-slate-600 flex items-center gap-1"><FileText size={12}/> ترخيص المدرسة</p>
+                    <a href={selectedReceipt.license_image} target="_blank" rel="noopener noreferrer" download={`${selectedReceipt.school_name || 'license'}_${selectedReceipt.license_filename || 'license'}`} className="text-xs font-bold text-purple-600 hover:underline flex items-center gap-1"><Download size={12}/> تحميل</a>
+                  </div>
+                  {isPdf(selectedReceipt.license_image) ? (
+                    <iframe src={selectedReceipt.license_image} className="w-full h-64 rounded-xl border border-slate-200" title="license"/>
+                  ) : (
+                    <img src={selectedReceipt.license_image} alt="license" className="w-full rounded-xl border border-slate-200 max-h-64 object-contain bg-slate-50"/>
+                  )}
+                  {selectedReceipt.license_filename && <p className="text-[10px] text-slate-400 mt-1 text-center">{selectedReceipt.license_filename}</p>}
+                </div>
+              )}
+              {!selectedReceipt.license_image && (
+                <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 flex items-center gap-2">
+                  <AlertCircle size={16} className="text-rose-500 shrink-0"/>
+                  <p className="text-xs text-rose-700">لم يتم إرفاق ترخيص المدرسة مع هذا الطلب</p>
+                </div>
+              )}
+              <div><label className="text-xs font-bold text-slate-600">ملاحظات المراجعة</label><textarea value={notes} onChange={e => setNotes(e.target.value)} className="w-full mt-1 rounded-xl border border-slate-200 p-2 text-sm" rows={2} placeholder="ملاحظات اختيارية"/></div>
             </div>
             {selectedReceipt.status === "pending" && (
               <div className="flex gap-3 mt-5">
                 <button disabled={reviewing} onClick={() => handleReview(selectedReceipt.id, "approved")} className="flex-1 bg-emerald-600 text-white py-2.5 rounded-xl font-bold text-sm hover:bg-emerald-700 disabled:opacity-50 flex items-center justify-center gap-2"><CheckCircle2 size={16}/> {reviewing ? "..." : "موافقة وتفعيل"}</button>
-                <button disabled={reviewing} onClick={() => handleReview(selectedReceipt.id, "rejected")} className="flex-1 bg-rose-600 text-white py-2.5 rounded-xl font-bold text-sm hover:bg-rose-700 disabled:opacity-50 flex items-center justify-center gap-2"><XCircle size={16}/> {reviewing ? "..." : "رفض"}</button>
+                <button disabled={reviewing} onClick={() => handleReview(selectedReceipt.id, "rejected")} className="flex-1 bg-rose-100 text-rose-700 py-2.5 rounded-xl font-bold text-sm hover:bg-rose-200 disabled:opacity-50 flex items-center justify-center gap-2"><XCircle size={16}/> {reviewing ? "..." : "رفض"}</button>
               </div>
             )}
             <button onClick={() => { setSelectedReceipt(null); setNotes(""); }} className="w-full mt-3 bg-slate-100 text-slate-600 py-2 rounded-xl text-sm font-bold hover:bg-slate-200">إغلاق</button>

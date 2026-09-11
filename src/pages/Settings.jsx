@@ -601,6 +601,9 @@ export default function Settings() {
         </div>
       </div>
 
+      {/* ── حالة طلبات الترقية ── */}
+      <MyReceiptStatus />
+
       {/* ── اشتراك الباقات (Subscription Plans) — مدير النظام ── */}
       <Card className="border-2 border-slate-200 rounded-[28px] p-6 md:p-8 bg-white shadow-sm mt-6">
         <div className="flex items-center gap-3 border-b border-slate-100 pb-4 mb-6">
@@ -995,5 +998,110 @@ export default function Settings() {
         </div>
       </div>
     </div>
+  );
+}
+
+/* ── حالة طلبات الترقية للمدرسة ── */
+function MyReceiptStatus() {
+  const { language } = useLanguage();
+  const isRTL = language === 'ar';
+  const { user } = useAuth();
+  const [receipts, setReceipts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState(null);
+
+  useEffect(() => {
+    const fetchReceipts = async () => {
+      try {
+        const apiBase = 'https://edutrack-ey49.onrender.com';
+        const token = localStorage.getItem('portal_jwt_token') || localStorage.getItem('jwt_token');
+        const schoolId = user?.school_id || user?.id;
+        if (!schoolId || !token) return;
+        const res = await fetch(`${apiBase}/neon-db/payment-receipts`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        const myReceipts = (data.receipts || []).filter(
+          r => String(r.school_id) === String(schoolId)
+        );
+        setReceipts(myReceipts);
+      } catch (e) { console.error(e); }
+      setLoading(false);
+    };
+    fetchReceipts();
+  }, [user]);
+
+  if (loading || receipts.length === 0) return null;
+
+  const statusConfig = {
+    pending: { color: 'bg-amber-100 text-amber-700', label: isRTL ? 'قيد المراجعة' : 'Pending', icon: Clock },
+    approved: { color: 'bg-emerald-100 text-emerald-700', label: isRTL ? 'تمت الموافقة' : 'Approved', icon: CheckCircle },
+    rejected: { color: 'bg-rose-100 text-rose-700', label: isRTL ? 'مرفوض' : 'Rejected', icon: X },
+  };
+
+  return (
+    <Card className="border-2 border-slate-200 rounded-[28px] p-6 bg-white shadow-sm mt-6">
+      <div className="flex items-center gap-3 border-b border-slate-100 pb-4 mb-4">
+        <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600"><CreditCard size={20}/></div>
+        <div className="flex-1">
+          <h2 className="text-lg font-black text-slate-900">{isRTL ? 'طلبات الترقية' : 'Upgrade Requests'}</h2>
+          <p className="text-xs text-slate-500">{isRTL ? 'حالة طلبات ترقية الباقة المرسلة' : 'Status of your upgrade requests'}</p>
+        </div>
+      </div>
+      <div className="space-y-3">
+        {receipts.map(r => {
+          const st = statusConfig[r.status] || statusConfig.pending;
+          const StIcon = st.icon;
+          const isOpen = expanded === r.id;
+          return (
+            <div key={r.id} className="border border-slate-200 rounded-xl overflow-hidden">
+              <button onClick={() => setExpanded(isOpen ? null : r.id)} className="w-full flex items-center justify-between p-3 hover:bg-slate-50 transition-colors text-right">
+                <div className="flex items-center gap-3">
+                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold flex items-center gap-1 ${st.color}`}><StIcon size={12}/>{st.label}</span>
+                  <span className="text-sm font-bold text-slate-800 capitalize">{r.plan} • ${r.amount}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-400">{r.created_at ? new Date(r.created_at).toLocaleDateString('ar-EG') : ''}</span>
+                  {r.status === 'rejected' && <span className="text-xs bg-rose-50 text-rose-600 px-2 py-0.5 rounded-full font-bold">{isRTL ? 'أعد الإرسال' : 'Resubmit'}</span>}
+                </div>
+              </button>
+              {isOpen && (
+                <div className="border-t border-slate-100 p-4 bg-slate-50 space-y-3">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                    <div className="bg-white rounded-lg p-2 border border-slate-100"><p className="text-[10px] text-slate-400">{isRTL ? 'المبلغ' : 'Amount'}</p><p className="font-bold text-emerald-700">${r.amount}</p></div>
+                    <div className="bg-white rounded-lg p-2 border border-slate-100"><p className="text-[10px] text-slate-400">{isRTL ? 'الدورة' : 'Cycle'}</p><p className="font-bold">{r.billing_cycle === 'yearly' ? (isRTL ? 'سنوي' : 'Yearly') : (isRTL ? 'شهري' : 'Monthly')}</p></div>
+                    <div className="bg-white rounded-lg p-2 border border-slate-100"><p className="text-[10px] text-slate-400">{isRTL ? 'المرجع' : 'Reference'}</p><p className="font-bold font-mono text-xs">{r.transfer_reference || '—'}</p></div>
+                    <div className="bg-white rounded-lg p-2 border border-slate-100"><p className="text-[10px] text-slate-400">{isRTL ? 'البنك' : 'Bank'}</p><p className="font-bold">{r.bank_name || '—'}</p></div>
+                  </div>
+                  {r.receipt_image && (
+                    <div><p className="text-xs font-bold text-slate-600 mb-1">{isRTL ? 'صورة الإيصال' : 'Receipt'}</p>
+                      {r.receipt_image.startsWith('data:application/pdf')
+                        ? <iframe src={r.receipt_image} className="w-full h-48 rounded-lg border" title="receipt"/>
+                        : <img src={r.receipt_image} alt="receipt" className="max-h-40 rounded-lg border border-slate-200 object-contain"/>}
+                    </div>
+                  )}
+                  {r.license_image && (
+                    <div><p className="text-xs font-bold text-slate-600 mb-1">{isRTL ? 'الترخيص' : 'License'}</p>
+                      {r.license_image.startsWith('data:application/pdf')
+                        ? <iframe src={r.license_image} className="w-full h-48 rounded-lg border" title="license"/>
+                        : <img src={r.license_image} alt="license" className="max-h-40 rounded-lg border border-slate-200 object-contain"/>}
+                    </div>
+                  )}
+                  {r.reviewer_notes && (
+                    <div className={`rounded-lg p-3 text-sm ${r.status === 'rejected' ? 'bg-rose-50 border border-rose-200' : 'bg-blue-50 border border-blue-200'}`}>
+                      <p className="text-xs font-bold mb-1">{isRTL ? 'ملاحظات المراجع:' : 'Reviewer notes:'}</p>
+                      <p className={r.status === 'rejected' ? 'text-rose-700' : 'text-blue-700'}>{r.reviewer_notes}</p>
+                    </div>
+                  )}
+                  {r.status === 'rejected' && (
+                    <p className="text-xs text-slate-500 text-center">{isRTL ? 'يمكنك إرسال طلب جديد من قسم "اشتراك الباقات" أدناه' : 'You can submit a new request from the "Subscription Plans" section below'}</p>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </Card>
   );
 }
