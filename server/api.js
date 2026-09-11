@@ -2454,6 +2454,43 @@ export function createApiHandler() {
       }
     }
 
+    // ── Landing Content: PUT (founder only, bulk upsert) ──
+    if (req.url === '/api/landing-content' && req.method === 'PUT') {
+      res.setHeader('Content-Type', 'application/json');
+      try {
+        const me = isFounderUser(req);
+        if (!me) {
+          res.statusCode = 403;
+          return res.end(JSON.stringify({ error: 'Founder access required' }));
+        }
+        const body = await parseBody(req);
+        const { items } = body;
+        if (!Array.isArray(items)) {
+          res.statusCode = 400;
+          return res.end(JSON.stringify({ error: 'items array required' }));
+        }
+        let updated = 0;
+        for (const item of items) {
+          if (!item.content_key) continue;
+          const ar = item.value_ar != null ? String(item.value_ar) : '';
+          const en = item.value_en != null ? String(item.value_en) : '';
+          const ct = item.content_type || 'text';
+          await dbQuery(
+            `INSERT INTO landing_content (content_key, value_ar, value_en, content_type, updated_at)
+             VALUES ($1, $2, $3, $4, NOW())
+             ON CONFLICT (content_key) DO UPDATE SET value_ar = $2, value_en = $3, content_type = $4, updated_at = NOW()`,
+            [item.content_key, ar, en, ct]
+          );
+          updated++;
+        }
+        return res.end(JSON.stringify({ success: true, updated }));
+      } catch (error) {
+        console.error('[landing-content] PUT error:', error.message);
+        res.statusCode = 500;
+        return res.end(JSON.stringify({ error: error.message }));
+      }
+    }
+
     if (!req.url.startsWith('/neon-db/entities/')) return next();
 
     // DEBUG: Log all RegistrationRequest traffic to trace browser submissions
@@ -3404,43 +3441,6 @@ export function createApiHandler() {
           return res.end(JSON.stringify({ error: error.message }));
         }
       }
-
-    // ── Landing Content: PUT (founder only, bulk upsert) ──
-    if (req.url === '/api/landing-content' && req.method === 'PUT') {
-      res.setHeader('Content-Type', 'application/json');
-      try {
-        const me = isFounderUser(req);
-        if (!me) {
-          res.statusCode = 403;
-          return res.end(JSON.stringify({ error: 'Founder access required' }));
-        }
-        const body = await parseBody(req);
-        const { items } = body;
-        if (!Array.isArray(items)) {
-          res.statusCode = 400;
-          return res.end(JSON.stringify({ error: 'items array required' }));
-        }
-        let updated = 0;
-        for (const item of items) {
-          if (!item.content_key) continue;
-          const ar = item.value_ar != null ? String(item.value_ar) : '';
-          const en = item.value_en != null ? String(item.value_en) : '';
-          const ct = item.content_type || 'text';
-          await dbQuery(
-            `INSERT INTO landing_content (content_key, value_ar, value_en, content_type, updated_at)
-             VALUES ($1, $2, $3, $4, NOW())
-             ON CONFLICT (content_key) DO UPDATE SET value_ar = $2, value_en = $3, content_type = $4, updated_at = NOW()`,
-            [item.content_key, ar, en, ct]
-          );
-          updated++;
-        }
-        return res.end(JSON.stringify({ success: true, updated }));
-      } catch (error) {
-        console.error('[landing-content] PUT error:', error.message);
-        res.statusCode = 500;
-        return res.end(JSON.stringify({ error: error.message }));
-      }
-    }
 
     res.statusCode = 405;
     res.end(JSON.stringify({ error: 'Method not allowed' }));
