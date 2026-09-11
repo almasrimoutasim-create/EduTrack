@@ -87,6 +87,35 @@ export default function Settings() {
     }
   });
 
+  // ── طلبات الترقية للمدرسة الحالية ──
+  const { data: myReceipts = [] } = useQuery({
+    queryKey: ['my-receipts', schoolId],
+    enabled: !!schoolId,
+    queryFn: async () => {
+      try {
+        const token = localStorage.getItem('portal_jwt_token') || localStorage.getItem('jwt_token') || '';
+        const apiBase = (import.meta.env.VITE_BACKEND_URL || '').replace(/\/$/, '');
+        const url = apiBase ? `${apiBase}/neon-db/payment-receipts` : '/neon-db/payment-receipts';
+        const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+        const data = await res.json();
+        return (data.receipts || []).filter(r => String(r.school_id) === String(schoolId));
+      } catch { return []; }
+    }
+  });
+  // أحدث طلب لكل باقة
+  const latestByPlan = {};
+  myReceipts.forEach(r => {
+    const plan = r.plan;
+    if (!plan) return;
+    const prev = latestByPlan[plan];
+    if (!prev || new Date(r.created_at) > new Date(prev.created_at)) latestByPlan[plan] = r;
+  });
+  const statusBadge = {
+    pending:  { ar: 'قيد المراجعة', en: 'Pending', cls: 'bg-amber-100 text-amber-700', icon: Clock },
+    approved: { ar: 'تمت الموافقة', en: 'Approved', cls: 'bg-emerald-100 text-emerald-700', icon: CheckCircle },
+    rejected: { ar: 'مرفوض', en: 'Rejected', cls: 'bg-rose-100 text-rose-700', icon: X },
+  };
+
   const { data: settingsList, isLoading } = useQuery({
     queryKey: ['system-settings'],
     queryFn: () => entities.SystemSetting.list("-created_at", 1)
@@ -620,16 +649,35 @@ export default function Settings() {
             const isCurrent = (currentSchool?.plan || 'starter') === key;
             const Icon = p.icon;
             const priceDisplay = `${p.price}`;
+            const receipt = latestByPlan[key];
+            const badge = receipt ? statusBadge[receipt.status] : null;
+            const BadgeIcon = badge?.icon;
+            const hasPending = receipt?.status === 'pending';
+            const hasRejected = receipt?.status === 'rejected';
             return (
               <div key={key} className={`relative rounded-2xl border-2 p-5 text-center transition-all ${isCurrent ? 'border-emerald-400 bg-emerald-50/60 shadow-lg' : `border-slate-200 ${p.bg} hover:shadow-md`}`}>
                 {p.popular && <span className="absolute -top-2 right-3 bg-blue-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">{isRTL ? 'الأكثر طلباً' : 'Popular'}</span>}
                 {isCurrent && <span className="absolute -top-2 left-3 bg-emerald-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold flex items-center gap-1"><CheckCircle size={10}/>{isRTL ? 'الباقة الحالية' : 'Current'}</span>}
+                {/* ── شريط الحالة ── */}
+                {badge && !isCurrent && (
+                  <div className={`absolute -top-2 right-3 flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold text-white shadow-sm ${
+                    receipt.status === 'pending'  ? 'bg-amber-500' :
+                    receipt.status === 'approved' ? 'bg-emerald-500' :
+                    'bg-rose-500'
+                  }`}>
+                    <BadgeIcon size={10}/>{isRTL ? badge.ar : badge.en}
+                  </div>
+                )}
                 <Icon size={24} className={`mx-auto mb-2 ${isCurrent ? 'text-emerald-600' : p.accent}`} />
                 <div className="text-base font-black text-slate-900">{p.name}</div>
                 <div className="text-2xl font-extrabold text-slate-900">${priceDisplay}<span className="text-xs font-normal text-slate-500">/شهر</span></div>
                 <p className="text-xs text-slate-500 mt-1">{isRTL ? p.descAr : p.descEn}</p>
                 {isCurrent ? (
                   <div className="mt-4 py-2.5 rounded-xl bg-emerald-100 text-emerald-700 font-bold text-xs flex items-center justify-center gap-1"><CheckCircle size={14}/>{isRTL ? 'مفعلة حالياً' : 'Active'}</div>
+                ) : hasPending ? (
+                  <div className="mt-4 py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 font-bold text-xs flex items-center justify-center gap-1"><Clock size={14}/>{isRTL ? 'بانتظار المراجعة' : 'Awaiting Review'}</div>
+                ) : hasRejected ? (
+                  <button onClick={() => { setUpgradePlan(key); setBillingCycleLocal(currentSchool?.billing_cycle || 'monthly'); }} className="mt-4 w-full py-2.5 rounded-xl font-bold text-sm bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 transition">{isRTL ? 'إعادة الإرسال' : 'Resubmit'}</button>
                 ) : (
                   <button onClick={() => { setUpgradePlan(key); setBillingCycleLocal(currentSchool?.billing_cycle || 'monthly'); }} className={`mt-4 w-full py-2.5 rounded-xl font-bold text-sm transition ${upgradePlan===key ? 'bg-slate-900 text-white' : 'bg-white border border-slate-200 hover:bg-slate-900 hover:text-white'}`}>{isRTL ? `ترقية إلى ${p.name}` : `Upgrade to ${p.name}`}</button>
                 )}
