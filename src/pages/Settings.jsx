@@ -4,7 +4,7 @@ import { entities } from '@/api/dbClient';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
 import { toast } from 'sonner';
-import { Settings as SettingsIcon, Save, Image as ImageIcon, Building2, Globe, Shield, UserPlus, Key, Trash2, Upload, Users, Edit, X, Crown, Zap, Loader2, CheckCircle, AlertCircle, Calendar, CreditCard, Eye, Download, RefreshCw, FileText, Clock } from 'lucide-react';
+import { Settings as SettingsIcon, Save, Image as ImageIcon, Building2, Globe, Shield, UserPlus, Key, Trash2, Upload, Users, Edit, X, Crown, Zap, Loader2, CheckCircle, AlertCircle, Calendar, CreditCard, Eye, Download, RefreshCw, FileText, Clock, Copy, ExternalLink, Link2 } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -630,6 +630,9 @@ export default function Settings() {
         </div>
       </div>
 
+      {/* ── روابط التسجيل العام ── */}
+      {currentSchool?.slug && <RegistrationLinksSection slug={currentSchool.slug} isRTL={isRTL} />}
+
       {/* ── حالة طلبات الترقية ── */}
       <MyReceiptStatus />
 
@@ -1046,6 +1049,66 @@ export default function Settings() {
         </div>
       </div>
     </div>
+  );
+}
+
+/* ── روابط التسجيل العام ── */
+function RegistrationLinksSection({ slug, isRTL }) {
+  const [copiedId, setCopiedId] = useState(null);
+
+  const links = [
+    { id: 'student', label: isRTL ? 'تسجيل طالب' : 'Student Registration', icon: Users, path: 'student', ring: 'ring-blue-500/20', bg: 'bg-blue-50', border: 'border-blue-200', iconBg: 'bg-blue-100', iconColor: 'text-blue-600' },
+    { id: 'teacher', label: isRTL ? 'تسجيل معلم' : 'Teacher Registration', icon: UserPlus, path: 'teacher', ring: 'ring-purple-500/20', bg: 'bg-purple-50', border: 'border-purple-200', iconBg: 'bg-purple-100', iconColor: 'text-purple-600' },
+    { id: 'staff', label: isRTL ? 'تسجيل موظف' : 'Staff Registration', icon: Shield, path: 'staff', ring: 'ring-amber-500/20', bg: 'bg-amber-50', border: 'border-amber-200', iconBg: 'bg-amber-100', iconColor: 'text-amber-600' },
+  ];
+
+  const handleCopy = (id, url) => {
+    navigator.clipboard.writeText(url).then(() => {
+      setCopiedId(id);
+      toast.success(isRTL ? 'تم نسخ الرابط' : 'Link copied');
+      setTimeout(() => setCopiedId(null), 2000);
+    }).catch(() => {
+      toast.error(isRTL ? 'فشل النسخ' : 'Copy failed');
+    });
+  };
+
+  return (
+    <Card className="border-2 border-emerald-200 rounded-[28px] p-6 md:p-8 bg-white shadow-sm mt-6">
+      <div className="flex items-center gap-3 border-b border-emerald-100 pb-4 mb-6">
+        <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-600"><Link2 size={20} /></div>
+        <div className="flex-1">
+          <h2 className="text-lg font-black text-slate-900">{isRTL ? 'روابط التسجيل العام' : 'Public Registration Links'}</h2>
+          <p className="text-xs text-slate-500 mt-0.5">{isRTL ? 'شارك هذه الروابط مع أولياء الأمور والموظفين للتسجيل المباشر في مدرستك' : 'Share these links with parents and staff for direct registration at your school'}</p>
+        </div>
+        <span className="text-xs font-bold bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-full">{slug}</span>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {links.map(({ id, label, icon: Icon, path, bg, border, iconBg, iconColor }) => {
+          const fullUrl = `${window.location.origin}/register/${path}/${slug}`;
+          const isCopied = copiedId === id;
+
+          return (
+            <div key={id} className={`rounded-xl border-2 ${border} ${bg}/50 p-4 space-y-3`}>
+              <div className="flex items-center gap-2">
+                <div className={`w-8 h-8 rounded-lg ${iconBg} flex items-center justify-center ${iconColor}`}><Icon size={16} /></div>
+                <span className="text-sm font-bold text-slate-800">{label}</span>
+              </div>
+              <div className="bg-white rounded-lg p-2 border border-slate-100 flex items-center gap-2">
+                <span className="flex-1 text-xs text-slate-500 font-mono truncate" dir="ltr">{fullUrl}</span>
+                <button onClick={() => handleCopy(id, fullUrl)} className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${isCopied ? 'bg-emerald-100 text-emerald-600' : `${iconBg} ${iconColor} hover:opacity-80`}`}>
+                  {isCopied ? <CheckCircle size={14} /> : <Copy size={14} />}
+                </button>
+              </div>
+              <a href={fullUrl} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-1.5 text-xs font-bold text-emerald-600 hover:text-emerald-700 transition-colors">
+                <ExternalLink size={12} />
+                {isRTL ? 'معاينة' : 'Preview'}
+              </a>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
   );
 }
 

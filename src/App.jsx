@@ -88,6 +88,9 @@ const PrintResults = lazy(() => import('./pages/PrintResults'));
 const PublicRegistration = lazy(() => import('./pages/PublicRegistration'));
 const StudentRegister = lazy(() => import('./pages/StudentRegister'));
 const TeacherRegister = lazy(() => import('./pages/TeacherRegister'));
+const PublicStudentRegister = lazy(() => import('./pages/PublicStudentRegister'));
+const PublicTeacherRegister = lazy(() => import('./pages/PublicTeacherRegister'));
+const PublicStaffRegister = lazy(() => import('./pages/PublicStaffRegister'));
 const RenewSubscription = lazy(() => import('./pages/RenewSubscription'));
 const IndependentTeacherPortal = lazy(() => import('./pages/IndependentTeacherPortal'));
 const EnhancedStudentPortal = lazy(() => import('./pages/EnhancedStudentPortal'));
@@ -122,7 +125,10 @@ const AuthenticatedApp = () => {
         <Route path="/student-login" element={<StudentLogin />} />
         <Route path="/login" element={<RoleLogin />} />
         <Route path="/register" element={<PublicRegistration />} />
-        <Route path="/registration" element={<PublicRegistration />} />
+        <Route path="/register/student/:slug" element={<PublicStudentRegister />} />
+        <Route path="/register/teacher/:slug" element={<PublicTeacherRegister />} />
+        <Route path="/register/staff/:slug" element={<PublicStaffRegister />} />
+        <Route path="/school-register" element={<PublicRegistration />} />
         <Route path="/student-register" element={<StudentRegister />} />
         <Route path="/teacher-register" element={<TeacherRegister />} />
 
