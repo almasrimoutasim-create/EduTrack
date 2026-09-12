@@ -311,7 +311,7 @@ export default function LandingPage() {
         <div className="absolute -bottom-24 -left-24 h-96 w-96 bg-sky-100/40 rounded-full blur-3xl" />
         <div className="max-w-7xl mx-auto px-4 md:px-6 py-12 md:py-20 relative">
           <div className="grid md:grid-cols-2 gap-8 items-center">
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="text-center">
+             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="text-right">
               <div className="inline-flex items-center gap-2 bg-white border border-stone-100 rounded-full px-3 py-1.5 shadow-sm text-xs font-bold text-stone-600 mx-auto">
                 <Sparkles size={14} className="text-amber-500" />{t("hero_badge")}
               </div>
@@ -437,9 +437,9 @@ export default function LandingPage() {
       <section className="max-w-7xl mx-auto px-4 md:px-6 py-6">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-gradient-to-r from-stone-800 via-stone-900 to-black rounded-[28px] p-6 md:p-8 text-white shadow-xl">
           <div className="grid md:grid-cols-2 gap-8 items-center">
-            <div className="text-center">
-              <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur rounded-full px-4 py-2 text-sm font-bold mx-auto">
-                <ShieldCheck size={16} /> {t("school_badge")}
+             <div className="text-right">
+               <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur rounded-full px-4 py-2 text-sm font-bold mx-auto">
+                 <ShieldCheck size={16} /> {t("school_badge")}
               </div>
               <h3 className="mt-3 text-2xl md:text-3xl font-black leading-tight">
                 {t("school_title")}
@@ -490,9 +490,9 @@ export default function LandingPage() {
       <section className="max-w-7xl mx-auto px-4 md:px-6 py-6">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 rounded-[28px] p-6 md:p-8 text-white shadow-xl">
           <div className="grid md:grid-cols-2 gap-8 items-center">
-            <div className="text-center">
-              <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur rounded-full px-4 py-2 text-sm font-bold mx-auto">
-                <GraduationCap size={16} /> {t("teacher_badge")}
+             <div className="text-right">
+               <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur rounded-full px-4 py-2 text-sm font-bold mx-auto">
+                 <GraduationCap size={16} /> {t("teacher_badge")}
               </div>
               <h3 className="mt-3 text-2xl md:text-3xl font-black leading-tight">
                 {t("teacher_title")}
@@ -564,9 +564,9 @@ export default function LandingPage() {
       <section className="max-w-7xl mx-auto px-4 md:px-6 py-6">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-gradient-to-r from-emerald-600 via-teal-600 to-sky-600 rounded-[28px] p-6 md:p-8 text-white shadow-xl">
           <div className="grid md:grid-cols-2 gap-8 items-center">
-            <div className="text-center">
-              <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur rounded-full px-4 py-2 text-sm font-bold mx-auto">
-                <UserPlus size={16} /> {t("student_badge")}
+             <div className="text-right">
+               <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur rounded-full px-4 py-2 text-sm font-bold mx-auto">
+                 <UserPlus size={16} /> {t("student_badge")}
               </div>
               <h3 className="mt-3 text-2xl md:text-3xl font-black leading-tight">
                 {t("student_title")}
