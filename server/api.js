@@ -2512,7 +2512,7 @@ export function createApiHandler() {
       }
     }
 
-    if (!req.url.startsWith('/neon-db/entities/')) return next();
+    if (!req.url.startsWith('/neon-db/entities/') && !req.url.startsWith('/neon-db/public-register/')) return next();
 
     // DEBUG: Log all RegistrationRequest traffic to trace browser submissions
     if (req.url.includes('RegistrationRequest')) {
@@ -2527,13 +2527,14 @@ export function createApiHandler() {
     const earlyMatch = earlyPath.match(/^\/neon-db\/entities\/([^\/]+)(?:\/(.+))?$/);
     const earlyEntity = earlyMatch ? earlyMatch[1] : null;
     const isPublicRegistrationPost = earlyEntity === 'RegistrationRequest' && req.method === 'POST';
+    const isPublicRegisterPath = earlyPath.startsWith('/neon-db/public-register/') && req.method === 'POST';
     const isFounderEntity = earlyEntity === 'School' || earlyEntity === 'RegistrationRequest' || earlyEntity === 'SystemAdmin' || earlyEntity === 'Teacher' || earlyEntity === 'Student';
     // Phase 1: founder access = verified JWT with role 'founder' ONLY.
     // Public reads of founder entities REMOVED. Forgeable X-Founder-Auth header REMOVED (ignored).
     const earlyJwtUser = getBearerUser(req);
     const isFounderJwt = earlyJwtUser && earlyJwtUser.role === 'founder';
     const authHeader = req.headers.authorization;
-    const allowWithoutAuth = isPublicRegistrationPost || (isFounderEntity && isFounderJwt);
+    const allowWithoutAuth = isPublicRegistrationPost || isPublicRegisterPath || (isFounderEntity && isFounderJwt);
 
     // JWT Authentication Middleware
     if (!allowWithoutAuth) {
@@ -2559,6 +2560,104 @@ export function createApiHandler() {
       const urlParts = req.url.split('?');
       const path = urlParts[0];
       const searchParams = new URLSearchParams(urlParts[1] || '');
+      
+      // ── Public Registration Links: handle BEFORE entity routing (no auth, school-scoped) ──
+      if (path.match(/^\/neon-db\/public-register\//)) {
+        async function resolveSchoolPublicEarly(slug) {
+          const rows = await dbQuery(
+            `SELECT id, name, name_ar, name_en, slug, domain_subdomain, logo_url, subscription_status 
+             FROM schools 
+             WHERE (slug = $1 OR domain_subdomain = $1 OR id::text = $1) 
+             AND subscription_status = 'active' 
+             LIMIT 1`,
+            [slug.trim()]
+          );
+          return rows.length > 0 ? rows[0] : null;
+        }
+        if (path.match(/^\/neon-db\/public-register\/student\/[^/]+$/) && req.method === 'POST') {
+          res.setHeader('Content-Type', 'application/json');
+          const slug = decodeURIComponent(path.split('/').pop());
+          try {
+            const school = await resolveSchoolPublicEarly(slug);
+            if (!school) { res.statusCode = 404; return res.end(JSON.stringify({ error: 'المدرسة غير موجودة أو غير نشطة' })); }
+            const body = await parseBody(req);
+            const { full_name, user_email, phone, grade, parent_name, parent_phone, parent_email, city, notes } = body;
+            if (!full_name || !parent_name || !parent_phone) {
+              res.statusCode = 400;
+              return res.end(JSON.stringify({ error: 'اسم الطالب واسم ولي الأمر ورقم الهاتف مطلوبة' }));
+            }
+            const empCount = await dbQuery(`SELECT COUNT(*) FROM students WHERE school_id = $1`, [school.id]);
+            const studentId = `STU-${String((parseInt(empCount[0]?.count || '0') + 1)).padStart(4, '0')}`;
+            const portalPassword = '12345678';
+            const hashedPassword = bcrypt.hashSync(portalPassword, 10);
+            await dbQuery(
+              `INSERT INTO students (full_name, user_email, student_id, phone, grade, parent_name, parent_phone, parent_email, school_name, city, school_id, portal_password, portal_password_plain, status)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'active')
+               RETURNING id`,
+              [full_name.trim(), (user_email || '').trim().toLowerCase() || null, studentId, (phone || '').trim() || null, (grade || '').trim() || null, parent_name.trim(), parent_phone.trim(), (parent_email || '').trim().toLowerCase() || null, school.name_ar || school.name || school.name_en, (city || '').trim() || null, school.id, hashedPassword, portalPassword]
+            );
+            return res.end(JSON.stringify({ success: true, message: 'تم التسجيل بنجاح', student_id: studentId, portal_password: portalPassword, school_name: school.name_ar || school.name }));
+          } catch (e) {
+            console.error('[public-register] student error:', e.message);
+            res.statusCode = 500;
+            return res.end(JSON.stringify({ error: 'خطأ داخلي أثناء التسجيل' }));
+          }
+        }
+        if (path.match(/^\/neon-db\/public-register\/teacher\/[^/]+$/) && req.method === 'POST') {
+          res.setHeader('Content-Type', 'application/json');
+          const slug = decodeURIComponent(path.split('/').pop());
+          try {
+            const school = await resolveSchoolPublicEarly(slug);
+            if (!school) { res.statusCode = 404; return res.end(JSON.stringify({ error: 'المدرسة غير موجودة أو غير نشطة' })); }
+            const body = await parseBody(req);
+            const { full_name, email, phone, subjects, experience_years, bio, city, notes } = body;
+            if (!full_name) { res.statusCode = 400; return res.end(JSON.stringify({ error: 'الاسم الكامل مطلوب' })); }
+            const empCount = await dbQuery(`SELECT COUNT(*) FROM teachers WHERE school_id = $1`, [school.id]);
+            const empId = `TCH-${String((parseInt(empCount[0]?.count || '0') + 1)).padStart(4, '0')}`;
+            const portalPassword = '12345678';
+            const hashedPassword = bcrypt.hashSync(portalPassword, 10);
+            await dbQuery(
+              `INSERT INTO teachers (full_name, email, employee_id, phone, subjects, experience_years, bio, school_id, portal_password, portal_password_plain, status)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'active')
+               RETURNING id`,
+              [full_name.trim(), (email || '').trim().toLowerCase() || null, empId, (phone || '').trim() || null, (subjects || '').trim() || null, experience_years ? parseInt(experience_years) : null, (bio || '').trim() || null, school.id, hashedPassword, portalPassword]
+            );
+            return res.end(JSON.stringify({ success: true, message: 'تم التسجيل بنجاح', employee_id: empId, portal_password: portalPassword, school_name: school.name_ar || school.name }));
+          } catch (e) {
+            console.error('[public-register] teacher error:', e.message);
+            res.statusCode = 500;
+            return res.end(JSON.stringify({ error: 'خطأ داخلي أثناء التسجيل' }));
+          }
+        }
+        if (path.match(/^\/neon-db\/public-register\/staff\/[^/]+$/) && req.method === 'POST') {
+          res.setHeader('Content-Type', 'application/json');
+          const slug = decodeURIComponent(path.split('/').pop());
+          try {
+            const school = await resolveSchoolPublicEarly(slug);
+            if (!school) { res.statusCode = 404; return res.end(JSON.stringify({ error: 'المدرسة غير موجودة أو غير نشطة' })); }
+            const body = await parseBody(req);
+            const { full_name, email, phone, role, city, notes } = body;
+            if (!full_name) { res.statusCode = 400; return res.end(JSON.stringify({ error: 'الاسم الكامل مطلوب' })); }
+            const staffCount = await dbQuery(`SELECT COUNT(*) FROM system_admins WHERE school_id = $1`, [school.id]);
+            const staffId = `STF-${String((parseInt(staffCount[0]?.count || '0') + 1)).padStart(4, '0')}`;
+            const portalPassword = '12345678';
+            const hashedPassword = bcrypt.hashSync(portalPassword, 10);
+            await dbQuery(
+              `INSERT INTO system_admins (full_name, email, username, password, portal_password, role, school_id, status)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, 'active')
+               RETURNING id`,
+              [full_name.trim(), (email || '').trim().toLowerCase() || null, staffId, hashedPassword, portalPassword, (role || 'staff').trim(), school.id]
+            );
+            return res.end(JSON.stringify({ success: true, message: 'تم التسجيل بنجاح', staff_id: staffId, portal_password: portalPassword, school_name: school.name_ar || school.name }));
+          } catch (e) {
+            console.error('[public-register] staff error:', e.message);
+            res.statusCode = 500;
+            return res.end(JSON.stringify({ error: 'خطأ داخلي أثناء التسجيل' }));
+          }
+        }
+        res.statusCode = 404;
+        return res.end(JSON.stringify({ error: 'Route not found' }));
+      }
       
       const entityMatch = path.match(/^\/neon-db\/entities\/([^\/]+)(?:\/(.+))?$/);
       if (!entityMatch) {

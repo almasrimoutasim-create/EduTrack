@@ -318,13 +318,12 @@ export default function Sidebar() {
           }
         ];
 
-      default: // admin
+      default: // admin — تمت إعادة إنشاء زر لوحة التحكم بشكل صحيح (يشير لـ /dashboard وليس /)
         return [
           {
             label: isRTL ? "نظرة عامة" : "Overview",
             items: [
-              { label: t("common.dashboard", language), path: "/", icon: LayoutDashboard },
-
+              { label: t("common.dashboard", language), path: "/dashboard", icon: LayoutDashboard },
             ]
           },
           {
