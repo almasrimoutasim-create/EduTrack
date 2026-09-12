@@ -261,18 +261,23 @@ export default function RoleLogin() {
 
                   <div className="space-y-1">
                     <label htmlFor="field-rolelogin-input-4" className="block text-[11px] font-bold uppercase tracking-wider text-stone-400 px-1">
-                      {isRTL ? "اسم المستخدم" : "Username"}
+                      {isAdmin ? (isRTL ? "بريد مدير النظام" : "Admin Email") : (isRTL ? "اسم مستخدم المدرسة المشترك" : "Shared School Username")}
                     </label>
-                    <input id="field-rolelogin-input-4" name="input_4" aria-label="input 4"
+                    <input id="field-rolelogin-input-4" name="input_4" aria-label={isAdmin ? "admin username" : "gateway username"}
                       type="text"
                       required
                       autoFocus
                       value={isAdmin ? adminId : memberUser}
                       onChange={(e) => isAdmin ? setAdminId(e.target.value) : setMemberUser(e.target.value)}
-                      placeholder={isRTL ? "اسم المستخدم" : "Username"}
+                      placeholder={isAdmin ? (isRTL ? "مثال: etrack249@gmail.com" : "e.g. admin@school.com") : (isRTL ? "مثال: hr" : "e.g. hr")}
                       className="w-full h-12 rounded-xl border border-stone-200 bg-stone-50/80 text-sm font-bold text-stone-900 px-4 placeholder-stone-400 focus:outline-none focus:border-stone-800 focus:bg-white transition-all text-start"
                       dir="ltr"
                     />
+                    <p className="text-[10px] text-stone-400 px-1">
+                      {isAdmin
+                        ? (isRTL ? "من الإعدادات → مدراء النظام (Admins)" : "From Settings → System Admins")
+                        : (isRTL ? "من الإعدادات → حسابات شاشة القفل (Gateway) — حساب واحد لكل المدرسة" : "From Settings → Gateway Accounts — one shared account")}
+                    </p>
                   </div>
 
                   <div className="space-y-1">
