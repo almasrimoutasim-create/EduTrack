@@ -423,21 +423,21 @@ export default function RoleLogin() {
               }}
               className="group cursor-pointer"
             >
-              <Card className="p-8 border-none shadow-sm hover:shadow-2xl transition-all duration-500 rounded-[24px] bg-white relative overflow-hidden h-full flex flex-col text-center">
-                <div className="flex-1 flex flex-col items-center justify-center">
+              <Card className="p-8 border-none shadow-sm hover:shadow-2xl transition-all duration-500 rounded-[24px] bg-white relative overflow-hidden h-full flex flex-col !items-center text-center-keep">
+                <div className="flex-1 flex flex-col !items-center justify-center text-center-keep w-full">
                   <div className={`h-16 w-16 rounded-[20px] ${role.color} flex items-center justify-center mb-4 shadow-xl group-hover:scale-110 transition-transform duration-500`}>
                     <role.icon size={32} />
                   </div>
 
-                  <h3 className="w-full text-center text-lg font-serif font-black text-stone-900 mb-1.5 group-hover:text-primary transition-colors">
+                  <h3 className="w-full !text-center text-center-keep text-lg font-serif font-black text-stone-900 mb-1.5 group-hover:text-primary transition-colors">
                     {isRTL ? role.label.ar : role.label.en}
                   </h3>
-                  <p className="w-full text-center text-stone-400 text-xs font-medium">
+                  <p className="w-full !text-center text-center-keep text-stone-400 text-xs font-medium">
                     {isRTL ? role.desc.ar : role.desc.en}
                   </p>
                 </div>
 
-                <div className="pt-4 flex justify-center">
+                <div className="pt-4 flex justify-center w-full">
                   <div className={`h-8 w-8 rounded-full border-2 border-stone-50 flex items-center justify-center text-stone-200 group-hover:border-primary group-hover:text-primary transition-all duration-500`}>
                     {isRTL ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
                   </div>
