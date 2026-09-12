@@ -429,10 +429,10 @@ export default function RoleLogin() {
                     <role.icon size={32} />
                   </div>
 
-                  <h3 className="w-full !text-center text-center-keep text-lg font-serif font-black text-stone-900 mb-1.5 group-hover:text-primary transition-colors">
+                  <h3 className="w-full !text-center text-center-keep text-lg font-['Cairo'] font-black text-stone-900 mb-1.5 group-hover:text-primary transition-colors">
                     {isRTL ? role.label.ar : role.label.en}
                   </h3>
-                  <p className="w-full !text-center text-center-keep text-stone-400 text-xs font-medium">
+                  <p className="w-full !text-center text-center-keep text-stone-400 text-xs font-medium font-['Cairo']">
                     {isRTL ? role.desc.ar : role.desc.en}
                   </p>
                 </div>
