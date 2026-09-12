@@ -110,11 +110,14 @@ export default function LandingContentEditor() {
 
   const renderField = (key, label, type = "text") => {
     const isAr = activeTab === "ar";
+    const fieldId = `field-${key}-${activeTab}`;
     return (
       <div key={key} className="space-y-1">
-        <label className={`text-xs font-bold text-slate-500 block ${isAr ? "text-right" : "text-left"}`}>{label}</label>
+        <label htmlFor={fieldId} className={`text-xs font-bold text-slate-500 block ${isAr ? "text-right" : "text-left"}`}>{label}</label>
         {isAr ? (
           <input
+            id={fieldId}
+            name={key}
             type={type}
             value={getVal(key, "ar")}
             onChange={e => setVal(key, "ar", e.target.value)}
@@ -123,6 +126,8 @@ export default function LandingContentEditor() {
           />
         ) : (
           <input
+            id={fieldId}
+            name={key}
             type={type}
             value={getVal(key, "en")}
             onChange={e => setVal(key, "en", e.target.value)}
@@ -134,12 +139,16 @@ export default function LandingContentEditor() {
     );
   };
 
-  const renderImageField = (key, label) => (
+  const renderImageField = (key, label) => {
+    const fieldId = `field-${key}`;
+    return (
     <div key={key} className="space-y-1">
-      <label className="text-xs font-bold text-slate-500 flex items-center gap-1 text-right">
+      <label htmlFor={fieldId} className="text-xs font-bold text-slate-500 flex items-center gap-1 text-right">
         <ImageIcon size={12} /> {label}
       </label>
       <input
+        id={fieldId}
+        name={key}
         type="url"
         value={getVal(key, "ar")}
         onChange={e => setVal(key, "ar", e.target.value)}
@@ -153,9 +162,10 @@ export default function LandingContentEditor() {
         </div>
       )}
     </div>
-  );
+    );
+  };
 
-  if (isLoading) return <div className="flex items-center justify-center gap-2 text-slate-500 p-6"><Loader2 className="animate-spin" size={18} /> جاري التحميل...</div>;
+  if (isLoading) return <div className="flex items-center gap-2 text-slate-500 p-6"><Loader2 className="animate-spin" size={18} /> جاري التحميل...</div>;
 
   const renderSection = (sectionKey, fields) => {
     const isOpen = openSections[sectionKey];
@@ -176,9 +186,9 @@ export default function LandingContentEditor() {
   };
 
   return (
-    <div className="space-y-4 max-w-3xl mx-auto">
+    <div className="space-y-4 max-w-3xl">
       {/* Tabs */}
-      <div className="flex justify-center gap-2">
+      <div className="flex justify-start gap-2">
         <button onClick={() => setActiveTab("ar")} className={`px-4 py-2 rounded-xl text-sm font-bold transition ${activeTab === "ar" ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>العربية</button>
         <button onClick={() => setActiveTab("en")} className={`px-4 py-2 rounded-xl text-sm font-bold transition ${activeTab === "en" ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>English</button>
       </div>
@@ -287,8 +297,10 @@ export default function LandingContentEditor() {
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-500 block text-right">السعر الشهري (رقم فقط)</label>
+            <label htmlFor="field-pricing_monthly_price" className="text-xs font-bold text-slate-500 block text-right">السعر الشهري (رقم فقط)</label>
             <input
+              id="field-pricing_monthly_price"
+              name="pricing_monthly_price"
               type="text"
               value={getVal("pricing_monthly_price", activeTab === "ar" ? "ar" : "en")}
               onChange={e => setVal("pricing_monthly_price", activeTab === "ar" ? "ar" : "en", e.target.value)}
@@ -298,8 +310,10 @@ export default function LandingContentEditor() {
             />
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-500 block text-right">السعر السنوي (رقم فقط)</label>
+            <label htmlFor="field-pricing_yearly_price" className="text-xs font-bold text-slate-500 block text-right">السعر السنوي (رقم فقط)</label>
             <input
+              id="field-pricing_yearly_price"
+              name="pricing_yearly_price"
               type="text"
               value={getVal("pricing_yearly_price", activeTab === "ar" ? "ar" : "en")}
               onChange={e => setVal("pricing_yearly_price", activeTab === "ar" ? "ar" : "en", e.target.value)}
@@ -311,8 +325,10 @@ export default function LandingContentEditor() {
         </div>
         <div className="grid grid-cols-3 gap-3">
           <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-500 block text-right">العملة</label>
+            <label htmlFor="field-pricing_currency" className="text-xs font-bold text-slate-500 block text-right">العملة</label>
             <input
+              id="field-pricing_currency"
+              name="pricing_currency"
               type="text"
               value={getVal("pricing_currency", activeTab === "ar" ? "ar" : "en")}
               onChange={e => setVal("pricing_currency", activeTab === "ar" ? "ar" : "en", e.target.value)}
@@ -322,8 +338,10 @@ export default function LandingContentEditor() {
             />
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-500 block text-right">شارة التجربة المجانية</label>
+            <label htmlFor="field-pricing_trial_badge" className="text-xs font-bold text-slate-500 block text-right">شارة التجربة المجانية</label>
             <input
+              id="field-pricing_trial_badge"
+              name="pricing_trial_badge"
               type="text"
               value={getVal("pricing_trial_badge", activeTab === "ar" ? "ar" : "en")}
               onChange={e => setVal("pricing_trial_badge", activeTab === "ar" ? "ar" : "en", e.target.value)}
@@ -333,8 +351,10 @@ export default function LandingContentEditor() {
             />
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-500 block text-right">شارة الخصم</label>
+            <label htmlFor="field-pricing_discount_badge" className="text-xs font-bold text-slate-500 block text-right">شارة الخصم</label>
             <input
+              id="field-pricing_discount_badge"
+              name="pricing_discount_badge"
               type="text"
               value={getVal("pricing_discount_badge", activeTab === "ar" ? "ar" : "en")}
               onChange={e => setVal("pricing_discount_badge", activeTab === "ar" ? "ar" : "en", e.target.value)}
@@ -347,7 +367,7 @@ export default function LandingContentEditor() {
       </>)}
 
       {/* Save Button */}
-      <div className="flex justify-center sticky bottom-4">
+      <div className="flex justify-end sticky bottom-4">
         <button
           onClick={() => saveMutation.mutate()}
           disabled={saveMutation.isPending}

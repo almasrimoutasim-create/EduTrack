@@ -12,20 +12,28 @@ const app = express();
 
 const PORT = process.env.PORT || 3000;
 
-// Enable CORS for Vercel frontend + local dev
+// Enable CORS for Vercel frontend + local dev — valid header values only, no wildcard with credentials
+const ALLOWED_ORIGINS = [
+  'https://edu-track-smoky-two.vercel.app',
+  'https://edu-track-f93fvpqkt-almasrimoutasim-creates-projects.vercel.app',
+  'https://edutrack-ey49.onrender.com',
+  'https://edutrack-ub8f.onrender.com',
+  'https://edutrack-2689.onrender.com',
+  'http://localhost:5173',
+  'http://localhost:3000'
+];
+const VERCEL_REGEX = /^https:\/\/.*\.vercel\.app$/;
 app.use(cors({
-  origin: [
-    'https://edu-track-smoky-two.vercel.app',
-    'https://edu-track-f93fvpqkt-almasrimoutasim-creates-projects.vercel.app',
-    /^https:\/\/.*\.vercel\.app$/,
-    'https://edutrack-ey49.onrender.com',
-    'https://edutrack-ub8f.onrender.com',
-    'https://edutrack-2689.onrender.com',
-    'http://localhost:5173',
-    'http://localhost:3000'
-  ],
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (ALLOWED_ORIGINS.includes(origin) || VERCEL_REGEX.test(origin)) return callback(null, true);
+    return callback(null, false);
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Founder-Auth']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Founder-Auth', 'X-School-Id'],
+  exposedHeaders: ['Content-Length'],
+  credentials: false,
+  optionsSuccessStatus: 204
 }));
 
 // محلل بيانات الـ JSON لقراءة الطلبات القادمة من الواجهة الأمامية
