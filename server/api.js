@@ -1596,6 +1596,36 @@ export function createApiHandler() {
       }
     }
 
+    // Check account type (for lock screen to prevent mixing admin vs gateway)
+    if (req.url === '/neon-db/check-account-type' && req.method === 'POST') {
+      res.setHeader('Content-Type', 'application/json');
+      try {
+        const body = await parseBody(req);
+        const { identifier, schoolId } = body;
+        if (!identifier) return res.end(JSON.stringify({ type: 'none' }));
+        const sid = schoolId || null;
+        // Check gateway first
+        let gwRows = [];
+        if (sid) {
+          gwRows = await dbQuery('SELECT id FROM gateway_accounts WHERE username = $1 AND school_id = $2 LIMIT 1', [identifier, sid]);
+        } else {
+          gwRows = await dbQuery('SELECT id FROM gateway_accounts WHERE username = $1 AND school_id IS NULL LIMIT 1', [identifier]);
+        }
+        if (gwRows.length > 0) return res.end(JSON.stringify({ type: 'gateway' }));
+        // Check admin
+        let admRows = [];
+        if (sid) {
+          admRows = await dbQuery('SELECT id FROM system_admins WHERE email = $1 AND school_id = $2 LIMIT 1', [identifier, sid]);
+        } else {
+          admRows = await dbQuery('SELECT id FROM system_admins WHERE email = $1 LIMIT 1', [identifier]);
+        }
+        if (admRows.length > 0) return res.end(JSON.stringify({ type: 'admin' }));
+        return res.end(JSON.stringify({ type: 'none' }));
+      } catch (e) {
+        return res.end(JSON.stringify({ type: 'none' }));
+      }
+    }
+
     // Gateway lock login (Option A: shared school credential; global NULL-school accounts work as fallback)
     if (req.url === '/neon-db/auth/gateway' && req.method === 'POST') {
       res.setHeader('Content-Type', 'application/json');

@@ -148,9 +148,21 @@ export default function RoleLogin() {
       setAdminError(isRTL ? "أدخل اسم المستخدم وكلمة المرور" : "Enter username and password");
       return;
     }
+    // حماية: إذا كان هذا حساب Gateway (أعضاء المدرسة) فلا تسمح بدخول لوحة المدير
+    try {
+      const apiBase = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/$/, "");
+      const checkUrl = apiBase ? `${apiBase}/neon-db/check-account-type` : '/neon-db/check-account-type';
+      const chk = await fetch(checkUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ identifier: adminId.trim(), schoolId: schoolBrand?.id || null }) }).then(r=>r.json()).catch(()=>null);
+      if (chk?.type === 'gateway') {
+        setAdminError(isRTL ? "هذا حساب أعضاء المدرسة (Gateway) — استخدم تبويب «أعضاء المدرسة» (الأخضر) للدخول." : "This is a Gateway account — use the 'School Members' tab.");
+        return;
+      }
+    } catch {}
     setAdminLoading(true);
     try {
       await login("admin", adminId.trim(), adminPass);
+      // تأكد أن حالة البوابة لا تخلط مع المدير
+      localStorage.removeItem('portal_gateway_passed');
       window.location.href = "/admin-dashboard";
     } catch (err) {
       let message = err.message;
@@ -174,9 +186,23 @@ export default function RoleLogin() {
       setMemberError(isRTL ? "أدخل اسم المستخدم وكلمة المرور" : "Enter username and password");
       return;
     }
+    // حماية: إذا كان هذا حساب مدير نظام فلا تسمح بدخول بوابة الأعضاء
+    try {
+      const apiBase = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/$/, "");
+      const checkUrl = apiBase ? `${apiBase}/neon-db/check-account-type` : '/neon-db/check-account-type';
+      const chk = await fetch(checkUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ identifier: memberUser.trim(), schoolId: schoolBrand?.id || null }) }).then(r=>r.json()).catch(()=>null);
+      if (chk?.type === 'admin') {
+        setMemberError(isRTL ? "هذا حساب مدير نظام — استخدم تبويب «مدير النظام» (الأسود) للدخول." : "This is an admin account — use the 'System Admin' tab.");
+        return;
+      }
+    } catch {}
     setMemberLoading(true);
     try {
       await gatewayLogin(memberUser.trim(), memberPass, schoolBrand?.id || null);
+      // تأكد من عدم بقاء حالة مدير قديمة تسبب توجيه للوحة المدير
+      localStorage.removeItem('portal_role');
+      localStorage.removeItem('portal_user');
+      localStorage.removeItem('portal_is_auth');
       setLockPassed(true);
     } catch (err) {
       setMemberError(err.message || (isRTL ? "بيانات الدخول غير صحيحة." : "Invalid credentials."));
