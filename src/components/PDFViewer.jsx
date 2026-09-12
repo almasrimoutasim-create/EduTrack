@@ -68,7 +68,7 @@ export default function PDFViewer({ file_url, title, onClose }) {
         >
           <ChevronLeft className="h-4 w-4" />
         </Button>
-        <input 
+        <input id="field-pdfviewer-input-1" name="input_1" aria-label="input 1" 
           type="number" 
           value={currentPage} 
           onChange={(e) => setCurrentPage(Math.min(numPages || currentPage, Math.max(1, parseInt(e.target.value) || 1)))}

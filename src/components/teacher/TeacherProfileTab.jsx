@@ -95,9 +95,9 @@ export default function TeacherProfileTab({ teacher, onTeacherUpdate }) {
               {teacher.photo_url
                 ? <img src={teacher.photo_url} className="h-20 w-20 rounded-2xl border-4 border-card object-cover shadow-lg" alt="" />
                 : <div className="h-20 w-20 rounded-2xl border-4 border-card bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-2xl shadow-lg">{teacher.full_name[0]}</div>}
-              <label className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-primary flex items-center justify-center cursor-pointer shadow">
+              <label htmlFor="field-teacherprofiletab-input-1" className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-primary flex items-center justify-center cursor-pointer shadow">
                 <Camera className="h-3.5 w-3.5 text-primary-foreground" />
-                <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} disabled={uploadingPhoto} />
+                <input id="field-teacherprofiletab-input-1" name="input_1" aria-label="input 1" type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} disabled={uploadingPhoto} />
               </label>
             </div>
             <button className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border-2 border-stone-200 bg-white text-stone-800 hover:bg-stone-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed h-8 px-3 gap-1.5" onClick={() => setShowRateDialog(true)}>

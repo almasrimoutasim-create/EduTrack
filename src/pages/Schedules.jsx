@@ -434,8 +434,8 @@ export default function Schedules() {
             
             {/* Day Select */}
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-stone-550 block">{isRTL ? "يوم الحصة" : "Day of Week"}</label>
-              <select
+              <label htmlFor="field-schedules-select-4" className="text-xs font-bold text-stone-550 block">{isRTL ? "يوم الحصة" : "Day of Week"}</label>
+              <select id="field-schedules-select-4" name="select_4" aria-label="select 4"
                 value={dayOfWeek}
                 onChange={(e) => setDayOfWeek(e.target.value)}
                 className="w-full h-11 rounded-xl border border-stone-200 bg-white text-xs font-bold px-3 text-stone-700 outline-none cursor-pointer"
@@ -448,8 +448,8 @@ export default function Schedules() {
 
             {/* Grade Select */}
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-stone-550 block">{isRTL ? "الصف" : "Grade"}</label>
-              <select
+              <label htmlFor="field-schedules-select-3" className="text-xs font-bold text-stone-550 block">{isRTL ? "الصف" : "Grade"}</label>
+              <select id="field-schedules-select-3" name="select_3" aria-label="select 3"
                 value={grade}
                 onChange={(e) => setGrade(e.target.value)}
                 className="w-full h-11 rounded-xl border border-stone-200 bg-white text-xs font-bold px-3 text-stone-700 outline-none cursor-pointer"
@@ -462,8 +462,8 @@ export default function Schedules() {
 
             {/* Subject Select */}
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-stone-550 block">{isRTL ? "المادة" : "Subject"}</label>
-              <select
+              <label htmlFor="field-schedules-select-2" className="text-xs font-bold text-stone-550 block">{isRTL ? "المادة" : "Subject"}</label>
+              <select id="field-schedules-select-2" name="select_2" aria-label="select 2"
                 value={subjectId}
                 onChange={(e) => setSubjectId(e.target.value)}
                 className="w-full h-11 rounded-xl border border-stone-200 bg-white text-xs font-bold px-3 text-stone-700 outline-none cursor-pointer"
@@ -478,8 +478,8 @@ export default function Schedules() {
             {/* Section & Room */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-stone-550 block">{isRTL ? "الفصل" : "Class"}</label>
-                <select
+                <label htmlFor="field-schedules-select-1" className="text-xs font-bold text-stone-550 block">{isRTL ? "الفصل" : "Class"}</label>
+                <select id="field-schedules-select-1" name="select_1" aria-label="select 1"
                   value={section}
                   onChange={(e) => setSection(e.target.value)}
                   className="w-full h-11 rounded-xl border border-stone-200 bg-white text-xs font-bold px-3 text-stone-700 outline-none cursor-pointer"

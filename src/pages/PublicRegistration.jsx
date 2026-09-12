@@ -172,8 +172,8 @@ export default function PublicRegistration() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-stone-600 flex items-center gap-1"><FileText size={12} /> {isRTL ? "ملاحظات" : "Notes"}</label>
-              <textarea value={form.notes} onChange={e => update("notes", e.target.value)} placeholder={isRTL ? "أي معلومات إضافية عن المدرسة..." : "Any extra info..."} rows={2} className="w-full rounded-xl border border-stone-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/10" />
+              <label htmlFor="field-publicregistration-notes" className="text-xs font-bold text-stone-600 flex items-center gap-1"><FileText size={12} /> {isRTL ? "ملاحظات" : "Notes"}</label>
+              <textarea id="field-publicregistration-notes" name="notes" aria-label="notes" value={form.notes} onChange={e => update("notes", e.target.value)} placeholder={isRTL ? "أي معلومات إضافية عن المدرسة..." : "Any extra info..."} rows={2} className="w-full rounded-xl border border-stone-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/10" />
             </div>
 
             <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 text-xs text-blue-800 flex gap-2">

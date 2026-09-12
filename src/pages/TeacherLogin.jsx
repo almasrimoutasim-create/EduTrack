@@ -74,10 +74,10 @@ export default function TeacherLogin() {
 
           <form onSubmit={handleLogin} className="p-6 space-y-5">
             <div className="space-y-2">
-              <label className="block text-[11px] font-black uppercase tracking-wider text-stone-500">
+              <label htmlFor="field-teacherlogin-input-2" className="block text-[11px] font-black uppercase tracking-wider text-stone-500">
                 البريد الإلكتروني / الرقم الوظيفي
               </label>
-              <input
+              <input id="field-teacherlogin-input-2" name="input_2" aria-label="input 2"
                 type="text"
                 required
                 autoFocus
@@ -89,11 +89,11 @@ export default function TeacherLogin() {
             </div>
 
             <div className="space-y-2">
-              <label className="block text-[11px] font-black uppercase tracking-wider text-stone-500">
+              <label htmlFor="field-teacherlogin-input-1" className="block text-[11px] font-black uppercase tracking-wider text-stone-500">
                 كلمة المرور
               </label>
               <div className="relative">
-                <input
+                <input id="field-teacherlogin-input-1" name="input_1" aria-label="input 1"
                   type={showPassword ? "text" : "password"}
                   required
                   value={password}

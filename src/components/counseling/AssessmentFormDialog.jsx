@@ -77,7 +77,7 @@ export default function AssessmentFormDialog({ open, onOpenChange, caseId, onSuc
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5 text-right">
               <Label className="text-xs font-bold text-stone-550">الأكاديمي *</Label>
-              <select
+              <select id="field-assessmentformdialog-select-4" name="select_4" aria-label="select 4"
                 value={academicScore}
                 onChange={(e) => setAcademicScore(Number(e.target.value))}
                 className="w-full h-11 px-3 border border-stone-200 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20 bg-white"
@@ -90,7 +90,7 @@ export default function AssessmentFormDialog({ open, onOpenChange, caseId, onSuc
 
             <div className="space-y-1.5 text-right">
               <Label className="text-xs font-bold text-stone-550">السلوكي *</Label>
-              <select
+              <select id="field-assessmentformdialog-select-3" name="select_3" aria-label="select 3"
                 value={behavioralScore}
                 onChange={(e) => setBehavioralScore(Number(e.target.value))}
                 className="w-full h-11 px-3 border border-stone-200 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20 bg-white"
@@ -103,7 +103,7 @@ export default function AssessmentFormDialog({ open, onOpenChange, caseId, onSuc
 
             <div className="space-y-1.5 text-right">
               <Label className="text-xs font-bold text-stone-550">الاجتماعي *</Label>
-              <select
+              <select id="field-assessmentformdialog-select-2" name="select_2" aria-label="select 2"
                 value={socialScore}
                 onChange={(e) => setSocialScore(Number(e.target.value))}
                 className="w-full h-11 px-3 border border-stone-200 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20 bg-white"
@@ -116,7 +116,7 @@ export default function AssessmentFormDialog({ open, onOpenChange, caseId, onSuc
 
             <div className="space-y-1.5 text-right">
               <Label className="text-xs font-bold text-stone-550">النفسي *</Label>
-              <select
+              <select id="field-assessmentformdialog-select-1" name="select_1" aria-label="select 1"
                 value={psychologicalScore}
                 onChange={(e) => setPsychologicalScore(Number(e.target.value))}
                 className="w-full h-11 px-3 border border-stone-200 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20 bg-white"

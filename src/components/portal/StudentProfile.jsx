@@ -190,7 +190,7 @@ export default function StudentProfile({ student, me, onBack }) {
             )}
               {me &&
             <div className="flex gap-2 mt-2">
-                  <input className="flex-1 text-sm border rounded-full px-3 py-1 bg-background outline-none focus:ring-1 focus:ring-ring"
+                  <input id="field-studentprofile-write-a-comment" name="write_a_comment" aria-label="Write a comment..." className="flex-1 text-sm border rounded-full px-3 py-1 bg-background outline-none focus:ring-1 focus:ring-ring"
               placeholder="Write a comment..."
               value={commentInputs[post.id] || ""}
               onChange={(e) => setCommentInputs((prev) => ({ ...prev, [post.id]: e.target.value }))}
@@ -236,7 +236,7 @@ export default function StudentProfile({ student, me, onBack }) {
             >
               <Camera className="h-4 w-4" />
             </button>
-            <input ref={coverRef} type="file" accept="image/*" className="hidden"
+            <input id="field-studentprofile-input-2" name="input_2" aria-label="input 2" ref={coverRef} type="file" accept="image/*" className="hidden"
               onChange={(e) => uploadPhoto(e.target.files[0], "cover_photo_url")} />
           </>
         )}
@@ -260,7 +260,7 @@ export default function StudentProfile({ student, me, onBack }) {
                 >
                   <Camera className="h-3.5 w-3.5" />
                 </button>
-                <input ref={photoRef} type="file" accept="image/*" className="hidden"
+                <input id="field-studentprofile-input-1" name="input_1" aria-label="input 1" ref={photoRef} type="file" accept="image/*" className="hidden"
                   onChange={(e) => uploadPhoto(e.target.files[0], "photo_url")} />
               </>
             )}

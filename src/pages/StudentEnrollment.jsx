@@ -149,8 +149,8 @@ export default function StudentEnrollment() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-stone-700">{isRTL ? "الجنس" : "Gender"}</label>
-                  <select 
+                  <label htmlFor="field-studentenrollment-gender" className="text-sm font-bold text-stone-700">{isRTL ? "الجنس" : "Gender"}</label>
+                  <select id="field-studentenrollment-gender" name="gender" aria-label="gender" 
                     value={formData.gender} 
                     onChange={(e) => setFormData({...formData, gender: e.target.value})}
                     className="w-full h-12 px-4 rounded-xl border border-stone-200 bg-white"
@@ -160,8 +160,8 @@ export default function StudentEnrollment() {
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-stone-700">{isRTL ? "الصف الدراسي المتقدم له" : "Target Grade Level"}</label>
-                  <select 
+                  <label htmlFor="field-studentenrollment-grade-level" className="text-sm font-bold text-stone-700">{isRTL ? "الصف الدراسي المتقدم له" : "Target Grade Level"}</label>
+                  <select id="field-studentenrollment-grade-level" name="grade_level" aria-label="grade level" 
                     value={formData.grade_level} 
                     onChange={(e) => setFormData({...formData, grade_level: e.target.value})}
                     className="w-full h-12 px-4 rounded-xl border border-stone-200 bg-white"

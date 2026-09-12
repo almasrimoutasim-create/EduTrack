@@ -466,7 +466,7 @@ export default function Settings() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-bold text-stone-700 flex items-center gap-2">
+                <label htmlFor="field-settings-input-5" className="text-sm font-bold text-stone-700 flex items-center gap-2">
                   <ImageIcon size={16} className="text-stone-400" />
                   {isRTL ? "شعار المدرسة (Logo)" : "School Logo"}
                 </label>
@@ -479,7 +479,7 @@ export default function Settings() {
                     dir="ltr"
                   />
                   <div className="relative">
-                    <input 
+                    <input id="field-settings-input-5" name="input_5" aria-label="input 5" 
                       type="file" 
                       accept="image/*"
                       onChange={(e) => handleFileUpload(e, 'school_logo')}
@@ -494,7 +494,7 @@ export default function Settings() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-bold text-stone-700 flex items-center gap-2">
+                <label htmlFor="field-settings-input-4" className="text-sm font-bold text-stone-700 flex items-center gap-2">
                   <ImageIcon size={16} className="text-stone-400" />
                   {isRTL ? "صورة خلفية شاشة القفل (Gateway BG)" : "Gateway Background Image"}
                 </label>
@@ -507,7 +507,7 @@ export default function Settings() {
                     dir="ltr"
                   />
                   <div className="relative">
-                    <input 
+                    <input id="field-settings-input-4" name="input_4" aria-label="input 4" 
                       type="file" 
                       accept="image/*"
                       onChange={(e) => handleFileUpload(e, 'school_background_image')}
@@ -530,14 +530,14 @@ export default function Settings() {
                 <p className="text-xs text-stone-500 -mt-2">{isRTL ? "ارفع شعار السايدبار واكتب كلمة مختصرة (مثلاً: إيديوتراك) — يظهر الشعار فوق والاسم تحته بتنسيق جميل" : "Upload sidebar logo and write a short name"}</p>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-stone-700 flex items-center gap-2">
+                  <label htmlFor="field-settings-input-3" className="text-sm font-bold text-stone-700 flex items-center gap-2">
                     <ImageIcon size={16} className="text-violet-400" />
                     {isRTL ? "شعار السايدبار" : "Sidebar logo"}
                   </label>
                   <div className="flex gap-2">
                     <Input value={formData.sidebar_logo} readOnly placeholder={isRTL ? "لم يتم رفع شعار السايدبار" : "No sidebar logo"} className="h-12 bg-stone-50 border-stone-200 flex-1" dir="ltr" />
                     <div className="relative">
-                      <input type="file" accept="image/*" onChange={(e) => handleFileUpload(e, 'sidebar_logo')} className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10" />
+                      <input id="field-settings-input-3" name="input_3" aria-label="input 3" type="file" accept="image/*" onChange={(e) => handleFileUpload(e, 'sidebar_logo')} className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10" />
                       <button type="button" className="h-12 px-4 rounded-xl bg-violet-600 text-white font-bold flex items-center gap-2 pointer-events-none">
                         <Upload size={18} /> {isRTL ? "رفع" : "Upload"}
                       </button>
@@ -712,9 +712,9 @@ export default function Settings() {
               <div><label className="text-xs font-bold text-slate-600">{isRTL ? 'البنك المرسل' : 'Sender bank'}</label><Input value={bankNameLocal} onChange={e=>setBankNameLocal(e.target.value)} placeholder={isRTL ? 'اسم البنك' : 'Bank name'} className="mt-1"/></div>
               <div>
                 <label className="text-xs font-bold text-slate-600">{isRTL ? 'صورة الإيصال *' : 'Receipt image *'}</label>
-                <label className="mt-1 flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-slate-300 rounded-xl bg-slate-50 cursor-pointer hover:bg-slate-100">
+                <label htmlFor="field-settings-input-2" className="mt-1 flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-slate-300 rounded-xl bg-slate-50 cursor-pointer hover:bg-slate-100">
                   {receiptPreview ? <img src={receiptPreview} alt="receipt" className="max-h-28 rounded-lg object-contain"/> : <div className="text-center"><Upload size={24} className="mx-auto text-slate-400 mb-1"/><p className="text-xs text-slate-500">{isRTL ? 'اضغط لاختيار صورة' : 'Click to select'}</p></div>}
-                  <input type="file" accept="image/*" onChange={handleReceiptSelect} className="hidden" />
+                  <input id="field-settings-input-2" name="input_2" aria-label="input 2" type="file" accept="image/*" onChange={handleReceiptSelect} className="hidden" />
                 </label>
               </div>
               <div>
@@ -729,7 +729,7 @@ export default function Settings() {
                   ) : (
                     <div className="text-center"><Upload size={20} className="mx-auto text-amber-400 mb-1"/><p className="text-xs text-slate-500">{isRTL ? 'ارفع ترخيص المدرسة' : 'Upload license'}</p><p className="text-[10px] text-slate-400">JPG, PNG, PDF — 5MB</p></div>
                   )}
-                  <input type="file" accept="image/*,.pdf" onChange={handleLicenseSelect} className="hidden" />
+                  <input id="field-settings-input-1" name="input_1" aria-label="input 1" type="file" accept="image/*,.pdf" onChange={handleLicenseSelect} className="hidden" />
                 </label>
               </div>
               <div className="flex items-center justify-between bg-slate-900 text-white rounded-xl px-4 py-3">

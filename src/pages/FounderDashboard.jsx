@@ -196,7 +196,7 @@ function PaymentReceiptsSection() {
                   <p className="text-xs text-rose-700">لم يتم إرفاق ترخيص المدرسة مع هذا الطلب</p>
                 </div>
               )}
-              <div><label className="text-xs font-bold text-slate-600">ملاحظات المراجعة</label><textarea value={notes} onChange={e => setNotes(e.target.value)} className="w-full mt-1 rounded-xl border border-slate-200 p-2 text-sm" rows={2} placeholder="ملاحظات اختيارية"/></div>
+              <div><label htmlFor="field-founderdashboard-textarea-45" className="text-xs font-bold text-slate-600">ملاحظات المراجعة</label><textarea id="field-founderdashboard-textarea-45" name="textarea_45" aria-label="textarea 45" value={notes} onChange={e => setNotes(e.target.value)} className="w-full mt-1 rounded-xl border border-slate-200 p-2 text-sm" rows={2} placeholder="ملاحظات اختيارية"/></div>
             </div>
             {selectedReceipt.status === "pending" && (
               <div className="flex gap-3 mt-5">
@@ -1555,7 +1555,7 @@ const FounderDashboard = () => {
                         {/* Status Select */}
                         <div className="flex items-center gap-2">
                           <span className="text-[10px] text-slate-400 shrink-0">الحالة:</span>
-                          <select value={s.subscription_status || "trial"} onChange={(e)=>updateSchool.mutate({id:s.id, status:e.target.value})} className="flex-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                          <select id="field-founderdashboard-select-44" name="select_44" aria-label="select 44" value={s.subscription_status || "trial"} onChange={(e)=>updateSchool.mutate({id:s.id, status:e.target.value})} className="flex-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                             <option value="active">نشط</option>
                             <option value="trial">تجريبي</option>
                             <option value="pending">معلق</option>
@@ -1785,13 +1785,13 @@ const FounderDashboard = () => {
                 <div className="bg-white rounded-2xl p-6 max-w-lg w-full shadow-xl" onClick={e=>e.stopPropagation()}>
                   <h3 className="font-extrabold text-lg mb-4">إضافة مدرسة يدوياً</h3>
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="col-span-2"><label className="text-xs font-bold text-slate-600">اسم المدرسة *</label><input value={newSchool.name} onChange={e=>setNewSchool({...newSchool, name:e.target.value})} className="w-full mt-1 rounded-xl border border-slate-300 px-3 py-2 text-sm" placeholder="مثال: مدارس النور"/></div>
-                    <div><label className="text-xs font-bold text-slate-600">البلد</label><input value={newSchool.country} onChange={e=>setNewSchool({...newSchool, country:e.target.value})} className="w-full mt-1 rounded-xl border border-slate-300 px-3 py-2 text-sm"/></div>
-                    <div><label className="text-xs font-bold text-slate-600">الخطة</label><select value={newSchool.plan} onChange={e=>setNewSchool({...newSchool, plan:e.target.value})} className="w-full mt-1 rounded-xl border border-slate-300 px-3 py-2 text-sm"><option value="starter">Starter $49</option><option value="professional">Professional $99</option><option value="enterprise">Enterprise $199</option></select></div>
-                    <div><label className="text-xs font-bold text-slate-600">دورة الفوترة</label><select value={newSchool.billing_cycle} onChange={e=>setNewSchool({...newSchool, billing_cycle:e.target.value})} className="w-full mt-1 rounded-xl border border-slate-300 px-3 py-2 text-sm"><option value="monthly">شهري</option><option value="yearly">سنوي</option></select></div>
-                    <div><label className="text-xs font-bold text-slate-600">البريد</label><input value={newSchool.email} onChange={e=>setNewSchool({...newSchool, email:e.target.value})} className="w-full mt-1 rounded-xl border border-slate-300 px-3 py-2 text-sm" dir="ltr"/></div>
-                    <div><label className="text-xs font-bold text-slate-600">الهاتف</label><input value={newSchool.phone} onChange={e=>setNewSchool({...newSchool, phone:e.target.value})} className="w-full mt-1 rounded-xl border border-slate-300 px-3 py-2 text-sm" dir="ltr"/></div>
-                    <div className="col-span-2"><label className="text-xs font-bold text-slate-600">اسم المسؤول</label><input value={newSchool.director_name} onChange={e=>setNewSchool({...newSchool, director_name:e.target.value})} className="w-full mt-1 rounded-xl border border-slate-300 px-3 py-2 text-sm"/></div>
+                    <div className="col-span-2"><label htmlFor="field-founderdashboard-name" className="text-xs font-bold text-slate-600">اسم المدرسة *</label><input id="field-founderdashboard-name" name="name" aria-label="name" value={newSchool.name} onChange={e=>setNewSchool({...newSchool, name:e.target.value})} className="w-full mt-1 rounded-xl border border-slate-300 px-3 py-2 text-sm" placeholder="مثال: مدارس النور"/></div>
+                    <div><label htmlFor="field-founderdashboard-country" className="text-xs font-bold text-slate-600">البلد</label><input id="field-founderdashboard-country" name="country" aria-label="country" value={newSchool.country} onChange={e=>setNewSchool({...newSchool, country:e.target.value})} className="w-full mt-1 rounded-xl border border-slate-300 px-3 py-2 text-sm"/></div>
+                    <div><label htmlFor="field-founderdashboard-plan" className="text-xs font-bold text-slate-600">الخطة</label><select id="field-founderdashboard-plan" name="plan" aria-label="plan" value={newSchool.plan} onChange={e=>setNewSchool({...newSchool, plan:e.target.value})} className="w-full mt-1 rounded-xl border border-slate-300 px-3 py-2 text-sm"><option value="starter">Starter $49</option><option value="professional">Professional $99</option><option value="enterprise">Enterprise $199</option></select></div>
+                    <div><label htmlFor="field-founderdashboard-billing-cycle" className="text-xs font-bold text-slate-600">دورة الفوترة</label><select id="field-founderdashboard-billing-cycle" name="billing_cycle" aria-label="billing cycle" value={newSchool.billing_cycle} onChange={e=>setNewSchool({...newSchool, billing_cycle:e.target.value})} className="w-full mt-1 rounded-xl border border-slate-300 px-3 py-2 text-sm"><option value="monthly">شهري</option><option value="yearly">سنوي</option></select></div>
+                    <div><label htmlFor="field-founderdashboard-email" className="text-xs font-bold text-slate-600">البريد</label><input id="field-founderdashboard-email" name="email" aria-label="email" value={newSchool.email} onChange={e=>setNewSchool({...newSchool, email:e.target.value})} className="w-full mt-1 rounded-xl border border-slate-300 px-3 py-2 text-sm" dir="ltr"/></div>
+                    <div><label htmlFor="field-founderdashboard-phone" className="text-xs font-bold text-slate-600">الهاتف</label><input id="field-founderdashboard-phone" name="phone" aria-label="phone" value={newSchool.phone} onChange={e=>setNewSchool({...newSchool, phone:e.target.value})} className="w-full mt-1 rounded-xl border border-slate-300 px-3 py-2 text-sm" dir="ltr"/></div>
+                    <div className="col-span-2"><label htmlFor="field-founderdashboard-director-name" className="text-xs font-bold text-slate-600">اسم المسؤول</label><input id="field-founderdashboard-director-name" name="director_name" aria-label="director name" value={newSchool.director_name} onChange={e=>setNewSchool({...newSchool, director_name:e.target.value})} className="w-full mt-1 rounded-xl border border-slate-300 px-3 py-2 text-sm"/></div>
                   </div>
                   <div className="flex gap-2 mt-6">
                     <button onClick={()=>setShowAdd(false)} className="flex-1 h-10 rounded-xl border border-slate-200 font-bold">إلغاء</button>
@@ -2025,14 +2025,14 @@ const FounderDashboard = () => {
                   <button onClick={()=>setTeacherTypeFilter("school")} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${teacherTypeFilter==="school" ? "bg-slate-900 text-white shadow" : "text-slate-600 hover:bg-slate-200"}`}>معلمو المدارس</button>
                   <button onClick={()=>setTeacherTypeFilter("independent")} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${teacherTypeFilter==="independent" ? "bg-indigo-600 text-white shadow" : "text-slate-600 hover:bg-slate-200"}`}>معلمون مستقلون</button>
                 </div>
-                <select value={teacherStatusFilter} onChange={(e)=>setTeacherStatusFilter(e.target.value)} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold">
+                <select id="field-founderdashboard-select-36" name="select_36" aria-label="select 36" value={teacherStatusFilter} onChange={(e)=>setTeacherStatusFilter(e.target.value)} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold">
                   <option value="all">الكل</option>
                   <option value="active">نشط</option>
                   <option value="suspended">معلق</option>
                   <option value="expired">منتهي</option>
                 </select>
               </div>
-              <input value={teacherSearch} onChange={(e)=>setTeacherSearch(e.target.value)} placeholder="بحث بالاسم أو البريد أو الرقم الوظيفي..." className="w-full sm:w-64 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"/>
+              <input id="field-founderdashboard-input-35" name="input_35" aria-label="input 35" value={teacherSearch} onChange={(e)=>setTeacherSearch(e.target.value)} placeholder="بحث بالاسم أو البريد أو الرقم الوظيفي..." className="w-full sm:w-64 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"/>
             </div>
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
               {teachersLoading ? <p className="p-6 text-slate-500">جاري التحميل...</p> : filteredTeachers.length === 0 ? (
@@ -2070,7 +2070,7 @@ const FounderDashboard = () => {
                         <td className="p-4 text-slate-500">{t.experience_years ? `${t.experience_years} سنة` : "—"}</td>
                         <td className="p-4 text-slate-500">{t.created_at ? new Date(t.created_at).toLocaleDateString('ar-EG') : "—"}</td>
                         <td className="p-4">
-                          <select value={t.status || "active"} onChange={(e)=>updateTeacher.mutate({id:t.id, status:e.target.value})} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold">
+                          <select id="field-founderdashboard-select-34" name="select_34" aria-label="select 34" value={t.status || "active"} onChange={(e)=>updateTeacher.mutate({id:t.id, status:e.target.value})} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold">
                             <option value="active">نشط</option>
                             <option value="suspended">معلق</option>
                             <option value="expired">منتهي</option>
@@ -2176,14 +2176,14 @@ const FounderDashboard = () => {
                   <button onClick={()=>setStudentTypeFilter("school")} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${studentTypeFilter==="school" ? "bg-slate-900 text-white shadow" : "text-slate-600 hover:bg-slate-200"}`}>طلاب المدارس</button>
                   <button onClick={()=>setStudentTypeFilter("independent")} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${studentTypeFilter==="independent" ? "bg-emerald-600 text-white shadow" : "text-slate-600 hover:bg-slate-200"}`}>طلاب مستقلون</button>
                 </div>
-                <select value={studentStatusFilter} onChange={(e)=>setStudentStatusFilter(e.target.value)} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold">
+                <select id="field-founderdashboard-select-33" name="select_33" aria-label="select 33" value={studentStatusFilter} onChange={(e)=>setStudentStatusFilter(e.target.value)} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold">
                   <option value="all">الكل</option>
                   <option value="active">نشط</option>
                   <option value="suspended">معلق</option>
                   <option value="expired">منتهي</option>
                 </select>
               </div>
-              <input value={studentSearch} onChange={(e)=>setStudentSearch(e.target.value)} placeholder="بحث بالاسم أو البريد أو الرقم أو الهاتف..." className="w-full sm:w-64 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"/>
+              <input id="field-founderdashboard-input-32" name="input_32" aria-label="input 32" value={studentSearch} onChange={(e)=>setStudentSearch(e.target.value)} placeholder="بحث بالاسم أو البريد أو الرقم أو الهاتف..." className="w-full sm:w-64 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"/>
             </div>
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
               {studentsLoading ? <p className="p-6 text-slate-500">جاري التحميل...</p> : filteredStudents.length === 0 ? (
@@ -2228,7 +2228,7 @@ const FounderDashboard = () => {
                         </td>
                         <td className="p-4 text-slate-500">{s.created_at ? new Date(s.created_at).toLocaleDateString('ar-EG') : "—"}</td>
                         <td className="p-4">
-                          <select value={s.status || "active"} onChange={(e)=>updateStudent.mutate({id:s.id, status:e.target.value})} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold">
+                          <select id="field-founderdashboard-select-31" name="select_31" aria-label="select 31" value={s.status || "active"} onChange={(e)=>updateStudent.mutate({id:s.id, status:e.target.value})} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold">
                             <option value="active">نشط</option>
                             <option value="suspended">معلق</option>
                             <option value="expired">منتهي</option>
@@ -2334,11 +2334,11 @@ const FounderDashboard = () => {
             <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
               <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2"><CreditCard size={18} className="text-blue-500"/> تعديل أسعار اشتراكات المدارس والعملة</h3>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div><label className="text-xs font-bold text-slate-600">Starter (شهري)</label><input type="number" min="0" value={settings.plan_starter_price} onChange={e=>setSettings({...settings, plan_starter_price:e.target.value})} className="w-full mt-1 rounded-xl border border-slate-300 px-3 py-2 text-sm"/></div>
-                <div><label className="text-xs font-bold text-slate-600">Professional (شهري)</label><input type="number" min="0" value={settings.plan_professional_price} onChange={e=>setSettings({...settings, plan_professional_price:e.target.value})} className="w-full mt-1 rounded-xl border border-slate-300 px-3 py-2 text-sm"/></div>
-                <div><label className="text-xs font-bold text-slate-600">Enterprise (شهري)</label><input type="number" min="0" value={settings.plan_enterprise_price} onChange={e=>setSettings({...settings, plan_enterprise_price:e.target.value})} className="w-full mt-1 rounded-xl border border-slate-300 px-3 py-2 text-sm"/></div>
-                <div><label className="text-xs font-bold text-slate-600">العملة</label>
-                  <select value={settings.default_currency} onChange={(e) => setSettings((s) => ({ ...s, default_currency: e.target.value }))} className="w-full mt-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm">
+                <div><label htmlFor="field-founderdashboard-plan-starter-price" className="text-xs font-bold text-slate-600">Starter (شهري)</label><input id="field-founderdashboard-plan-starter-price" name="plan_starter_price" aria-label="plan starter price" type="number" min="0" value={settings.plan_starter_price} onChange={e=>setSettings({...settings, plan_starter_price:e.target.value})} className="w-full mt-1 rounded-xl border border-slate-300 px-3 py-2 text-sm"/></div>
+                <div><label htmlFor="field-founderdashboard-plan-professional-price" className="text-xs font-bold text-slate-600">Professional (شهري)</label><input id="field-founderdashboard-plan-professional-price" name="plan_professional_price" aria-label="plan professional price" type="number" min="0" value={settings.plan_professional_price} onChange={e=>setSettings({...settings, plan_professional_price:e.target.value})} className="w-full mt-1 rounded-xl border border-slate-300 px-3 py-2 text-sm"/></div>
+                <div><label htmlFor="field-founderdashboard-plan-enterprise-price" className="text-xs font-bold text-slate-600">Enterprise (شهري)</label><input id="field-founderdashboard-plan-enterprise-price" name="plan_enterprise_price" aria-label="plan enterprise price" type="number" min="0" value={settings.plan_enterprise_price} onChange={e=>setSettings({...settings, plan_enterprise_price:e.target.value})} className="w-full mt-1 rounded-xl border border-slate-300 px-3 py-2 text-sm"/></div>
+                <div><label htmlFor="field-founderdashboard-default-currency" className="text-xs font-bold text-slate-600">العملة</label>
+                  <select id="field-founderdashboard-default-currency" name="default_currency" aria-label="default currency" value={settings.default_currency} onChange={(e) => setSettings((s) => ({ ...s, default_currency: e.target.value }))} className="w-full mt-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm">
                     <option value="USD">USD ($)</option>
                     <option value="SAR">SAR (﷼)</option>
                     <option value="AED">AED (د.إ)</option>
@@ -2633,7 +2633,7 @@ const FounderDashboard = () => {
                   </div>
                   {activeTicket===t.id && t.status==="open" && (
                     <div className="px-5 pb-4 border-t border-slate-100 pt-4 bg-slate-50/50">
-                      <textarea value={replyMap[t.id]||""} onChange={e=>setReplyMap({...replyMap,[t.id]:e.target.value})} placeholder="اكتب ردك للمدرسة..." rows={3} className="w-full rounded-xl border border-slate-300 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+                      <textarea id="field-founderdashboard-textarea-26" name="textarea_26" aria-label="textarea 26" value={replyMap[t.id]||""} onChange={e=>setReplyMap({...replyMap,[t.id]:e.target.value})} placeholder="اكتب ردك للمدرسة..." rows={3} className="w-full rounded-xl border border-slate-300 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"/>
                       <div className="flex gap-2 mt-2">
                         <button onClick={()=>{ const txt=(replyMap[t.id]||"").trim(); if(!txt) return toast.error("اكتب الرد أولاً"); setTickets(ts=>ts.map(x=>x.id===t.id?{...x, reply:txt}:x)); setReplyMap({...replyMap,[t.id]:""}); setActiveTicket(null); toast.success("تم إرسال الرد");}} className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-blue-700">إرسال الرد</button>
                         <button onClick={()=>setActiveTicket(null)} className="px-4 py-2 rounded-xl border border-slate-200 text-sm font-bold">إلغاء</button>
@@ -2656,9 +2656,9 @@ const FounderDashboard = () => {
             <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
               <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2"><Crown size={18} className="text-amber-500"/> تعديل أسعار الخطط</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div><label className="text-xs font-bold text-slate-600">Starter ($)</label><input type="number" value={settings.plan_starter_price} onChange={e=>setSettings({...settings, plan_starter_price:e.target.value})} className="w-full mt-1 rounded-xl border border-slate-300 px-3 py-2 text-sm"/></div>
-                <div><label className="text-xs font-bold text-slate-600">Professional ($)</label><input type="number" value={settings.plan_professional_price} onChange={e=>setSettings({...settings, plan_professional_price:e.target.value})} className="w-full mt-1 rounded-xl border border-slate-300 px-3 py-2 text-sm"/></div>
-                <div><label className="text-xs font-bold text-slate-600">Enterprise ($)</label><input type="number" value={settings.plan_enterprise_price} onChange={e=>setSettings({...settings, plan_enterprise_price:e.target.value})} className="w-full mt-1 rounded-xl border border-slate-300 px-3 py-2 text-sm"/></div>
+                <div><label htmlFor="field-founderdashboard-plan-starter-price" className="text-xs font-bold text-slate-600">Starter ($)</label><input id="field-founderdashboard-plan-starter-price" name="plan_starter_price" aria-label="plan starter price" type="number" value={settings.plan_starter_price} onChange={e=>setSettings({...settings, plan_starter_price:e.target.value})} className="w-full mt-1 rounded-xl border border-slate-300 px-3 py-2 text-sm"/></div>
+                <div><label htmlFor="field-founderdashboard-plan-professional-price" className="text-xs font-bold text-slate-600">Professional ($)</label><input id="field-founderdashboard-plan-professional-price" name="plan_professional_price" aria-label="plan professional price" type="number" value={settings.plan_professional_price} onChange={e=>setSettings({...settings, plan_professional_price:e.target.value})} className="w-full mt-1 rounded-xl border border-slate-300 px-3 py-2 text-sm"/></div>
+                <div><label htmlFor="field-founderdashboard-plan-enterprise-price" className="text-xs font-bold text-slate-600">Enterprise ($)</label><input id="field-founderdashboard-plan-enterprise-price" name="plan_enterprise_price" aria-label="plan enterprise price" type="number" value={settings.plan_enterprise_price} onChange={e=>setSettings({...settings, plan_enterprise_price:e.target.value})} className="w-full mt-1 rounded-xl border border-slate-300 px-3 py-2 text-sm"/></div>
               </div>
               <p className="text-xs text-slate-400 mt-2">تُحفظ محلياً وتظهر فوراً في قسم الاشتراكات والإيرادات.</p>
             </div>
@@ -2667,9 +2667,9 @@ const FounderDashboard = () => {
             <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
               <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2"><Phone size={18} className="text-emerald-500"/> بيانات التواصل في Landing Page</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div><label className="text-xs font-bold text-slate-600">بريد الدعم</label><input type="email" value={settings.support_email} onChange={e=>setSettings({...settings, support_email:e.target.value})} className="w-full mt-1 rounded-xl border border-slate-300 px-3 py-2 text-sm" dir="ltr"/></div>
-                <div><label className="text-xs font-bold text-slate-600">رقم الهاتف</label><input value={settings.support_phone} onChange={e=>setSettings({...settings, support_phone:e.target.value})} className="w-full mt-1 rounded-xl border border-slate-300 px-3 py-2 text-sm" dir="ltr"/></div>
-                <div className="md:col-span-2"><label className="text-xs font-bold text-slate-600">رقم واتساب</label><input value={settings.whatsapp_number} onChange={e=>setSettings({...settings, whatsapp_number:e.target.value})} className="w-full mt-1 rounded-xl border border-slate-300 px-3 py-2 text-sm" dir="ltr" placeholder="2499..."/></div>
+                <div><label htmlFor="field-founderdashboard-support-email" className="text-xs font-bold text-slate-600">بريد الدعم</label><input id="field-founderdashboard-support-email" name="support_email" aria-label="support email" type="email" value={settings.support_email} onChange={e=>setSettings({...settings, support_email:e.target.value})} className="w-full mt-1 rounded-xl border border-slate-300 px-3 py-2 text-sm" dir="ltr"/></div>
+                <div><label htmlFor="field-founderdashboard-support-phone" className="text-xs font-bold text-slate-600">رقم الهاتف</label><input id="field-founderdashboard-support-phone" name="support_phone" aria-label="support phone" value={settings.support_phone} onChange={e=>setSettings({...settings, support_phone:e.target.value})} className="w-full mt-1 rounded-xl border border-slate-300 px-3 py-2 text-sm" dir="ltr"/></div>
+                <div className="md:col-span-2"><label htmlFor="field-founderdashboard-whatsapp-number" className="text-xs font-bold text-slate-600">رقم واتساب</label><input id="field-founderdashboard-whatsapp-number" name="whatsapp_number" aria-label="whatsapp number" value={settings.whatsapp_number} onChange={e=>setSettings({...settings, whatsapp_number:e.target.value})} className="w-full mt-1 rounded-xl border border-slate-300 px-3 py-2 text-sm" dir="ltr" placeholder="2499..."/></div>
               </div>
             </div>
 
@@ -2678,8 +2678,8 @@ const FounderDashboard = () => {
               <Toggle label="وضع الصيانة" desc="إيقاف المنصة مؤقتاً للصيانة — يظهر تنبيه للمدارس" checked={settings.maintenance_mode} onChange={(v) => setSettings((s) => ({ ...s, maintenance_mode: v }))} />
               <Toggle label="السماح بالتسجيلات الجديدة" desc="فتح/إغلاق صفحة التسجيل للمدارس الجديدة" checked={settings.allow_registrations} onChange={(v) => setSettings((s) => ({ ...s, allow_registrations: v }))} />
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">العملة الافتراضية</label>
-                <select value={settings.default_currency} onChange={(e) => setSettings((s) => ({ ...s, default_currency: e.target.value }))} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">
+                <label htmlFor="field-founderdashboard-default-currency" className="block text-sm font-semibold text-slate-700 mb-2">العملة الافتراضية</label>
+                <select id="field-founderdashboard-default-currency" name="default_currency" aria-label="default currency" value={settings.default_currency} onChange={(e) => setSettings((s) => ({ ...s, default_currency: e.target.value }))} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">
                   <option value="USD">USD ($)</option>
                   <option value="SAR">SAR (﷼)</option>
                   <option value="AED">AED (د.إ)</option>
@@ -2692,9 +2692,9 @@ const FounderDashboard = () => {
             <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
               <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2"><KeyRound size={18} className="text-violet-500"/> تغيير كلمة مرورك</h3>
               <div className="space-y-3 max-w-md">
-                <input type="password" value={pw.cur} onChange={e=>setPw({...pw, cur:e.target.value})} placeholder="كلمة المرور الحالية" className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"/>
-                <input type="password" value={pw.next} onChange={e=>setPw({...pw, next:e.target.value})} placeholder="كلمة المرور الجديدة" className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"/>
-                <input type="password" value={pw.confirm} onChange={e=>setPw({...pw, confirm:e.target.value})} placeholder="تأكيد الجديدة" className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"/>
+                <input id="field-founderdashboard-cur" name="cur" aria-label="cur" type="password" value={pw.cur} onChange={e=>setPw({...pw, cur:e.target.value})} placeholder="كلمة المرور الحالية" className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"/>
+                <input id="field-founderdashboard-next" name="next" aria-label="next" type="password" value={pw.next} onChange={e=>setPw({...pw, next:e.target.value})} placeholder="كلمة المرور الجديدة" className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"/>
+                <input id="field-founderdashboard-confirm" name="confirm" aria-label="confirm" type="password" value={pw.confirm} onChange={e=>setPw({...pw, confirm:e.target.value})} placeholder="تأكيد الجديدة" className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"/>
                 <button onClick={()=>{
                   if(!pw.next || pw.next!==pw.confirm) return toast.error("تأكيد كلمة المرور غير متطابق");
                   if(pw.next.length<6) return toast.error("كلمة المرور قصيرة (6 أحرف على الأقل)");
@@ -2986,43 +2986,43 @@ const FounderDashboard = () => {
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-bold text-slate-600 mb-1">اسم الخطة (إنجليزي)</label>
-                    <input type="text" value={newPlan.plan_name} onChange={e => setNewPlan({...newPlan, plan_name: e.target.value})} className="w-full h-10 rounded-xl border border-slate-200 px-3 text-sm font-bold focus:border-blue-500 outline-none" placeholder="e.g. teacher_monthly" />
+                    <label htmlFor="field-founderdashboard-plan-name" className="block text-xs font-bold text-slate-600 mb-1">اسم الخطة (إنجليزي)</label>
+                    <input id="field-founderdashboard-plan-name" name="plan_name" aria-label="plan name" type="text" value={newPlan.plan_name} onChange={e => setNewPlan({...newPlan, plan_name: e.target.value})} className="w-full h-10 rounded-xl border border-slate-200 px-3 text-sm font-bold focus:border-blue-500 outline-none" placeholder="e.g. teacher_monthly" />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-600 mb-1">اسم الخطة (عربي)</label>
-                    <input type="text" value={newPlan.plan_name_ar} onChange={e => setNewPlan({...newPlan, plan_name_ar: e.target.value})} className="w-full h-10 rounded-xl border border-slate-200 px-3 text-sm font-bold focus:border-blue-500 outline-none" placeholder="مثال: خطة المعلم الشهرية" />
+                    <label htmlFor="field-founderdashboard-plan-name-ar" className="block text-xs font-bold text-slate-600 mb-1">اسم الخطة (عربي)</label>
+                    <input id="field-founderdashboard-plan-name-ar" name="plan_name_ar" aria-label="plan name ar" type="text" value={newPlan.plan_name_ar} onChange={e => setNewPlan({...newPlan, plan_name_ar: e.target.value})} className="w-full h-10 rounded-xl border border-slate-200 px-3 text-sm font-bold focus:border-blue-500 outline-none" placeholder="مثال: خطة المعلم الشهرية" />
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-xs font-bold text-slate-600 mb-1">النوع</label>
-                    <select value={newPlan.plan_type} onChange={e => setNewPlan({...newPlan, plan_type: e.target.value})} className="w-full h-10 rounded-xl border border-slate-200 px-3 text-sm font-bold focus:border-blue-500 outline-none">
+                    <label htmlFor="field-founderdashboard-plan-type" className="block text-xs font-bold text-slate-600 mb-1">النوع</label>
+                    <select id="field-founderdashboard-plan-type" name="plan_type" aria-label="plan type" value={newPlan.plan_type} onChange={e => setNewPlan({...newPlan, plan_type: e.target.value})} className="w-full h-10 rounded-xl border border-slate-200 px-3 text-sm font-bold focus:border-blue-500 outline-none">
                       <option value="teacher">معلم</option>
                       <option value="student">طالب</option>
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-600 mb-1">العملة</label>
-                    <select value={newPlan.currency} onChange={e => setNewPlan({...newPlan, currency: e.target.value})} className="w-full h-10 rounded-xl border border-slate-200 px-3 text-sm font-bold focus:border-blue-500 outline-none">
+                    <label htmlFor="field-founderdashboard-currency" className="block text-xs font-bold text-slate-600 mb-1">العملة</label>
+                    <select id="field-founderdashboard-currency" name="currency" aria-label="currency" value={newPlan.currency} onChange={e => setNewPlan({...newPlan, currency: e.target.value})} className="w-full h-10 rounded-xl border border-slate-200 px-3 text-sm font-bold focus:border-blue-500 outline-none">
                       <option value="EGP">جنيه مصري</option>
                       <option value="USD">دولار أمريكي</option>
                       <option value="SUD">جنيه سوداني</option>
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-600 mb-1">أيام التجربة</label>
-                    <input type="number" value={newPlan.trial_days} onChange={e => setNewPlan({...newPlan, trial_days: parseInt(e.target.value) || 0})} className="w-full h-10 rounded-xl border border-slate-200 px-3 text-sm font-bold focus:border-blue-500 outline-none" min="0" />
+                    <label htmlFor="field-founderdashboard-trial-days" className="block text-xs font-bold text-slate-600 mb-1">أيام التجربة</label>
+                    <input id="field-founderdashboard-trial-days" name="trial_days" aria-label="trial days" type="number" value={newPlan.trial_days} onChange={e => setNewPlan({...newPlan, trial_days: parseInt(e.target.value) || 0})} className="w-full h-10 rounded-xl border border-slate-200 px-3 text-sm font-bold focus:border-blue-500 outline-none" min="0" />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-bold text-slate-600 mb-1">السعر الشهري</label>
-                    <input type="number" value={newPlan.price_monthly} onChange={e => setNewPlan({...newPlan, price_monthly: parseFloat(e.target.value) || 0})} className="w-full h-10 rounded-xl border border-slate-200 px-3 text-sm font-bold focus:border-blue-500 outline-none" min="0" />
+                    <label htmlFor="field-founderdashboard-price-monthly" className="block text-xs font-bold text-slate-600 mb-1">السعر الشهري</label>
+                    <input id="field-founderdashboard-price-monthly" name="price_monthly" aria-label="price monthly" type="number" value={newPlan.price_monthly} onChange={e => setNewPlan({...newPlan, price_monthly: parseFloat(e.target.value) || 0})} className="w-full h-10 rounded-xl border border-slate-200 px-3 text-sm font-bold focus:border-blue-500 outline-none" min="0" />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-600 mb-1">السعر السنوي</label>
-                    <input type="number" value={newPlan.price_yearly} onChange={e => setNewPlan({...newPlan, price_yearly: parseFloat(e.target.value) || 0})} className="w-full h-10 rounded-xl border border-slate-200 px-3 text-sm font-bold focus:border-blue-500 outline-none" min="0" />
+                    <label htmlFor="field-founderdashboard-price-yearly" className="block text-xs font-bold text-slate-600 mb-1">السعر السنوي</label>
+                    <input id="field-founderdashboard-price-yearly" name="price_yearly" aria-label="price yearly" type="number" value={newPlan.price_yearly} onChange={e => setNewPlan({...newPlan, price_yearly: parseFloat(e.target.value) || 0})} className="w-full h-10 rounded-xl border border-slate-200 px-3 text-sm font-bold focus:border-blue-500 outline-none" min="0" />
                   </div>
                 </div>
               </div>
@@ -3086,12 +3086,12 @@ const FounderDashboard = () => {
                   <p className="text-xs font-bold text-amber-700 mb-2">التحكم في الطلب:</p>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-bold text-slate-600 mb-1">أيام الفترة التجريبية</label>
-                      <input type="number" value={approveTrialDays} onChange={e => setApproveTrialDays(parseInt(e.target.value) || 30)} className="w-full h-10 rounded-xl border border-slate-200 px-3 text-sm font-bold focus:border-blue-500 outline-none" min="0" max="90" />
+                      <label htmlFor="field-founderdashboard-input-8" className="block text-xs font-bold text-slate-600 mb-1">أيام الفترة التجريبية</label>
+                      <input id="field-founderdashboard-input-8" name="input_8" aria-label="input 8" type="number" value={approveTrialDays} onChange={e => setApproveTrialDays(parseInt(e.target.value) || 30)} className="w-full h-10 rounded-xl border border-slate-200 px-3 text-sm font-bold focus:border-blue-500 outline-none" min="0" max="90" />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-600 mb-1">ملاحظات (اختياري)</label>
-                      <input type="text" value={approveFounderNotes} onChange={e => setApproveFounderNotes(e.target.value)} className="w-full h-10 rounded-xl border border-slate-200 px-3 text-sm font-bold focus:border-blue-500 outline-none" placeholder="ملاحظات داخلية..." />
+                      <label htmlFor="field-founderdashboard-input-7" className="block text-xs font-bold text-slate-600 mb-1">ملاحظات (اختياري)</label>
+                      <input id="field-founderdashboard-input-7" name="input_7" aria-label="input 7" type="text" value={approveFounderNotes} onChange={e => setApproveFounderNotes(e.target.value)} className="w-full h-10 rounded-xl border border-slate-200 px-3 text-sm font-bold focus:border-blue-500 outline-none" placeholder="ملاحظات داخلية..." />
                     </div>
                   </div>
                 </div>
@@ -3127,8 +3127,8 @@ const FounderDashboard = () => {
               </p>
               <div className="space-y-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1">اسم المستخدم</label>
-                  <input
+                  <label htmlFor="field-founderdashboard-input-6" className="block text-xs font-bold text-slate-600 mb-1">اسم المستخدم</label>
+                  <input id="field-founderdashboard-input-6" name="input_6" aria-label="input 6"
                     type="text"
                     value={schoolUsername}
                     onChange={e => setSchoolUsername(e.target.value)}
@@ -3139,7 +3139,7 @@ const FounderDashboard = () => {
                 </div>
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label className="text-xs font-bold text-slate-600">كلمة المرور</label>
+                    <label htmlFor="field-founderdashboard-input-5" className="text-xs font-bold text-slate-600">كلمة المرور</label>
                     <button
                       type="button"
                       onClick={() => setSchoolPassword(genPassword(10))}
@@ -3148,7 +3148,7 @@ const FounderDashboard = () => {
                       <RefreshCw size={11}/> توليد عشوائي
                     </button>
                   </div>
-                  <input
+                  <input id="field-founderdashboard-input-5" name="input_5" aria-label="input 5"
                     type="text"
                     value={schoolPassword}
                     onChange={e => setSchoolPassword(e.target.value)}
@@ -3188,8 +3188,8 @@ const FounderDashboard = () => {
               </p>
               <div className="space-y-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1">اسم المستخدم (Username)</label>
-                  <input
+                  <label htmlFor="field-founderdashboard-input-4" className="block text-xs font-bold text-slate-600 mb-1">اسم المستخدم (Username)</label>
+                  <input id="field-founderdashboard-input-4" name="input_4" aria-label="input 4"
                     type="text"
                     value={teacherUsername}
                     onChange={e => setTeacherUsername(e.target.value)}
@@ -3200,7 +3200,7 @@ const FounderDashboard = () => {
                 </div>
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label className="text-xs font-bold text-slate-600">كلمة المرور (Password)</label>
+                    <label htmlFor="field-founderdashboard-input-3" className="text-xs font-bold text-slate-600">كلمة المرور (Password)</label>
                     <button
                       type="button"
                       onClick={() => setTeacherPassword(genPassword(8))}
@@ -3209,7 +3209,7 @@ const FounderDashboard = () => {
                       <RefreshCw size={11}/> توليد عشوائي
                     </button>
                   </div>
-                  <input
+                  <input id="field-founderdashboard-input-3" name="input_3" aria-label="input 3"
                     type="text"
                     value={teacherPassword}
                     onChange={e => setTeacherPassword(e.target.value)}
@@ -3249,8 +3249,8 @@ const FounderDashboard = () => {
               </p>
               <div className="space-y-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1">اسم المستخدم (Username)</label>
-                  <input
+                  <label htmlFor="field-founderdashboard-input-2" className="block text-xs font-bold text-slate-600 mb-1">اسم المستخدم (Username)</label>
+                  <input id="field-founderdashboard-input-2" name="input_2" aria-label="input 2"
                     type="text"
                     value={studentUsername}
                     onChange={e => setStudentUsername(e.target.value)}
@@ -3261,7 +3261,7 @@ const FounderDashboard = () => {
                 </div>
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label className="text-xs font-bold text-slate-600">كلمة المرور (Password)</label>
+                    <label htmlFor="field-founderdashboard-input-1" className="text-xs font-bold text-slate-600">كلمة المرور (Password)</label>
                     <button
                       type="button"
                       onClick={() => setStudentPassword(genPassword(8))}
@@ -3270,7 +3270,7 @@ const FounderDashboard = () => {
                       <RefreshCw size={11}/> توليد عشوائي
                     </button>
                   </div>
-                  <input
+                  <input id="field-founderdashboard-input-1" name="input_1" aria-label="input 1"
                     type="text"
                     value={studentPassword}
                     onChange={e => setStudentPassword(e.target.value)}

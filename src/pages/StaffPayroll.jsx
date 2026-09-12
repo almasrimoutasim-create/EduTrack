@@ -372,7 +372,7 @@ export default function StaffPayroll({ isEmbedded = false }) {
 
         <div className="flex items-center gap-2">
           <span className="text-xs font-bold text-stone-500">{isRTL ? "شهر المسير:" : "Payroll Month:"}</span>
-          <select 
+          <select id="field-staffpayroll-select-1" name="select_1" aria-label="select 1" 
             value={selectedMonth} 
             onChange={(e) => setSelectedMonth(Number(e.target.value))}
             className="bg-white border-2 border-stone-200 rounded-xl h-10 px-3 text-xs font-bold text-stone-700 outline-none focus:border-primary transition-colors cursor-pointer"

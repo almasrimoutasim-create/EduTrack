@@ -550,7 +550,7 @@ export default function AssignmentsGradingTab({ isRTL = true, subjects = [] }) {
             {/* Form Header Info card */}
             <Card className="p-6 md:p-8 bg-white border-2 border-primary/20 rounded-[32px] shadow-sm space-y-4">
               <div className="space-y-2">
-                <input 
+                <input id="field-assignmentsgradingtab-untitled-form-title" name="untitled_form_title" aria-label="untitled form title" 
                   type="text"
                   placeholder={isRTL ? "عنوان الواجب أو التقييم الجديد..." : "Untitled Form Title..."}
                   value={formTitle}
@@ -559,7 +559,7 @@ export default function AssignmentsGradingTab({ isRTL = true, subjects = [] }) {
                 />
               </div>
               <div className="space-y-2">
-                <textarea 
+                <textarea id="field-assignmentsgradingtab-form-description-or-instructions" name="form_description_or_instructions" aria-label="form description or instructions" 
                   placeholder={isRTL ? "وصف الواجب أو تعليمات للطلاب..." : "Form description or instructions..."}
                   value={formDesc}
                   onChange={e => setFormDesc(e.target.value)}
@@ -599,7 +599,7 @@ export default function AssignmentsGradingTab({ isRTL = true, subjects = [] }) {
                         {/* Points input */}
                         <div className="flex items-center gap-1.5 border border-stone-250 rounded-xl px-2 h-9">
                           <span className="text-[10px] font-bold text-stone-400">{isRTL ? "الدرجة:" : "Pts:"}</span>
-                          <input 
+                          <input id="field-assignmentsgradingtab-points" name="points" aria-label="points" 
                             type="number"
                             value={q.points}
                             onChange={e => updateQuestionPoints(q.id, e.target.value)}
@@ -774,7 +774,7 @@ export default function AssignmentsGradingTab({ isRTL = true, subjects = [] }) {
 
                 <div className="space-y-1.5">
                   <Label className="text-stone-600 font-bold text-xs">{isRTL ? "آخر موعد للتسليم" : "Due Date"}</Label>
-                  <input 
+                  <input id="field-assignmentsgradingtab-input-2" name="input_2" aria-label="input 2" 
                     type="date"
                     value={formDueDate}
                     onChange={e => setFormDueDate(e.target.value)}
@@ -890,7 +890,7 @@ export default function AssignmentsGradingTab({ isRTL = true, subjects = [] }) {
                           
                           {/* Point input selector */}
                           <div className="flex items-center gap-1 shrink-0">
-                            <input 
+                            <input id="field-assignmentsgradingtab-input-1" name="input_1" aria-label="input 1" 
                               type="number"
                               value={grade ?? ""}
                               onChange={e => {

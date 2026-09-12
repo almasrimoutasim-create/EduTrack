@@ -94,7 +94,7 @@ export default function CaseFormDialog({ open, onOpenChange, onSuccess }) {
               onChange={(e) => setSearchFilter(e.target.value)}
               className="mb-2 h-10 rounded-xl border border-stone-200"
             />
-            <select
+            <select id="field-caseformdialog-select-2" name="select_2" aria-label="select 2"
               value={studentId}
               onChange={(e) => setStudentId(e.target.value)}
               required
@@ -123,7 +123,7 @@ export default function CaseFormDialog({ open, onOpenChange, onSuccess }) {
 
           <div className="space-y-1.5 text-right">
             <Label className="text-xs font-bold text-stone-550">نوع المشكلة *</Label>
-            <select
+            <select id="field-caseformdialog-select-1" name="select_1" aria-label="select 1"
               value={problemType}
               onChange={(e) => setProblemType(e.target.value)}
               className="w-full h-11 px-3 border border-stone-200 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20 bg-white"

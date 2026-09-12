@@ -177,7 +177,7 @@ export default function OfficialAnnouncements() {
 
               <div className="space-y-1.5">
                 <Label className="text-xs font-bold text-stone-500 uppercase tracking-wider">{isRTL ? "نص القرار وتفاصيله" : "Content Details"}</Label>
-                <textarea 
+                <textarea id="field-officialannouncements-textarea-3" name="textarea_3" aria-label="textarea 3" 
                   value={content}
                   onChange={e => setContent(e.target.value)}
                   placeholder={isRTL ? "اكتب محتوى وتفاصيل القرار الرسمي بالتفصيل هنا..." : "Write official announcement details here..."}
@@ -189,7 +189,7 @@ export default function OfficialAnnouncements() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label className="text-xs font-bold text-stone-500 uppercase tracking-wider">{isRTL ? "الفئة المستهدفة" : "Target Audience"}</Label>
-                  <select 
+                  <select id="field-officialannouncements-select-2" name="select_2" aria-label="select 2" 
                     value={targetAudience}
                     onChange={e => setTargetAudience(e.target.value)}
                     className="w-full h-11 px-3 rounded-xl border border-stone-200 text-sm font-semibold bg-white focus:outline-none focus:ring-2 focus:ring-stone-900/10"
@@ -203,7 +203,7 @@ export default function OfficialAnnouncements() {
 
                 <div className="space-y-1.5">
                   <Label className="text-xs font-bold text-stone-500 uppercase tracking-wider">{isRTL ? "أولوية العرض" : "Priority"}</Label>
-                  <select 
+                  <select id="field-officialannouncements-select-1" name="select_1" aria-label="select 1" 
                     value={priority}
                     onChange={e => setPriority(e.target.value)}
                     className="w-full h-11 px-3 rounded-xl border border-stone-200 text-sm font-semibold bg-white focus:outline-none focus:ring-2 focus:ring-stone-900/10"

@@ -394,8 +394,8 @@ export default function StaffRequests() {
             
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
-                <label className="text-xs font-bold text-stone-500">{isRTL ? "كادر الموظف" : "Employee Role"}</label>
-                <select 
+                <label htmlFor="field-staffrequests-select-2" className="text-xs font-bold text-stone-500">{isRTL ? "كادر الموظف" : "Employee Role"}</label>
+                <select id="field-staffrequests-select-2" name="select_2" aria-label="select 2" 
                   value={newReqRole} 
                   onChange={(e) => setNewReqRole(e.target.value)}
                   className="w-full bg-white border border-stone-200 rounded-xl h-10 px-3 text-xs font-bold text-stone-700 outline-none"
@@ -408,8 +408,8 @@ export default function StaffRequests() {
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-bold text-stone-500">{isRTL ? "نوع الطلب" : "Request Type"}</label>
-                <select 
+                <label htmlFor="field-staffrequests-select-1" className="text-xs font-bold text-stone-500">{isRTL ? "نوع الطلب" : "Request Type"}</label>
+                <select id="field-staffrequests-select-1" name="select_1" aria-label="select 1" 
                   value={newReqType} 
                   onChange={(e) => setNewReqType(e.target.value)}
                   className="w-full bg-white border border-stone-200 rounded-xl h-10 px-3 text-xs font-bold text-stone-700 outline-none"

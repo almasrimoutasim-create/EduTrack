@@ -260,10 +260,10 @@ export default function RoleLogin() {
                   )}
 
                   <div className="space-y-1">
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-stone-400 px-1">
+                    <label htmlFor="field-rolelogin-input-4" className="block text-[11px] font-bold uppercase tracking-wider text-stone-400 px-1">
                       {isRTL ? "اسم المستخدم" : "Username"}
                     </label>
-                    <input
+                    <input id="field-rolelogin-input-4" name="input_4" aria-label="input 4"
                       type="text"
                       required
                       autoFocus
@@ -276,11 +276,11 @@ export default function RoleLogin() {
                   </div>
 
                   <div className="space-y-1">
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-stone-400 px-1">
+                    <label htmlFor="field-rolelogin-input-3" className="block text-[11px] font-bold uppercase tracking-wider text-stone-400 px-1">
                       {isRTL ? "كلمة المرور" : "Password"}
                     </label>
                     <div className="relative">
-                      <input
+                      <input id="field-rolelogin-input-3" name="input_3" aria-label="input 3"
                         type={(isAdmin ? showAdminPass : showMemberPass) ? "text" : "password"}
                         required
                         value={isAdmin ? adminPass : memberPass}
@@ -423,19 +423,19 @@ export default function RoleLogin() {
               }}
               className="group cursor-pointer"
             >
-              <Card className="p-6 border-none shadow-sm hover:shadow-2xl transition-all duration-500 rounded-[24px] bg-white relative overflow-hidden h-full flex flex-col items-center text-center">
+              <Card className="p-8 border-none shadow-sm hover:shadow-2xl transition-all duration-500 rounded-[24px] bg-white relative overflow-hidden h-full flex flex-col items-center justify-center text-center">
                 <div className={`h-16 w-16 rounded-[20px] ${role.color} flex items-center justify-center mb-4 shadow-xl group-hover:scale-110 transition-transform duration-500`}>
                   <role.icon size={32} />
                 </div>
 
-                <h3 className="text-lg font-serif font-black text-stone-900 mb-1.5 group-hover:text-primary transition-colors">
+                <h3 className="w-full text-center text-lg font-serif font-black text-stone-900 mb-1.5 group-hover:text-primary transition-colors">
                   {isRTL ? role.label.ar : role.label.en}
                 </h3>
-                <p className="text-stone-400 text-xs font-medium mb-4">
+                <p className="w-full text-center text-stone-400 text-xs font-medium mb-6">
                   {isRTL ? role.desc.ar : role.desc.en}
                 </p>
 
-                <div className="mt-auto">
+                <div className="mt-auto pt-2">
                   <div className={`h-8 w-8 rounded-full border-2 border-stone-50 flex items-center justify-center text-stone-200 group-hover:border-primary group-hover:text-primary transition-all duration-500`}>
                     {isRTL ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
                   </div>
@@ -537,10 +537,10 @@ export default function RoleLogin() {
 
                   {/* Identifier Field */}
                   <div className="space-y-2">
-                    <label className="block text-[11px] font-black uppercase tracking-wider text-stone-500">
+                    <label htmlFor="field-rolelogin-input-2" className="block text-[11px] font-black uppercase tracking-wider text-stone-500">
                       {isRTL ? "البريد الإلكتروني / المعرف" : "Email / Identifier"}
                     </label>
-                    <input
+                    <input id="field-rolelogin-input-2" name="input_2" aria-label="input 2"
                       type="text"
                       required
                       autoFocus
@@ -553,11 +553,11 @@ export default function RoleLogin() {
 
                   {/* Password Field */}
                   <div className="space-y-2">
-                    <label className="block text-[11px] font-black uppercase tracking-wider text-stone-500">
+                    <label htmlFor="field-rolelogin-input-1" className="block text-[11px] font-black uppercase tracking-wider text-stone-500">
                       {isRTL ? "كلمة المرور" : "Password"}
                     </label>
                     <div className="relative">
-                      <input
+                      <input id="field-rolelogin-input-1" name="input_1" aria-label="input 1"
                         type={showPassword ? "text" : "password"}
                         required
                         value={password}

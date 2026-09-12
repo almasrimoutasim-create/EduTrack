@@ -183,10 +183,10 @@ export default function IndependentTeacherPortal() {
               )}
 
               <div>
-                <label className="block text-sm font-bold text-stone-700 mb-1.5">
+                <label htmlFor="field-independentteacherportal-input-13" className="block text-sm font-bold text-stone-700 mb-1.5">
                   {isRTL ? "البريد الإلكتروني أو رقم الهوية " : "Email or Employee ID"}
                 </label>
-                <input
+                <input id="field-independentteacherportal-input-13" name="input_13" aria-label="input 13"
                   type="text"
                   value={loginEmail}
                   onChange={(e) => setLoginEmail(e.target.value)}
@@ -197,11 +197,11 @@ export default function IndependentTeacherPortal() {
               </div>
 
               <div>
-                <label className="block text-sm font-bold text-stone-700 mb-1.5">
+                <label htmlFor="field-independentteacherportal-input-12" className="block text-sm font-bold text-stone-700 mb-1.5">
                   {isRTL ? "كلمة المرور" : "Password"}
                 </label>
                 <div className="relative">
-                  <input
+                  <input id="field-independentteacherportal-input-12" name="input_12" aria-label="input 12"
                     type={showLoginPassword ? "text" : "password"}
                     value={loginPassword}
                     onChange={(e) => setLoginPassword(e.target.value)}
@@ -501,7 +501,7 @@ function StudentsTab({ teacherId, students, submissions, isRTL, queryClient }) {
             <Input placeholder={isRTL ? "اسم الطالب *" : "Student name *"} value={form.student_name} onChange={e => setForm({ ...form, student_name: e.target.value })} className="h-10 rounded-xl" />
             <Input placeholder={isRTL ? "البريد الإلكتروني" : "Email"} value={form.student_email} onChange={e => setForm({ ...form, student_email: e.target.value })} className="h-10 rounded-xl" dir="ltr" />
             <Input placeholder={isRTL ? "الهاتف" : "Phone"} value={form.student_phone} onChange={e => setForm({ ...form, student_phone: e.target.value })} className="h-10 rounded-xl" dir="ltr" />
-            <select value={form.grade} onChange={e => setForm({ ...form, grade: e.target.value })} className="h-10 rounded-xl border border-stone-200 bg-white px-3 text-sm w-full">
+            <select id="field-independentteacherportal-grade" name="grade" aria-label="grade" value={form.grade} onChange={e => setForm({ ...form, grade: e.target.value })} className="h-10 rounded-xl border border-stone-200 bg-white px-3 text-sm w-full">
               <option value="">{isRTL ? "الصف الدراسي" : "Grade"}</option>
               {["1","2","3","4","5","6","7","8","9","10","11","12"].map(g => <option key={g} value={g}>{isRTL ? `الصف ${g}` : `Grade ${g}`}</option>)}
             </select>
@@ -524,7 +524,7 @@ function StudentsTab({ teacherId, students, submissions, isRTL, queryClient }) {
             <Input placeholder={isRTL ? "اسم الطالب *" : "Student name *"} value={form.student_name} onChange={e => setForm({ ...form, student_name: e.target.value })} className="h-10 rounded-xl" />
             <Input placeholder={isRTL ? "البريد الإلكتروني" : "Email"} value={form.student_email} onChange={e => setForm({ ...form, student_email: e.target.value })} className="h-10 rounded-xl" dir="ltr" />
             <Input placeholder={isRTL ? "الهاتف" : "Phone"} value={form.student_phone} onChange={e => setForm({ ...form, student_phone: e.target.value })} className="h-10 rounded-xl" dir="ltr" />
-            <select value={form.grade} onChange={e => setForm({ ...form, grade: e.target.value })} className="h-10 rounded-xl border border-stone-200 bg-white px-3 text-sm w-full">
+            <select id="field-independentteacherportal-grade" name="grade" aria-label="grade" value={form.grade} onChange={e => setForm({ ...form, grade: e.target.value })} className="h-10 rounded-xl border border-stone-200 bg-white px-3 text-sm w-full">
               <option value="">{isRTL ? "الصف الدراسي" : "Grade"}</option>
               {["1","2","3","4","5","6","7","8","9","10","11","12"].map(g => <option key={g} value={g}>{isRTL ? `الصف ${g}` : `Grade ${g}`}</option>)}
             </select>
@@ -598,10 +598,10 @@ function AssignmentsTab({ teacherId, assignments, isRTL, queryClient }) {
           <DialogHeader><DialogTitle className="font-black">{isRTL ? "واجب جديد" : "New Assignment"}</DialogTitle></DialogHeader>
           <div className="space-y-3 p-1">
             <Input placeholder={isRTL ? "عنوان الواجب *" : "Title *"} value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className="h-10 rounded-xl" />
-            <textarea placeholder={isRTL ? "الوصف" : "Description"} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="w-full h-20 rounded-xl border border-stone-200 p-3 text-sm" />
+            <textarea id="field-independentteacherportal-description" name="description" aria-label="description" placeholder={isRTL ? "الوصف" : "Description"} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="w-full h-20 rounded-xl border border-stone-200 p-3 text-sm" />
             <div className="grid grid-cols-2 gap-2">
               <Input placeholder={isRTL ? "المادة" : "Subject"} value={form.subject} onChange={e => setForm({ ...form, subject: e.target.value })} className="h-10 rounded-xl" />
-              <select value={form.grade} onChange={e => setForm({ ...form, grade: e.target.value })} className="h-10 rounded-xl border border-stone-200 bg-white px-3 text-sm">
+              <select id="field-independentteacherportal-grade" name="grade" aria-label="grade" value={form.grade} onChange={e => setForm({ ...form, grade: e.target.value })} className="h-10 rounded-xl border border-stone-200 bg-white px-3 text-sm">
                 <option value="">{isRTL ? "الصف" : "Grade"}</option>
                 {["1","2","3","4","5","6","7","8","9","10","11","12"].map(g => <option key={g} value={g}>{g}</option>)}
               </select>
@@ -684,10 +684,10 @@ function ExamsTab({ teacherId, exams, isRTL, queryClient }) {
           <DialogHeader><DialogTitle className="font-black">{isRTL ? "امتحان جديد" : "New Exam"}</DialogTitle></DialogHeader>
           <div className="space-y-3 p-1">
             <Input placeholder={isRTL ? "عنوان الامتحان *" : "Title *"} value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className="h-10 rounded-xl" />
-            <textarea placeholder={isRTL ? "الوصف" : "Description"} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="w-full h-16 rounded-xl border border-stone-200 p-3 text-sm" />
+            <textarea id="field-independentteacherportal-description" name="description" aria-label="description" placeholder={isRTL ? "الوصف" : "Description"} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="w-full h-16 rounded-xl border border-stone-200 p-3 text-sm" />
             <div className="grid grid-cols-2 gap-2">
               <Input placeholder={isRTL ? "المادة" : "Subject"} value={form.subject} onChange={e => setForm({ ...form, subject: e.target.value })} className="h-10 rounded-xl" />
-              <select value={form.grade} onChange={e => setForm({ ...form, grade: e.target.value })} className="h-10 rounded-xl border border-stone-200 bg-white px-3 text-sm">
+              <select id="field-independentteacherportal-grade" name="grade" aria-label="grade" value={form.grade} onChange={e => setForm({ ...form, grade: e.target.value })} className="h-10 rounded-xl border border-stone-200 bg-white px-3 text-sm">
                 <option value="">{isRTL ? "الصف" : "Grade"}</option>
                 {["1","2","3","4","5","6","7","8","9","10","11","12"].map(g => <option key={g} value={g}>{g}</option>)}
               </select>
@@ -803,10 +803,10 @@ function LiveClassesTab({ teacherId, liveClasses, isRTL, queryClient }) {
           <DialogHeader><DialogTitle className="font-black">{isRTL ? "حصة مباشرة جديدة" : "New Live Class"}</DialogTitle></DialogHeader>
           <div className="space-y-3 p-1">
             <Input placeholder={isRTL ? "عنوان الحصة *" : "Title *"} value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className="h-10 rounded-xl" />
-            <textarea placeholder={isRTL ? "الوصف" : "Description"} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="w-full h-16 rounded-xl border border-stone-200 p-3 text-sm" />
+            <textarea id="field-independentteacherportal-description" name="description" aria-label="description" placeholder={isRTL ? "الوصف" : "Description"} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="w-full h-16 rounded-xl border border-stone-200 p-3 text-sm" />
             <div className="grid grid-cols-2 gap-2">
               <Input placeholder={isRTL ? "المادة" : "Subject"} value={form.subject} onChange={e => setForm({ ...form, subject: e.target.value })} className="h-10 rounded-xl" />
-              <select value={form.grade} onChange={e => setForm({ ...form, grade: e.target.value })} className="h-10 rounded-xl border border-stone-200 bg-white px-3 text-sm">
+              <select id="field-independentteacherportal-grade" name="grade" aria-label="grade" value={form.grade} onChange={e => setForm({ ...form, grade: e.target.value })} className="h-10 rounded-xl border border-stone-200 bg-white px-3 text-sm">
                 <option value="">{isRTL ? "الصف" : "Grade"}</option>
                 {["1","2","3","4","5","6","7","8","9","10","11","12"].map(g => <option key={g} value={g}>{g}</option>)}
               </select>
@@ -915,16 +915,16 @@ function VideosTab({ teacherId, videos, isRTL, queryClient }) {
           <div className="space-y-3 p-1">
             <Input placeholder={isRTL ? "عنوان الفيديو *" : "Title *"} value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className="h-10 rounded-xl" />
             <Input placeholder="https://youtube.com/watch?v=..." value={form.youtube_url} onChange={e => setForm({ ...form, youtube_url: e.target.value })} className="h-10 rounded-xl" dir="ltr" />
-            <textarea placeholder={isRTL ? "الوصف" : "Description"} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="w-full h-16 rounded-xl border border-stone-200 p-3 text-sm" />
+            <textarea id="field-independentteacherportal-description" name="description" aria-label="description" placeholder={isRTL ? "الوصف" : "Description"} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="w-full h-16 rounded-xl border border-stone-200 p-3 text-sm" />
             <div className="grid grid-cols-2 gap-2">
               <Input placeholder={isRTL ? "المادة" : "Subject"} value={form.subject} onChange={e => setForm({ ...form, subject: e.target.value })} className="h-10 rounded-xl" />
-              <select value={form.grade} onChange={e => setForm({ ...form, grade: e.target.value })} className="h-10 rounded-xl border border-stone-200 bg-white px-3 text-sm">
+              <select id="field-independentteacherportal-grade" name="grade" aria-label="grade" value={form.grade} onChange={e => setForm({ ...form, grade: e.target.value })} className="h-10 rounded-xl border border-stone-200 bg-white px-3 text-sm">
                 <option value="">{isRTL ? "الصف" : "Grade"}</option>
                 {["1","2","3","4","5","6","7","8","9","10","11","12"].map(g => <option key={g} value={g}>{g}</option>)}
               </select>
             </div>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={form.is_hidden} onChange={e => setForm({ ...form, is_hidden: e.target.checked })} className="rounded" />
+            <label htmlFor="field-independentteacherportal-input-1" className="flex items-center gap-2 cursor-pointer">
+              <input id="field-independentteacherportal-input-1" name="input_1" aria-label="input 1" type="checkbox" checked={form.is_hidden} onChange={e => setForm({ ...form, is_hidden: e.target.checked })} className="rounded" />
               <span className="text-sm font-bold text-stone-700">{isRTL ? "مخفي عن الطلاب (معلمين فقط)" : "Hidden from students (teachers only)"}</span>
             </label>
           </div>

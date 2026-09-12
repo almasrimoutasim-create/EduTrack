@@ -1452,10 +1452,10 @@ ${certificatesHTML}
                 </div>
               )}
               <div className="flex-1 space-y-1">
-                <label className={`${btnOutline} h-8 px-2 text-[11px] w-full cursor-pointer`}>
+                <label htmlFor="field-printresults-input-4" className={`${btnOutline} h-8 px-2 text-[11px] w-full cursor-pointer`}>
                   <Upload size={12} />
                   <span>{isRTL ? "تغيير الشعار..." : "Upload Logo"}</span>
-                  <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
+                  <input id="field-printresults-input-4" name="input_4" aria-label="input 4" type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
                 </label>
                 {customLogo && (
                   <button onClick={() => setCustomLogo("")} className="text-[10px] text-rose-500 font-bold hover:underline block">
@@ -1490,8 +1490,8 @@ ${certificatesHTML}
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-stone-400 uppercase tracking-widest">{isRTL ? "أوجه الطباعة" : "Print Sides"}</label>
-            <select
+            <label htmlFor="field-printresults-select-3" className="text-xs font-bold text-stone-400 uppercase tracking-widest">{isRTL ? "أوجه الطباعة" : "Print Sides"}</label>
+            <select id="field-printresults-select-3" name="select_3" aria-label="select 3"
               value={printSide}
               onChange={(e) => setPrintSide(e.target.value)}
               className="bg-stone-50 border border-stone-200 rounded-xl h-9 px-3 text-xs font-bold focus:outline-none cursor-pointer"
@@ -1517,7 +1517,7 @@ ${certificatesHTML}
             />
           </div>
 
-          <select
+          <select id="field-printresults-select-2" name="select_2" aria-label="select 2"
             value={gradeFilter}
             onChange={(e) => { setGradeFilter(e.target.value); setSelectedStudents([]); }}
             className="bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-600/20 cursor-pointer"
@@ -1529,7 +1529,7 @@ ${certificatesHTML}
             ))}
           </select>
 
-          <select
+          <select id="field-printresults-select-1" name="select_1" aria-label="select 1"
             value={termFilter}
             onChange={(e) => setTermFilter(e.target.value)}
             className="bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-600/20 cursor-pointer"

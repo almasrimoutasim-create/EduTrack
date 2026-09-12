@@ -90,8 +90,8 @@ export default function CreatePostCard({ user, studentProfile, onPostCreated }) 
             <button className="cursor-pointer text-stone-400 hover:text-stone-900 hover:bg-stone-100 rounded-lg px-3 py-2 h-8 px-3 gap-1.5 text-muted-foreground" onClick={() => videoRef.current?.click()}>
               <Video className="h-4 w-4" /> Video
             </button>
-            <input ref={imageRef} type="file" accept="image/*" className="hidden" onChange={e => handleFileSelect(e, "image")} />
-            <input ref={videoRef} type="file" accept="video/*" className="hidden" onChange={e => handleFileSelect(e, "video")} />
+            <input id="field-createpostcard-input-2" name="input_2" aria-label="input 2" ref={imageRef} type="file" accept="image/*" className="hidden" onChange={e => handleFileSelect(e, "image")} />
+            <input id="field-createpostcard-input-1" name="input_1" aria-label="input 1" ref={videoRef} type="file" accept="video/*" className="hidden" onChange={e => handleFileSelect(e, "video")} />
           </div>
           <button onClick={handleSubmit} disabled={uploading || (!content.trim() && !mediaFile)} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed h-8 px-3 gap-1.5">
             {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}

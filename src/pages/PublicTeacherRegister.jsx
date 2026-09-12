@@ -107,40 +107,40 @@ export default function PublicTeacherRegister() {
           </div>
           <form onSubmit={handleSubmit} className="space-y-3">
             <div>
-              <label className="text-xs font-bold text-stone-600 mb-1 block">{isRTL ? "الاسم الكامل *" : "Full Name *"}</label>
-              <input value={form.full_name} onChange={e => update("full_name", e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-stone-200 text-sm focus:ring-2 focus:ring-purple-500 text-left" placeholder={isRTL ? "أدخل اسمك الكامل" : "Enter your full name"} />
+              <label htmlFor="field-publicteacherregister-full-name" className="text-xs font-bold text-stone-600 mb-1 block">{isRTL ? "الاسم الكامل *" : "Full Name *"}</label>
+              <input id="field-publicteacherregister-full-name" name="full_name" aria-label="full name" value={form.full_name} onChange={e => update("full_name", e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-stone-200 text-sm focus:ring-2 focus:ring-purple-500 text-left" placeholder={isRTL ? "أدخل اسمك الكامل" : "Enter your full name"} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-bold text-stone-600 mb-1 block">{isRTL ? "البريد الإلكتروني" : "Email"}</label>
-                <input type="email" value={form.email} onChange={e => update("email", e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-stone-200 text-sm focus:ring-2 focus:ring-purple-500 text-left" placeholder="teacher@email.com" />
+                <label htmlFor="field-publicteacherregister-email" className="text-xs font-bold text-stone-600 mb-1 block">{isRTL ? "البريد الإلكتروني" : "Email"}</label>
+                <input id="field-publicteacherregister-email" name="email" aria-label="email" type="email" value={form.email} onChange={e => update("email", e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-stone-200 text-sm focus:ring-2 focus:ring-purple-500 text-left" placeholder="teacher@email.com" />
               </div>
               <div>
-                <label className="text-xs font-bold text-stone-600 mb-1 block">{isRTL ? "رقم الهاتف" : "Phone"}</label>
-                <input value={form.phone} onChange={e => update("phone", e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-stone-200 text-sm focus:ring-2 focus:ring-purple-500 text-left" placeholder="0912345678" />
+                <label htmlFor="field-publicteacherregister-phone" className="text-xs font-bold text-stone-600 mb-1 block">{isRTL ? "رقم الهاتف" : "Phone"}</label>
+                <input id="field-publicteacherregister-phone" name="phone" aria-label="phone" value={form.phone} onChange={e => update("phone", e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-stone-200 text-sm focus:ring-2 focus:ring-purple-500 text-left" placeholder="0912345678" />
               </div>
             </div>
             <div>
-              <label className="text-xs font-bold text-stone-600 mb-1 block">{isRTL ? "المادة الدراسية" : "Subjects"}</label>
-              <input value={form.subjects} onChange={e => update("subjects", e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-stone-200 text-sm focus:ring-2 focus:ring-purple-500 text-left" placeholder={isRTL ? "مثال: رياضيات، علوم" : "e.g. Math, Science"} />
+              <label htmlFor="field-publicteacherregister-subjects" className="text-xs font-bold text-stone-600 mb-1 block">{isRTL ? "المادة الدراسية" : "Subjects"}</label>
+              <input id="field-publicteacherregister-subjects" name="subjects" aria-label="subjects" value={form.subjects} onChange={e => update("subjects", e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-stone-200 text-sm focus:ring-2 focus:ring-purple-500 text-left" placeholder={isRTL ? "مثال: رياضيات، علوم" : "e.g. Math, Science"} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-bold text-stone-600 mb-1 block">{isRTL ? "سنوات الخبرة" : "Experience Years"}</label>
-                <input type="number" min="0" value={form.experience_years} onChange={e => update("experience_years", e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-stone-200 text-sm focus:ring-2 focus:ring-purple-500 text-left" placeholder="5" />
+                <label htmlFor="field-publicteacherregister-experience-years" className="text-xs font-bold text-stone-600 mb-1 block">{isRTL ? "سنوات الخبرة" : "Experience Years"}</label>
+                <input id="field-publicteacherregister-experience-years" name="experience_years" aria-label="experience years" type="number" min="0" value={form.experience_years} onChange={e => update("experience_years", e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-stone-200 text-sm focus:ring-2 focus:ring-purple-500 text-left" placeholder="5" />
               </div>
               <div>
-                <label className="text-xs font-bold text-stone-600 mb-1 block">{isRTL ? "المدينة" : "City"}</label>
-                <input value={form.city} onChange={e => update("city", e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-stone-200 text-sm focus:ring-2 focus:ring-purple-500 text-left" placeholder={isRTL ? "الخرطوم" : "Khartoum"} />
+                <label htmlFor="field-publicteacherregister-city" className="text-xs font-bold text-stone-600 mb-1 block">{isRTL ? "المدينة" : "City"}</label>
+                <input id="field-publicteacherregister-city" name="city" aria-label="city" value={form.city} onChange={e => update("city", e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-stone-200 text-sm focus:ring-2 focus:ring-purple-500 text-left" placeholder={isRTL ? "الخرطوم" : "Khartoum"} />
               </div>
             </div>
             <div>
-              <label className="text-xs font-bold text-stone-600 mb-1 block">{isRTL ? "نبذة عنك" : "Bio"}</label>
-              <textarea value={form.bio} onChange={e => update("bio", e.target.value)} rows={2} className="w-full px-3 py-2.5 rounded-xl border border-stone-200 text-sm focus:ring-2 focus:ring-purple-500 text-left resize-none" placeholder={isRTL ? "خبراتك التعليمية..." : "Your teaching experience..."} />
+              <label htmlFor="field-publicteacherregister-bio" className="text-xs font-bold text-stone-600 mb-1 block">{isRTL ? "نبذة عنك" : "Bio"}</label>
+              <textarea id="field-publicteacherregister-bio" name="bio" aria-label="bio" value={form.bio} onChange={e => update("bio", e.target.value)} rows={2} className="w-full px-3 py-2.5 rounded-xl border border-stone-200 text-sm focus:ring-2 focus:ring-purple-500 text-left resize-none" placeholder={isRTL ? "خبراتك التعليمية..." : "Your teaching experience..."} />
             </div>
             <div>
-              <label className="text-xs font-bold text-stone-600 mb-1 block">{isRTL ? "ملاحظات" : "Notes"}</label>
-              <textarea value={form.notes} onChange={e => update("notes", e.target.value)} rows={2} className="w-full px-3 py-2.5 rounded-xl border border-stone-200 text-sm focus:ring-2 focus:ring-purple-500 text-left resize-none" placeholder={isRTL ? "ملاحظات إضافية" : "Additional notes"} />
+              <label htmlFor="field-publicteacherregister-notes" className="text-xs font-bold text-stone-600 mb-1 block">{isRTL ? "ملاحظات" : "Notes"}</label>
+              <textarea id="field-publicteacherregister-notes" name="notes" aria-label="notes" value={form.notes} onChange={e => update("notes", e.target.value)} rows={2} className="w-full px-3 py-2.5 rounded-xl border border-stone-200 text-sm focus:ring-2 focus:ring-purple-500 text-left resize-none" placeholder={isRTL ? "ملاحظات إضافية" : "Additional notes"} />
             </div>
             <button type="submit" disabled={loading} className="w-full py-3 rounded-xl font-bold text-sm bg-purple-600 text-white hover:bg-purple-700 transition disabled:opacity-50 flex items-center justify-center gap-2">
               {loading ? <Loader2 size={16} className="animate-spin" /> : <UserPlus size={16} />}

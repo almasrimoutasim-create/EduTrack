@@ -401,7 +401,7 @@ export default function AttendanceSummary() {
             </div>
 
             {/* Status Filter */}
-            <select
+            <select id="field-attendancesummary-select-2" name="select_2" aria-label="select 2"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
               className="h-9 rounded-xl border border-stone-200 bg-white text-xs font-bold px-3 text-stone-700 outline-none cursor-pointer"
@@ -415,7 +415,7 @@ export default function AttendanceSummary() {
 
             {/* Grade Filter (Student Tab Only) */}
             {activeTab === "students" && (
-              <select
+              <select id="field-attendancesummary-select-1" name="select_1" aria-label="select 1"
                 value={gradeFilter}
                 onChange={(e) => setGradeFilter(e.target.value)}
                 className="h-9 rounded-xl border border-stone-200 bg-white text-xs font-bold px-3 text-stone-700 outline-none cursor-pointer"

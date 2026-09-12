@@ -631,7 +631,7 @@ export default function TeacherPortal() {
                   
                   <div className="flex flex-wrap gap-3 w-full md:w-auto">
                     <div className="flex flex-col gap-1.5 min-w-[200px]">
-                      <select 
+                      <select id="field-teacherportal-select-9" name="select_9" aria-label="select 9" 
                         value={selectedClassId}
                         onChange={(e) => {
                           const val = e.target.value;
@@ -963,8 +963,8 @@ function AttendanceTabContent({ isRTL, classes, students, portalUser }) {
         <div className="flex flex-col sm:flex-row gap-4 items-end justify-between border-b border-stone-50 pb-6">
           <div className="flex flex-col sm:flex-row gap-4 flex-1">
             <div className="flex flex-col gap-1.5 flex-1 max-w-xs">
-              <label className="text-xs font-bold text-stone-400 uppercase tracking-widest">{isRTL ? "الفصل الدراسي" : "Class Section"}</label>
-              <select 
+              <label htmlFor="field-teacherportal-select-8" className="text-xs font-bold text-stone-400 uppercase tracking-widest">{isRTL ? "الفصل الدراسي" : "Class Section"}</label>
+              <select id="field-teacherportal-select-8" name="select_8" aria-label="select 8" 
                 value={selectedClassId}
                 onChange={(e) => {
                   setSelectedClassId(e.target.value);
@@ -982,8 +982,8 @@ function AttendanceTabContent({ isRTL, classes, students, portalUser }) {
             </div>
 
             <div className="flex flex-col gap-1.5 max-w-xs">
-              <label className="text-xs font-bold text-stone-400 uppercase tracking-widest">{isRTL ? "التاريخ" : "Date"}</label>
-              <input 
+              <label htmlFor="field-teacherportal-input-7" className="text-xs font-bold text-stone-400 uppercase tracking-widest">{isRTL ? "التاريخ" : "Date"}</label>
+              <input id="field-teacherportal-input-7" name="input_7" aria-label="input 7" 
                 type="date"
                 value={attendanceDate}
                 onChange={(e) => setAttendanceDate(e.target.value)}
@@ -1173,8 +1173,8 @@ function BadgesTabContent({ isRTL, classes, students, portalUser }) {
 
             <div className="space-y-4">
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-stone-400 uppercase tracking-widest">{isRTL ? "اختر الطالب" : "Select Student"}</label>
-                <select 
+                <label htmlFor="field-teacherportal-select-6" className="text-xs font-bold text-stone-400 uppercase tracking-widest">{isRTL ? "اختر الطالب" : "Select Student"}</label>
+                <select id="field-teacherportal-select-6" name="select_6" aria-label="select 6" 
                   value={selectedStudentId}
                   onChange={(e) => setSelectedStudentId(e.target.value)}
                   className="bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20"
@@ -1190,8 +1190,8 @@ function BadgesTabContent({ isRTL, classes, students, portalUser }) {
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-stone-400 uppercase tracking-widest">{isRTL ? "اختر الوسام" : "Choose Badge"}</label>
-                <select 
+                <label htmlFor="field-teacherportal-select-5" className="text-xs font-bold text-stone-400 uppercase tracking-widest">{isRTL ? "اختر الوسام" : "Choose Badge"}</label>
+                <select id="field-teacherportal-select-5" name="select_5" aria-label="select 5" 
                   value={badgeTitle}
                   onChange={(e) => setBadgeTitle(e.target.value)}
                   className="bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20"
@@ -1230,8 +1230,8 @@ function BadgesTabContent({ isRTL, classes, students, portalUser }) {
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-stone-400 uppercase tracking-widest">{isRTL ? "الوصف وأسباب منح الوسام" : "Honors Description & Motivation"}</label>
-                <textarea 
+                <label htmlFor="field-teacherportal-textarea-4" className="text-xs font-bold text-stone-400 uppercase tracking-widest">{isRTL ? "الوصف وأسباب منح الوسام" : "Honors Description & Motivation"}</label>
+                <textarea id="field-teacherportal-textarea-4" name="textarea_4" aria-label="textarea 4" 
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   rows={3}
@@ -1430,8 +1430,8 @@ function GradesTabContent({ isRTL, classes, students, portalUser }) {
         {/* Config controls */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 border-b border-stone-50 pb-6">
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-stone-400 uppercase tracking-widest">{isRTL ? "اختر الفصل" : "Class Section"}</label>
-            <select 
+            <label htmlFor="field-teacherportal-select-3" className="text-xs font-bold text-stone-400 uppercase tracking-widest">{isRTL ? "اختر الفصل" : "Class Section"}</label>
+            <select id="field-teacherportal-select-3" name="select_3" aria-label="select 3" 
               value={selectedClassId}
               onChange={(e) => {
                 setSelectedClassId(e.target.value);
@@ -1450,8 +1450,8 @@ function GradesTabContent({ isRTL, classes, students, portalUser }) {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-stone-400 uppercase tracking-widest">{isRTL ? "الفترة / الفصل الدراسي" : "Term"}</label>
-            <select 
+            <label htmlFor="field-teacherportal-select-2" className="text-xs font-bold text-stone-400 uppercase tracking-widest">{isRTL ? "الفترة / الفصل الدراسي" : "Term"}</label>
+            <select id="field-teacherportal-select-2" name="select_2" aria-label="select 2" 
               value={term}
               onChange={(e) => setTerm(e.target.value)}
               className="bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20"
@@ -1734,8 +1734,8 @@ function TeacherRequestsView({ isRTL, portalUser, teacherId }) {
           </DialogHeader>
           <form onSubmit={handleCreateRequest} className="space-y-4 mt-2">
             <div className="space-y-1">
-              <label className="text-xs font-bold text-stone-500">{isRTL ? "نوع الطلب" : "Request Type"}</label>
-              <select 
+              <label htmlFor="field-teacherportal-select-1" className="text-xs font-bold text-stone-500">{isRTL ? "نوع الطلب" : "Request Type"}</label>
+              <select id="field-teacherportal-select-1" name="select_1" aria-label="select 1" 
                 value={newReqType} 
                 onChange={(e) => setNewReqType(e.target.value)}
                 className="w-full bg-white border border-stone-200 rounded-xl h-10 px-3 text-xs font-bold text-stone-700 outline-none"

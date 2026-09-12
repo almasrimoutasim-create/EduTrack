@@ -117,11 +117,11 @@ export default function BulkUploadDialog({ open, onClose }) {
               <Button variant="outline" onClick={downloadTemplate} className="gap-2">
                 <Download className="h-4 w-4" /> Download Template
               </Button>
-              <label className="cursor-pointer">
+              <label htmlFor="field-bulkuploaddialog-input-1" className="cursor-pointer">
                 <Button asChild className="gap-2">
                   <span><Upload className="h-4 w-4" /> Choose CSV File</span>
                 </Button>
-                <input type="file" accept=".csv" className="hidden" onChange={handleFile} />
+                <input id="field-bulkuploaddialog-input-1" name="input_1" aria-label="input 1" type="file" accept=".csv" className="hidden" onChange={handleFile} />
               </label>
             </div>
             <div className="bg-muted/40 rounded-lg p-4 text-xs text-muted-foreground space-y-1">

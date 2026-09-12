@@ -1081,7 +1081,7 @@ export default function Finance() {
                   onChange={e => setSearchTerm(e.target.value)}
                 />
               </div>
-              <select
+              <select id="field-finance-select-25" name="select_25" aria-label="select 25"
                 value={gradeFilter}
                 onChange={e => setGradeFilter(e.target.value)}
                 className="bg-stone-50 border border-stone-200 rounded-xl h-11 px-4 text-xs font-semibold focus:outline-none"
@@ -1091,7 +1091,7 @@ export default function Finance() {
                   <option key={g} value={g}>الصف {g}</option>
                 ))}
               </select>
-              <select
+              <select id="field-finance-select-24" name="select_24" aria-label="select 24"
                 value={statusFilter}
                 onChange={e => setStatusFilter(e.target.value)}
                 className="bg-stone-50 border border-stone-200 rounded-xl h-11 px-4 text-xs font-semibold focus:outline-none"
@@ -1175,7 +1175,7 @@ export default function Finance() {
               <form onSubmit={handleAddFeeSubmit} className="space-y-4 pt-3">
                 <div className="space-y-1.5">
                   <Label>اختر هيكل تسعيرة جاهزة (اختياري)</Label>
-                  <select
+                  <select id="field-finance-select-23" name="select_23" aria-label="select 23"
                     value={selectedStructureId}
                     onChange={e => setSelectedStructureId(e.target.value)}
                     className="w-full bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 focus:outline-none"
@@ -1207,7 +1207,7 @@ export default function Finance() {
 
                 <div className="space-y-1.5">
                   <Label>خطة الدفع</Label>
-                  <select
+                  <select id="field-finance-select-22" name="select_22" aria-label="select 22"
                     value={feePaymentPlan}
                     onChange={e => setFeePaymentPlan(e.target.value)}
                     className="w-full bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 focus:outline-none"
@@ -1246,7 +1246,7 @@ export default function Finance() {
               <form onSubmit={handleRecordPaymentSubmit} className="space-y-4 pt-3">
                 <div className="space-y-1.5">
                   <Label>الرسوم المستهدفة</Label>
-                  <select
+                  <select id="field-finance-select-21" name="select_21" aria-label="select 21"
                     value={selectedFeeId}
                     onChange={e => setSelectedFeeId(e.target.value)}
                     className="w-full bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 focus:outline-none"
@@ -1265,7 +1265,7 @@ export default function Finance() {
 
                 <div className="space-y-1.5">
                   <Label>طريقة الدفع</Label>
-                  <select
+                  <select id="field-finance-select-20" name="select_20" aria-label="select 20"
                     value={paymentMethod}
                     onChange={e => setPaymentMethod(e.target.value)}
                     className="w-full bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 focus:outline-none"
@@ -1386,7 +1386,7 @@ export default function Finance() {
               }} className="space-y-4 pt-3">
                 <div className="space-y-1.5">
                   <Label>الصف المستهدف</Label>
-                  <select value={newStructGrade} onChange={e => setNewStructGrade(e.target.value)} className="w-full bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 focus:outline-none">
+                  <select id="field-finance-select-19" name="select_19" aria-label="select 19" value={newStructGrade} onChange={e => setNewStructGrade(e.target.value)} className="w-full bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 focus:outline-none">
                     {Array.from({ length: 12 }, (_, i) => i + 1).map(n => (
                       <option key={n} value={n.toString()}>الصف {n}</option>
                     ))}
@@ -1431,7 +1431,7 @@ export default function Finance() {
               }} className="space-y-4 pt-3">
                 <div className="space-y-1.5">
                   <Label>الصف المستهدف</Label>
-                  <select value={editStructGrade} onChange={e => setEditStructGrade(e.target.value)} className="w-full bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 focus:outline-none">
+                  <select id="field-finance-select-18" name="select_18" aria-label="select 18" value={editStructGrade} onChange={e => setEditStructGrade(e.target.value)} className="w-full bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 focus:outline-none">
                     {Array.from({ length: 12 }, (_, i) => i + 1).map(n => (
                       <option key={n} value={n.toString()}>الصف {n}</option>
                     ))}
@@ -1565,7 +1565,7 @@ export default function Finance() {
                 </div>
                 <div className="space-y-1.5">
                   <Label>الصف المستهدف</Label>
-                  <select
+                  <select id="field-finance-select-17" name="select_17" aria-label="select 17"
                     value={actGradeLevel}
                     onChange={e => setActGradeLevel(e.target.value)}
                     className="w-full bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 focus:outline-none"
@@ -1655,7 +1655,7 @@ export default function Finance() {
                           </Badge>
                         </td>
                         <td className="py-4 text-left">
-                          <select
+                          <select id="field-finance-status" name="status" aria-label="status"
                             value={r.status}
                             onChange={(e) => updateRentalMutation.mutate({ id: r.id, status: e.target.value })}
                             className="bg-stone-50 border border-stone-200 text-xs rounded-lg px-2 py-1 font-bold focus:outline-none"
@@ -1780,7 +1780,7 @@ export default function Finance() {
                 </div>
                 <div className="space-y-1.5">
                   <Label>طريقة الدفع</Label>
-                  <select value={rentalMethod} onChange={e => setRentalMethod(e.target.value)} className="w-full bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 focus:outline-none">
+                  <select id="field-finance-select-15" name="select_15" aria-label="select 15" value={rentalMethod} onChange={e => setRentalMethod(e.target.value)} className="w-full bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 focus:outline-none">
                     <option value="cash">نقداً (كاش)</option>
                     <option value="bank">تحويل بنكي</option>
                   </select>
@@ -1833,7 +1833,7 @@ export default function Finance() {
                 </div>
                 <div className="space-y-1.5">
                   <Label>طريقة الدفع</Label>
-                  <select value={donationMethod} onChange={e => setDonationMethod(e.target.value)} className="w-full bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 focus:outline-none">
+                  <select id="field-finance-select-14" name="select_14" aria-label="select 14" value={donationMethod} onChange={e => setDonationMethod(e.target.value)} className="w-full bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 focus:outline-none">
                     <option value="cash">نقداً (كاش)</option>
                     <option value="bank">تحويل بنكي</option>
                   </select>
@@ -1872,7 +1872,7 @@ export default function Finance() {
                 </div>
                 <div className="space-y-1.5">
                   <Label>طريقة الدفع</Label>
-                  <select value={otherRevMethod} onChange={e => setOtherRevMethod(e.target.value)} className="w-full bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 focus:outline-none">
+                  <select id="field-finance-select-13" name="select_13" aria-label="select 13" value={otherRevMethod} onChange={e => setOtherRevMethod(e.target.value)} className="w-full bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 focus:outline-none">
                     <option value="cash">نقداً (كاش)</option>
                     <option value="bank">تحويل بنكي</option>
                   </select>
@@ -1908,7 +1908,7 @@ export default function Finance() {
             <div className="space-y-6">
               <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
                 <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-                  <select
+                  <select id="field-finance-select-12" name="select_12" aria-label="select 12"
                     value={expCatFilter}
                     onChange={e => setExpCatFilter(e.target.value)}
                     className="bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 text-xs font-semibold focus:outline-none"
@@ -2049,7 +2049,7 @@ export default function Finance() {
               }} className="space-y-4 pt-3">
                 <div className="space-y-1.5">
                   <Label>الفئة المالية</Label>
-                  <select value={expCat} onChange={e => setExpCat(e.target.value)} className="w-full bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 focus:outline-none">
+                  <select id="field-finance-select-11" name="select_11" aria-label="select 11" value={expCat} onChange={e => setExpCat(e.target.value)} className="w-full bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 focus:outline-none">
                     {Object.entries(EXPENSE_CATS).filter(([k]) => k !== 'salaries').map(([k, v]) => (
                       <option key={k} value={k}>{v.label}</option>
                     ))}
@@ -2073,7 +2073,7 @@ export default function Finance() {
                 </div>
                 <div className="space-y-1.5">
                   <Label>طريقة الدفع</Label>
-                  <select value={expMethod} onChange={e => setExpMethod(e.target.value)} className="w-full bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 focus:outline-none">
+                  <select id="field-finance-select-10" name="select_10" aria-label="select 10" value={expMethod} onChange={e => setExpMethod(e.target.value)} className="w-full bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 focus:outline-none">
                     <option value="cash">نقداً (كاش)</option>
                     <option value="bank">تحويل بنكي</option>
                   </select>
@@ -2096,7 +2096,7 @@ export default function Finance() {
               <form onSubmit={handleCreateSalary} className="space-y-4 pt-3">
                 <div className="space-y-1.5">
                   <Label>فئة الوظيفية</Label>
-                  <select value={empType} onChange={e => { setEmpType(e.target.value); setSelectedEmpId(""); }} className="w-full bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 focus:outline-none">
+                  <select id="field-finance-select-9" name="select_9" aria-label="select 9" value={empType} onChange={e => { setEmpType(e.target.value); setSelectedEmpId(""); }} className="w-full bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 focus:outline-none">
                     <option value="teacher">معلم / كادر أكاديمي</option>
                     <option value="staff">موظف / كادر إداري</option>
                   </select>
@@ -2104,7 +2104,7 @@ export default function Finance() {
 
                 <div className="space-y-1.5">
                   <Label>اسم الموظف</Label>
-                  <select value={selectedEmpId} onChange={e => setSelectedEmpId(e.target.value)} className="w-full bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 focus:outline-none" required>
+                  <select id="field-finance-select-8" name="select_8" aria-label="select 8" value={selectedEmpId} onChange={e => setSelectedEmpId(e.target.value)} className="w-full bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 focus:outline-none" required>
                     <option value="">اختر الموظف...</option>
                     {empType === 'teacher' ? (
                       teachers.map(t => <option key={t.id} value={t.id}>{t.full_name}</option>)
@@ -2141,7 +2141,7 @@ export default function Finance() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label>الشهر</Label>
-                    <select value={salMonth} onChange={e => setSalMonth(e.target.value)} className="w-full bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 focus:outline-none">
+                    <select id="field-finance-select-7" name="select_7" aria-label="select 7" value={salMonth} onChange={e => setSalMonth(e.target.value)} className="w-full bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 focus:outline-none">
                       {['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'].map(m => (
                         <option key={m} value={m}>{m}</option>
                       ))}
@@ -2149,7 +2149,7 @@ export default function Finance() {
                   </div>
                   <div className="space-y-1.5">
                     <Label>السنة</Label>
-                    <select value={salYear} onChange={e => setSalYear(e.target.value)} className="w-full bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 focus:outline-none">
+                    <select id="field-finance-select-6" name="select_6" aria-label="select 6" value={salYear} onChange={e => setSalYear(e.target.value)} className="w-full bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 focus:outline-none">
                       <option value="2025">2025</option>
                       <option value="2026">2026</option>
                     </select>
@@ -2158,7 +2158,7 @@ export default function Finance() {
 
                 <div className="space-y-1.5">
                   <Label>طريقة الصرف</Label>
-                  <select value={salMethod} onChange={e => setSalMethod(e.target.value)} className="w-full bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 focus:outline-none">
+                  <select id="field-finance-select-5" name="select_5" aria-label="select 5" value={salMethod} onChange={e => setSalMethod(e.target.value)} className="w-full bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 focus:outline-none">
                     <option value="bank">تحويل بنكي</option>
                     <option value="cash">صرف نقدي</option>
                   </select>
@@ -2217,7 +2217,7 @@ export default function Finance() {
 
           <div className="flex justify-start items-center gap-2">
             <Label className="text-stone-500 font-bold">فلتر الحالة:</Label>
-            <select
+            <select id="field-finance-select-4" name="select_4" aria-label="select 4"
               value={poStatusFilter}
               onChange={e => setPoStatusFilter(e.target.value)}
               className="bg-stone-50 border border-stone-200 text-xs rounded-xl h-9 px-3 focus:outline-none font-bold"
@@ -2315,7 +2315,7 @@ export default function Finance() {
               <form onSubmit={handleCreatePO} className="space-y-4 pt-3">
                 <div className="space-y-1.5">
                   <Label>الفئة المالية</Label>
-                  <select value={poCat} onChange={e => setPoCat(e.target.value)} className="w-full bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 focus:outline-none">
+                  <select id="field-finance-select-3" name="select_3" aria-label="select 3" value={poCat} onChange={e => setPoCat(e.target.value)} className="w-full bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 focus:outline-none">
                     {Object.entries(EXPENSE_CATS).filter(([k]) => k !== 'salaries').map(([k, v]) => (
                       <option key={k} value={k}>{v.label}</option>
                     ))}
@@ -2520,7 +2520,7 @@ export default function Finance() {
               <div className="space-y-4 pt-3">
                 <div className="space-y-1.5">
                   <Label>اسم الطالب</Label>
-                  <select
+                  <select id="field-finance-select-2" name="select_2" aria-label="select 2"
                     value={reportStudentId}
                     onChange={e => setReportStudentId(e.target.value)}
                     className="w-full bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 focus:outline-none"
@@ -2549,7 +2549,7 @@ export default function Finance() {
               <div className="space-y-4 pt-3">
                 <div className="space-y-1.5">
                   <Label>الشهر</Label>
-                  <select
+                  <select id="field-finance-select-1" name="select_1" aria-label="select 1"
                     value={reportMonth}
                     onChange={e => setReportMonth(parseInt(e.target.value))}
                     className="w-full bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 focus:outline-none"

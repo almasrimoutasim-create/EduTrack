@@ -125,7 +125,7 @@ export default function PortalActivityFeed({ me }) {
               <button onClick={() => fileRef.current?.click()} className="text-muted-foreground hover:text-foreground">
                 <Video className="h-4 w-4" />
               </button>
-              <input ref={fileRef} type="file" accept="image/*,video/*" className="hidden" onChange={handleFileSelect} />
+              <input id="field-portalactivityfeed-input-2" name="input_2" aria-label="input 2" ref={fileRef} type="file" accept="image/*,video/*" className="hidden" onChange={handleFileSelect} />
             </div>
             <button className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed h-8 px-3 gap-1.5" onClick={submit} disabled={uploading || (!content.trim() && !mediaFile)}>
               <Send className="h-3.5 w-3.5" /> {uploading ? "Posting..." : "Post"}
@@ -205,7 +205,7 @@ export default function PortalActivityFeed({ me }) {
                     </div>
                   ))}
                   <div className="flex gap-2 mt-2">
-                    <input
+                    <input id="field-portalactivityfeed-write-a-comment" name="write_a_comment" aria-label="Write a comment..."
                       className="flex-1 text-sm border rounded-full px-3 py-1 bg-background outline-none focus:ring-1 focus:ring-ring"
                       placeholder="Write a comment..."
                       value={commentInputs[post.id] || ""}

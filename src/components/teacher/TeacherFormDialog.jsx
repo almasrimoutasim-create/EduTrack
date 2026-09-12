@@ -150,8 +150,8 @@ export default function TeacherFormDialog({ open, onClose, teacher }) {
                     : [];
                   const isChecked = currentSubjects.includes(s.name);
                   return (
-                    <label key={s.id} className="flex items-center gap-2 cursor-pointer text-sm font-medium text-stone-700">
-                      <input 
+                    <label htmlFor="field-teacherformdialog-input-1" key={s.id} className="flex items-center gap-2 cursor-pointer text-sm font-medium text-stone-700">
+                      <input id="field-teacherformdialog-input-1" name="input_1" aria-label="input 1" 
                         type="checkbox" 
                         checked={isChecked} 
                         onChange={e => handleSubjectCheckboxChange(s.name, e.target.checked)}

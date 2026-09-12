@@ -162,10 +162,10 @@ export default function StudentPortal() {
               )}
 
               <div>
-                <label className="block text-sm font-bold text-stone-700 mb-1.5">
+                <label htmlFor="field-enhancedstudentportal-input-6" className="block text-sm font-bold text-stone-700 mb-1.5">
                   {isRTL ? "البريد الإلكتروني أو الرقم الأكاديمي" : "Email or Student ID"}
                 </label>
-                <input
+                <input id="field-enhancedstudentportal-input-6" name="input_6" aria-label="input 6"
                   type="text"
                   value={loginEmail}
                   onChange={(e) => setLoginEmail(e.target.value)}
@@ -176,11 +176,11 @@ export default function StudentPortal() {
               </div>
 
               <div>
-                <label className="block text-sm font-bold text-stone-700 mb-1.5">
+                <label htmlFor="field-enhancedstudentportal-input-5" className="block text-sm font-bold text-stone-700 mb-1.5">
                   {isRTL ? "كلمة المرور" : "Password"}
                 </label>
                 <div className="relative">
-                  <input
+                  <input id="field-enhancedstudentportal-input-5" name="input_5" aria-label="input 5"
                     type={showLoginPassword ? "text" : "password"}
                     value={loginPassword}
                     onChange={(e) => setLoginPassword(e.target.value)}
@@ -498,7 +498,7 @@ function AssignmentsTab({ assignments, mySubmissions, studentId, isRTL, queryCli
         <DialogContent className="max-w-md rounded-[24px]" dir="rtl">
           <DialogHeader><DialogTitle className="font-black">{isRTL ? "تسليم الواجب" : "Submit Assignment"}</DialogTitle></DialogHeader>
           <div className="space-y-3 p-1">
-            <textarea placeholder={isRTL ? "اكتب إجابتك هنا..." : "Write your answer here..."} value={answer} onChange={e => setAnswer(e.target.value)}
+            <textarea id="field-enhancedstudentportal-write-your-answer-here" name="write_your_answer_here" aria-label="write your answer here" placeholder={isRTL ? "اكتب إجابتك هنا..." : "Write your answer here..."} value={answer} onChange={e => setAnswer(e.target.value)}
               className="w-full h-32 rounded-xl border border-stone-200 p-3 text-sm" />
           </div>
           <DialogFooter className="gap-2">
@@ -587,13 +587,13 @@ function ExamsTab({ exams, mySubmissions, studentId, isRTL, queryClient }) {
               <div key={i} className="p-3 bg-stone-50 rounded-xl">
                 <div className="text-sm font-bold text-stone-900 mb-2">{i + 1}. {q.question}</div>
                 {q.type === "multiple_choice" && q.options?.map((opt, j) => (
-                  <label key={j} className="flex items-center gap-2 p-2 rounded-lg hover:bg-stone-100 cursor-pointer text-sm">
-                    <input type="radio" name={`q${i}`} checked={answers[i] === j} onChange={() => setAnswers({ ...answers, [i]: j })} className="text-blue-600" />
+                  <label htmlFor="field-enhancedstudentportal-input-3" key={j} className="flex items-center gap-2 p-2 rounded-lg hover:bg-stone-100 cursor-pointer text-sm">
+                    <input id="field-enhancedstudentportal-input-3" aria-label="input 3" type="radio" name={`q${i}`} checked={answers[i] === j} onChange={() => setAnswers({ ...answers, [i]: j })} className="text-blue-600" />
                     <span className="text-stone-700">{opt}</span>
                   </label>
                 ))}
                 {(q.type === "text" || !q.options) && (
-                  <textarea placeholder={isRTL ? "إجابتك..." : "Your answer..."} value={answers[i] || ""} onChange={e => setAnswers({ ...answers, [i]: e.target.value })}
+                  <textarea id="field-enhancedstudentportal-value-answers-i" name="value_answers_i" aria-label="value answers i" placeholder={isRTL ? "إجابتك..." : "Your answer..."} value={answers[i] || ""} onChange={e => setAnswers({ ...answers, [i]: e.target.value })}
                     className="w-full h-20 rounded-xl border border-stone-200 p-2 text-sm mt-2" />
                 )}
               </div>
@@ -727,7 +727,7 @@ function CurriculumTab({ books, isRTL }) {
         <div className="flex-1 min-w-[200px]">
           <Input placeholder={isRTL ? "بحث بالاسم أو المادة..." : "Search by title or subject..."} value={search} onChange={e => setSearch(e.target.value)} className="h-10 rounded-xl" prefix={<Search size={14} />} />
         </div>
-        <select value={gradeFilter} onChange={e => setGradeFilter(e.target.value)} className="h-10 rounded-xl border border-stone-200 bg-white px-3 text-sm">
+        <select id="field-enhancedstudentportal-select-1" name="select_1" aria-label="select 1" value={gradeFilter} onChange={e => setGradeFilter(e.target.value)} className="h-10 rounded-xl border border-stone-200 bg-white px-3 text-sm">
           <option value="">{isRTL ? "جميع الصفوف" : "All Grades"}</option>
           {["1","2","3","4","5","6","7","8","9","10","11","12"].map(g => <option key={g} value={g}>{isRTL ? `صف ${g}` : `Grade ${g}`}</option>)}
         </select>

@@ -1563,8 +1563,8 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
                           <form onSubmit={handleAddFine} className="space-y-4">
                             
                             <div>
-                              <label className="block text-xs font-bold text-stone-600 mb-1.5">{isRTL ? "الفئة / القسم *" : "Category *"}</label>
-                              <select 
+                              <label htmlFor="field-adminstudentprofile-select-6" className="block text-xs font-bold text-stone-600 mb-1.5">{isRTL ? "الفئة / القسم *" : "Category *"}</label>
+                              <select id="field-adminstudentprofile-select-6" name="select_6" aria-label="select 6" 
                                 value={fineCategory} 
                                 onChange={(e) => setFineCategory(e.target.value)}
                                 className="w-full h-11 px-3 rounded-xl border border-stone-200 bg-white text-stone-800 font-medium focus:border-primary focus:outline-none text-sm cursor-pointer"
@@ -1577,8 +1577,8 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
                             </div>
 
                             <div>
-                              <label className="block text-xs font-bold text-stone-650 mb-1.5">{isRTL ? "السبب / نوع المستحق *" : "Reason / Type *"}</label>
-                              <input 
+                              <label htmlFor="field-adminstudentprofile-input-5" className="block text-xs font-bold text-stone-650 mb-1.5">{isRTL ? "السبب / نوع المستحق *" : "Reason / Type *"}</label>
+                              <input id="field-adminstudentprofile-input-5" name="input_5" aria-label="input 5" 
                                 type="text"
                                 value={fineReason}
                                 onChange={(e) => setFineReason(e.target.value)}
@@ -1590,8 +1590,8 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
 
                             <div className="grid grid-cols-2 gap-3.5">
                               <div>
-                                <label className="block text-xs font-bold text-stone-650 mb-1.5">{isRTL ? "المبلغ ($) *" : "Amount ($) *"}</label>
-                                <input 
+                                <label htmlFor="field-adminstudentprofile-input-4" className="block text-xs font-bold text-stone-650 mb-1.5">{isRTL ? "المبلغ ($) *" : "Amount ($) *"}</label>
+                                <input id="field-adminstudentprofile-input-4" name="input_4" aria-label="input 4" 
                                   type="number"
                                   min="0"
                                   step="0.01"
@@ -1603,8 +1603,8 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
                                 />
                               </div>
                               <div>
-                                <label className="block text-xs font-bold text-stone-650 mb-1.5">{isRTL ? "التاريخ *" : "Date *"}</label>
-                                <input 
+                                <label htmlFor="field-adminstudentprofile-input-3" className="block text-xs font-bold text-stone-650 mb-1.5">{isRTL ? "التاريخ *" : "Date *"}</label>
+                                <input id="field-adminstudentprofile-input-3" name="input_3" aria-label="input 3" 
                                   type="date"
                                   value={fineDate}
                                   onChange={(e) => setFineDate(e.target.value)}
@@ -1615,8 +1615,8 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
                             </div>
 
                             <div>
-                              <label className="block text-xs font-bold text-stone-650 mb-1.5">{isRTL ? "مُصدر الغرامة / بواسطة" : "Issued By"}</label>
-                              <input 
+                              <label htmlFor="field-adminstudentprofile-input-2" className="block text-xs font-bold text-stone-650 mb-1.5">{isRTL ? "مُصدر الغرامة / بواسطة" : "Issued By"}</label>
+                              <input id="field-adminstudentprofile-input-2" name="input_2" aria-label="input 2" 
                                 type="text"
                                 value={fineIssuedBy}
                                 onChange={(e) => setFineIssuedBy(e.target.value)}
@@ -1626,8 +1626,8 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
                             </div>
 
                             <div>
-                              <label className="block text-xs font-bold text-stone-650 mb-1.5">{isRTL ? "تفاصيل إضافية / ملاحظات" : "Additional Notes"}</label>
-                              <textarea 
+                              <label htmlFor="field-adminstudentprofile-textarea-1" className="block text-xs font-bold text-stone-650 mb-1.5">{isRTL ? "تفاصيل إضافية / ملاحظات" : "Additional Notes"}</label>
+                              <textarea id="field-adminstudentprofile-textarea-1" name="textarea_1" aria-label="textarea 1" 
                                 value={fineNotes}
                                 onChange={(e) => setFineNotes(e.target.value)}
                                 placeholder={isRTL ? "تفاصيل إضافية حول التلفيات أو التوقيت..." : "Details about damages, library book overdue days..."}

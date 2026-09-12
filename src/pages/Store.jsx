@@ -352,8 +352,8 @@ export default function Store() {
 
               {role === "parent" && children.length > 0 && (
                 <div className="space-y-1.5 mt-2">
-                  <label className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">{isRTL ? "الابن النشط:" : "Active Child:"}</label>
-                  <select
+                  <label htmlFor="field-store-select-1" className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">{isRTL ? "الابن النشط:" : "Active Child:"}</label>
+                  <select id="field-store-select-1" name="select_1" aria-label="select 1"
                     value={selectedStudentId || ""}
                     onChange={e => setSelectedStudentId(e.target.value)}
                     className="w-full h-11 px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-teal-500/20 cursor-pointer"

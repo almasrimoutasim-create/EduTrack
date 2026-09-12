@@ -147,7 +147,7 @@ export default function CounselingDashboard() {
             />
           </div>
 
-          <select
+          <select id="field-counselingdashboard-select-3" name="select_3" aria-label="select 3"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             className="h-11 px-3 border border-stone-200 rounded-xl text-sm font-semibold focus:outline-none bg-white"
@@ -158,7 +158,7 @@ export default function CounselingDashboard() {
             <option value="closed">مغلقة</option>
           </select>
 
-          <select
+          <select id="field-counselingdashboard-select-2" name="select_2" aria-label="select 2"
             value={riskFilter}
             onChange={(e) => setRiskFilter(e.target.value)}
             className="h-11 px-3 border border-stone-200 rounded-xl text-sm font-semibold focus:outline-none bg-white"
@@ -170,7 +170,7 @@ export default function CounselingDashboard() {
             <option value="critical">حرج</option>
           </select>
 
-          <select
+          <select id="field-counselingdashboard-select-1" name="select_1" aria-label="select 1"
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
             className="h-11 px-3 border border-stone-200 rounded-xl text-sm font-semibold focus:outline-none bg-white"

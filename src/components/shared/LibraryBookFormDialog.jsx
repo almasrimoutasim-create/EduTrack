@@ -242,7 +242,7 @@ export default function LibraryBookFormDialog({ open, onClose, book }) {
               
               <div className="flex-1">
                 <div className="relative border-2 border-dashed border-stone-200 hover:border-primary/50 transition-colors rounded-xl p-4 flex flex-col items-center justify-center bg-stone-50/50 cursor-pointer">
-                  <input 
+                  <input id="field-librarybookformdialog-input-2" name="input_2" aria-label="input 2" 
                     type="file" 
                     accept="application/pdf" 
                     onChange={handleFileUpload} 
@@ -291,7 +291,7 @@ export default function LibraryBookFormDialog({ open, onClose, book }) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label className="text-stone-700 font-semibold">{t.subject}</Label>
-              <select 
+              <select id="field-librarybookformdialog-select-1" name="select_1" aria-label="select 1" 
                 value={form.subject_id || ""} 
                 onChange={e => handleSubjectChange(e.target.value)}
                 className="w-full mt-1 h-10 rounded-lg border border-stone-200 bg-white text-xs font-semibold px-3 text-stone-700 outline-none cursor-pointer"

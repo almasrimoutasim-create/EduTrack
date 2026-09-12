@@ -1721,8 +1721,8 @@ export default function StudentPortal() {
                     {q.type === "mcq" && (
                       <div className="grid grid-cols-1 gap-2 pt-2">
                         {q.options.map((opt, oIdx) => (
-                          <label key={oIdx} className={`flex items-center gap-3 p-2 rounded-lg transition-colors border border-transparent ${isViewOnly ? 'opacity-70' : 'cursor-pointer hover:bg-white hover:border-stone-100'}`}>
-                            <input 
+                          <label htmlFor="field-studentportal-input-2" key={oIdx} className={`flex items-center gap-3 p-2 rounded-lg transition-colors border border-transparent ${isViewOnly ? 'opacity-70' : 'cursor-pointer hover:bg-white hover:border-stone-100'}`}>
+                            <input id="field-studentportal-input-2" aria-label="input 2" 
                               type="radio" 
                               name={q.id}
                               value={opt}
@@ -1741,8 +1741,8 @@ export default function StudentPortal() {
                     {q.type === "checkbox" && (
                       <div className="grid grid-cols-1 gap-2 pt-2">
                         {q.options.map((opt, oIdx) => (
-                          <label key={oIdx} className={`flex items-center gap-3 p-2 rounded-lg transition-colors border border-transparent ${isViewOnly ? 'opacity-70' : 'cursor-pointer hover:bg-white hover:border-stone-100'}`}>
-                            <input 
+                          <label htmlFor="field-studentportal-input-1" key={oIdx} className={`flex items-center gap-3 p-2 rounded-lg transition-colors border border-transparent ${isViewOnly ? 'opacity-70' : 'cursor-pointer hover:bg-white hover:border-stone-100'}`}>
+                            <input id="field-studentportal-input-1" name="input_1" aria-label="input 1" 
                               type="checkbox"
                               checked={(answers[q.id] || []).includes(opt)}
                               onChange={e => !isViewOnly && handleCheckboxChange(q.id, opt, e.target.checked)}

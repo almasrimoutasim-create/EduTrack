@@ -800,8 +800,8 @@ export default function VirtualClassroom() {
                     <Input placeholder={isRTL ? "مثال: مراجعة الجبر" : "e.g. Algebra Review"} value={newSession.title} onChange={(e) => setNewSession({ ...newSession, title: e.target.value })} className="!bg-stone-850 !text-white border-white/5 text-xs rounded-xl" style={{ backgroundColor: "#1c1917", color: "#ffffff" }} />
                   </div>
                   <div>
-                    <label className="text-[10px] font-bold text-stone-200 uppercase block mb-1.5">{isRTL ? "المادة الدراسية" : "Subject"}</label>
-                    <select value={newSession.subject_id} onChange={(e) => setNewSession({ ...newSession, subject_id: e.target.value })} className="w-full border border-white/5 text-xs text-white rounded-xl p-2.5 focus:outline-none" style={{ backgroundColor: "#1c1917", color: "#ffffff" }}>
+                    <label htmlFor="field-virtualclassroom-subject-id" className="text-[10px] font-bold text-stone-200 uppercase block mb-1.5">{isRTL ? "المادة الدراسية" : "Subject"}</label>
+                    <select id="field-virtualclassroom-subject-id" name="subject_id" aria-label="subject id" value={newSession.subject_id} onChange={(e) => setNewSession({ ...newSession, subject_id: e.target.value })} className="w-full border border-white/5 text-xs text-white rounded-xl p-2.5 focus:outline-none" style={{ backgroundColor: "#1c1917", color: "#ffffff" }}>
                       <option value="">{isRTL ? "اختر المادة..." : "Select Subject..."}</option>
                       {teacherSubjects.map((sub) => <option key={sub.id} value={sub.id} style={{ backgroundColor: "#1c1917" }}>{sub.name} ({sub.grade || "عام"})</option>)}
                     </select>
@@ -838,20 +838,20 @@ export default function VirtualClassroom() {
                     <Input placeholder={isRTL ? "مثال: مقدمة في الخوارزميات" : "e.g. Intro to Algorithms"} value={newSession.title} onChange={(e) => setNewSession({ ...newSession, title: e.target.value })} className="!bg-stone-850 !text-white border-white/5 text-xs rounded-xl" style={{ backgroundColor: "#1c1917", color: "#ffffff" }} />
                   </div>
                   <div>
-                    <label className="text-[10px] font-bold text-stone-200 uppercase block mb-1.5">{isRTL ? "المادة الدراسية" : "Subject"}</label>
-                    <select value={newSession.subject_id} onChange={(e) => setNewSession({ ...newSession, subject_id: e.target.value })} className="w-full border border-white/5 text-xs text-white rounded-xl p-2.5 focus:outline-none" style={{ backgroundColor: "#1c1917", color: "#ffffff" }}>
+                    <label htmlFor="field-virtualclassroom-subject-id" className="text-[10px] font-bold text-stone-200 uppercase block mb-1.5">{isRTL ? "المادة الدراسية" : "Subject"}</label>
+                    <select id="field-virtualclassroom-subject-id" name="subject_id" aria-label="subject id" value={newSession.subject_id} onChange={(e) => setNewSession({ ...newSession, subject_id: e.target.value })} className="w-full border border-white/5 text-xs text-white rounded-xl p-2.5 focus:outline-none" style={{ backgroundColor: "#1c1917", color: "#ffffff" }}>
                       <option value="">{isRTL ? "اختر المادة..." : "Select Subject..."}</option>
                       {teacherSubjects.map((sub) => <option key={sub.id} value={sub.id} style={{ backgroundColor: "#1c1917" }}>{sub.name} ({sub.grade || "عام"})</option>)}
                     </select>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="text-[10px] font-bold text-stone-200 uppercase block mb-1.5">{isRTL ? "التاريخ" : "Date"}</label>
-                      <input type="date" value={newSession.scheduled_at} onChange={(e) => setNewSession({ ...newSession, scheduled_at: e.target.value })} className="w-full border border-white/5 text-xs text-white rounded-xl p-2.5 focus:outline-none" style={{ backgroundColor: "#1c1917", color: "#ffffff", colorScheme: "dark" }} />
+                      <label htmlFor="field-virtualclassroom-scheduled-at" className="text-[10px] font-bold text-stone-200 uppercase block mb-1.5">{isRTL ? "التاريخ" : "Date"}</label>
+                      <input id="field-virtualclassroom-scheduled-at" name="scheduled_at" aria-label="scheduled at" type="date" value={newSession.scheduled_at} onChange={(e) => setNewSession({ ...newSession, scheduled_at: e.target.value })} className="w-full border border-white/5 text-xs text-white rounded-xl p-2.5 focus:outline-none" style={{ backgroundColor: "#1c1917", color: "#ffffff", colorScheme: "dark" }} />
                     </div>
                     <div>
-                      <label className="text-[10px] font-bold text-stone-200 uppercase block mb-1.5">{isRTL ? "الوقت" : "Time"}</label>
-                      <input type="time" value={newSession.scheduled_time} onChange={(e) => setNewSession({ ...newSession, scheduled_time: e.target.value })} className="w-full border border-white/5 text-xs text-white rounded-xl p-2.5 focus:outline-none" style={{ backgroundColor: "#1c1917", color: "#ffffff", colorScheme: "dark" }} />
+                      <label htmlFor="field-virtualclassroom-scheduled-time" className="text-[10px] font-bold text-stone-200 uppercase block mb-1.5">{isRTL ? "الوقت" : "Time"}</label>
+                      <input id="field-virtualclassroom-scheduled-time" name="scheduled_time" aria-label="scheduled time" type="time" value={newSession.scheduled_time} onChange={(e) => setNewSession({ ...newSession, scheduled_time: e.target.value })} className="w-full border border-white/5 text-xs text-white rounded-xl p-2.5 focus:outline-none" style={{ backgroundColor: "#1c1917", color: "#ffffff", colorScheme: "dark" }} />
                     </div>
                   </div>
                   <button onClick={handleScheduleSession} className="w-full h-11 bg-stone-850 hover:bg-stone-800 text-white font-bold border border-white/10 rounded-xl text-xs flex items-center justify-center gap-2 transition-all cursor-pointer">
@@ -1086,7 +1086,7 @@ export default function VirtualClassroom() {
                       <div className="w-px h-6 bg-white/10" />
                       <div className="flex items-center gap-2">
                         <span className="text-[10px] text-stone-400 font-bold">{isRTL ? "السمك:" : "Size:"}</span>
-                        <input type="range" min="1" max="20" value={lineWidth} onChange={(e) => setLineWidth(parseInt(e.target.value))} className="w-16 h-1 bg-stone-700 rounded-lg appearance-none cursor-pointer accent-teal-400" />
+                        <input id="field-virtualclassroom-input-3" name="input_3" aria-label="input 3" type="range" min="1" max="20" value={lineWidth} onChange={(e) => setLineWidth(parseInt(e.target.value))} className="w-16 h-1 bg-stone-700 rounded-lg appearance-none cursor-pointer accent-teal-400" />
                         <span className="text-[9px] font-mono text-teal-400 w-4">{lineWidth}px</span>
                       </div>
                       <div className="w-px h-6 bg-white/10" />
@@ -1147,7 +1147,7 @@ export default function VirtualClassroom() {
               {/* Volume slider */}
               <div className="hidden md:flex items-center gap-3 bg-stone-800/80 px-4 py-3 rounded-2xl border border-white/5 h-12">
                 <span className="text-xs text-stone-400">🔊</span>
-                <input type="range" min="0" max="1" step="0.05" value={remoteVolume} onChange={(e) => setRemoteVolume(parseFloat(e.target.value))} className="w-24 accent-teal-400 cursor-pointer h-1.5 bg-stone-700 rounded-lg appearance-none" />
+                <input id="field-virtualclassroom-input-2" name="input_2" aria-label="input 2" type="range" min="0" max="1" step="0.05" value={remoteVolume} onChange={(e) => setRemoteVolume(parseFloat(e.target.value))} className="w-24 accent-teal-400 cursor-pointer h-1.5 bg-stone-700 rounded-lg appearance-none" />
                 <span className="text-[10px] font-mono text-stone-400 w-8 text-right font-bold">{Math.round(remoteVolume * 100)}%</span>
               </div>
             </div>
@@ -1371,7 +1371,7 @@ export default function VirtualClassroom() {
                     <Info size={12} />
                     {isRTL ? "الملاحظات المشتركة للصف الدراسي" : "Shared notes panel"}
                   </p>
-                  <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={isRTL ? "ابدأ كتابة الملاحظات..." : "Start writing lesson notes..."} className="flex-1 w-full bg-stone-800/50 rounded-2xl p-4 border border-white/5 text-xs text-stone-200 focus:outline-none focus:border-stone-600 resize-none font-mono shadow-inner" />
+                  <textarea id="field-virtualclassroom-textarea-1" name="textarea_1" aria-label="textarea 1" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={isRTL ? "ابدأ كتابة الملاحظات..." : "Start writing lesson notes..."} className="flex-1 w-full bg-stone-800/50 rounded-2xl p-4 border border-white/5 text-xs text-stone-200 focus:outline-none focus:border-stone-600 resize-none font-mono shadow-inner" />
                 </motion.div>
               )}
             </AnimatePresence>

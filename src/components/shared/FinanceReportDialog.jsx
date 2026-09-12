@@ -562,7 +562,7 @@ export default function FinanceReportDialog({ open, onClose, purchases = [], fin
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-stone-600 font-bold text-xs">{t.startDateLabel}</Label>
-                <input 
+                <input id="field-financereportdialog-input-2" name="input_2" aria-label="input 2" 
                   type="date"
                   value={startDate}
                   onChange={e => setStartDate(e.target.value)}
@@ -571,7 +571,7 @@ export default function FinanceReportDialog({ open, onClose, purchases = [], fin
               </div>
               <div className="space-y-1.5">
                 <Label className="text-stone-600 font-bold text-xs">{t.endDateLabel}</Label>
-                <input 
+                <input id="field-financereportdialog-input-1" name="input_1" aria-label="input 1" 
                   type="date"
                   value={endDate}
                   onChange={e => setEndDate(e.target.value)}

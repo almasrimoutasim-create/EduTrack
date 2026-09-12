@@ -674,7 +674,7 @@ export default function CounselingCaseDetail() {
           <div className="space-y-4 mt-4">
             <div className="space-y-1.5">
               <Label className="text-xs font-bold text-stone-500">حالة مستوى التقدم *</Label>
-              <select
+              <select id="field-counselingcasedetail-select-1" name="select_1" aria-label="select 1"
                 value={followUpStatus}
                 onChange={(e) => setFollowUpStatus(e.target.value)}
                 className="w-full h-11 px-3 border border-stone-200 rounded-xl text-sm font-semibold focus:outline-none bg-white"

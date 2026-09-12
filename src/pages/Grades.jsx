@@ -265,7 +265,7 @@ export default function Grades() {
           </div>
 
           <div className="flex flex-col gap-1">
-            <select 
+            <select id="field-grades-select-4" name="select_4" aria-label="select 4" 
               value={subjectFilter}
               onChange={(e) => setSubjectFilter(e.target.value)}
               className="bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20"
@@ -279,7 +279,7 @@ export default function Grades() {
           </div>
 
           <div className="flex flex-col gap-1">
-            <select 
+            <select id="field-grades-select-3" name="select_3" aria-label="select 3" 
               value={termFilter}
               onChange={(e) => setTermFilter(e.target.value)}
               className="bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20"
@@ -377,8 +377,8 @@ export default function Grades() {
 
           <form onSubmit={handleAddGrade} className="space-y-4">
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-stone-400 uppercase tracking-widest">{isRTL ? "اختر الطالب *" : "Select Student *"}</label>
-              <select 
+              <label htmlFor="field-grades-select-2" className="text-xs font-bold text-stone-400 uppercase tracking-widest">{isRTL ? "اختر الطالب *" : "Select Student *"}</label>
+              <select id="field-grades-select-2" name="select_2" aria-label="select 2" 
                 required
                 value={selectedStudentId}
                 onChange={(e) => setSelectedStudentId(e.target.value)}
@@ -443,8 +443,8 @@ export default function Grades() {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-stone-400 uppercase tracking-widest">{isRTL ? "الفترة / الفصل الدراسي *" : "Term *"}</label>
-              <select 
+              <label htmlFor="field-grades-select-1" className="text-xs font-bold text-stone-400 uppercase tracking-widest">{isRTL ? "الفترة / الفصل الدراسي *" : "Term *"}</label>
+              <select id="field-grades-select-1" name="select_1" aria-label="select 1" 
                 value={term}
                 onChange={(e) => setTerm(e.target.value)}
                 className="bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 text-xs font-semibold focus:outline-none"

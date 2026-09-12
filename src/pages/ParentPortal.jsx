@@ -670,7 +670,7 @@ export default function ParentPortal() {
                 {children.length > 1 && (
                   <div className="flex items-center gap-3 bg-white px-5 py-3 rounded-2xl border border-stone-100 shadow-sm">
                     <span className="text-xs font-bold text-stone-500 uppercase tracking-widest">{isRTL ? "الابن النشط:" : "Active Child:"}</span>
-                    <select 
+                    <select id="field-parentportal-select-2" name="select_2" aria-label="select 2" 
                       value={selectedStudentId || ""} 
                       onChange={e => setSelectedStudentId(e.target.value)}
                       className="bg-transparent border-none text-sm font-bold focus:outline-none cursor-pointer text-stone-850"
@@ -857,7 +857,7 @@ export default function ParentPortal() {
                 {children.length > 1 && (
                   <div className="flex items-center gap-3 bg-white px-5 py-3 rounded-2xl border border-stone-100 shadow-sm">
                     <span className="text-xs font-bold text-stone-500 uppercase tracking-widest">{isRTL ? "الابن النشط:" : "Active Child:"}</span>
-                    <select 
+                    <select id="field-parentportal-select-1" name="select_1" aria-label="select 1" 
                       value={selectedStudentId || ""} 
                       onChange={e => setSelectedStudentId(e.target.value)}
                       className="bg-transparent border-none text-sm font-bold focus:outline-none cursor-pointer text-stone-850"

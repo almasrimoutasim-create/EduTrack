@@ -278,7 +278,7 @@ export default function LiveClassesTab({ teacher }) {
               </div>
               <div className="col-span-2">
                 <Label>Class / الفصل</Label>
-                <select
+                <select id="field-liveclassestab-section" name="section" aria-label="section"
                   value={form.section}
                   onChange={e => upd("section", e.target.value)}
                   className="w-full h-10 rounded-xl border border-stone-200 bg-white text-xs font-bold px-3 text-stone-700 outline-none cursor-pointer mt-1"

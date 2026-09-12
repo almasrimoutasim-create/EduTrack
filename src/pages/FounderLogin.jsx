@@ -64,10 +64,10 @@ const FounderLogin = () => {
 
             <form onSubmit={handleLogin} className="space-y-5 w-full text-right">
               <div>
-                <label className="block text-slate-300 text-sm font-semibold mb-2">البريد الإلكتروني</label>
+                <label htmlFor="field-founderlogin-email" className="block text-slate-300 text-sm font-semibold mb-2">البريد الإلكتروني</label>
                 <div className="relative">
                   <Mail className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-                  <input
+                  <input id="field-founderlogin-email" name="email" aria-label="email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -79,10 +79,10 @@ const FounderLogin = () => {
               </div>
 
               <div>
-                <label className="block text-slate-300 text-sm font-semibold mb-2">كلمة المرور</label>
+                <label htmlFor="field-founderlogin-input-1" className="block text-slate-300 text-sm font-semibold mb-2">كلمة المرور</label>
                 <div className="relative">
                   <Lock className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-                  <input
+                  <input id="field-founderlogin-input-1" name="input_1" aria-label="input 1"
                     type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}

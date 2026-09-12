@@ -111,10 +111,10 @@ export default function StudentLogin() {
 
             {/* Identifier Field */}
             <div className="space-y-2">
-              <label className="block text-[11px] font-black uppercase tracking-wider text-stone-500">
+              <label htmlFor="field-studentlogin-input-2" className="block text-[11px] font-black uppercase tracking-wider text-stone-500">
                 البريد الإلكتروني / الرقم الأكاديمي
               </label>
-              <input
+              <input id="field-studentlogin-input-2" name="input_2" aria-label="input 2"
                 type="text"
                 required
                 autoFocus
@@ -127,11 +127,11 @@ export default function StudentLogin() {
 
             {/* Password Field */}
             <div className="space-y-2">
-              <label className="block text-[11px] font-black uppercase tracking-wider text-stone-500">
+              <label htmlFor="field-studentlogin-input-1" className="block text-[11px] font-black uppercase tracking-wider text-stone-500">
                 كلمة المرور
               </label>
               <div className="relative">
-                <input
+                <input id="field-studentlogin-input-1" name="input_1" aria-label="input 1"
                   type={showPassword ? "text" : "password"}
                   required
                   value={password}

@@ -206,7 +206,7 @@ export default function Gateway() {
 
             <form onSubmit={handleSearchSubmit} className="space-y-3 mb-6">
               <div className="relative">
-                <input
+                <input id="field-gateway-input-5" name="input_5" aria-label="input 5"
                   type="text"
                   value={searchSlugInput}
                   onChange={(e) => setSearchSlugInput(e.target.value)}
@@ -406,10 +406,10 @@ export default function Gateway() {
               </AnimatePresence>
 
               <div className="space-y-1">
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-stone-400 px-1">
+                <label htmlFor="field-gateway-input-4" className="block text-[11px] font-bold uppercase tracking-wider text-stone-400 px-1">
                   {isRTL ? "اسم المستخدم" : "Username"}
                 </label>
-                <input
+                <input id="field-gateway-input-4" name="input_4" aria-label="input 4"
                   type="text"
                   required
                   autoFocus
@@ -421,11 +421,11 @@ export default function Gateway() {
               </div>
 
               <div className="space-y-1">
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-stone-400 px-1">
+                <label htmlFor="field-gateway-input-3" className="block text-[11px] font-bold uppercase tracking-wider text-stone-400 px-1">
                   {isRTL ? "كلمة المرور" : "Password"}
                 </label>
                 <div className="relative">
-                  <input
+                  <input id="field-gateway-input-3" name="input_3" aria-label="input 3"
                     type={showPassword ? "text" : "password"}
                     required
                     value={password}
@@ -477,7 +477,7 @@ export default function Gateway() {
                   <p className="text-[12px] font-bold leading-relaxed">{memberError}</p>
                 </div>
               )}
-              <input
+              <input id="field-gateway-input-2" name="input_2" aria-label="input 2"
                 type="text"
                 required
                 value={memberUser}
@@ -485,7 +485,7 @@ export default function Gateway() {
                 placeholder={isRTL ? "اسم مستخدم المدرسة" : "School username"}
                 className="w-full h-11 rounded-xl border border-stone-200 bg-stone-50/80 text-[13px] font-semibold text-stone-900 px-3.5 placeholder-stone-400 focus:outline-none focus:border-emerald-600 focus:bg-white transition-all text-start"
               />
-              <input
+              <input id="field-gateway-input-1" name="input_1" aria-label="input 1"
                 type="password"
                 required
                 value={memberPass}

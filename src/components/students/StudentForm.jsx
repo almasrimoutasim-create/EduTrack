@@ -300,7 +300,7 @@ export default function StudentForm({ student, onClose }) {
               </div>
             </div>
 
-            <input 
+            <input id="field-studentform-input-1" name="input_1" aria-label="input 1" 
               type="file" 
               ref={fileInputRef} 
               onChange={handleFileChange} 

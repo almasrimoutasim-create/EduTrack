@@ -29,7 +29,7 @@ export default function VideoUploadPanel({ roomId, videos = [], onVideoAdded, on
           {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
           {uploading ? "Uploading..." : "Upload Video"}
         </button>
-        <input ref={fileInputRef} type="file" accept="video/*" className="hidden" onChange={handleFileUpload} />
+        <input id="field-videouploadpanel-input-1" name="input_1" aria-label="input 1" ref={fileInputRef} type="file" accept="video/*" className="hidden" onChange={handleFileUpload} />
       </div>
 
       {/* Saved Videos List */}

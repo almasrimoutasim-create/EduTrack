@@ -224,7 +224,7 @@ function GroupFeed({ group, me, onBack }) {
               <button onClick={() => fileRef.current?.click()} className="text-muted-foreground hover:text-foreground p-1">
                 <Paperclip className="h-4 w-4" />
               </button>
-              <input ref={fileRef} type="file" className="hidden" onChange={handleFile} />
+              <input id="field-portalstudygroups-input-2" name="input_2" aria-label="input 2" ref={fileRef} type="file" className="hidden" onChange={handleFile} />
             </div>
             <button className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed h-8 px-3 gap-1.5" onClick={submit} disabled={uploading || (!text.trim() && !mediaFile)}>
               <Send className="h-3.5 w-3.5" /> {uploading ? "Posting..." : "Post"}
@@ -391,8 +391,8 @@ export default function PortalStudyGroups({ me }) {
               <label className="text-sm font-medium">Description</label>
               <Textarea className="mt-1 resize-none" placeholder="What is this group about?" value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} />
             </div>
-            <label className="flex items-center gap-2 text-sm cursor-pointer">
-              <input type="checkbox" checked={form.is_private} onChange={e => setForm(p => ({ ...p, is_private: e.target.checked }))} className="rounded" />
+            <label htmlFor="field-portalstudygroups-input-1" className="flex items-center gap-2 text-sm cursor-pointer">
+              <input id="field-portalstudygroups-input-1" name="input_1" aria-label="input 1" type="checkbox" checked={form.is_private} onChange={e => setForm(p => ({ ...p, is_private: e.target.checked }))} className="rounded" />
               <Lock className="h-4 w-4 text-muted-foreground" /> Private group (invite only)
             </label>
           </div>

@@ -833,8 +833,8 @@ export default function BusSupervisorPortal() {
                       </div>
                       
                       <div>
-                        <label className="text-[10px] font-bold text-stone-500 uppercase tracking-widest block mb-2">{isRTL ? "مستوى الخطورة" : "Severity Level"}</label>
-                        <select 
+                        <label htmlFor="field-bussupervisorportal-select-7" className="text-[10px] font-bold text-stone-500 uppercase tracking-widest block mb-2">{isRTL ? "مستوى الخطورة" : "Severity Level"}</label>
+                        <select id="field-bussupervisorportal-select-7" name="select_7" aria-label="select 7" 
                           value={newIncidentSeverity}
                           onChange={(e) => setNewIncidentSeverity(e.target.value)}
                           className="w-full h-11 px-4 rounded-xl border border-stone-200 focus:outline-none focus:border-stone-900 bg-white"
@@ -846,8 +846,8 @@ export default function BusSupervisorPortal() {
                       </div>
                       
                       <div>
-                        <label className="text-[10px] font-bold text-stone-500 uppercase tracking-widest block mb-2">{isRTL ? "تفاصيل إضافية" : "Details"}</label>
-                        <textarea 
+                        <label htmlFor="field-bussupervisorportal-provide-description" className="text-[10px] font-bold text-stone-500 uppercase tracking-widest block mb-2">{isRTL ? "تفاصيل إضافية" : "Details"}</label>
+                        <textarea id="field-bussupervisorportal-provide-description" name="provide_description" aria-label="provide description" 
                           placeholder={isRTL ? "اكتب تفاصيل الحادث هنا..." : "Provide description..."}
                           value={newIncidentDetails}
                           onChange={(e) => setNewIncidentDetails(e.target.value)}
@@ -1054,8 +1054,8 @@ export default function BusSupervisorPortal() {
             <p>{isRTL ? "تنبيه: سيؤدي هذا الإجراء لإرسال إشعارات فورية للإدارة وأولياء الأمور للتدخل السريع." : "Warning: This will send immediate notifications to the administration and parents."}</p>
           </div>
           <div>
-            <label className="text-[10px] font-bold text-stone-500 uppercase tracking-widest block mb-2">{isRTL ? "نوع الطوارئ" : "Emergency Type"}</label>
-            <select 
+            <label htmlFor="field-bussupervisorportal-select-5" className="text-[10px] font-bold text-stone-500 uppercase tracking-widest block mb-2">{isRTL ? "نوع الطوارئ" : "Emergency Type"}</label>
+            <select id="field-bussupervisorportal-select-5" name="select_5" aria-label="select 5" 
               value={emergencyType} 
               onChange={(e) => setEmergencyType(e.target.value)}
               className="w-full h-11 px-4 rounded-xl border border-stone-200 focus:outline-none focus:border-rose-500 bg-white text-sm"
@@ -1067,8 +1067,8 @@ export default function BusSupervisorPortal() {
             </select>
           </div>
           <div>
-            <label className="text-[10px] font-bold text-stone-500 uppercase tracking-widest block mb-2">{isRTL ? "ملاحظات وتفاصيل إضافية" : "Additional details"}</label>
-            <textarea
+            <label htmlFor="field-bussupervisorportal-textarea-4" className="text-[10px] font-bold text-stone-500 uppercase tracking-widest block mb-2">{isRTL ? "ملاحظات وتفاصيل إضافية" : "Additional details"}</label>
+            <textarea id="field-bussupervisorportal-textarea-4" name="textarea_4" aria-label="textarea 4"
               value={emergencyNotes}
               onChange={(e) => setEmergencyNotes(e.target.value)}
               placeholder={isRTL ? "اكتب تفاصيل حالة الطوارئ..." : "Write emergency details..."}
@@ -1092,8 +1092,8 @@ export default function BusSupervisorPortal() {
       >
         <div className="space-y-6">
           <div>
-            <label className="text-[10px] font-bold text-stone-500 uppercase tracking-widest block mb-2">{isRTL ? "نص الرسالة التعميمية" : "Broadcast Message"}</label>
-            <textarea
+            <label htmlFor="field-bussupervisorportal-textarea-3" className="text-[10px] font-bold text-stone-500 uppercase tracking-widest block mb-2">{isRTL ? "نص الرسالة التعميمية" : "Broadcast Message"}</label>
+            <textarea id="field-bussupervisorportal-textarea-3" name="textarea_3" aria-label="textarea 3"
               value={broadcastText}
               onChange={(e) => setBroadcastText(e.target.value)}
               placeholder={isRTL ? "مثال: الحافلة ستتأخر 10 دقائق بسبب الازدحام..." : "Example: The bus will be 10 minutes late due to traffic..."}
@@ -1125,8 +1125,8 @@ export default function BusSupervisorPortal() {
               { key: "fireExtinguisher", label: isRTL ? "طفاية الحريق صالحة وموجودة" : "Fire extinguisher is functional and in place" },
               { key: "seatbelts", label: isRTL ? "أحزمة الأمان لجميع المقاعد تعمل بشكل جيد" : "Seatbelts for all seats are functional" }
             ].map((item) => (
-              <label key={item.key} className="flex items-center gap-3 cursor-pointer p-3 rounded-2xl hover:bg-stone-50 transition-all border border-stone-100/50">
-                <input 
+              <label htmlFor="field-bussupervisorportal-input-2" key={item.key} className="flex items-center gap-3 cursor-pointer p-3 rounded-2xl hover:bg-stone-50 transition-all border border-stone-100/50">
+                <input id="field-bussupervisorportal-input-2" name="input_2" aria-label="input 2" 
                   type="checkbox"
                   checked={safetyChecks[item.key]}
                   onChange={(e) => setSafetyChecks(prev => ({ ...prev, [item.key]: e.target.checked }))}
@@ -1154,8 +1154,8 @@ export default function BusSupervisorPortal() {
       >
         <div className="space-y-6">
           <div>
-            <label className="text-[10px] font-bold text-stone-500 uppercase tracking-widest block mb-2">{isRTL ? "ما المشكلة التي تواجهها؟" : "Describe the issue"}</label>
-            <textarea
+            <label htmlFor="field-bussupervisorportal-textarea-1" className="text-[10px] font-bold text-stone-500 uppercase tracking-widest block mb-2">{isRTL ? "ما المشكلة التي تواجهها؟" : "Describe the issue"}</label>
+            <textarea id="field-bussupervisorportal-textarea-1" name="textarea_1" aria-label="textarea 1"
               value={supportText}
               onChange={(e) => setSupportText(e.target.value)}
               placeholder={isRTL ? "اكتب استفسارك أو مشكلتك الفنية هنا..." : "Describe the technical issue here..."}

@@ -133,7 +133,7 @@ export default function Materials() {
                 />
               </div>
             </Card>
-            <select
+            <select id="field-materials-select-1" name="select_1" aria-label="select 1"
               value={selectedSubjectFilter}
               onChange={(e) => setSelectedSubjectFilter(e.target.value)}
               className="bg-white border border-stone-200 rounded-xl h-11 px-3 text-xs font-semibold focus:outline-none cursor-pointer hover:bg-stone-50 transition-colors"

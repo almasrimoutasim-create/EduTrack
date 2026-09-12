@@ -479,7 +479,7 @@ export default function Students() {
                 <div className="flex flex-col lg:flex-row gap-3 w-full lg:w-auto">
                   <div className="flex flex-col gap-1.5">
                     <Label className="text-xs font-semibold text-stone-500">{t("students.grade", language)}</Label>
-                    <select 
+                    <select id="field-students-select-4" name="select_4" aria-label="select 4" 
                       value={selectedGrade}
                       onChange={(e) => setSelectedGrade(e.target.value)}
                       aria-label={t("students.grade", language)}
@@ -494,7 +494,7 @@ export default function Students() {
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <Label className="text-xs font-semibold text-stone-500">{t("common.status", language)}</Label>
-                    <select 
+                    <select id="field-students-select-3" name="select_3" aria-label="select 3" 
                       value={selectedStatus}
                       onChange={(e) => setSelectedStatus(e.target.value)}
                       aria-label={t("common.status", language)}
@@ -508,7 +508,7 @@ export default function Students() {
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <Label className="text-xs font-semibold text-stone-500">{t("students.section", language)}</Label>
-                    <select
+                    <select id="field-students-select-2" name="select_2" aria-label="select 2"
                       value={selectedSection}
                       onChange={(e) => setSelectedSection(e.target.value)}
                       aria-label={t("students.section", language)}
@@ -538,7 +538,7 @@ export default function Students() {
               <span>
                 {t("common.total", language) || "Total"}: <span className="num-en font-bold">{filteredStudents.length}</span> {t("common.records", language) || "records"}
               </span>
-              <select 
+              <select id="field-students-select-1" name="select_1" aria-label="select 1" 
                 value={rowsPerPage}
                 onChange={(e) => {
                   setRowsPerPage(Number(e.target.value));

@@ -365,7 +365,7 @@ export default function BusRouteManagement() {
                       </div>
                     ) : (
                       <div className="space-y-2">
-                        <select 
+                        <select id="field-busroutemanagement-select-2" name="select_2" aria-label="select 2" 
                           value={assigningSupervisorId}
                           onChange={(e) => setAssigningSupervisorId(e.target.value)}
                           className="w-full h-10 px-3 rounded-xl border border-stone-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20 bg-white"
@@ -411,7 +411,7 @@ export default function BusRouteManagement() {
                       </div>
                     ) : (
                       <div className="space-y-2">
-                        <select 
+                        <select id="field-busroutemanagement-select-1" name="select_1" aria-label="select 1" 
                           value={assigningDriverId}
                           onChange={(e) => setAssigningDriverId(e.target.value)}
                           className="w-full h-10 px-3 rounded-xl border border-stone-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20 bg-white"

@@ -273,8 +273,8 @@ export default function StaffPersonalRequests() {
           </DialogHeader>
           <form onSubmit={handleCreateRequest} className="space-y-4 mt-2">
             <div className="space-y-1">
-              <label className="text-xs font-bold text-stone-500">{isRTL ? "نوع الطلب" : "Request Type"}</label>
-              <select 
+              <label htmlFor="field-staffpersonalrequests-select-1" className="text-xs font-bold text-stone-500">{isRTL ? "نوع الطلب" : "Request Type"}</label>
+              <select id="field-staffpersonalrequests-select-1" name="select_1" aria-label="select 1" 
                 value={newReqType} 
                 onChange={(e) => setNewReqType(e.target.value)}
                 className="w-full bg-white border border-stone-200 rounded-xl h-10 px-3 text-xs font-bold text-stone-700 outline-none"

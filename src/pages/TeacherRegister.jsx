@@ -209,13 +209,13 @@ export default function TeacherRegister() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-stone-600 flex items-center gap-1"><User size={12}/> {isRTL ? "نبذة عنك (اختياري)" : "About you (optional)"}</label>
-              <textarea value={form.bio} onChange={e => update("bio", e.target.value)} placeholder={isRTL ? "خبراتك، تخصصاتك، أسلوب التدريس..." : "Your experience, specializations, teaching style..."} rows={2} className="w-full rounded-xl border border-stone-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/10" />
+              <label htmlFor="field-teacherregister-bio" className="text-xs font-bold text-stone-600 flex items-center gap-1"><User size={12}/> {isRTL ? "نبذة عنك (اختياري)" : "About you (optional)"}</label>
+              <textarea id="field-teacherregister-bio" name="bio" aria-label="bio" value={form.bio} onChange={e => update("bio", e.target.value)} placeholder={isRTL ? "خبراتك، تخصصاتك، أسلوب التدريس..." : "Your experience, specializations, teaching style..."} rows={2} className="w-full rounded-xl border border-stone-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/10" />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-stone-600 flex items-center gap-1"><AlertCircle size={12}/> {isRTL ? "ملاحظات إضافية" : "Additional notes"}</label>
-              <textarea value={form.notes} onChange={e => update("notes", e.target.value)} placeholder={isRTL ? "أي معلومات إضافية تود مشاركتها..." : "Any additional information you'd like to share..."} rows={2} className="w-full rounded-xl border border-stone-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/10" />
+              <label htmlFor="field-teacherregister-notes" className="text-xs font-bold text-stone-600 flex items-center gap-1"><AlertCircle size={12}/> {isRTL ? "ملاحظات إضافية" : "Additional notes"}</label>
+              <textarea id="field-teacherregister-notes" name="notes" aria-label="notes" value={form.notes} onChange={e => update("notes", e.target.value)} placeholder={isRTL ? "أي معلومات إضافية تود مشاركتها..." : "Any additional information you'd like to share..."} rows={2} className="w-full rounded-xl border border-stone-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/10" />
             </div>
 
             {/* Subscription Plan */}
@@ -245,8 +245,8 @@ export default function TeacherRegister() {
             {/* Payment Receipt Upload */}
             {form.subscription_plan !== "free" && (
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-stone-600 flex items-center gap-1"><CreditCard size={12}/> {isRTL ? "إيصال الدفع (مطلوب)" : "Payment Receipt (required)"}</label>
-                <input type="file" accept="image/*,application/pdf" onChange={e => update("receipt_file", e.target.files[0])}
+                <label htmlFor="field-teacherregister-input-1" className="text-xs font-bold text-stone-600 flex items-center gap-1"><CreditCard size={12}/> {isRTL ? "إيصال الدفع (مطلوب)" : "Payment Receipt (required)"}</label>
+                <input id="field-teacherregister-input-1" name="input_1" aria-label="input 1" type="file" accept="image/*,application/pdf" onChange={e => update("receipt_file", e.target.files[0])}
                   className="w-full rounded-xl border border-stone-200 bg-white p-3 text-sm file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-indigo-600 file:text-white file:text-xs file:font-bold file:cursor-pointer" />
                 <p className="text-[10px] text-stone-400">{isRTL ? "ارفع صورة أو PDF للإيصال — بدون إيصال لن يُفعّل الاشتراك" : "Upload receipt image or PDF — subscription won't activate without receipt"}</p>
               </div>

@@ -136,8 +136,8 @@ export default function StudentRegister() {
                 <Input value={form.parent_name} onChange={e => update("parent_name", e.target.value)} placeholder={isRTL ? "الاسم الكامل لولي الأمر" : "Parent full name"} className="h-11 rounded-xl" required />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-stone-600 flex items-center gap-1"><Building2 size={12}/> {isRTL ? "الصف الدراسي *" : "Grade *"}</label>
-                <select value={form.grade} onChange={e => update("grade", e.target.value)} className="h-11 rounded-xl border border-stone-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20" required>
+                <label htmlFor="field-studentregister-grade" className="text-xs font-bold text-stone-600 flex items-center gap-1"><Building2 size={12}/> {isRTL ? "الصف الدراسي *" : "Grade *"}</label>
+                <select id="field-studentregister-grade" name="grade" aria-label="grade" value={form.grade} onChange={e => update("grade", e.target.value)} className="h-11 rounded-xl border border-stone-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20" required>
                   <option value="">{isRTL ? "اختر الصف" : "Select grade"}</option>
                   {GRADE_OPTIONS.map(g => (
                     <option key={g.id} value={g.id}>{isRTL ? g.name : g.nameEn}</option>
@@ -163,8 +163,8 @@ export default function StudentRegister() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-stone-600 flex items-center gap-1"><AlertCircle size={12}/> {isRTL ? "ملاحظات إضافية" : "Additional notes"}</label>
-              <textarea value={form.notes} onChange={e => update("notes", e.target.value)} placeholder={isRTL ? "أي معلومات طبية، حساسية، احتياجات خاصة، أو ملاحظات..." : "Medical info, allergies, special needs..."} rows={2} className="w-full rounded-xl border border-stone-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/10" />
+              <label htmlFor="field-studentregister-notes" className="text-xs font-bold text-stone-600 flex items-center gap-1"><AlertCircle size={12}/> {isRTL ? "ملاحظات إضافية" : "Additional notes"}</label>
+              <textarea id="field-studentregister-notes" name="notes" aria-label="notes" value={form.notes} onChange={e => update("notes", e.target.value)} placeholder={isRTL ? "أي معلومات طبية، حساسية، احتياجات خاصة، أو ملاحظات..." : "Medical info, allergies, special needs..."} rows={2} className="w-full rounded-xl border border-stone-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/10" />
             </div>
 
             <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 text-xs text-blue-800 flex gap-2">

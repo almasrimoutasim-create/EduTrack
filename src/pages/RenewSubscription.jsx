@@ -396,24 +396,24 @@ export default function RenewSubscription() {
             <div className="space-y-4">
               {/* Sender Name */}
               <div>
-                <label className="text-sm font-bold text-slate-700 block mb-1">{isRTL ? "اسم المرسل *" : "Sender Name *"}</label>
-                <input type="text" value={senderName} onChange={(e) => setSenderName(e.target.value)}
+                <label htmlFor="field-renewsubscription-input-4" className="text-sm font-bold text-slate-700 block mb-1">{isRTL ? "اسم المرسل *" : "Sender Name *"}</label>
+                <input id="field-renewsubscription-input-4" name="input_4" aria-label="input 4" type="text" value={senderName} onChange={(e) => setSenderName(e.target.value)}
                   className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   placeholder={isRTL ? "الاسم كما في الإيصال" : "Name as on receipt"} />
               </div>
 
               {/* Transfer Reference */}
               <div>
-                <label className="text-sm font-bold text-slate-700 block mb-1">{isRTL ? "رقم المرجع (اختياري)" : "Transfer Reference (optional)"}</label>
-                <input type="text" value={transferRef} onChange={(e) => setTransferRef(e.target.value)}
+                <label htmlFor="field-renewsubscription-input-3" className="text-sm font-bold text-slate-700 block mb-1">{isRTL ? "رقم المرجع (اختياري)" : "Transfer Reference (optional)"}</label>
+                <input id="field-renewsubscription-input-3" name="input_3" aria-label="input 3" type="text" value={transferRef} onChange={(e) => setTransferRef(e.target.value)}
                   className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   placeholder={isRTL ? "رقم العملية أو المرجع" : "Transaction or reference number"} />
               </div>
 
               {/* Bank Name */}
               <div>
-                <label className="text-sm font-bold text-slate-700 block mb-1">{isRTL ? "اسم البنك المرسل" : "Sender Bank"}</label>
-                <input type="text" value={bankName} onChange={(e) => setBankName(e.target.value)}
+                <label htmlFor="field-renewsubscription-input-2" className="text-sm font-bold text-slate-700 block mb-1">{isRTL ? "اسم البنك المرسل" : "Sender Bank"}</label>
+                <input id="field-renewsubscription-input-2" name="input_2" aria-label="input 2" type="text" value={bankName} onChange={(e) => setBankName(e.target.value)}
                   className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   placeholder={isRTL ? "البنك الذي أرسلت منه" : "Bank you transferred from"} />
               </div>
@@ -421,7 +421,7 @@ export default function RenewSubscription() {
               {/* File Upload */}
               <div>
                 <label className="text-sm font-bold text-slate-700 block mb-1">{isRTL ? "صورة الإيصال *" : "Receipt Image *"}</label>
-                <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-emerald-300 rounded-xl bg-white cursor-pointer hover:bg-emerald-50 transition">
+                <label htmlFor="field-renewsubscription-input-1" className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-emerald-300 rounded-xl bg-white cursor-pointer hover:bg-emerald-50 transition">
                   {receiptPreview ? (
                     <img src={receiptPreview} alt="receipt" className="max-h-36 rounded-lg object-contain" />
                   ) : (
@@ -431,7 +431,7 @@ export default function RenewSubscription() {
                       <p className="text-xs text-slate-400">JPG, PNG — {isRTL ? "حد أقصى 5 ميجا" : "Max 5MB"}</p>
                     </div>
                   )}
-                  <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+                  <input id="field-renewsubscription-input-1" name="input_1" aria-label="input 1" type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
                 </label>
               </div>
 

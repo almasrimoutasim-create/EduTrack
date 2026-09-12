@@ -342,7 +342,7 @@ export default function ParentTeacherChat({ me }) {
               )}
 
               <div className="flex gap-2">
-                <input
+                <input id="field-parentteacherchat-input-1" name="input_1" aria-label="input 1"
                   type="file"
                   ref={fileInputRef}
                   onChange={handleFileChange}
