@@ -790,6 +790,11 @@ if (process.env.DATABASE_URL) {
   sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS has_regular_medications BOOLEAN DEFAULT false;`.catch(() => {});
   sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS medication_details TEXT;`.catch(() => {});
 
+  // Migration: previous school and student document uploads
+  sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS previous_school TEXT;`.catch(() => {});
+  sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS last_result_document_url TEXT;`.catch(() => {});
+  sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS national_id_document_url TEXT;`.catch(() => {});
+
   // ── Multi-tenant: إضافة school_id لكل جدول مستأجر + فهرسة + RLS سيتم لاحقاً ──
   const TENANT_TABLES = [
     'students','teachers','attendance','subjects','library_books','financial_records',

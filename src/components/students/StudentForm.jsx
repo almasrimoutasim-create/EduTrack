@@ -28,7 +28,12 @@ import {
   CheckCircle,
   HeartPulse,
   Activity,
-  Pill
+  Pill,
+  Building2,
+  FileText,
+  Upload,
+  Eye,
+  Loader2
 } from "lucide-react";
 
 const grades = ["1","2","3","4","5","6","7","8","9","10","11","12"];
@@ -48,8 +53,11 @@ export default function StudentForm({ student, onClose }) {
   const { language } = useLanguage();
   const isRTL = language === "ar";
   const fileInputRef = useRef(null);
+  const lastResultInputRef = useRef(null);
+  const nationalIdInputRef = useRef(null);
   
   const [saving, setSaving] = useState(false);
+  const [uploadingDoc, setUploadingDoc] = useState({});
   const [errorMsg, setErrorMsg] = useState("");
   const [form, setForm] = useState(student || {
     full_name: "", student_id: "", user_email: "", portal_password: "", parent_password: "", grade: "1", section: "A",
@@ -58,7 +66,10 @@ export default function StudentForm({ student, onClose }) {
     tuition_total: 0, tuition_paid: 0,
     has_chronic_conditions: false, chronic_conditions_details: "",
     has_surgeries: false, surgery_details: "",
-    has_regular_medications: false, medication_details: ""
+    has_regular_medications: false, medication_details: "",
+    previous_school: "",
+    last_result_document_url: "",
+    national_id_document_url: ""
   });
 
   // Fetch all fee structures to calculate total fees based on selected grade
@@ -77,6 +88,9 @@ export default function StudentForm({ student, onClose }) {
         surgery_details: student.surgery_details || "",
         has_regular_medications: student.has_regular_medications || false,
         medication_details: student.medication_details || "",
+        previous_school: student.previous_school || "",
+        last_result_document_url: student.last_result_document_url || "",
+        national_id_document_url: student.national_id_document_url || "",
         date_of_birth: student.date_of_birth ? student.date_of_birth.substring(0, 10) : "",
         portal_password: "",
         parent_password: ""
@@ -89,7 +103,10 @@ export default function StudentForm({ student, onClose }) {
         tuition_total: 0, tuition_paid: 0,
         has_chronic_conditions: false, chronic_conditions_details: "",
         has_surgeries: false, surgery_details: "",
-        has_regular_medications: false, medication_details: ""
+        has_regular_medications: false, medication_details: "",
+        previous_school: "",
+        last_result_document_url: "",
+        national_id_document_url: ""
       });
     }
     setErrorMsg("");
@@ -149,6 +166,58 @@ export default function StudentForm({ student, onClose }) {
     reader.onerror = () => {
       setErrorMsg(isRTL ? "فشل قراءة الملف." : "Failed to read file.");
     };
+    reader.readAsDataURL(file);
+  };
+
+  const handleDocumentUpload = (file, fieldKey) => {
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      setErrorMsg(isRTL ? "حجم الملف كبير جداً. الحد الأقصى هو 5 ميجابايت." : "File is too large. Max size is 5MB.");
+      return;
+    }
+
+    setUploadingDoc(prev => ({ ...prev, [fieldKey]: true }));
+    setErrorMsg("");
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const fullDataUri = event.target.result;
+      let finalUrl = fullDataUri;
+
+      try {
+        const base64Data = typeof fullDataUri === "string" ? fullDataUri.split(",")[1] : null;
+        if (base64Data) {
+          const apiBase = import.meta.env.VITE_BACKEND_URL || "";
+          const uploadUrl = apiBase ? `${apiBase.replace(/\/$/, "")}/neon-db/upload` : "/neon-db/upload";
+          const res = await fetch(uploadUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              fileName: file.name,
+              fileData: base64Data
+            })
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.fileUrl) {
+              finalUrl = data.fileUrl;
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("Upload to server endpoint failed, falling back to data URL:", err);
+      }
+
+      update(fieldKey, finalUrl);
+      setUploadingDoc(prev => ({ ...prev, [fieldKey]: false }));
+    };
+
+    reader.onerror = () => {
+      setErrorMsg(isRTL ? "فشل قراءة الملف." : "Failed to read file.");
+      setUploadingDoc(prev => ({ ...prev, [fieldKey]: false }));
+    };
+
     reader.readAsDataURL(file);
   };
 
@@ -239,7 +308,16 @@ export default function StudentForm({ student, onClose }) {
     surgeriesPlaceholder: isRTL ? "اذكر تفاصيل العمليات الجراحية السابقة..." : "Mention details of past surgeries...",
     regularMedications: isRTL ? "هل يتم تناول أدوية دائمة؟" : "Taking regular medications?",
     medicationsDetails: isRTL ? "تفاصيل الأدوية الدائمة" : "Medication details",
-    medicationsPlaceholder: isRTL ? "اذكر أسماء الأدوية ومواعيد تناولها..." : "Mention names of medications and schedules..."
+    medicationsPlaceholder: isRTL ? "اذكر أسماء الأدوية ومواعيد تناولها..." : "Mention names of medications and schedules...",
+    previousSchool: isRTL ? "اسم المدرسة السابقة" : "Previous School",
+    previousSchoolPlaceholder: isRTL ? "اسم المدرسة السابقة (إن وجدت)" : "Previous school name (if applicable)",
+    lastResultDoc: isRTL ? "مستند النتيجة الأخيرة (صورة أو PDF)" : "Latest Result Document (Image or PDF)",
+    nationalIdDoc: isRTL ? "مستند الرقم الوطني (صورة أو PDF)" : "National ID Document (Image or PDF)",
+    uploadDocPlaceholder: isRTL ? "انقر لاختيار ملف (صورة أو PDF)" : "Click to select a file (Image or PDF)",
+    docUploaded: isRTL ? "تم إرفاق المستند بنجاح" : "Document attached successfully",
+    viewDoc: isRTL ? "معاينة" : "Preview",
+    removeDoc: isRTL ? "حذف" : "Remove",
+    uploading: isRTL ? "جاري الرفع..." : "Uploading..."
   };
 
   return (
@@ -459,6 +537,159 @@ export default function StudentForm({ student, onClose }) {
                   onChange={val => update("date_of_birth", val)} 
                   className="rounded-xl border-stone-200 h-11 focus-visible:ring-primary/20 num-en"
                 />
+              </div>
+            </div>
+
+            {/* Previous school */}
+            <div className="space-y-1.5">
+              <Label className="text-stone-700 font-bold text-xs">{t.previousSchool}</Label>
+              <div className="relative">
+                <Building2 className={`absolute ${isRTL ? 'right-3.5' : 'left-3.5'} top-1/2 -translate-y-1/2 text-stone-400`} size={16} />
+                <Input 
+                  value={form.previous_school || ""} 
+                  onChange={e => update("previous_school", e.target.value)} 
+                  className={`rounded-xl border-stone-200 h-11 focus-visible:ring-primary/20 ${isRTL ? 'pr-10' : 'pl-10'}`}
+                  placeholder={t.previousSchoolPlaceholder} 
+                />
+              </div>
+            </div>
+
+            {/* Documents upload section: Result & National ID */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-stone-100">
+              {/* Last Result Document */}
+              <div className="space-y-1.5">
+                <Label className="text-stone-700 font-bold text-xs">{t.lastResultDoc}</Label>
+                <input 
+                  type="file"
+                  ref={lastResultInputRef}
+                  accept="image/*,application/pdf"
+                  onChange={e => handleDocumentUpload(e.target.files?.[0], "last_result_document_url")}
+                  className="hidden"
+                />
+
+                {form.last_result_document_url ? (
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-stone-50 border border-stone-200/80">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center shrink-0">
+                        <FileText size={16} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-stone-800 truncate">{t.docUploaded}</p>
+                        <p className="text-[10px] text-stone-400 truncate font-mono">
+                          {form.last_result_document_url.startsWith("data:") ? (isRTL ? "مستند مرفق (ملف مباشر)" : "Embedded file") : form.last_result_document_url.split("/").pop()}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <a 
+                        href={form.last_result_document_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="p-1.5 rounded-lg text-stone-500 hover:text-stone-800 hover:bg-stone-200/60 transition-colors"
+                        title={t.viewDoc}
+                      >
+                        <Eye size={15} />
+                      </a>
+                      <button 
+                        type="button" 
+                        onClick={() => update("last_result_document_url", "")}
+                        className="p-1.5 rounded-lg text-rose-500 hover:text-rose-700 hover:bg-rose-50 transition-colors cursor-pointer"
+                        title={t.removeDoc}
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div 
+                    onClick={() => lastResultInputRef.current?.click()}
+                    className="flex items-center gap-3 p-3 rounded-xl border border-dashed border-stone-300 hover:border-primary/50 hover:bg-primary/5 bg-stone-50/50 cursor-pointer transition-all group"
+                  >
+                    <div className="w-9 h-9 rounded-lg bg-white border border-stone-200/80 flex items-center justify-center text-stone-400 group-hover:text-primary shadow-2xs shrink-0 transition-colors">
+                      {uploadingDoc["last_result_document_url"] ? (
+                        <Loader2 size={16} className="animate-spin text-primary" />
+                      ) : (
+                        <Upload size={16} />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold text-stone-700 truncate">
+                        {uploadingDoc["last_result_document_url"] ? t.uploading : t.uploadDocPlaceholder}
+                      </p>
+                      <p className="text-[10px] text-stone-400">
+                        {isRTL ? "صورة أو PDF (الحد الأقصى 5MB)" : "Image or PDF (Max 5MB)"}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* National ID Document */}
+              <div className="space-y-1.5">
+                <Label className="text-stone-700 font-bold text-xs">{t.nationalIdDoc}</Label>
+                <input 
+                  type="file"
+                  ref={nationalIdInputRef}
+                  accept="image/*,application/pdf"
+                  onChange={e => handleDocumentUpload(e.target.files?.[0], "national_id_document_url")}
+                  className="hidden"
+                />
+
+                {form.national_id_document_url ? (
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-stone-50 border border-stone-200/80">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center shrink-0">
+                        <FileText size={16} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-stone-800 truncate">{t.docUploaded}</p>
+                        <p className="text-[10px] text-stone-400 truncate font-mono">
+                          {form.national_id_document_url.startsWith("data:") ? (isRTL ? "مستند مرفق (ملف مباشر)" : "Embedded file") : form.national_id_document_url.split("/").pop()}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <a 
+                        href={form.national_id_document_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="p-1.5 rounded-lg text-stone-500 hover:text-stone-800 hover:bg-stone-200/60 transition-colors"
+                        title={t.viewDoc}
+                      >
+                        <Eye size={15} />
+                      </a>
+                      <button 
+                        type="button" 
+                        onClick={() => update("national_id_document_url", "")}
+                        className="p-1.5 rounded-lg text-rose-500 hover:text-rose-700 hover:bg-rose-50 transition-colors cursor-pointer"
+                        title={t.removeDoc}
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div 
+                    onClick={() => nationalIdInputRef.current?.click()}
+                    className="flex items-center gap-3 p-3 rounded-xl border border-dashed border-stone-300 hover:border-primary/50 hover:bg-primary/5 bg-stone-50/50 cursor-pointer transition-all group"
+                  >
+                    <div className="w-9 h-9 rounded-lg bg-white border border-stone-200/80 flex items-center justify-center text-stone-400 group-hover:text-primary shadow-2xs shrink-0 transition-colors">
+                      {uploadingDoc["national_id_document_url"] ? (
+                        <Loader2 size={16} className="animate-spin text-primary" />
+                      ) : (
+                        <Upload size={16} />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold text-stone-700 truncate">
+                        {uploadingDoc["national_id_document_url"] ? t.uploading : t.uploadDocPlaceholder}
+                      </p>
+                      <p className="text-[10px] text-stone-400">
+                        {isRTL ? "صورة أو PDF (الحد الأقصى 5MB)" : "Image or PDF (Max 5MB)"}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
