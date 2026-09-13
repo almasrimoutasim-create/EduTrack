@@ -302,7 +302,7 @@ export default function RoleLogin() {
                     <p className="text-[10px] text-stone-400 px-1">
                       {isAdmin
                         ? (isRTL ? "من الإعدادات → مدراء النظام (Admins)" : "From Settings → System Admins")
-                        : (isRTL ? "من الإعدادات → حسابات شاشة القفل (Gateway) — حساب واحد لكل المدرسة" : "From Settings → Gateway Accounts — one shared account")}
+                        : (isRTL ? "من الإعدادات → أعضاء المدرسة — حساب واحد لكل المدرسة" : "From Settings → School Members — one shared account")}
                     </p>
                   </div>
 

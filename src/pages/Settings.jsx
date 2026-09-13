@@ -787,7 +787,7 @@ export default function Settings() {
               </div>
               <div>
                 <h2 className="text-lg font-black font-display text-stone-900">
-                  {isRTL ? "حسابات شاشة القفل (Gateway)" : "Gateway Accounts"}
+                  {isRTL ? "أعضاء المدرسة" : "School Members"}
                 </h2>
                 <p className="text-sm text-stone-500 font-medium mt-0.5">
                   {isRTL ? "حساب واحد مشترك للمدرسة كلها — وزّع بياناته على المعلمين والطلاب والموظفين ليدخلوا من رابط بوابة المدرسة ثم يختاروا بوابتهم ويدخلوا بحساباتهم الشخصية." : "One shared account for the whole school — share it with teachers, students and staff to enter via the school gateway link, then pick their portal and sign in personally."}
