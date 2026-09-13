@@ -1909,6 +1909,13 @@ export function createApiHandler() {
       }
     }
 
+    // ── GET /api/health — public keep-alive health check (no auth, no DB) ──
+    if (req.url === '/api/health' && req.method === 'GET') {
+      res.setHeader('Content-Type', 'application/json');
+      res.statusCode = 200;
+      return res.end(JSON.stringify({ status: 'ok' }));
+    }
+
     // ── Webhook routes (public, no auth) ──
     if (req.url.startsWith('/webhook/')) {
       res.setHeader('Content-Type', 'application/json');
