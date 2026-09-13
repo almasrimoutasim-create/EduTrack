@@ -794,6 +794,9 @@ if (process.env.DATABASE_URL) {
   sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS previous_school TEXT;`.catch(() => {});
   sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS last_result_document_url TEXT;`.catch(() => {});
   sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS national_id_document_url TEXT;`.catch(() => {});
+  sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS section TEXT;`.catch(() => {});
+  sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS date_of_birth DATE;`.catch(() => {});
+  sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS address TEXT;`.catch(() => {});
 
   // ── Multi-tenant: إضافة school_id لكل جدول مستأجر + فهرسة + RLS سيتم لاحقاً ──
   const TENANT_TABLES = [
@@ -2652,7 +2655,14 @@ export function createApiHandler() {
             const school = await resolveSchoolPublicEarly(slug);
             if (!school) { res.statusCode = 404; return res.end(JSON.stringify({ error: 'المدرسة غير موجودة أو غير نشطة' })); }
             const body = await parseBody(req);
-            const { full_name, user_email, phone, grade, parent_name, parent_phone, parent_email, city, notes } = body;
+            const { 
+              full_name, user_email, phone, grade, section, date_of_birth,
+              previous_school, last_result_document_url, national_id_document_url,
+              parent_name, parent_phone, parent_email, address, city, notes,
+              has_chronic_conditions, chronic_conditions_details,
+              has_surgeries, surgery_details,
+              has_regular_medications, medication_details
+            } = body;
             if (!full_name || !parent_name || !parent_phone) {
               res.statusCode = 400;
               return res.end(JSON.stringify({ error: 'اسم الطالب واسم ولي الأمر ورقم الهاتف مطلوبة' }));
@@ -2662,10 +2672,52 @@ export function createApiHandler() {
             const portalPassword = '12345678';
             const hashedPassword = bcrypt.hashSync(portalPassword, 10);
             await dbQuery(
-              `INSERT INTO students (full_name, user_email, student_id, phone, grade, parent_name, parent_phone, parent_email, school_name, city, school_id, portal_password, portal_password_plain, status)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'active')
+              `INSERT INTO students (
+                full_name, user_email, student_id, phone, grade, section, date_of_birth,
+                previous_school, last_result_document_url, national_id_document_url,
+                parent_name, parent_phone, parent_email, address, school_name, city, school_id,
+                has_chronic_conditions, chronic_conditions_details,
+                has_surgeries, surgery_details,
+                has_regular_medications, medication_details,
+                portal_password, portal_password_plain, status
+              )
+               VALUES (
+                $1, $2, $3, $4, $5, $6, $7,
+                $8, $9, $10,
+                $11, $12, $13, $14, $15, $16, $17,
+                $18, $19,
+                $20, $21,
+                $22, $23,
+                $24, $25, 'active'
+              )
                RETURNING id`,
-              [full_name.trim(), (user_email || '').trim().toLowerCase() || null, studentId, (phone || '').trim() || null, (grade || '').trim() || null, parent_name.trim(), parent_phone.trim(), (parent_email || '').trim().toLowerCase() || null, school.name_ar || school.name || school.name_en, (city || '').trim() || null, school.id, hashedPassword, portalPassword]
+              [
+                full_name.trim(),
+                (user_email || '').trim().toLowerCase() || null,
+                studentId,
+                (phone || '').trim() || null,
+                (grade || '').trim() || null,
+                (section || '').trim() || null,
+                date_of_birth ? date_of_birth.substring(0, 10) : null,
+                (previous_school || '').trim() || null,
+                last_result_document_url || null,
+                national_id_document_url || null,
+                parent_name.trim(),
+                parent_phone.trim(),
+                (parent_email || '').trim().toLowerCase() || null,
+                (address || '').trim() || null,
+                school.name_ar || school.name || school.name_en,
+                (city || '').trim() || null,
+                school.id,
+                !!has_chronic_conditions,
+                (chronic_conditions_details || '').trim() || null,
+                !!has_surgeries,
+                (surgery_details || '').trim() || null,
+                !!has_regular_medications,
+                (medication_details || '').trim() || null,
+                hashedPassword,
+                portalPassword
+              ]
             );
             return res.end(JSON.stringify({ success: true, message: 'تم التسجيل بنجاح', student_id: studentId, portal_password: portalPassword, school_name: school.name_ar || school.name }));
           } catch (e) {
@@ -3657,7 +3709,14 @@ export function createApiHandler() {
         if (!school) { res.statusCode = 404; return res.end(JSON.stringify({ error: 'المدرسة غير موجودة أو غير نشطة' })); }
 
         const body = await parseBody(req);
-        const { full_name, user_email, phone, grade, parent_name, parent_phone, parent_email, city, notes } = body;
+        const { 
+              full_name, user_email, phone, grade, section, date_of_birth,
+              previous_school, last_result_document_url, national_id_document_url,
+              parent_name, parent_phone, parent_email, address, city, notes,
+              has_chronic_conditions, chronic_conditions_details,
+              has_surgeries, surgery_details,
+              has_regular_medications, medication_details
+            } = body;
         if (!full_name || !parent_name || !parent_phone) {
           res.statusCode = 400;
           return res.end(JSON.stringify({ error: 'اسم الطالب واسم ولي الأمر ورقم الهاتف مطلوبة' }));
@@ -3669,8 +3728,24 @@ export function createApiHandler() {
         const hashedPassword = bcrypt.hashSync(portalPassword, 10);
 
         await dbQuery(
-          `INSERT INTO students (full_name, user_email, student_id, phone, grade, parent_name, parent_phone, parent_email, school_name, city, school_id, portal_password, portal_password_plain, status)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'active')
+          `INSERT INTO students (
+                full_name, user_email, student_id, phone, grade, section, date_of_birth,
+                previous_school, last_result_document_url, national_id_document_url,
+                parent_name, parent_phone, parent_email, address, school_name, city, school_id,
+                has_chronic_conditions, chronic_conditions_details,
+                has_surgeries, surgery_details,
+                has_regular_medications, medication_details,
+                portal_password, portal_password_plain, status
+              )
+           VALUES (
+                $1, $2, $3, $4, $5, $6, $7,
+                $8, $9, $10,
+                $11, $12, $13, $14, $15, $16, $17,
+                $18, $19,
+                $20, $21,
+                $22, $23,
+                $24, $25, 'active'
+              )
            RETURNING id`,
           [
             full_name.trim(),
