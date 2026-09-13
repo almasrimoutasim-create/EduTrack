@@ -31,6 +31,28 @@ export default function Gateway() {
   const [memberSubmitting, setMemberSubmitting] = useState(false);
   const [memberError, setMemberError] = useState("");
 
+  // Pre-check account type before attempting login
+  const checkAccountType = async (identifier, tab) => {
+    try {
+      const apiBase = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/$/, "");
+      const response = await fetch(`${apiBase}/neon-db/check-account-type`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier: identifier.trim(), schoolId: schoolData?.id }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (tab === "admin" && data.type !== "admin") {
+        return { valid: false, error: "عذراً، هذا الحساب غير مصرح له بالدخول كمدير نظام" };
+      }
+      if (tab === "members" && data.type !== "gateway") {
+        return { valid: false, error: "عذراً، هذا الحساب غير مخصص لبوابة الأعضاء" };
+      }
+      return { valid: true, type: data.type };
+    } catch {
+      return { valid: true }; // Proceed to server if check fails
+    }
+  };
+
   const handleMemberLogin = async (e) => {
     e.preventDefault();
     setMemberError("");
@@ -40,6 +62,14 @@ export default function Gateway() {
     }
     setMemberSubmitting(true);
     try {
+      // Pre-validate account type before login attempt
+      const preCheck = await checkAccountType(memberUser, "members");
+      if (!preCheck.valid) {
+        setMemberError(preCheck.error);
+        setMemberSubmitting(false);
+        return;
+      }
+
       const apiBase = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/$/, "");
       const response = await fetch(`${apiBase}/neon-db/auth/gateway`, {
         method: "POST",
@@ -49,6 +79,12 @@ export default function Gateway() {
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
         throw new Error(data.error || (isRTL ? "بيانات الدخول غير صحيحة" : "Invalid credentials"));
+      }
+      // Verify account_type from server
+      if (data.account_type && data.account_type !== 'gateway') {
+        setMemberError("عذراً، هذا الحساب غير مخصص لبوابة الأعضاء");
+        setMemberSubmitting(false);
+        return;
       }
       localStorage.setItem("portal_gateway_passed", "true");
       if (schoolSlug) localStorage.setItem("portal_school_slug", schoolSlug);
@@ -118,6 +154,14 @@ export default function Gateway() {
     setSubmitting(true);
 
     try {
+      // Pre-validate account type before login attempt
+      const preCheck = await checkAccountType(username, "admin");
+      if (!preCheck.valid) {
+        setLoginError(preCheck.error);
+        setSubmitting(false);
+        return;
+      }
+
       const apiBase = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/$/, "");
       const loginUrl = `${apiBase}/neon-db/auth/school-gateway`;
 
@@ -135,6 +179,13 @@ export default function Gateway() {
 
       if (!response.ok) {
         throw new Error(data.error || (isRTL ? "بيانات الدخول غير صحيحة" : "Invalid login credentials"));
+      }
+
+      // Verify role from server response
+      if (data.user?.role && data.user.role !== 'admin') {
+        setLoginError("عذراً، هذا الحساب غير مصرح له بالدخول كمدير نظام");
+        setSubmitting(false);
+        return;
       }
 
       // Store Auth Session for School Admin

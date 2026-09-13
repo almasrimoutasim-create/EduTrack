@@ -1524,15 +1524,26 @@ export function createApiHandler() {
           return res.end(JSON.stringify({ error: 'اشتراك هذه المدرسة معلق أو منتهي الصلاحية. يرجى التواصل مع إدارة منصة EduTrack.' }));
         }
 
-        // 1. Check system_admins for this school
+        // 1. Check system_admins for this school — verify role explicitly
         const adminRows = await dbQuery(
           `SELECT * FROM system_admins WHERE school_id = $1 AND (LOWER(email) = LOWER($2) OR LOWER(username) = LOWER($2) OR LOWER(full_name) = LOWER($2)) LIMIT 1`,
           [school.id, username.trim()]
         );
 
         let authenticatedAdmin = null;
+        let isGatewayAccount = false;
+
+        // Check if username is a gateway account (for later error handling)
+        const gwRows = await dbQuery('SELECT id FROM gateway_accounts WHERE username = $1', [username.trim()]);
+        if (gwRows.length > 0) isGatewayAccount = true;
+
         if (adminRows.length > 0) {
           const adminRow = adminRows[0];
+          // Verify role is explicitly 'admin' — reject non-admin accounts
+          if (adminRow.role !== 'admin') {
+            res.statusCode = 403;
+            return res.end(JSON.stringify({ error: 'عذراً، هذا الحساب غير مصرح له بالدخول كمدير نظام' }));
+          }
           if (adminRow.password && bcrypt.compareSync(password, adminRow.password)) {
             authenticatedAdmin = adminRow;
           } else if (adminRow.portal_password && (adminRow.portal_password === password || bcrypt.compareSync(password, adminRow.portal_password))) {
@@ -1540,31 +1551,30 @@ export function createApiHandler() {
           }
         }
 
-        // 2. Check if username matches school email or director
+        // 2. Check if username matches school email or director (only role='admin')
         if (!authenticatedAdmin && school.email && school.email.toLowerCase() === username.trim().toLowerCase()) {
-          const anyAdmin = await dbQuery(`SELECT * FROM system_admins WHERE school_id = $1 LIMIT 1`, [school.id]);
+          const anyAdmin = await dbQuery(`SELECT * FROM system_admins WHERE school_id = $1 AND role = 'admin' LIMIT 1`, [school.id]);
           if (anyAdmin.length > 0 && anyAdmin[0].password && bcrypt.compareSync(password, anyAdmin[0].password)) {
             authenticatedAdmin = anyAdmin[0];
           }
         }
 
-        // 3. Fallback: Check gateway_accounts if any
-        if (!authenticatedAdmin) {
-          const gwRows = await dbQuery('SELECT * FROM gateway_accounts WHERE username = $1', [username.trim()]);
-          if (gwRows.length > 0 && bcrypt.compareSync(password, gwRows[0].password)) {
-            authenticatedAdmin = {
-              id: 'gw-' + school.id,
-              full_name: school.director_name || school.name,
-              email: school.email || username.trim(),
-              role: 'admin',
-              school_id: school.id
-            };
-          }
+        // 3. If not authenticated as admin, check if the username is a gateway account
+        //    → return specific authorization error (prevents gateway accounts from logging in as admin)
+        if (!authenticatedAdmin && isGatewayAccount) {
+          res.statusCode = 403;
+          return res.end(JSON.stringify({ error: 'عذراً، هذا الحساب غير مصرح له بالدخول كمدير نظام' }));
         }
 
         if (!authenticatedAdmin) {
           res.statusCode = 401;
           return res.end(JSON.stringify({ error: 'اسم المستخدم أو كلمة المرور غير صحيحة لهذه المدرسة' }));
+        }
+
+        // Final role verification before issuing token
+        if (authenticatedAdmin.role !== 'admin') {
+          res.statusCode = 403;
+          return res.end(JSON.stringify({ error: 'عذراً، هذا الحساب غير مصرح له بالدخول كمدير نظام' }));
         }
 
         const user = {
@@ -1604,22 +1614,23 @@ export function createApiHandler() {
         const { identifier, schoolId } = body;
         if (!identifier) return res.end(JSON.stringify({ type: 'none' }));
         const sid = schoolId || null;
-        // Check gateway first
+        const id = identifier.trim();
+        // Check gateway first (username match)
         let gwRows = [];
         if (sid) {
-          gwRows = await dbQuery('SELECT id FROM gateway_accounts WHERE username = $1 AND school_id = $2 LIMIT 1', [identifier, sid]);
+          gwRows = await dbQuery('SELECT id, username FROM gateway_accounts WHERE username = $1 AND school_id = $2 LIMIT 1', [id, sid]);
         } else {
-          gwRows = await dbQuery('SELECT id FROM gateway_accounts WHERE username = $1 AND school_id IS NULL LIMIT 1', [identifier]);
+          gwRows = await dbQuery('SELECT id, username FROM gateway_accounts WHERE username = $1 AND school_id IS NULL LIMIT 1', [id]);
         }
-        if (gwRows.length > 0) return res.end(JSON.stringify({ type: 'gateway' }));
-        // Check admin
+        if (gwRows.length > 0) return res.end(JSON.stringify({ type: 'gateway', account_type: 'gateway', username: gwRows[0].username }));
+        // Check admin (email, username, or portal_username match, role='admin' only)
         let admRows = [];
         if (sid) {
-          admRows = await dbQuery('SELECT id FROM system_admins WHERE email = $1 AND school_id = $2 LIMIT 1', [identifier, sid]);
+          admRows = await dbQuery("SELECT id, email, role FROM system_admins WHERE school_id = $1 AND role = 'admin' AND (LOWER(email) = LOWER($2) OR LOWER(username) = LOWER($2) OR LOWER(portal_username) = LOWER($2)) LIMIT 1", [sid, id]);
         } else {
-          admRows = await dbQuery('SELECT id FROM system_admins WHERE email = $1 LIMIT 1', [identifier]);
+          admRows = await dbQuery("SELECT id, email, role FROM system_admins WHERE role = 'admin' AND (LOWER(email) = LOWER($2) OR LOWER(username) = LOWER($2) OR LOWER(portal_username) = LOWER($2)) LIMIT 1", [id]);
         }
-        if (admRows.length > 0) return res.end(JSON.stringify({ type: 'admin' }));
+        if (admRows.length > 0) return res.end(JSON.stringify({ type: 'admin', account_type: 'admin', email: admRows[0].email, role: admRows[0].role }));
         return res.end(JSON.stringify({ type: 'none' }));
       } catch (e) {
         return res.end(JSON.stringify({ type: 'none' }));
@@ -1659,7 +1670,17 @@ export function createApiHandler() {
           return res.end(JSON.stringify({ error: 'Invalid credentials' }));
         }
 
-        return res.end(JSON.stringify({ success: true, school_id: account.school_id || null }));
+        // Verify the account is NOT an admin account (double-check by username)
+        const adminCheck = await dbQuery(
+          `SELECT id FROM system_admins WHERE (LOWER(username) = LOWER($1) OR LOWER(email) = LOWER($1)) AND role = 'admin'`,
+          [account.username]
+        );
+        if (adminCheck.length > 0) {
+          res.statusCode = 403;
+          return res.end(JSON.stringify({ error: 'عذراً، هذا الحساب غير مصرح له بالدخول عبر البوابة' }));
+        }
+
+        return res.end(JSON.stringify({ success: true, school_id: account.school_id || null, account_type: 'gateway' }));
       } catch (error) {
         res.statusCode = 500;
         return res.end(JSON.stringify({ error: error.message }));
