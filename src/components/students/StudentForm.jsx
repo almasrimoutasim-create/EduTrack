@@ -25,7 +25,10 @@ import {
   AlertCircle,
   Wallet,
   DollarSign,
-  CheckCircle
+  CheckCircle,
+  HeartPulse,
+  Activity,
+  Pill
 } from "lucide-react";
 
 const grades = ["1","2","3","4","5","6","7","8","9","10","11","12"];
@@ -52,7 +55,10 @@ export default function StudentForm({ student, onClose }) {
     full_name: "", student_id: "", user_email: "", portal_password: "", parent_password: "", grade: "1", section: "A",
     date_of_birth: "", parent_name: "", parent_phone: "", parent_email: "",
     address: "", card_balance: 0, bus_registered: false, bus_route: "", status: "active", photo_url: "",
-    tuition_total: 0, tuition_paid: 0
+    tuition_total: 0, tuition_paid: 0,
+    has_chronic_conditions: false, chronic_conditions_details: "",
+    has_surgeries: false, surgery_details: "",
+    has_regular_medications: false, medication_details: ""
   });
 
   // Fetch all fee structures to calculate total fees based on selected grade
@@ -65,6 +71,12 @@ export default function StudentForm({ student, onClose }) {
     if (student) {
       setForm({
         ...student,
+        has_chronic_conditions: student.has_chronic_conditions || false,
+        chronic_conditions_details: student.chronic_conditions_details || "",
+        has_surgeries: student.has_surgeries || false,
+        surgery_details: student.surgery_details || "",
+        has_regular_medications: student.has_regular_medications || false,
+        medication_details: student.medication_details || "",
         date_of_birth: student.date_of_birth ? student.date_of_birth.substring(0, 10) : "",
         portal_password: "",
         parent_password: ""
@@ -74,7 +86,10 @@ export default function StudentForm({ student, onClose }) {
         full_name: "", student_id: "", user_email: student?.user_email || "", portal_password: "", parent_password: "", grade: "1", section: "A",
         date_of_birth: "", parent_name: "", parent_phone: "", parent_email: "",
         address: "", card_balance: 0, bus_registered: false, bus_route: "", status: "active", photo_url: "",
-        tuition_total: 0, tuition_paid: 0
+        tuition_total: 0, tuition_paid: 0,
+        has_chronic_conditions: false, chronic_conditions_details: "",
+        has_surgeries: false, surgery_details: "",
+        has_regular_medications: false, medication_details: ""
       });
     }
     setErrorMsg("");
@@ -214,7 +229,17 @@ export default function StudentForm({ student, onClose }) {
     tuitionTotal: isRTL ? "إجمالي الرسوم الدراسية ($)" : "Total Tuition Fees ($)",
     tuitionPaid: isRTL ? "الرسوم الدراسية المدفوعة ($)" : "Tuition Fees Paid ($)",
     tuitionRemaining: isRTL ? "الرسوم المتبقية المستحقة ($)" : "Remaining Due Balance ($)",
-    tuitionRemainingHint: isRTL ? "يُحسب تلقائياً: إجمالي الرسوم − الرسوم المدفوعة" : "Auto-computed: Total − Paid"
+    tuitionRemainingHint: isRTL ? "يُحسب تلقائياً: إجمالي الرسوم − الرسوم المدفوعة" : "Auto-computed: Total − Paid",
+    secMedical: isRTL ? "الحالة الطبية" : "Medical Condition",
+    chronicConditions: isRTL ? "هل يوجد حالات مرضية متكررة؟" : "Are there chronic conditions?",
+    chronicConditionsDetails: isRTL ? "تفاصيل الحالات المرضية" : "Details of chronic conditions",
+    chronicConditionsPlaceholder: isRTL ? "اذكر تفاصيل الحالة المرضية المزمنة..." : "Mention details of chronic conditions...",
+    surgeries: isRTL ? "هل أجريت عملية جراحية؟" : "Has undergone surgery?",
+    surgeriesDetails: isRTL ? "تفاصيل العمليات الجراحية" : "Surgery details",
+    surgeriesPlaceholder: isRTL ? "اذكر تفاصيل العمليات الجراحية السابقة..." : "Mention details of past surgeries...",
+    regularMedications: isRTL ? "هل يتم تناول أدوية دائمة؟" : "Taking regular medications?",
+    medicationsDetails: isRTL ? "تفاصيل الأدوية الدائمة" : "Medication details",
+    medicationsPlaceholder: isRTL ? "اذكر أسماء الأدوية ومواعيد تناولها..." : "Mention names of medications and schedules..."
   };
 
   return (
@@ -646,6 +671,127 @@ export default function StudentForm({ student, onClose }) {
                   />
                 </div>
                 <p className="text-[10px] text-stone-400 font-semibold">{t.tuitionRemainingHint}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 5: Medical Condition Card */}
+          <div className="bg-white border border-stone-200/80 rounded-2xl p-6 shadow-sm space-y-5">
+            <div className="flex items-center gap-2 border-b border-stone-100 pb-3">
+              <HeartPulse className="text-primary stroke-[1.8]" size={20} />
+              <h3 className="font-display font-bold text-stone-800 text-base">{t.secMedical}</h3>
+            </div>
+
+            <div className="space-y-4">
+              {/* Chronic conditions toggle */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-stone-50 border border-stone-150 h-11">
+                  <Switch 
+                    id="switch-chronic-conditions"
+                    checked={form.has_chronic_conditions || false} 
+                    onCheckedChange={v => update("has_chronic_conditions", v)} 
+                    className="data-[state=checked]:bg-primary"
+                  />
+                  <div className="flex items-center gap-1.5">
+                    <HeartPulse size={15} className="text-stone-500" />
+                    <Label htmlFor="switch-chronic-conditions" className="text-stone-700 font-bold text-xs cursor-pointer">
+                      {t.chronicConditions}
+                    </Label>
+                  </div>
+                </div>
+
+                {form.has_chronic_conditions && (
+                  <motion.div 
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    className="space-y-1.5"
+                  >
+                    <Label className="text-stone-700 font-bold text-xs">{t.chronicConditionsDetails}</Label>
+                    <div className="relative">
+                      <HeartPulse className={`absolute ${isRTL ? 'right-3.5' : 'left-3.5'} top-1/2 -translate-y-1/2 text-stone-400`} size={16} />
+                      <Input 
+                        placeholder={t.chronicConditionsPlaceholder} 
+                        value={form.chronic_conditions_details || ""} 
+                        onChange={e => update("chronic_conditions_details", e.target.value)} 
+                        className={`rounded-xl border-stone-200 h-11 focus-visible:ring-primary/20 ${isRTL ? 'pr-10' : 'pl-10'}`}
+                      />
+                    </div>
+                  </motion.div>
+                )}
+              </div>
+
+              {/* Surgeries toggle */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-stone-50 border border-stone-150 h-11">
+                  <Switch 
+                    id="switch-surgeries"
+                    checked={form.has_surgeries || false} 
+                    onCheckedChange={v => update("has_surgeries", v)} 
+                    className="data-[state=checked]:bg-primary"
+                  />
+                  <div className="flex items-center gap-1.5">
+                    <Activity size={15} className="text-stone-500" />
+                    <Label htmlFor="switch-surgeries" className="text-stone-700 font-bold text-xs cursor-pointer">
+                      {t.surgeries}
+                    </Label>
+                  </div>
+                </div>
+
+                {form.has_surgeries && (
+                  <motion.div 
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    className="space-y-1.5"
+                  >
+                    <Label className="text-stone-700 font-bold text-xs">{t.surgeriesDetails}</Label>
+                    <div className="relative">
+                      <Activity className={`absolute ${isRTL ? 'right-3.5' : 'left-3.5'} top-1/2 -translate-y-1/2 text-stone-400`} size={16} />
+                      <Input 
+                        placeholder={t.surgeriesPlaceholder} 
+                        value={form.surgery_details || ""} 
+                        onChange={e => update("surgery_details", e.target.value)} 
+                        className={`rounded-xl border-stone-200 h-11 focus-visible:ring-primary/20 ${isRTL ? 'pr-10' : 'pl-10'}`}
+                      />
+                    </div>
+                  </motion.div>
+                )}
+              </div>
+
+              {/* Regular medications toggle */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-stone-50 border border-stone-150 h-11">
+                  <Switch 
+                    id="switch-regular-medications"
+                    checked={form.has_regular_medications || false} 
+                    onCheckedChange={v => update("has_regular_medications", v)} 
+                    className="data-[state=checked]:bg-primary"
+                  />
+                  <div className="flex items-center gap-1.5">
+                    <Pill size={15} className="text-stone-500" />
+                    <Label htmlFor="switch-regular-medications" className="text-stone-700 font-bold text-xs cursor-pointer">
+                      {t.regularMedications}
+                    </Label>
+                  </div>
+                </div>
+
+                {form.has_regular_medications && (
+                  <motion.div 
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    className="space-y-1.5"
+                  >
+                    <Label className="text-stone-700 font-bold text-xs">{t.medicationsDetails}</Label>
+                    <div className="relative">
+                      <Pill className={`absolute ${isRTL ? 'right-3.5' : 'left-3.5'} top-1/2 -translate-y-1/2 text-stone-400`} size={16} />
+                      <Input 
+                        placeholder={t.medicationsPlaceholder} 
+                        value={form.medication_details || ""} 
+                        onChange={e => update("medication_details", e.target.value)} 
+                        className={`rounded-xl border-stone-200 h-11 focus-visible:ring-primary/20 ${isRTL ? 'pr-10' : 'pl-10'}`}
+                      />
+                    </div>
+                  </motion.div>
+                )}
               </div>
             </div>
           </div>

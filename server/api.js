@@ -782,6 +782,14 @@ if (process.env.DATABASE_URL) {
   sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active';`.catch(() => {});
   sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS portal_password TEXT;`.catch(() => {});
 
+  // Migration: medical condition fields
+  sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS has_chronic_conditions BOOLEAN DEFAULT false;`.catch(() => {});
+  sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS chronic_conditions_details TEXT;`.catch(() => {});
+  sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS has_surgeries BOOLEAN DEFAULT false;`.catch(() => {});
+  sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS surgery_details TEXT;`.catch(() => {});
+  sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS has_regular_medications BOOLEAN DEFAULT false;`.catch(() => {});
+  sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS medication_details TEXT;`.catch(() => {});
+
   // ── Multi-tenant: إضافة school_id لكل جدول مستأجر + فهرسة + RLS سيتم لاحقاً ──
   const TENANT_TABLES = [
     'students','teachers','attendance','subjects','library_books','financial_records',
