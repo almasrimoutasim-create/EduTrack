@@ -596,6 +596,12 @@ if (process.env.DATABASE_URL) {
     await sql`ALTER TABLE system_admins ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'admin'`.catch(()=>{});
     await sql`ALTER TABLE system_admins ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active'`.catch(()=>{});
     await sql`ALTER TABLE system_admins ADD COLUMN IF NOT EXISTS portal_username TEXT`.catch(()=>{});
+    await sql`ALTER TABLE system_admins ADD COLUMN IF NOT EXISTS phone TEXT`.catch(()=>{});
+    await sql`ALTER TABLE system_admins ADD COLUMN IF NOT EXISTS date_of_birth TEXT`.catch(()=>{});
+    await sql`ALTER TABLE system_admins ADD COLUMN IF NOT EXISTS specialty TEXT`.catch(()=>{});
+    await sql`ALTER TABLE system_admins ADD COLUMN IF NOT EXISTS notes TEXT`.catch(()=>{});
+    await sql`ALTER TABLE system_admins ADD COLUMN IF NOT EXISTS cv_document_url TEXT`.catch(()=>{});
+    await sql`ALTER TABLE system_admins ADD COLUMN IF NOT EXISTS certificates_urls TEXT`.catch(()=>{});
     console.log('[neon] system_admins columns migrated');
     // Remove UNIQUE constraint on email if it exists (multiple schools may share admin email)
     await sql`ALTER TABLE system_admins DROP CONSTRAINT IF EXISTS system_admins_email_key`.catch(()=>{});
@@ -743,6 +749,10 @@ if (process.env.DATABASE_URL) {
   sql`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS bio TEXT;`.catch(() => {});
   sql`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active';`.catch(() => {});
   sql`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS portal_password TEXT;`.catch(() => {});
+  sql`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS city TEXT;`.catch(() => {});
+  sql`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS notes TEXT;`.catch(() => {});
+  sql`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS cv_document_url TEXT;`.catch(() => {});
+  sql`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS certificates_urls TEXT;`.catch(() => {});
 
   // ── Independent Student Portal: جدول الطلاب المستقلين ──
   sql`
@@ -2733,17 +2743,23 @@ export function createApiHandler() {
             const school = await resolveSchoolPublicEarly(slug);
             if (!school) { res.statusCode = 404; return res.end(JSON.stringify({ error: 'المدرسة غير موجودة أو غير نشطة' })); }
             const body = await parseBody(req);
-            const { full_name, email, phone, subjects, experience_years, bio, city, notes } = body;
+            const { full_name, email, phone, subjects, experience_years, bio, city, notes, cv_document_url, certificates_urls } = body;
             if (!full_name) { res.statusCode = 400; return res.end(JSON.stringify({ error: 'الاسم الكامل مطلوب' })); }
+            // ensure new columns exist (hot-fix for running prod without restart)
+            await dbQuery(`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS city TEXT`).catch(()=>{});
+            await dbQuery(`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS notes TEXT`).catch(()=>{});
+            await dbQuery(`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS cv_document_url TEXT`).catch(()=>{});
+            await dbQuery(`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS certificates_urls TEXT`).catch(()=>{});
             const empCount = await dbQuery(`SELECT COUNT(*) FROM teachers WHERE school_id = $1`, [school.id]);
             const empId = `TCH-${String((parseInt(empCount[0]?.count || '0') + 1)).padStart(4, '0')}`;
             const portalPassword = '12345678';
             const hashedPassword = bcrypt.hashSync(portalPassword, 10);
+            const certsValue = Array.isArray(certificates_urls) ? JSON.stringify(certificates_urls) : (certificates_urls || null);
             await dbQuery(
-              `INSERT INTO teachers (full_name, email, employee_id, phone, subjects, experience_years, bio, school_id, portal_password, portal_password_plain, status)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'active')
+              `INSERT INTO teachers (full_name, email, employee_id, phone, subjects, experience_years, bio, city, notes, cv_document_url, certificates_urls, school_id, portal_password, portal_password_plain, status)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, 'active')
                RETURNING id`,
-              [full_name.trim(), (email || '').trim().toLowerCase() || null, empId, (phone || '').trim() || null, (subjects || '').trim() || null, experience_years ? parseInt(experience_years) : null, (bio || '').trim() || null, school.id, hashedPassword, portalPassword]
+              [full_name.trim(), (email || '').trim().toLowerCase() || null, empId, (phone || '').trim() || null, (subjects || '').trim() || null, experience_years ? parseInt(experience_years) : null, (bio || '').trim() || null, (city || '').trim() || null, (notes || '').trim() || null, cv_document_url || null, certsValue, school.id, hashedPassword, portalPassword]
             );
             return res.end(JSON.stringify({ success: true, message: 'تم التسجيل بنجاح', employee_id: empId, portal_password: portalPassword, school_name: school.name_ar || school.name }));
           } catch (e) {
@@ -2759,17 +2775,24 @@ export function createApiHandler() {
             const school = await resolveSchoolPublicEarly(slug);
             if (!school) { res.statusCode = 404; return res.end(JSON.stringify({ error: 'المدرسة غير موجودة أو غير نشطة' })); }
             const body = await parseBody(req);
-            const { full_name, email, phone, role, city, notes } = body;
+            const { full_name, email, phone, role, notes, date_of_birth, specialty, cv_document_url, certificates_urls } = body;
             if (!full_name) { res.statusCode = 400; return res.end(JSON.stringify({ error: 'الاسم الكامل مطلوب' })); }
+            await dbQuery(`ALTER TABLE system_admins ADD COLUMN IF NOT EXISTS phone TEXT`).catch(()=>{});
+            await dbQuery(`ALTER TABLE system_admins ADD COLUMN IF NOT EXISTS date_of_birth TEXT`).catch(()=>{});
+            await dbQuery(`ALTER TABLE system_admins ADD COLUMN IF NOT EXISTS specialty TEXT`).catch(()=>{});
+            await dbQuery(`ALTER TABLE system_admins ADD COLUMN IF NOT EXISTS notes TEXT`).catch(()=>{});
+            await dbQuery(`ALTER TABLE system_admins ADD COLUMN IF NOT EXISTS cv_document_url TEXT`).catch(()=>{});
+            await dbQuery(`ALTER TABLE system_admins ADD COLUMN IF NOT EXISTS certificates_urls TEXT`).catch(()=>{});
             const staffCount = await dbQuery(`SELECT COUNT(*) FROM system_admins WHERE school_id = $1`, [school.id]);
             const staffId = `STF-${String((parseInt(staffCount[0]?.count || '0') + 1)).padStart(4, '0')}`;
             const portalPassword = '12345678';
             const hashedPassword = bcrypt.hashSync(portalPassword, 10);
+            const certsValue = Array.isArray(certificates_urls) ? JSON.stringify(certificates_urls) : (certificates_urls || null);
             await dbQuery(
-              `INSERT INTO system_admins (full_name, email, username, password, portal_password, role, school_id, status)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, 'active')
+              `INSERT INTO system_admins (full_name, email, username, password, portal_password, role, school_id, status, phone, date_of_birth, specialty, notes, cv_document_url, certificates_urls)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, 'active', $8, $9, $10, $11, $12, $13)
                RETURNING id`,
-              [full_name.trim(), (email || '').trim().toLowerCase() || null, staffId, hashedPassword, portalPassword, (role || 'staff').trim(), school.id]
+              [full_name.trim(), (email || '').trim().toLowerCase() || null, staffId, hashedPassword, portalPassword, (role || 'staff').trim(), school.id, (phone || '').trim() || null, date_of_birth || null, (specialty || '').trim() || null, (notes || '').trim() || null, cv_document_url || null, certsValue]
             );
             return res.end(JSON.stringify({ success: true, message: 'تم التسجيل بنجاح', staff_id: staffId, portal_password: portalPassword, school_name: school.name_ar || school.name }));
           } catch (e) {
@@ -3787,20 +3810,26 @@ export function createApiHandler() {
         if (!school) { res.statusCode = 404; return res.end(JSON.stringify({ error: 'المدرسة غير موجودة أو غير نشطة' })); }
 
         const body = await parseBody(req);
-        const { full_name, email, phone, subjects, experience_years, bio, city, notes } = body;
+        const { full_name, email, phone, subjects, experience_years, bio, city, notes, cv_document_url, certificates_urls } = body;
         if (!full_name) {
           res.statusCode = 400;
           return res.end(JSON.stringify({ error: 'الاسم الكامل مطلوب' }));
         }
 
+        await dbQuery(`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS city TEXT`).catch(()=>{});
+        await dbQuery(`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS notes TEXT`).catch(()=>{});
+        await dbQuery(`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS cv_document_url TEXT`).catch(()=>{});
+        await dbQuery(`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS certificates_urls TEXT`).catch(()=>{});
+
         const empCount = await dbQuery(`SELECT COUNT(*) FROM teachers WHERE school_id = $1`, [school.id]);
         const empId = `TCH-${String((parseInt(empCount[0]?.count || '0') + 1)).padStart(4, '0')}`;
         const portalPassword = '12345678';
         const hashedPassword = bcrypt.hashSync(portalPassword, 10);
+        const certsValue = Array.isArray(certificates_urls) ? JSON.stringify(certificates_urls) : (certificates_urls || null);
 
         await dbQuery(
-          `INSERT INTO teachers (full_name, email, employee_id, phone, subjects, experience_years, bio, school_id, portal_password, portal_password_plain, status)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'active')
+          `INSERT INTO teachers (full_name, email, employee_id, phone, subjects, experience_years, bio, city, notes, cv_document_url, certificates_urls, school_id, portal_password, portal_password_plain, status)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, 'active')
            RETURNING id`,
           [
             full_name.trim(),
@@ -3810,6 +3839,10 @@ export function createApiHandler() {
             (subjects || '').trim() || null,
             experience_years ? parseInt(experience_years) : null,
             (bio || '').trim() || null,
+            (city || '').trim() || null,
+            (notes || '').trim() || null,
+            cv_document_url || null,
+            certsValue,
             school.id,
             hashedPassword,
             portalPassword
@@ -3839,20 +3872,28 @@ export function createApiHandler() {
         if (!school) { res.statusCode = 404; return res.end(JSON.stringify({ error: 'المدرسة غير موجودة أو غير نشطة' })); }
 
         const body = await parseBody(req);
-        const { full_name, email, phone, role, city, notes } = body;
+        const { full_name, email, phone, role, notes, date_of_birth, specialty, cv_document_url, certificates_urls } = body;
         if (!full_name) {
           res.statusCode = 400;
           return res.end(JSON.stringify({ error: 'الاسم الكامل مطلوب' }));
         }
 
+        await dbQuery(`ALTER TABLE system_admins ADD COLUMN IF NOT EXISTS phone TEXT`).catch(()=>{});
+        await dbQuery(`ALTER TABLE system_admins ADD COLUMN IF NOT EXISTS date_of_birth TEXT`).catch(()=>{});
+        await dbQuery(`ALTER TABLE system_admins ADD COLUMN IF NOT EXISTS specialty TEXT`).catch(()=>{});
+        await dbQuery(`ALTER TABLE system_admins ADD COLUMN IF NOT EXISTS notes TEXT`).catch(()=>{});
+        await dbQuery(`ALTER TABLE system_admins ADD COLUMN IF NOT EXISTS cv_document_url TEXT`).catch(()=>{});
+        await dbQuery(`ALTER TABLE system_admins ADD COLUMN IF NOT EXISTS certificates_urls TEXT`).catch(()=>{});
+
         const staffCount = await dbQuery(`SELECT COUNT(*) FROM system_admins WHERE school_id = $1`, [school.id]);
         const staffId = `STF-${String((parseInt(staffCount[0]?.count || '0') + 1)).padStart(4, '0')}`;
         const portalPassword = '12345678';
         const hashedPassword = bcrypt.hashSync(portalPassword, 10);
+        const certsValue = Array.isArray(certificates_urls) ? JSON.stringify(certificates_urls) : (certificates_urls || null);
 
         await dbQuery(
-          `INSERT INTO system_admins (full_name, email, username, password, portal_password, role, school_id, status)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, 'active')
+          `INSERT INTO system_admins (full_name, email, username, password, portal_password, role, school_id, status, phone, date_of_birth, specialty, notes, cv_document_url, certificates_urls)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, 'active', $8, $9, $10, $11, $12, $13)
            RETURNING id`,
           [
             full_name.trim(),
@@ -3861,7 +3902,13 @@ export function createApiHandler() {
             hashedPassword,
             portalPassword,
             (role || 'staff').trim(),
-            school.id
+            school.id,
+            (phone || '').trim() || null,
+            date_of_birth || null,
+            (specialty || '').trim() || null,
+            (notes || '').trim() || null,
+            cv_document_url || null,
+            certsValue
           ]
         );
 

@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { useLanguage } from "@/lib/LanguageContext";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import { UserPlus, CheckCircle, Building2, Phone, Mail, BookOpen, Loader2 } from "lucide-react";
+import { UserPlus, CheckCircle, Building2, Phone, Mail, BookOpen, Loader2, FileText, Upload, Eye, Trash2, Award } from "lucide-react";
 
 export default function PublicTeacherRegister() {
   const { slug } = useParams();
@@ -17,9 +17,15 @@ export default function PublicTeacherRegister() {
 
   const [form, setForm] = useState({
     full_name: "", email: "", phone: "", subjects: "", experience_years: "", bio: "", city: "", notes: "",
+    cv_document_url: "",
+    certificates_urls: [],
   });
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(null);
+  const [uploadingCv, setUploadingCv] = useState(false);
+  const [uploadingCert, setUploadingCert] = useState(false);
+  const cvInputRef = useRef(null);
+  const certInputRef = useRef(null);
 
   const apiBase = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/$/, "");
 
@@ -38,6 +44,64 @@ export default function PublicTeacherRegister() {
   }, [slug]);
 
   const update = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
+
+  const handleCvUpload = (file) => {
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error(isRTL ? "حجم الملف كبير جداً (الحد الأقصى 5MB)" : "File is too large (max 5MB)");
+      return;
+    }
+    setUploadingCv(true);
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const fullDataUri = event.target.result;
+      let finalUrl = fullDataUri;
+      try {
+        const base64Data = typeof fullDataUri === "string" ? fullDataUri.split(",")[1] : null;
+        if (base64Data) {
+          const url = apiBase ? `${apiBase}/neon-db/upload` : "/neon-db/upload";
+          const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fileName: file.name, fileData: base64Data }) });
+          if (res.ok) { const data = await res.json(); if (data.fileUrl) finalUrl = data.fileUrl; }
+        }
+      } catch (err) { console.warn("Upload endpoint failed, fallback to data URI:", err); }
+      update("cv_document_url", finalUrl);
+      setUploadingCv(false);
+      toast.success(isRTL ? "تم إرفاق السيرة الذاتية" : "CV attached");
+    };
+    reader.onerror = () => { toast.error(isRTL ? "فشل قراءة الملف" : "Failed to read file"); setUploadingCv(false); };
+    reader.readAsDataURL(file);
+  };
+
+  const handleCertificateUpload = (file) => {
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error(isRTL ? "حجم الملف كبير جداً (الحد الأقصى 5MB)" : "File is too large (max 5MB)");
+      return;
+    }
+    setUploadingCert(true);
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const fullDataUri = event.target.result;
+      let finalUrl = fullDataUri;
+      try {
+        const base64Data = typeof fullDataUri === "string" ? fullDataUri.split(",")[1] : null;
+        if (base64Data) {
+          const url = apiBase ? `${apiBase}/neon-db/upload` : "/neon-db/upload";
+          const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fileName: file.name, fileData: base64Data }) });
+          if (res.ok) { const data = await res.json(); if (data.fileUrl) finalUrl = data.fileUrl; }
+        }
+      } catch (err) { console.warn("Upload endpoint failed, fallback to data URI:", err); }
+      setForm(prev => ({ ...prev, certificates_urls: [...(prev.certificates_urls || []), finalUrl] }));
+      setUploadingCert(false);
+      toast.success(isRTL ? "تمت إضافة الشهادة" : "Certificate added");
+    };
+    reader.onerror = () => { toast.error(isRTL ? "فشل قراءة الملف" : "Failed to read file"); setUploadingCert(false); };
+    reader.readAsDataURL(file);
+  };
+
+  const removeCertificate = (idx) => {
+    setForm(prev => ({ ...prev, certificates_urls: prev.certificates_urls.filter((_, i) => i !== idx) }));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -142,6 +206,62 @@ export default function PublicTeacherRegister() {
               <label htmlFor="field-publicteacherregister-notes" className="text-xs font-bold text-stone-600 mb-1 block">{isRTL ? "ملاحظات" : "Notes"}</label>
               <textarea id="field-publicteacherregister-notes" name="notes" aria-label="notes" value={form.notes} onChange={e => update("notes", e.target.value)} rows={2} className="w-full px-3 py-2.5 rounded-xl border border-stone-200 text-sm focus:ring-2 focus:ring-purple-500 text-left resize-none" placeholder={isRTL ? "ملاحظات إضافية" : "Additional notes"} />
             </div>
+
+            {/* مستند السيرة الذاتية */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-stone-600 block">{isRTL ? "مستند السيرة الذاتية (صورة أو PDF)" : "CV Document (Image or PDF)"}</label>
+              <input type="file" ref={cvInputRef} accept="image/*,application/pdf" onChange={e => handleCvUpload(e.target.files?.[0])} className="hidden" />
+              {form.cv_document_url ? (
+                <div className="flex items-center justify-between p-3 rounded-xl bg-stone-50 border border-stone-200">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center shrink-0"><FileText size={15} /></div>
+                    <p className="text-xs font-bold text-stone-800 truncate">{isRTL ? "تم إرفاق السيرة الذاتية" : "CV attached"}</p>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <a href={form.cv_document_url} target="_blank" rel="noopener noreferrer" className="p-1.5 text-stone-500 hover:text-stone-800 hover:bg-stone-200/50 rounded-lg transition-colors"><Eye size={15} /></a>
+                    <button type="button" onClick={() => update("cv_document_url", "")} className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors"><Trash2 size={15} /></button>
+                  </div>
+                </div>
+              ) : (
+                <div onClick={() => cvInputRef.current?.click()} className="flex items-center gap-2.5 p-3 rounded-xl border border-dashed border-stone-300 hover:border-purple-400 hover:bg-purple-50/50 bg-stone-50/50 cursor-pointer transition-all">
+                  <div className="w-8 h-8 rounded-lg bg-white border border-stone-200 flex items-center justify-center text-stone-400 shrink-0">{uploadingCv ? <Loader2 size={15} className="animate-spin text-purple-600" /> : <Upload size={15} />}</div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-bold text-stone-700 truncate">{isRTL ? "انقر لاختيار ملف السيرة الذاتية" : "Click to select CV file"}</p>
+                    <p className="text-[10px] text-stone-400">{isRTL ? "صورة أو PDF (الحد الأقصى 5MB)" : "Image or PDF (Max 5MB)"}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* مستندات الشهادات - متعدد */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-stone-600 block">{isRTL ? "مستندات الشهادات (يمكن رفع أكثر من شهادة)" : "Certificates (multiple allowed)"}</label>
+              <input type="file" ref={certInputRef} accept="image/*,application/pdf" onChange={e => { handleCertificateUpload(e.target.files?.[0]); e.target.value = ""; }} className="hidden" />
+              {form.certificates_urls?.length > 0 && (
+                <div className="space-y-2">
+                  {form.certificates_urls.map((url, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-3 rounded-xl bg-stone-50 border border-stone-200">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center shrink-0"><Award size={15} /></div>
+                        <p className="text-xs font-bold text-stone-800 truncate">{isRTL ? `الشهادة ${idx + 1}` : `Certificate ${idx + 1}`}</p>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <a href={url} target="_blank" rel="noopener noreferrer" className="p-1.5 text-stone-500 hover:text-stone-800 hover:bg-stone-200/50 rounded-lg transition-colors"><Eye size={15} /></a>
+                        <button type="button" onClick={() => removeCertificate(idx)} className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors"><Trash2 size={15} /></button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div onClick={() => certInputRef.current?.click()} className="flex items-center gap-2.5 p-3 rounded-xl border border-dashed border-stone-300 hover:border-purple-400 hover:bg-purple-50/50 bg-stone-50/50 cursor-pointer transition-all">
+                <div className="w-8 h-8 rounded-lg bg-white border border-stone-200 flex items-center justify-center text-stone-400 shrink-0">{uploadingCert ? <Loader2 size={15} className="animate-spin text-purple-600" /> : <Upload size={15} />}</div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold text-stone-700 truncate">{isRTL ? "انقر لإضافة شهادة" : "Click to add certificate"}</p>
+                  <p className="text-[10px] text-stone-400">{isRTL ? "يمكنك إضافة عدة شهادات - صورة أو PDF لكل شهادة" : "You can add multiple certificates - image or PDF each"}</p>
+                </div>
+              </div>
+            </div>
+
             <button type="submit" disabled={loading} className="w-full py-3 rounded-xl font-bold text-sm bg-purple-600 text-white hover:bg-purple-700 transition disabled:opacity-50 flex items-center justify-center gap-2">
               {loading ? <Loader2 size={16} className="animate-spin" /> : <UserPlus size={16} />}
               {isRTL ? "تسجيل" : "Register"}

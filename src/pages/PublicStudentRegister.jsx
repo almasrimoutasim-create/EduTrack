@@ -258,22 +258,20 @@ export default function PublicStudentRegister() {
       <motion.div initial={{ scale: 0.97, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="w-full max-w-2xl mx-auto">
         <Card className="p-6 md:p-8 rounded-[28px] border border-stone-200/80 shadow-xl bg-white space-y-6">
           
-          {/* Header */}
-          <div className="text-center space-y-3 pb-5 border-b border-stone-100">
-            {school.logo_url && (
-              <div className="flex justify-center mb-2">
-                <img src={school.logo_url} alt={school.name_ar || school.name} className="h-16 max-w-[180px] object-contain" />
-              </div>
-            )}
-            <div className="inline-flex items-center justify-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50 text-blue-700 text-xs font-bold">
-              <UserPlus size={15} />
-              <span>{isRTL ? "استمارة تسجيل طالب جديد" : "New Student Registration Form"}</span>
-            </div>
-            <h1 className="text-2xl font-black text-stone-900">{school.name_ar || school.name}</h1>
-            <p className="text-xs text-stone-500">
-              {isRTL ? "يرجى ملء الاستمارة التالية بدقة لتسجيل الطالب بالمدرسة" : "Please fill in the form below accurately to register the student"}
-            </p>
-          </div>
+          {/* Header — الشعار + العناوين الثلاثة في الوسط أسفل الشعار مباشرة */}
+           <div className="flex flex-col items-center justify-center text-center pb-5 border-b border-stone-100 gap-2.5">
+             {school.logo_url && (
+               <img src={school.logo_url} alt={school.name_ar || school.name} className="h-20 md:h-24 max-w-[220px] object-contain mx-auto" />
+             )}
+             <div className="inline-flex items-center justify-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50 text-blue-700 text-xs font-bold mx-auto">
+               <UserPlus size={15} />
+               <span>{isRTL ? "استمارة تسجيل طالب جديد" : "New Student Registration Form"}</span>
+             </div>
+             <h1 className="text-2xl font-black text-stone-900 text-center w-full leading-tight">{school.name_ar || school.name}</h1>
+             <p className="text-xs text-stone-500 text-center leading-relaxed">
+               {isRTL ? "يرجى ملء الاستمارة التالية بدقة لتسجيل الطالب بالمدرسة" : "Please fill in the form below accurately to register the student"}
+             </p>
+           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             
