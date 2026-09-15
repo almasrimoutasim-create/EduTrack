@@ -168,13 +168,10 @@ export default function PublicStaffRegister() {
     <div className="min-h-screen flex items-center justify-center p-4 bg-[#FDFCF8]" dir={isRTL ? "rtl" : "ltr"}>
       <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="w-full max-w-lg">
         <Card className="p-6 md:p-8 rounded-[32px] border-none shadow-xl bg-white">
-          {school.logo_url && <div className="flex justify-center mb-4"><img src={school.logo_url} alt={school.name_ar || school.name} className="h-16 object-contain" /></div>}
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-12 h-12 rounded-2xl bg-amber-100 flex items-center justify-center text-amber-600"><UserPlus size={24} /></div>
-            <div>
-              <h2 className="text-lg font-black text-stone-900">{isRTL ? "تسجيل موظف جديد" : "Staff Registration"}</h2>
-              <p className="text-xs text-stone-500">{school.name_ar || school.name}</p>
-            </div>
+          {school.logo_url && <div className="flex justify-center mb-2"><img src={school.logo_url} alt={school.name_ar || school.name} className="h-20 md:h-24 max-w-[220px] object-contain mx-auto" /></div>}
+          <div className="flex flex-col items-center justify-center text-center gap-1 mb-6">
+            <h2 className="text-xl md:text-2xl font-black text-stone-900">{isRTL ? "تسجيل موظف جديد" : "Staff Registration"}</h2>
+            <p className="text-sm text-stone-500">{school.name_ar || school.name}</p>
           </div>
           <form onSubmit={handleSubmit} className="space-y-3">
             <div>
