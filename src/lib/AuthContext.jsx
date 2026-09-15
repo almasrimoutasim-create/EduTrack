@@ -51,8 +51,18 @@ export const AuthProvider = ({ children }) => {
           setUser(null);
         }
       } else {
-        setIsAuthenticated(false);
-        setUser(null);
+        // Independent portal fallback (teacher/student/staff portals store their own keys)
+        const portalRole = localStorage.getItem('portal_role');
+        const portalUserId = localStorage.getItem('portal_user_id');
+        const portalUserName = localStorage.getItem('portal_user_name');
+        if (portalRole && portalUserId) {
+          setUser({ id: portalUserId, role: portalRole, full_name: portalUserName || '' });
+          setIsAuthenticated(true);
+          localStorage.setItem('portal_gateway_passed', 'true');
+        } else {
+          setIsAuthenticated(false);
+          setUser(null);
+        }
       }
 
       setIsLoadingAuth(false);

@@ -28,8 +28,8 @@ const PORTAL_REDIRECTS = {
 const isPathAllowed = (role, path) => {
   if (role === 'admin') return true;
 
-  if (role === 'teacher') return path.startsWith('/teacher-portal');
-  if (role === 'student') return path.startsWith('/student-portal') || path.startsWith('/store');
+  if (role === 'teacher') return path.startsWith('/teacher-portal') || path.startsWith('/teacher-panel');
+  if (role === 'student') return path.startsWith('/student-portal') || path.startsWith('/student-panel') || path.startsWith('/store');
   if (role === 'parent') return path.startsWith('/parent-portal') || path.startsWith('/store');
   if (role === 'bus' || role === 'bus_supervisor') {
     return path.startsWith('/staff-portal') || path.startsWith('/bus-supervisor');

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/lib/LanguageContext";
+import { useAuth } from "@/lib/AuthContext";
 import { toast } from "sonner";
 
 import {
@@ -88,8 +89,9 @@ const DEFAULTS = {
   teacher_badge_ar: "بوابة المعلم المستقل", teacher_badge_en: "Independent Teacher Portal",
   teacher_title_ar: "ادَرْ فصلك بذكاء — وواجبات، امتحانات، وبث مباشر", teacher_title_en: "Manage your class smartly — assignments, exams & live classes",
   teacher_desc_ar: "أي معلم يمكنه التسجيل لإدارة طلابه وواجباتهم وامتحاناتهم بشكل مستقل. أنشئ حصص مباشرة، ارفع فيديوهات يوتيوب التعليمية، وتابع تقدم كل طالب. مجاني للمعلمين الأفراد.", teacher_desc_en: "Any teacher can register to manage students, assignments, and exams independently. Create live classes, upload YouTube teaching videos, and track each student's progress. Free for individual teachers.",
-  teacher_login_ar: "دخول بوابة المعلم", teacher_login_en: "Teacher Login",
-  teacher_register_ar: "تسجيل جديد كمعلم", teacher_register_en: "Register as Teacher",
+   teacher_login_ar: "دخول بوابة المعلم", teacher_login_en: "Teacher Login",
+   teacher_login_desc_ar: "سجّل دخولك لإدارة طلابك وواجباتهم", teacher_login_desc_en: "Log in to manage your students and assignments",
+   teacher_register_ar: "تسجيل جديد كمعلم", teacher_register_en: "Register as Teacher",
   teacher_wa_ar: "استفسار عبر الواتساب", teacher_wa_en: "WhatsApp",
   student_badge_ar: "بوابة الطالب المستقل", student_badge_en: "Independent Student Portal",
   student_title_ar: "سجل طالبك الآن — وصول فوري للمنهج السوداني", student_title_en: "Register your student — Instant access to Sudanese curriculum",
@@ -124,6 +126,7 @@ const DEFAULTS = {
 export default function LandingPage() {
   const { language } = useLanguage();
   const isRTL = language === "ar";
+  const { login } = useAuth();
 
   const [contentItems, setContentItems] = useState([]);
   const [selectedFeature, setSelectedFeature] = useState(null);
@@ -172,26 +175,10 @@ export default function LandingPage() {
     }
     setTeacherLoginLoading(true);
     try {
-      const res = await fetch("/api/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: teacherLoginForm.username.trim(), password: teacherLoginForm.password, role: "teacher" }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Login failed");
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("user", JSON.stringify(data.user));
-      const tu = data.user || {};
-      localStorage.setItem("portal_role", tu.role || "teacher");
-      localStorage.setItem("portal_user", JSON.stringify(tu));
-      localStorage.setItem("portal_user_id", tu.id || "");
-      localStorage.setItem("portal_user_name", tu.full_name || "");
-      localStorage.setItem("portal_is_auth", "true");
-      if (tu.school_id) localStorage.setItem("portal_school_id", tu.school_id);
-      if (data.token) localStorage.setItem("portal_jwt_token", data.token);
+      await login("teacher", teacherLoginForm.username.trim(), teacherLoginForm.password);
       toast.success(isRTL ? "تم تسجيل الدخول بنجاح" : "Login successful");
       setTeacherLoginOpen(false);
-      navigate("/teacher-panel");
+      window.location.href = "/teacher-panel";
     } catch (err) {
       toast.error(err.message || (isRTL ? "فشل تسجيل الدخول" : "Login failed"));
     } finally {
@@ -207,26 +194,10 @@ export default function LandingPage() {
     }
     setStudentLoginLoading(true);
     try {
-      const res = await fetch("/api/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: studentLoginForm.email.trim(), password: studentLoginForm.password, role: "student" }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Login failed");
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("user", JSON.stringify(data.user));
-      const su = data.user || {};
-      localStorage.setItem("portal_role", su.role || "student");
-      localStorage.setItem("portal_user", JSON.stringify(su));
-      localStorage.setItem("portal_user_id", su.id || "");
-      localStorage.setItem("portal_user_name", su.full_name || "");
-      localStorage.setItem("portal_is_auth", "true");
-      if (su.school_id) localStorage.setItem("portal_school_id", su.school_id);
-      if (data.token) localStorage.setItem("portal_jwt_token", data.token);
+      await login("student", studentLoginForm.email.trim(), studentLoginForm.password);
       toast.success(isRTL ? "تم تسجيل الدخول بنجاح" : "Login successful");
       setStudentLoginOpen(false);
-      navigate("/student-panel");
+      window.location.href = "/student-panel";
     } catch (err) {
       toast.error(err.message || (isRTL ? "فشل تسجيل الدخول" : "Login failed"));
     } finally {
@@ -719,11 +690,13 @@ export default function LandingPage() {
       <Dialog open={teacherLoginOpen} onOpenChange={setTeacherLoginOpen}>
         <DialogContent className="max-w-sm rounded-[24px] p-0 overflow-hidden" dir="rtl">
           <div className="bg-gradient-to-br from-indigo-600 to-violet-600 p-6 text-white text-center">
-            <div className="h-14 w-14 rounded-2xl bg-white/20 flex items-center justify-center mx-auto mb-3">
-              <GraduationCap size={28} />
+            <div className="flex flex-col items-center justify-end min-h-[120px]">
+              <div className="h-14 w-14 rounded-2xl bg-white/20 flex items-center justify-center mx-auto mb-3">
+                <GraduationCap size={28} />
+              </div>
+              <h3 className="text-lg font-black">{t("teacher_login")}</h3>
+              <p className="text-white/80 text-xs mt-1">{t("teacher_login_desc")}</p>
             </div>
-            <h3 className="text-lg font-black">دخول بوابة المعلم</h3>
-            <p className="text-white/80 text-xs mt-1">سجّل دخولك لإدارة طلابك وواجباتهم</p>
           </div>
           <form onSubmit={handleTeacherLogin} className="p-6 space-y-4">
             <div className="space-y-1.5">

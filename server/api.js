@@ -1209,6 +1209,23 @@ const ENTITY_TABLE_MAP = {
   SystemSetting: 'system_settings',
   RegistrationRequest: 'registration_requests',
   School: 'schools',
+  TeacherOwnStudent: 'teacher_own_students',
+  TeacherAssignment: 'teacher_assignments',
+  TeacherExam: 'teacher_exams',
+  TeacherSubmission: 'teacher_submissions',
+  TeacherLiveClass: 'teacher_live_classes',
+  ClassParticipant: 'class_participants',
+  TeacherYoutubeVideo: 'teacher_youtube_videos',
+  TeacherSubscription: 'teacher_subscriptions',
+  CurriculumBook: 'curriculum_books',
+  StaffLeave: 'staff_leaves',
+  StaffContract: 'staff_contracts',
+  StaffEvaluation: 'staff_evaluations',
+  StaffRequest: 'staff_requests',
+  Department: 'departments',
+  CareerLadder: 'career_ladders',
+  StoreCategory: 'store_categories',
+  SalesOrder: 'sales_orders',
 };
 
 const ALLOWED_TABLES = new Set(Object.values(ENTITY_TABLE_MAP));

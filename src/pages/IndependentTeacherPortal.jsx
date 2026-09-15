@@ -15,7 +15,7 @@ import {
   CheckCircle2, AlertCircle, Clock, Eye, EyeOff, Trash2, Edit,
   ExternalLink, Send, PlayCircle, FileText, Award, Star, Play,
   GraduationCap, Copy, UserPlus, BookMarked, X, Download, MessageCircle,
-  UserCheck, RefreshCw, Check
+  UserCheck, RefreshCw, Check, Loader2
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
@@ -75,53 +75,53 @@ export default function IndependentTeacherPortal() {
     localStorage.removeItem("portal_user_id");
     localStorage.removeItem("portal_user_name");
     logout(false);
-    window.location.href = "/gateway";
+    window.location.href = "/";
   };
 
   // Queries
-  const { data: students = [] } = useQuery({
+  const { data: students = [], isLoading: loadingStudents } = useQuery({
     queryKey: ["teacher-own-students", teacherId],
     queryFn: () => entities.TeacherOwnStudent.list("-created_at", { teacher_id: teacherId }),
     enabled: !!teacherId,
   });
 
-  const { data: assignments = [] } = useQuery({
+  const { data: assignments = [], isLoading: loadingAssignments } = useQuery({
     queryKey: ["teacher-assignments", teacherId],
     queryFn: () => entities.TeacherAssignment.list("-created_at", { teacher_id: teacherId }),
     enabled: !!teacherId,
   });
 
-  const { data: exams = [] } = useQuery({
+  const { data: exams = [], isLoading: loadingExams } = useQuery({
     queryKey: ["teacher-exams", teacherId],
     queryFn: () => entities.TeacherExam.list("-created_at", { teacher_id: teacherId }),
     enabled: !!teacherId,
   });
 
-  const { data: liveClasses = [] } = useQuery({
+  const { data: liveClasses = [], isLoading: loadingLive } = useQuery({
     queryKey: ["teacher-live-classes", teacherId],
     queryFn: () => entities.TeacherLiveClass.list("-scheduled_at", { teacher_id: teacherId }),
     enabled: !!teacherId,
   });
 
-  const { data: videos = [] } = useQuery({
+  const { data: videos = [], isLoading: loadingVideos } = useQuery({
     queryKey: ["teacher-youtube-videos", teacherId],
     queryFn: () => entities.TeacherYoutubeVideo.list("-created_at", { teacher_id: teacherId }),
     enabled: !!teacherId,
   });
 
-  const { data: subscriptions = [] } = useQuery({
+  const { data: subscriptions = [], isLoading: loadingSubs } = useQuery({
     queryKey: ["teacher-subscriptions", teacherId],
     queryFn: () => entities.TeacherSubscription.list("-created_at", { teacher_id: teacherId }),
     enabled: !!teacherId,
   });
 
-  const { data: submissions = [] } = useQuery({
+  const { data: submissions = [], isLoading: loadingSubmissions } = useQuery({
     queryKey: ["teacher-submissions", teacherId],
     queryFn: () => entities.TeacherSubmission.list("-submitted_at", { teacher_id: teacherId }),
     enabled: !!teacherId,
   });
 
-  const { data: bonds = [] } = useQuery({
+  const { data: bonds = [], isLoading: loadingBonds } = useQuery({
     queryKey: ["teacher-bonds", teacherId],
     queryFn: () => fetch(`/api/teacher-bonds?teacherId=${teacherId}`, {
         headers: { "Authorization": `Bearer ${localStorage.getItem("portal_jwt_token") || localStorage.getItem("token") || ""}` },
@@ -237,7 +237,7 @@ export default function IndependentTeacherPortal() {
   }
 
   return (
-    <div className="min-h-screen bg-stone-50 flex" dir="rtl">
+    <div className="min-h-screen bg-stone-50 flex" dir={isRTL ? "rtl" : "ltr"}>
       {/* Sidebar */}
       <aside className="hidden lg:flex w-64 bg-white border-l border-stone-200 flex-col fixed inset-y-0 right-0 z-30">
         <div className="p-4 border-b border-stone-100">
@@ -299,6 +299,12 @@ export default function IndependentTeacherPortal() {
       {/* Main Content */}
       <main className="flex-1 lg:mr-64 pt-14 lg:pt-0 pb-20 lg:pb-0">
         <div className="max-w-6xl mx-auto p-4 md:p-6">
+          {loadingStudents ? (
+            <div className="flex flex-col items-center justify-center py-20">
+              <Loader2 className="w-8 h-8 animate-spin text-emerald-600 mb-3" />
+              <p className="text-sm font-bold text-stone-500">{isRTL ? "جاري التحميل..." : "Loading..."}</p>
+            </div>
+          ) : (
           <AnimatePresence mode="wait">
             {activeTab === "dashboard" && <DashboardTab key="dashboard" stats={stats} isRTL={isRTL} students={students} />}
             {activeTab === "students" && <StudentsTab key="students" teacherId={teacherId} students={students} submissions={submissions} isRTL={isRTL} queryClient={queryClient} />}
@@ -309,6 +315,7 @@ export default function IndependentTeacherPortal() {
             {activeTab === "subscriptions" && <SubscriptionsTab key="subs" teacherId={teacherId} subscriptions={subscriptions} isRTL={isRTL} queryClient={queryClient} />}
             {activeTab === "bonds" && <BondsTab key="bonds" bonds={bonds} isRTL={isRTL} approveBond={approveBondMutation.mutate} rejectBond={rejectBondMutation.mutate} approveLoading={approveBondMutation.isPending} rejectLoading={rejectBondMutation.isPending} />}
           </AnimatePresence>
+          )}
         </div>
       </main>
     </div>
@@ -364,11 +371,13 @@ function DashboardTab({ stats, isRTL, students }) {
   );
 }
 
+const EMPTY_STUDENT_FORM = { student_name: "", student_email: "", student_phone: "", grade: "", parent_name: "", parent_phone: "", parent_email: "" };
+
 // ─── Students Tab ───
 function StudentsTab({ teacherId, students, submissions, isRTL, queryClient }) {
   const [showAdd, setShowAdd] = useState(false);
   const [showEdit, setShowEdit] = useState(null);
-  const [form, setForm] = useState({ student_name: "", student_email: "", student_phone: "", grade: "", parent_name: "", parent_phone: "", parent_email: "" });
+  const [form, setForm] = useState(EMPTY_STUDENT_FORM);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [expandedStudent, setExpandedStudent] = useState(null);
@@ -494,14 +503,14 @@ function StudentsTab({ teacherId, students, submissions, isRTL, queryClient }) {
         {filtered.length === 0 && <div className="text-center py-12 text-stone-400 text-sm">{isRTL ? "لا يوجد طلاب بعد" : "No students yet"}</div>}
       </div>
 
-      <Dialog open={showAdd} onOpenChange={setShowAdd}>
-        <DialogContent className="max-w-md rounded-[24px]" dir="rtl">
+      <Dialog open={showAdd} onOpenChange={(o) => { if (!o) setForm(EMPTY_STUDENT_FORM); setShowAdd(o); }}>
+        <DialogContent className="max-w-md rounded-[24px]" dir={isRTL ? "rtl" : "ltr"}>
           <DialogHeader><DialogTitle className="font-black">{isRTL ? "إضافة طالب جديد" : "Add New Student"}</DialogTitle></DialogHeader>
           <div className="space-y-3 p-1">
             <Input placeholder={isRTL ? "اسم الطالب *" : "Student name *"} value={form.student_name} onChange={e => setForm({ ...form, student_name: e.target.value })} className="h-10 rounded-xl" />
             <Input placeholder={isRTL ? "البريد الإلكتروني" : "Email"} value={form.student_email} onChange={e => setForm({ ...form, student_email: e.target.value })} className="h-10 rounded-xl" dir="ltr" />
             <Input placeholder={isRTL ? "الهاتف" : "Phone"} value={form.student_phone} onChange={e => setForm({ ...form, student_phone: e.target.value })} className="h-10 rounded-xl" dir="ltr" />
-            <select id="field-independentteacherportal-grade" name="grade" aria-label="grade" value={form.grade} onChange={e => setForm({ ...form, grade: e.target.value })} className="h-10 rounded-xl border border-stone-200 bg-white px-3 text-sm w-full">
+            <select name="grade" aria-label="grade" value={form.grade} onChange={e => setForm({ ...form, grade: e.target.value })} className="h-10 rounded-xl border border-stone-200 bg-white px-3 text-sm w-full">
               <option value="">{isRTL ? "الصف الدراسي" : "Grade"}</option>
               {["1","2","3","4","5","6","7","8","9","10","11","12"].map(g => <option key={g} value={g}>{isRTL ? `الصف ${g}` : `Grade ${g}`}</option>)}
             </select>
@@ -517,14 +526,14 @@ function StudentsTab({ teacherId, students, submissions, isRTL, queryClient }) {
       </Dialog>
 
       {/* Edit Student Dialog */}
-      <Dialog open={!!showEdit} onOpenChange={() => setShowEdit(null)}>
-        <DialogContent className="max-w-md rounded-[24px]" dir="rtl">
+      <Dialog open={!!showEdit} onOpenChange={(o) => { if (!o) setForm(EMPTY_STUDENT_FORM); setShowEdit(null); }}>
+        <DialogContent className="max-w-md rounded-[24px]" dir={isRTL ? "rtl" : "ltr"}>
           <DialogHeader><DialogTitle className="font-black">{isRTL ? "تعديل بيانات الطالب" : "Edit Student"}</DialogTitle></DialogHeader>
           <div className="space-y-3 p-1">
             <Input placeholder={isRTL ? "اسم الطالب *" : "Student name *"} value={form.student_name} onChange={e => setForm({ ...form, student_name: e.target.value })} className="h-10 rounded-xl" />
             <Input placeholder={isRTL ? "البريد الإلكتروني" : "Email"} value={form.student_email} onChange={e => setForm({ ...form, student_email: e.target.value })} className="h-10 rounded-xl" dir="ltr" />
             <Input placeholder={isRTL ? "الهاتف" : "Phone"} value={form.student_phone} onChange={e => setForm({ ...form, student_phone: e.target.value })} className="h-10 rounded-xl" dir="ltr" />
-            <select id="field-independentteacherportal-grade" name="grade" aria-label="grade" value={form.grade} onChange={e => setForm({ ...form, grade: e.target.value })} className="h-10 rounded-xl border border-stone-200 bg-white px-3 text-sm w-full">
+            <select name="grade" aria-label="grade" value={form.grade} onChange={e => setForm({ ...form, grade: e.target.value })} className="h-10 rounded-xl border border-stone-200 bg-white px-3 text-sm w-full">
               <option value="">{isRTL ? "الصف الدراسي" : "Grade"}</option>
               {["1","2","3","4","5","6","7","8","9","10","11","12"].map(g => <option key={g} value={g}>{isRTL ? `الصف ${g}` : `Grade ${g}`}</option>)}
             </select>
@@ -547,6 +556,7 @@ function AssignmentsTab({ teacherId, assignments, isRTL, queryClient }) {
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ title: "", description: "", subject: "", grade: "", due_date: "", total_points: "100" });
   const [loading, setLoading] = useState(false);
+  const EMPTY_ASSIGNMENT_FORM = { title: "", description: "", subject: "", grade: "", due_date: "", total_points: "100" };
 
   const handleAdd = async () => {
     if (!form.title.trim()) { toast.error(isRTL ? "أدخل عنوان الواجب" : "Enter assignment title"); return; }
@@ -593,15 +603,15 @@ function AssignmentsTab({ teacherId, assignments, isRTL, queryClient }) {
         {(!assignments || assignments.length === 0) && <div className="text-center py-12 text-stone-400 text-sm">{isRTL ? "لا يوجد واجبات" : "No assignments yet"}</div>}
       </div>
 
-      <Dialog open={showAdd} onOpenChange={setShowAdd}>
-        <DialogContent className="max-w-md rounded-[24px]" dir="rtl">
+      <Dialog open={showAdd} onOpenChange={(o) => { if (!o) setForm(EMPTY_ASSIGNMENT_FORM); setShowAdd(o); }}>
+        <DialogContent className="max-w-md rounded-[24px]" dir={isRTL ? "rtl" : "ltr"}>
           <DialogHeader><DialogTitle className="font-black">{isRTL ? "واجب جديد" : "New Assignment"}</DialogTitle></DialogHeader>
           <div className="space-y-3 p-1">
             <Input placeholder={isRTL ? "عنوان الواجب *" : "Title *"} value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className="h-10 rounded-xl" />
-            <textarea id="field-independentteacherportal-description" name="description" aria-label="description" placeholder={isRTL ? "الوصف" : "Description"} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="w-full h-20 rounded-xl border border-stone-200 p-3 text-sm" />
+            <textarea name="description" aria-label="description" placeholder={isRTL ? "الوصف" : "Description"} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="w-full h-20 rounded-xl border border-stone-200 p-3 text-sm" />
             <div className="grid grid-cols-2 gap-2">
               <Input placeholder={isRTL ? "المادة" : "Subject"} value={form.subject} onChange={e => setForm({ ...form, subject: e.target.value })} className="h-10 rounded-xl" />
-              <select id="field-independentteacherportal-grade" name="grade" aria-label="grade" value={form.grade} onChange={e => setForm({ ...form, grade: e.target.value })} className="h-10 rounded-xl border border-stone-200 bg-white px-3 text-sm">
+              <select name="grade" aria-label="grade" value={form.grade} onChange={e => setForm({ ...form, grade: e.target.value })} className="h-10 rounded-xl border border-stone-200 bg-white px-3 text-sm">
                 <option value="">{isRTL ? "الصف" : "Grade"}</option>
                 {["1","2","3","4","5","6","7","8","9","10","11","12"].map(g => <option key={g} value={g}>{g}</option>)}
               </select>
@@ -626,6 +636,7 @@ function ExamsTab({ teacherId, exams, isRTL, queryClient }) {
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ title: "", description: "", subject: "", grade: "", duration_minutes: "60", total_points: "100", questions: "[]" });
   const [loading, setLoading] = useState(false);
+  const EMPTY_EXAM_FORM = { title: "", description: "", subject: "", grade: "", duration_minutes: "60", total_points: "100", questions: "[]" };
 
   const handleAdd = async () => {
     if (!form.title.trim()) { toast.error(isRTL ? "أدخل عنوان الامتحان" : "Enter exam title"); return; }
@@ -679,15 +690,15 @@ function ExamsTab({ teacherId, exams, isRTL, queryClient }) {
         {(!exams || exams.length === 0) && <div className="text-center py-12 text-stone-400 text-sm">{isRTL ? "لا يوجد امتحانات" : "No exams yet"}</div>}
       </div>
 
-      <Dialog open={showAdd} onOpenChange={setShowAdd}>
-        <DialogContent className="max-w-md rounded-[24px]" dir="rtl">
+      <Dialog open={showAdd} onOpenChange={(o) => { if (!o) setForm(EMPTY_EXAM_FORM); setShowAdd(o); }}>
+        <DialogContent className="max-w-md rounded-[24px]" dir={isRTL ? "rtl" : "ltr"}>
           <DialogHeader><DialogTitle className="font-black">{isRTL ? "امتحان جديد" : "New Exam"}</DialogTitle></DialogHeader>
           <div className="space-y-3 p-1">
             <Input placeholder={isRTL ? "عنوان الامتحان *" : "Title *"} value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className="h-10 rounded-xl" />
-            <textarea id="field-independentteacherportal-description" name="description" aria-label="description" placeholder={isRTL ? "الوصف" : "Description"} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="w-full h-16 rounded-xl border border-stone-200 p-3 text-sm" />
+            <textarea name="description" aria-label="description" placeholder={isRTL ? "الوصف" : "Description"} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="w-full h-16 rounded-xl border border-stone-200 p-3 text-sm" />
             <div className="grid grid-cols-2 gap-2">
               <Input placeholder={isRTL ? "المادة" : "Subject"} value={form.subject} onChange={e => setForm({ ...form, subject: e.target.value })} className="h-10 rounded-xl" />
-              <select id="field-independentteacherportal-grade" name="grade" aria-label="grade" value={form.grade} onChange={e => setForm({ ...form, grade: e.target.value })} className="h-10 rounded-xl border border-stone-200 bg-white px-3 text-sm">
+              <select name="grade" aria-label="grade" value={form.grade} onChange={e => setForm({ ...form, grade: e.target.value })} className="h-10 rounded-xl border border-stone-200 bg-white px-3 text-sm">
                 <option value="">{isRTL ? "الصف" : "Grade"}</option>
                 {["1","2","3","4","5","6","7","8","9","10","11","12"].map(g => <option key={g} value={g}>{g}</option>)}
               </select>
@@ -712,6 +723,7 @@ function LiveClassesTab({ teacherId, liveClasses, isRTL, queryClient }) {
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ title: "", description: "", subject: "", grade: "", scheduled_at: "", duration_minutes: "60", max_students: "30" });
   const [loading, setLoading] = useState(false);
+  const EMPTY_LIVE_CLASS_FORM = { title: "", description: "", subject: "", grade: "", scheduled_at: "", duration_minutes: "60", max_students: "30" };
 
   const handleAdd = async () => {
     if (!form.title.trim()) { toast.error(isRTL ? "أدخل عنوان الحصة" : "Enter class title"); return; }
@@ -798,15 +810,15 @@ function LiveClassesTab({ teacherId, liveClasses, isRTL, queryClient }) {
         {(!liveClasses || liveClasses.length === 0) && <div className="text-center py-12 text-stone-400 text-sm">{isRTL ? "لا يوجد حصص" : "No classes yet"}</div>}
       </div>
 
-      <Dialog open={showAdd} onOpenChange={setShowAdd}>
-        <DialogContent className="max-w-md rounded-[24px]" dir="rtl">
+      <Dialog open={showAdd} onOpenChange={(o) => { if (!o) setForm(EMPTY_LIVE_CLASS_FORM); setShowAdd(o); }}>
+        <DialogContent className="max-w-md rounded-[24px]" dir={isRTL ? "rtl" : "ltr"}>
           <DialogHeader><DialogTitle className="font-black">{isRTL ? "حصة مباشرة جديدة" : "New Live Class"}</DialogTitle></DialogHeader>
           <div className="space-y-3 p-1">
             <Input placeholder={isRTL ? "عنوان الحصة *" : "Title *"} value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className="h-10 rounded-xl" />
-            <textarea id="field-independentteacherportal-description" name="description" aria-label="description" placeholder={isRTL ? "الوصف" : "Description"} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="w-full h-16 rounded-xl border border-stone-200 p-3 text-sm" />
+            <textarea name="description" aria-label="description" placeholder={isRTL ? "الوصف" : "Description"} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="w-full h-16 rounded-xl border border-stone-200 p-3 text-sm" />
             <div className="grid grid-cols-2 gap-2">
               <Input placeholder={isRTL ? "المادة" : "Subject"} value={form.subject} onChange={e => setForm({ ...form, subject: e.target.value })} className="h-10 rounded-xl" />
-              <select id="field-independentteacherportal-grade" name="grade" aria-label="grade" value={form.grade} onChange={e => setForm({ ...form, grade: e.target.value })} className="h-10 rounded-xl border border-stone-200 bg-white px-3 text-sm">
+              <select name="grade" aria-label="grade" value={form.grade} onChange={e => setForm({ ...form, grade: e.target.value })} className="h-10 rounded-xl border border-stone-200 bg-white px-3 text-sm">
                 <option value="">{isRTL ? "الصف" : "Grade"}</option>
                 {["1","2","3","4","5","6","7","8","9","10","11","12"].map(g => <option key={g} value={g}>{g}</option>)}
               </select>
@@ -832,6 +844,7 @@ function VideosTab({ teacherId, videos, isRTL, queryClient }) {
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ title: "", description: "", youtube_url: "", subject: "", grade: "", is_hidden: false });
   const [loading, setLoading] = useState(false);
+  const EMPTY_VIDEO_FORM = { title: "", description: "", youtube_url: "", subject: "", grade: "", is_hidden: false };
 
   const handleAdd = async () => {
     if (!form.title.trim() || !form.youtube_url.trim()) { toast.error(isRTL ? "أدخل العنوان والرابط" : "Enter title and URL"); return; }
@@ -909,16 +922,16 @@ function VideosTab({ teacherId, videos, isRTL, queryClient }) {
         {(!videos || videos.length === 0) && <div className="text-center py-12 text-stone-400 text-sm col-span-2">{isRTL ? "لا يوجد فيديوهات" : "No videos yet"}</div>}
       </div>
 
-      <Dialog open={showAdd} onOpenChange={setShowAdd}>
-        <DialogContent className="max-w-md rounded-[24px]" dir="rtl">
+      <Dialog open={showAdd} onOpenChange={(o) => { if (!o) setForm(EMPTY_VIDEO_FORM); setShowAdd(o); }}>
+        <DialogContent className="max-w-md rounded-[24px]" dir={isRTL ? "rtl" : "ltr"}>
           <DialogHeader><DialogTitle className="font-black">{isRTL ? "فيديو يوتيوب جديد" : "New YouTube Video"}</DialogTitle></DialogHeader>
           <div className="space-y-3 p-1">
             <Input placeholder={isRTL ? "عنوان الفيديو *" : "Title *"} value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className="h-10 rounded-xl" />
             <Input placeholder="https://youtube.com/watch?v=..." value={form.youtube_url} onChange={e => setForm({ ...form, youtube_url: e.target.value })} className="h-10 rounded-xl" dir="ltr" />
-            <textarea id="field-independentteacherportal-description" name="description" aria-label="description" placeholder={isRTL ? "الوصف" : "Description"} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="w-full h-16 rounded-xl border border-stone-200 p-3 text-sm" />
+            <textarea name="description" aria-label="description" placeholder={isRTL ? "الوصف" : "Description"} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="w-full h-16 rounded-xl border border-stone-200 p-3 text-sm" />
             <div className="grid grid-cols-2 gap-2">
               <Input placeholder={isRTL ? "المادة" : "Subject"} value={form.subject} onChange={e => setForm({ ...form, subject: e.target.value })} className="h-10 rounded-xl" />
-              <select id="field-independentteacherportal-grade" name="grade" aria-label="grade" value={form.grade} onChange={e => setForm({ ...form, grade: e.target.value })} className="h-10 rounded-xl border border-stone-200 bg-white px-3 text-sm">
+              <select name="grade" aria-label="grade" value={form.grade} onChange={e => setForm({ ...form, grade: e.target.value })} className="h-10 rounded-xl border border-stone-200 bg-white px-3 text-sm">
                 <option value="">{isRTL ? "الصف" : "Grade"}</option>
                 {["1","2","3","4","5","6","7","8","9","10","11","12"].map(g => <option key={g} value={g}>{g}</option>)}
               </select>
@@ -1031,7 +1044,7 @@ function SubscriptionsTab({ teacherId, subscriptions, isRTL, queryClient }) {
 
       {/* Plan Picker Dialog */}
       <Dialog open={!!showPlanDialog} onOpenChange={() => setShowPlanDialog(null)}>
-        <DialogContent className="max-w-sm rounded-[24px]" dir="rtl">
+        <DialogContent className="max-w-sm rounded-[24px]" dir={isRTL ? "rtl" : "ltr"}>
           <DialogHeader><DialogTitle className="font-black">{isRTL ? "اختيار خطة الاشتراك" : "Choose Subscription Plan"}</DialogTitle></DialogHeader>
           <div className="p-4 space-y-3">
             <div className="text-xs text-stone-500">{isRTL ? `للطالب: ${showPlanDialog?.student_name}` : `For: ${showPlanDialog?.student_name}`}</div>
@@ -1088,7 +1101,7 @@ function BondsTab({ bonds, isRTL, approveBond, rejectBond, approveLoading, rejec
                       <GraduationCap size={18} />
                     </div>
                     <div>
-                      <div className="font-bold text-sm text-stone-900">{bond.student_name || isRTL ? "طالب" : "Student"}</div>
+                      <div className="font-bold text-sm text-stone-900">{bond.student_name || (isRTL ? "طالب" : "Student")}</div>
                       <div className="text-xs text-stone-500">{bond.student_email || bond.student_id}</div>
                     </div>
                   </div>
@@ -1123,7 +1136,7 @@ function BondsTab({ bonds, isRTL, approveBond, rejectBond, approveLoading, rejec
                   {bond.status === "approved" ? <CheckCircle2 size={14} /> : <X size={14} />}
                 </div>
                 <div>
-                  <div className="font-bold text-sm text-stone-900">{bond.student_name || isRTL ? "طالب" : "Student"}</div>
+                  <div className="font-bold text-sm text-stone-900">{bond.student_name || (isRTL ? "طالب" : "Student")}</div>
                   <div className="text-xs text-stone-500">{bond.student_email}</div>
                 </div>
               </div>

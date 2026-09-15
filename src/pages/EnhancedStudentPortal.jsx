@@ -73,7 +73,7 @@ export default function StudentPortal() {
     localStorage.removeItem("portal_user_id");
     localStorage.removeItem("portal_user_name");
     logout(false);
-    window.location.href = "/gateway";
+    window.location.href = "/";
   };
 
   // Queries
