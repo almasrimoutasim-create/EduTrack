@@ -138,18 +138,6 @@ export default function RoleGate({ children }) {
     return children;
   }
 
-  // Not passed gateway lock screen? Show gateway
-  if (!isGatewayPassed) {
-    return (
-      <>
-        <a href="/gateway" className="fixed top-4 right-4 z-50 h-9 px-4 rounded-xl bg-white/90 backdrop-blur border border-stone-200 text-stone-700 text-xs font-black flex items-center gap-1.5 shadow-md hover:bg-white">
-          <ArrowLeft size={14} /> العودة للرئيسية
-        </a>
-        <Gateway />
-      </>
-    );
-  }
-
   // Not authenticated? Show secure portal login
   if (!isAuthenticated) {
     return (
@@ -158,6 +146,18 @@ export default function RoleGate({ children }) {
           <ArrowLeft size={14} /> العودة للرئيسية
         </a>
         <RoleLogin />
+      </>
+    );
+  }
+
+  // Authenticated but not passed gateway lock screen? Show gateway
+  if (!isGatewayPassed) {
+    return (
+      <>
+        <a href="/gateway" className="fixed top-4 right-4 z-50 h-9 px-4 rounded-xl bg-white/90 backdrop-blur border border-stone-200 text-stone-700 text-xs font-black flex items-center gap-1.5 shadow-md hover:bg-white">
+          <ArrowLeft size={14} /> العودة للرئيسية
+        </a>
+        <Gateway />
       </>
     );
   }

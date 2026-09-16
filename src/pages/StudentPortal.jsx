@@ -27,7 +27,8 @@ import {
   BookMarked,
   ExternalLink,
   Download,
-  ChevronDown
+  ChevronDown,
+  Loader2
 } from "lucide-react";
 import PortalGrades from "@/components/portal/PortalGrades";
 import { Label } from "@/components/ui/label";
@@ -113,7 +114,7 @@ export default function StudentPortal() {
   // Mock student data
   const studentId = localStorage.getItem("portal_user_id") || "S-505";
   
-  const { data: student = {} } = useQuery({ 
+  const { data: student = {}, isLoading: loadingStudent } = useQuery({ 
     queryKey: ["student-profile", studentId], 
     queryFn: () => entities.Student.get(studentId) 
   });
@@ -123,7 +124,7 @@ export default function StudentPortal() {
     queryFn: () => entities.Purchase.filter({ student_id: studentId })
   });
 
-  const { data: attendanceLogs = [] } = useQuery({
+  const { data: attendanceLogs = [], isLoading: loadingAttendance } = useQuery({
     queryKey: ["student-attendance", studentId],
     queryFn: () => entities.Attendance.filter({ student_id: studentId }, "-date")
   });
@@ -138,13 +139,13 @@ export default function StudentPortal() {
     queryFn: () => entities.StudyMaterial.list("-created_date", 4)
   });
 
-  const { data: studentGrades = [] } = useQuery({
+  const { data: studentGrades = [], isLoading: loadingGrades } = useQuery({
     queryKey: ["student-portal-grades", student?.student_id || studentId],
     queryFn: () => entities.StudentGrade.filter({ student_id: student?.student_id || studentId }),
     enabled: !!(student?.student_id || studentId)
   });
 
-  const { data: studentSubjects = [] } = useQuery({
+  const { data: studentSubjects = [], isLoading: loadingSubjects } = useQuery({
     queryKey: ["student-subjects", student?.grade],
     queryFn: () => entities.Subject.filter({ grade: student?.grade }),
     enabled: !!student?.grade
@@ -312,7 +313,7 @@ export default function StudentPortal() {
     setIsSubmitting(false);
   };
 
-  const { data: studentSchedules = [] } = useQuery({
+  const { data: studentSchedules = [], isLoading: loadingSchedules } = useQuery({
     queryKey: ["student-schedules", student?.grade],
     queryFn: () => entities.ClassSchedule.filter({ grade: student?.grade }),
     enabled: !!student?.grade,
@@ -326,7 +327,7 @@ export default function StudentPortal() {
     staleTime: 1000 * 60 * 10
   });
 
-  const { data: officialAnnouncements = [] } = useQuery({
+  const { data: officialAnnouncements = [], isLoading: loadingAnnouncements } = useQuery({
     queryKey: ["official-announcements-student"],
     queryFn: () => entities.OfficialAnnouncement.list("-created_at", 50),
     staleTime: 1000 * 60 * 10
@@ -367,6 +368,24 @@ export default function StudentPortal() {
     hidden: { opacity: 0 },
     visible: { opacity: 1, transition: { staggerChildren: 0.1 } }
   };
+
+  const isLoading = loadingStudent || loadingGrades || loadingSubjects || loadingSchedules || loadingAttendance;
+
+  if (isLoading) {
+    return (
+      <div className={`min-h-screen bg-stone-50 text-stone-900 ${isRTL ? 'font-cairo' : 'font-sans'}`} dir={isRTL ? "rtl" : "ltr"}>
+        <StudentSidebar />
+        <main className={`transition-all duration-300 min-h-screen pt-16 lg:pt-0 ${isRTL ? "lg:mr-64" : "lg:ml-64"}`}>
+          <div className="p-6 md:p-10 lg:p-12 max-w-7xl mx-auto flex items-center justify-center min-h-[60vh]">
+            <div className="flex flex-col items-center gap-3">
+              <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
+              <p className="text-sm text-stone-500">{isRTL ? "جاري التحميل..." : "Loading..."}</p>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className={`min-h-screen bg-stone-50 text-stone-900 ${isRTL ? 'font-cairo' : 'font-sans'}`} dir={isRTL ? "rtl" : "ltr"}>
@@ -1688,7 +1707,7 @@ export default function StudentPortal() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showFormModal} onOpenChange={setShowFormModal}>
+      <Dialog open={showFormModal} onOpenChange={(open) => { setShowFormModal(open); if (!open) { setAnswers({}); setSelectedAsm(null); setIsViewOnly(false); } }}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto rounded-[32px] p-6 text-right" dir={isRTL ? "rtl" : "ltr"}>
           {selectedAsm && (
             <div className="space-y-6">
@@ -1721,8 +1740,8 @@ export default function StudentPortal() {
                     {q.type === "mcq" && (
                       <div className="grid grid-cols-1 gap-2 pt-2">
                         {q.options.map((opt, oIdx) => (
-                          <label htmlFor="field-studentportal-input-2" key={oIdx} className={`flex items-center gap-3 p-2 rounded-lg transition-colors border border-transparent ${isViewOnly ? 'opacity-70' : 'cursor-pointer hover:bg-white hover:border-stone-100'}`}>
-                            <input id="field-studentportal-input-2" aria-label="input 2" 
+                          <label htmlFor={`${q.id}-opt-${oIdx}`} key={oIdx} className={`flex items-center gap-3 p-2 rounded-lg transition-colors border border-transparent ${isViewOnly ? 'opacity-70' : 'cursor-pointer hover:bg-white hover:border-stone-100'}`}>
+                            <input id={`${q.id}-opt-${oIdx}`} aria-label={`${q.id}-opt-${oIdx}`} 
                               type="radio" 
                               name={q.id}
                               value={opt}
@@ -1741,8 +1760,8 @@ export default function StudentPortal() {
                     {q.type === "checkbox" && (
                       <div className="grid grid-cols-1 gap-2 pt-2">
                         {q.options.map((opt, oIdx) => (
-                          <label htmlFor="field-studentportal-input-1" key={oIdx} className={`flex items-center gap-3 p-2 rounded-lg transition-colors border border-transparent ${isViewOnly ? 'opacity-70' : 'cursor-pointer hover:bg-white hover:border-stone-100'}`}>
-                            <input id="field-studentportal-input-1" name="input_1" aria-label="input 1" 
+                          <label htmlFor={`${q.id}-opt-${oIdx}`} key={oIdx} className={`flex items-center gap-3 p-2 rounded-lg transition-colors border border-transparent ${isViewOnly ? 'opacity-70' : 'cursor-pointer hover:bg-white hover:border-stone-100'}`}>
+                            <input id={`${q.id}-opt-${oIdx}`} aria-label={`${q.id}-opt-${oIdx}`} 
                               type="checkbox"
                               checked={(answers[q.id] || []).includes(opt)}
                               onChange={e => !isViewOnly && handleCheckboxChange(q.id, opt, e.target.checked)}

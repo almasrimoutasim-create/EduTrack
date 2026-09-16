@@ -10,13 +10,19 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Users, BookOpen, ClipboardCheck, Video, Calendar, BarChart3,
-  Search, LogOut, ChevronRight, Clock, Eye, EyeOff, PlayCircle, FileText,
-  Award, Star, Play, GraduationCap, Send, BookMarked, Download,
-  CheckCircle2, AlertCircle, MessageCircle, X, ExternalLink, Copy, Check,
-  UserCheck
+  Users, ClipboardCheck, Video, BarChart3,
+  Search, LogOut, Clock, Eye, EyeOff, PlayCircle, FileText,
+  Play, GraduationCap, Send, BookMarked, Download,
+  CheckCircle2, AlertCircle, MessageCircle,
+  UserCheck, Loader2, Megaphone, Award, Sparkles,
+  ArrowUpRight, ChevronLeft, MapPin, Calendar, Fingerprint
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Progress } from "@/components/ui/progress";
+import StudentIDCard from "@/components/student-dashboard/StudentIDCard";
+import VisualSchedule from "@/components/schedule/VisualSchedule";
+import StudentLevelsXP from "@/components/student-dashboard/StudentLevelsXP";
+import PortalGrades from "@/components/portal/PortalGrades";
 
 const btnPrimary = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-bold transition-all bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer shadow-lg disabled:opacity-50";
 const btnOutline = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-bold transition-all border-2 border-stone-200 bg-white text-stone-700 hover:bg-stone-50 hover:border-stone-300 cursor-pointer";
@@ -25,10 +31,15 @@ const SIDEBAR_ITEMS = [
   { id: "dashboard", icon: BarChart3, label: "لوحة التحكم", labelEn: "Dashboard" },
   { id: "my-teacher", icon: UserCheck, label: "معلمي", labelEn: "My Teacher" },
   { id: "teachers", icon: Users, label: "معلمون", labelEn: "Teachers" },
+  { id: "attendance", icon: Fingerprint, label: "الحضور والgate", labelEn: "Attendance" },
+  { id: "grades", icon: Award, label: "الدرجات", labelEn: "Grades" },
+  { id: "schedule", icon: Calendar, label: "الجدول", labelEn: "Schedule" },
   { id: "assignments", icon: ClipboardCheck, label: "الواجبات", labelEn: "Assignments" },
   { id: "exams", icon: FileText, label: "الامتحانات", labelEn: "Exams" },
   { id: "live", icon: Video, label: "الحصص المباشرة", labelEn: "Live Classes" },
   { id: "videos", icon: PlayCircle, label: "فيديوهات يوتيوب", labelEn: "YouTube" },
+  { id: "levels", icon: Sparkles, label: "المستويات", labelEn: "Levels & XP" },
+  { id: "announcements", icon: Megaphone, label: "الإعلانات", labelEn: "Announcements" },
   { id: "curriculum", icon: BookMarked, label: "الكتب الدراسية", labelEn: "Curriculum" },
 ];
 
@@ -77,7 +88,7 @@ export default function StudentPortal() {
   };
 
   // Queries
-  const { data: subscriptions = [] } = useQuery({
+  const { data: subscriptions = [], isLoading: loadingSubscriptions } = useQuery({
     queryKey: ["student-subscriptions", studentId],
     queryFn: () => entities.TeacherSubscription.list("-created_at", { student_id: studentId }),
     enabled: !!studentId,
@@ -88,52 +99,112 @@ export default function StudentPortal() {
 
   const teacherIds = approvedTeachers.map(s => s.teacher_id).filter(Boolean);
 
-  const { data: allAssignments = [] } = useQuery({
+  const { data: allAssignments = [], isLoading: loadingAssignments } = useQuery({
     queryKey: ["student-assignments", teacherIds],
     queryFn: () => Promise.all(teacherIds.map(tid => entities.TeacherAssignment.list("-due_date", { teacher_id: tid }))).then(r => r.flat()),
     enabled: teacherIds.length > 0,
   });
 
-  const { data: allExams = [] } = useQuery({
+  const { data: allExams = [], isLoading: loadingExams } = useQuery({
     queryKey: ["student-exams", teacherIds],
     queryFn: () => Promise.all(teacherIds.map(tid => entities.TeacherExam.list("-created_at", { teacher_id: tid }))).then(r => r.flat()),
     enabled: teacherIds.length > 0,
   });
 
-  const { data: allLiveClasses = [] } = useQuery({
+  const { data: allLiveClasses = [], isLoading: loadingLiveClasses } = useQuery({
     queryKey: ["student-live-classes", teacherIds],
     queryFn: () => Promise.all(teacherIds.map(tid => entities.TeacherLiveClass.list("-scheduled_at", { teacher_id: tid }))).then(r => r.flat()),
     enabled: teacherIds.length > 0,
   });
 
-  const { data: allVideos = [] } = useQuery({
+  const { data: allVideos = [], isLoading: loadingVideos } = useQuery({
     queryKey: ["student-videos", teacherIds],
     queryFn: () => Promise.all(teacherIds.map(tid => entities.TeacherYoutubeVideo.list("-created_at", { teacher_id: tid }))).then(r => r.flat().filter(v => !v.is_hidden)),
     enabled: teacherIds.length > 0,
   });
 
-  const { data: curriculumBooks = [] } = useQuery({
+  const { data: curriculumBooks = [], isLoading: loadingBooks } = useQuery({
     queryKey: ["curriculum-books"],
     queryFn: () => entities.CurriculumBook.list("-grade", {}),
   });
 
-  const { data: mySubmissions = [] } = useQuery({
+  const { data: mySubmissions = [], isLoading: loadingSubmissions } = useQuery({
     queryKey: ["student-submissions", studentId],
     queryFn: () => entities.TeacherSubmission.list("-submitted_at", { student_id: studentId }),
     enabled: !!studentId,
   });
 
-  const stats = useMemo(() => ({
-    teachers: approvedTeachers.length,
-    pendingSubs: pendingSubs.length,
-    assignments: allAssignments?.length || 0,
-    exams: allExams?.length || 0,
-    liveClasses: allLiveClasses?.filter(c => c.status === "scheduled" || c.status === "live")?.length || 0,
-    videos: allVideos?.length || 0,
-    books: curriculumBooks?.length || 0,
-    submissions: mySubmissions?.length || 0,
-    graded: mySubmissions?.filter(s => s.status === "graded")?.length || 0,
-  }), [approvedTeachers, pendingSubs, allAssignments, allExams, allLiveClasses, allVideos, curriculumBooks, mySubmissions]);
+  const studentGrade = useMemo(() => {
+    try {
+      const raw = localStorage.getItem("portal_student_grade");
+      if (raw) return raw;
+      const user = JSON.parse(localStorage.getItem("portal_user") || "{}");
+      return user?.grade || "";
+    } catch { return ""; }
+  }, []);
+
+  const { data: studentSchedules = [], isLoading: loadingSchedules } = useQuery({
+    queryKey: ["student-schedules", studentGrade],
+    queryFn: () => entities.ClassSchedule.list("-day_of_week", studentGrade ? { grade: studentGrade } : {}),
+  });
+
+  const { data: studentTasks = [], isLoading: loadingTasks } = useQuery({
+    queryKey: ["student-tasks", studentGrade],
+    queryFn: () => entities.TeacherTask.list("-due_date", studentGrade ? { grade: studentGrade } : {}),
+  });
+
+  const { data: studentAwards = [], isLoading: loadingAwards } = useQuery({
+    queryKey: ["student-awards", studentId],
+    queryFn: () => entities.StudentAward.list("-created_at", { student_id: studentId }),
+    enabled: !!studentId,
+  });
+
+  const { data: officialAnnouncements = [], isLoading: loadingAnnouncements } = useQuery({
+    queryKey: ["student-announcements"],
+    queryFn: () => entities.OfficialAnnouncement.list("-created_at", 50),
+  });
+
+  const studentAnnouncements = useMemo(() =>
+    (officialAnnouncements || []).filter(a =>
+      a.target_audience === "students" || a.target_audience === "all" || !a.target_audience
+    ), [officialAnnouncements]);
+
+  const { data: attendanceLogs = [], isLoading: loadingAttendance } = useQuery({
+    queryKey: ["student-attendance", studentId],
+    queryFn: () => entities.Attendance.list("-created_at", { student_id: studentId }),
+    enabled: !!studentId,
+  });
+
+  const stats = useMemo(() => {
+    const awardsXP = (studentAwards || []).reduce((sum, a) => sum + (a.xp || a.points || 0), 0);
+    const homeworkXP = (mySubmissions || []).reduce((sum, s) => sum + (s.grade || 0) * 2, 0);
+    const presentDays = (attendanceLogs || []).filter(a => a.status === "present" || a.status === "gate_passed").length;
+    const attendanceXP = presentDays * 50;
+    const baseXP = 500;
+    const totalXP = baseXP + awardsXP + homeworkXP + attendanceXP;
+    const studentLevel = Math.floor(totalXP / 200);
+    return {
+      teachers: approvedTeachers.length,
+      pendingSubs: pendingSubs.length,
+      assignments: allAssignments?.length || 0,
+      exams: allExams?.length || 0,
+      liveClasses: allLiveClasses?.filter(c => c.status === "scheduled" || c.status === "live")?.length || 0,
+      videos: allVideos?.length || 0,
+      books: curriculumBooks?.length || 0,
+      submissions: mySubmissions?.length || 0,
+      graded: mySubmissions?.filter(s => s.status === "graded")?.length || 0,
+      awards: studentAwards?.length || 0,
+      attendance: attendanceLogs?.length || 0,
+      announcements: studentAnnouncements?.length || 0,
+      xp: totalXP,
+      level: studentLevel,
+      todaySchedules: (studentSchedules || []).filter(s => {
+        const dayNames = ["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
+        const today = dayNames[new Date().getDay()];
+        return s.day_of_week === today;
+      }),
+    };
+  }, [approvedTeachers, pendingSubs, allAssignments, allExams, allLiveClasses, allVideos, curriculumBooks, mySubmissions, studentAwards, attendanceLogs, studentAnnouncements, studentSchedules]);
 
   // Login screen for unauthenticated users
   if (loginMode || !studentId) {
@@ -215,17 +286,28 @@ export default function StudentPortal() {
     );
   }
 
+  const isInitialLoading = loadingSubscriptions && !subscriptions.length;
+
   return (
-    <div className="min-h-screen bg-stone-50 flex" dir="rtl">
+    <div className="min-h-screen bg-stone-50 flex" dir={isRTL ? "rtl" : "ltr"}>
+      {/* Initial loading overlay */}
+      {isInitialLoading && (
+        <div className="fixed inset-0 z-50 bg-stone-50/80 backdrop-blur-sm flex items-center justify-center">
+          <div className="flex flex-col items-center gap-3">
+            <Loader2 size={32} className="animate-spin text-blue-600" />
+            <p className="text-sm font-bold text-stone-600">{isRTL ? "جاري التحميل..." : "Loading..."}</p>
+          </div>
+        </div>
+      )}
       {/* Sidebar */}
-      <aside className="hidden lg:flex w-64 bg-white border-l border-stone-200 flex-col fixed inset-y-0 right-0 z-30">
+      <aside className={`hidden lg:flex w-64 bg-white ${isRTL ? 'border-l' : 'border-r'} border-stone-200 flex-col fixed inset-y-0 ${isRTL ? 'right-0' : 'left-0'} z-30`}>
         <div className="p-4 border-b border-stone-100">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center">
               <GraduationCap size={20} />
             </div>
             <div>
-              <div className="font-black text-sm text-stone-900">بوابة الطالب</div>
+              <div className="font-black text-sm text-stone-900">{isRTL ? "بوابة الطالب" : "Student Portal"}</div>
               <div className="text-xs text-stone-500 truncate max-w-[150px]">{studentName}</div>
             </div>
           </div>
@@ -241,7 +323,7 @@ export default function StudentPortal() {
         </nav>
         <div className="p-3 border-t border-stone-100">
           <button onClick={handleLogout} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-red-600 hover:bg-red-50 transition-all">
-            <LogOut size={18} /> خروج
+            <LogOut size={18} /> {isRTL ? "خروج" : "Logout"}
           </button>
         </div>
       </aside>
@@ -250,7 +332,7 @@ export default function StudentPortal() {
       <div className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-white border-b border-stone-200 h-14 flex items-center px-4 gap-3">
         <GraduationCap size={20} className="text-blue-600" />
         <span className="font-black text-sm">{studentName}</span>
-        <button onClick={handleLogout} className="mr-auto text-red-600"><LogOut size={18} /></button>
+        <button onClick={handleLogout} className={`${isRTL ? 'mr-auto' : 'ml-auto'} text-red-600`}><LogOut size={18} /></button>
       </div>
 
       {/* Mobile Bottom Nav */}
@@ -265,16 +347,21 @@ export default function StudentPortal() {
       </div>
 
       {/* Main Content */}
-      <main className="flex-1 lg:mr-64 pt-14 lg:pt-0 pb-20 lg:pb-0">
+      <main className={`flex-1 ${isRTL ? 'lg:mr-64' : 'lg:ml-64'} pt-14 lg:pt-0 pb-20 lg:pb-0`}>
         <div className="max-w-6xl mx-auto p-4 md:p-6">
           <AnimatePresence mode="wait">
-            {activeTab === "dashboard" && <DashboardTab key="dashboard" stats={stats} isRTL={isRTL} />}
+            {activeTab === "dashboard" && <DashboardTab key="dashboard" stats={stats} studentId={studentId} studentName={studentName} isRTL={isRTL} setActiveTab={setActiveTab} studentAnnouncements={studentAnnouncements} />}
             {activeTab === "my-teacher" && <MyTeacherTab key="my-teacher" approvedTeachers={approvedTeachers} pendingSubs={pendingSubs} studentId={studentId} isRTL={isRTL} queryClient={queryClient} />}
             {activeTab === "teachers" && <TeachersTab key="teachers" studentId={studentId} subscriptions={subscriptions} approvedTeachers={approvedTeachers} pendingSubs={pendingSubs} isRTL={isRTL} queryClient={queryClient} />}
+            {activeTab === "attendance" && <AttendanceTab key="attendance" attendanceLogs={attendanceLogs} stats={stats} studentId={studentId} isRTL={isRTL} />}
+            {activeTab === "grades" && <GradesTab key="grades" studentId={studentId} studentGrade={studentGrade} isRTL={isRTL} />}
+            {activeTab === "schedule" && <ScheduleTab key="schedule" schedules={studentSchedules} tasks={studentTasks} isRTL={isRTL} />}
             {activeTab === "assignments" && <AssignmentsTab key="assignments" assignments={allAssignments} mySubmissions={mySubmissions} studentId={studentId} isRTL={isRTL} queryClient={queryClient} />}
             {activeTab === "exams" && <ExamsTab key="exams" exams={allExams} mySubmissions={mySubmissions} studentId={studentId} isRTL={isRTL} queryClient={queryClient} />}
             {activeTab === "live" && <LiveClassesTab key="live" liveClasses={allLiveClasses} isRTL={isRTL} />}
             {activeTab === "videos" && <VideosTab key="videos" videos={allVideos} isRTL={isRTL} />}
+            {activeTab === "levels" && <LevelsTab key="levels" student={{ id: studentId, name: studentName, grade: studentGrade }} studentAwards={studentAwards} assignments={allAssignments} submissions={mySubmissions} attendanceLogs={attendanceLogs} isRTL={isRTL} />}
+            {activeTab === "announcements" && <AnnouncementsTab key="announcements" announcements={studentAnnouncements} isRTL={isRTL} />}
             {activeTab === "curriculum" && <CurriculumTab key="curriculum" books={curriculumBooks} isRTL={isRTL} />}
           </AnimatePresence>
         </div>
@@ -284,30 +371,101 @@ export default function StudentPortal() {
 }
 
 // ─── Dashboard Tab ───
-function DashboardTab({ stats, isRTL }) {
-  const cards = [
-    { label: isRTL ? "معلمون مسجلون" : "Enrolled Teachers", value: stats.teachers, icon: Users, color: "bg-blue-50 text-blue-600" },
-    { label: isRTL ? "واجبات" : "Assignments", value: stats.assignments, icon: ClipboardCheck, color: "bg-amber-50 text-amber-600" },
-    { label: isRTL ? "امتحانات" : "Exams", value: stats.exams, icon: FileText, color: "bg-purple-50 text-purple-600" },
-    { label: isRTL ? "حصص مباشرة" : "Live Classes", value: stats.liveClasses, icon: Video, color: "bg-emerald-50 text-emerald-600" },
-    { label: isRTL ? "فيديوهات" : "Videos", value: stats.videos, icon: PlayCircle, color: "bg-red-50 text-red-600" },
-    { label: isRTL ? "كتب دراسية" : "Books", value: stats.books, icon: BookMarked, color: "bg-cyan-50 text-cyan-600" },
-    { label: isRTL ? "واجبات مقدمة" : "Submissions", value: stats.submissions, icon: Award, color: "bg-orange-50 text-orange-600" },
-    { label: isRTL ? "تم التصحيح" : "Graded", value: stats.graded, icon: CheckCircle2, color: "bg-emerald-50 text-emerald-600" },
+function DashboardTab({ stats, studentId, studentName, isRTL, setActiveTab, studentAnnouncements }) {
+  const dayNames = ["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
+  const todayIdx = new Date().getDay();
+  const todayEn = dayNames[todayIdx];
+  const todayAr = ["الأحد","الإثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"][todayIdx];
+
+  const quickStats = [
+    { label: isRTL ? "واجبات" : "Assignments", value: stats.assignments, icon: ClipboardCheck, color: "bg-amber-50 text-amber-600", tab: "assignments" },
+    { label: isRTL ? "امتحانات" : "Exams", value: stats.exams, icon: FileText, color: "bg-purple-50 text-purple-600", tab: "exams" },
+    { label: isRTL ? "حصص مباشرة" : "Live", value: stats.liveClasses, icon: Video, color: "bg-emerald-50 text-emerald-600", tab: "live" },
+    { label: isRTL ? "فيديوهات" : "Videos", value: stats.videos, icon: PlayCircle, color: "bg-red-50 text-red-600", tab: "videos" },
+    { label: isRTL ? "شهادات" : "Awards", value: stats.awards, icon: Award, color: "bg-orange-50 text-orange-600", tab: "levels" },
+    { label: isRTL ? "حضور" : "Attendance", value: stats.attendance, icon: Fingerprint, color: "bg-blue-50 text-blue-600", tab: "attendance" },
   ];
 
   return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-      <h1 className="text-xl font-black text-stone-900 mb-4">{isRTL ? "لوحة التحكم" : "Dashboard"}</h1>
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-        {cards.map((c, i) => (
-          <Card key={i} className="p-4 rounded-2xl border-stone-100">
-            <div className={`h-10 w-10 rounded-xl ${c.color} flex items-center justify-center mb-3`}>
-              <c.icon size={18} />
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-4">
+      <h1 className="text-xl font-black text-stone-900">{isRTL ? "لوحة التحكم" : "Dashboard"}</h1>
+
+      {/* Student ID Card + XP Level Card */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <StudentIDCard studentId={studentId} studentName={studentName} size="md" />
+        <Card className="p-5 rounded-2xl border-stone-100">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-black text-stone-900 flex items-center gap-2">
+              <Sparkles size={16} className="text-amber-500" /> {isRTL ? "المستوى والخبرة" : "Level & XP"}
+            </h3>
+            <Badge className="text-[10px] bg-blue-50 text-blue-700">Lvl {stats.level}</Badge>
+          </div>
+          <div className="text-3xl font-black text-stone-900 mb-1">{stats.xp.toLocaleString()} <span className="text-sm text-stone-400">XP</span></div>
+          <Progress value={((stats.xp % 200) / 200) * 100} className="h-2 bg-stone-100" />
+          <div className="text-xs text-stone-400 mt-1">{200 - (stats.xp % 200)} {isRTL ? "XP للمستوى التالي" : "XP to next level"}</div>
+          <button onClick={() => setActiveTab("levels")} className="mt-3 text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1">
+            {isRTL ? "التفاصيل" : "Details"} <ArrowUpRight size={12} />
+          </button>
+        </Card>
+      </div>
+
+      {/* Today's Schedule */}
+      {stats.todaySchedules?.length > 0 && (
+        <Card className="p-4 rounded-2xl border-stone-100">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-black text-stone-900 flex items-center gap-2">
+              <Calendar size={16} className="text-blue-500" /> {isRTL ? `جدول اليوم (${todayAr})` : `Today's Schedule (${todayEn})`}
+            </h3>
+            <button onClick={() => setActiveTab("schedule")} className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1">
+              {isRTL ? "عرض الكل" : "View All"} <ArrowUpRight size={12} />
+            </button>
+          </div>
+          <div className="space-y-2">
+            {stats.todaySchedules.map((s, i) => (
+              <div key={s.id || i} className="flex items-center gap-3 p-2 rounded-xl bg-stone-50">
+                <div className="text-xs font-bold text-blue-600 w-16">{s.start_time || ""}</div>
+                <div className="flex-1">
+                  <div className="text-sm font-bold text-stone-900">{s.subject || s.title || ""}</div>
+                  <div className="text-xs text-stone-500">{s.teacher_name || ""} {s.classroom ? `- ${s.classroom}` : ""}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* Recent Announcements */}
+      {stats.announcements > 0 && (
+        <Card className="p-4 rounded-2xl border-stone-100">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-black text-stone-900 flex items-center gap-2">
+              <Megaphone size={16} className="text-emerald-500" /> {isRTL ? "آخر الإعلانات" : "Recent Announcements"}
+            </h3>
+            <button onClick={() => setActiveTab("announcements")} className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1">
+              {isRTL ? "عرض الكل" : "View All"} <ArrowUpRight size={12} />
+            </button>
+          </div>
+          <div className="space-y-2">
+            {(studentAnnouncements || []).slice(0, 3).map(a => (
+              <div key={a.id} className="p-2 rounded-xl bg-stone-50">
+                <div className="text-sm font-bold text-stone-900">{a.title}</div>
+                <div className="text-xs text-stone-500 line-clamp-1">{a.body || a.content || ""}</div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* Quick Stats Grid */}
+      <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+        {quickStats.map((c, i) => (
+          <button key={i} onClick={() => setActiveTab(c.tab)} className={`p-3 rounded-2xl border border-stone-100 bg-white hover:bg-stone-50 transition-all text-left`}>
+            <div className={`h-8 w-8 rounded-lg ${c.color} flex items-center justify-center mb-2`}>
+              <c.icon size={16} />
             </div>
-            <div className="text-2xl font-black text-stone-900">{c.value}</div>
-            <div className="text-xs text-stone-500 font-bold">{c.label}</div>
-          </Card>
+            <div className="text-lg font-black text-stone-900">{c.value}</div>
+            <div className="text-[10px] text-stone-500 font-bold leading-tight">{c.label}</div>
+          </button>
         ))}
       </div>
     </motion.div>
@@ -407,7 +565,7 @@ function TeachersTab({ studentId, subscriptions, approvedTeachers, pendingSubs, 
       )}
 
       <Dialog open={showSubscribe} onOpenChange={setShowSubscribe}>
-        <DialogContent className="max-w-sm rounded-[24px]" dir="rtl">
+        <DialogContent className="max-w-sm rounded-[24px]" dir={isRTL ? "rtl" : "ltr"}>
           <DialogHeader><DialogTitle className="font-black">{isRTL ? "اشتراك مع معلم" : "Subscribe to Teacher"}</DialogTitle></DialogHeader>
           <div className="space-y-3 p-1">
             <div className="text-xs text-stone-500">{isRTL ? "أدخل كود المعلم الذي تحصله منه على الدروس" : "Enter the teacher code you received from your teacher"}</div>
@@ -495,7 +653,7 @@ function AssignmentsTab({ assignments, mySubmissions, studentId, isRTL, queryCli
       </div>
 
       <Dialog open={!!showSubmit} onOpenChange={() => setShowSubmit(null)}>
-        <DialogContent className="max-w-md rounded-[24px]" dir="rtl">
+        <DialogContent className="max-w-md rounded-[24px]" dir={isRTL ? "rtl" : "ltr"}>
           <DialogHeader><DialogTitle className="font-black">{isRTL ? "تسليم الواجب" : "Submit Assignment"}</DialogTitle></DialogHeader>
           <div className="space-y-3 p-1">
             <textarea id="field-enhancedstudentportal-write-your-answer-here" name="write_your_answer_here" aria-label="write your answer here" placeholder={isRTL ? "اكتب إجابتك هنا..." : "Write your answer here..."} value={answer} onChange={e => setAnswer(e.target.value)}
@@ -580,20 +738,20 @@ function ExamsTab({ exams, mySubmissions, studentId, isRTL, queryClient }) {
       </div>
 
       <Dialog open={!!showExam} onOpenChange={() => setShowExam(null)}>
-        <DialogContent className="max-w-lg rounded-[24px] max-h-[80vh] overflow-y-auto" dir="rtl">
+        <DialogContent className="max-w-lg rounded-[24px] max-h-[80vh] overflow-y-auto" dir={isRTL ? "rtl" : "ltr"}>
           <DialogHeader><DialogTitle className="font-black">{isRTL ? "امتحان" : "Exam"}</DialogTitle></DialogHeader>
           <div className="space-y-4 p-1">
             {exams?.find(e => e.id === showExam)?.questions?.map((q, i) => (
-              <div key={i} className="p-3 bg-stone-50 rounded-xl">
+              <div key={q.id || i} className="p-3 bg-stone-50 rounded-xl">
                 <div className="text-sm font-bold text-stone-900 mb-2">{i + 1}. {q.question}</div>
                 {q.type === "multiple_choice" && q.options?.map((opt, j) => (
-                  <label htmlFor="field-enhancedstudentportal-input-3" key={j} className="flex items-center gap-2 p-2 rounded-lg hover:bg-stone-100 cursor-pointer text-sm">
-                    <input id="field-enhancedstudentportal-input-3" aria-label="input 3" type="radio" name={`q${i}`} checked={answers[i] === j} onChange={() => setAnswers({ ...answers, [i]: j })} className="text-blue-600" />
+                  <label htmlFor={`${q.id}-opt-${j}`} key={j} className="flex items-center gap-2 p-2 rounded-lg hover:bg-stone-100 cursor-pointer text-sm">
+                    <input id={`${q.id}-opt-${j}`} aria-label={`${q.id}-opt-${j}`} type="radio" name={q.id} checked={answers[q.id] === opt} onChange={() => setAnswers({ ...answers, [q.id]: opt })} className="text-blue-600" />
                     <span className="text-stone-700">{opt}</span>
                   </label>
                 ))}
                 {(q.type === "text" || !q.options) && (
-                  <textarea id="field-enhancedstudentportal-value-answers-i" name="value_answers_i" aria-label="value answers i" placeholder={isRTL ? "إجابتك..." : "Your answer..."} value={answers[i] || ""} onChange={e => setAnswers({ ...answers, [i]: e.target.value })}
+                  <textarea id={`${q.id}-text`} aria-label={`${q.id}-text`} placeholder={isRTL ? "إجابتك..." : "Your answer..."} value={answers[q.id] || ""} onChange={e => setAnswers({ ...answers, [q.id]: e.target.value })}
                     className="w-full h-20 rounded-xl border border-stone-200 p-2 text-sm mt-2" />
                 )}
               </div>
@@ -772,7 +930,7 @@ function CurriculumTab({ books, isRTL }) {
 
 // ─── My Teacher Tab ───
 function MyTeacherTab({ approvedTeachers, pendingSubs, studentId, isRTL, queryClient }) {
-  const { data: myBonds = [] } = useQuery({
+  const { data: myBonds = [], isLoading: loadingBonds } = useQuery({
     queryKey: ["student-bonds", studentId],
     queryFn: () => fetch(`/api/teacher-bonds?studentId=${studentId}`, {
         headers: { "Authorization": `Bearer ${localStorage.getItem("portal_jwt_token") || localStorage.getItem("token") || ""}` },
@@ -904,6 +1062,268 @@ function MyTeacherTab({ approvedTeachers, pendingSubs, studentId, isRTL, queryCl
           </div>
         </div>
       )}
+    </motion.div>
+  );
+}
+
+// ─── Attendance / Gate Tab ───
+function AttendanceTab({ attendanceLogs, stats, studentId, isRTL }) {
+  const [swipeLoading, setSwipeLoading] = useState(false);
+
+  const today = new Date().toISOString().slice(0, 10);
+  const todayLogs = (attendanceLogs || []).filter(a => {
+    const d = (a.created_at || a.date || "").slice(0, 10);
+    return d === today;
+  });
+  const alreadySwiped = todayLogs.some(a => a.status === "present" || a.status === "gate_passed");
+  const presentDays = (attendanceLogs || []).filter(a => a.status === "present" || a.status === "gate_passed").length;
+  const absentDays = (attendanceLogs || []).filter(a => a.status === "absent").length;
+
+  const handleGateSwipe = async (type) => {
+    setSwipeLoading(true);
+    try {
+      await entities.Attendance.create({
+        student_id: studentId,
+        student_name: localStorage.getItem("portal_user_name") || "",
+        status: "gate_passed",
+        gate_type: type,
+        date: today,
+        timestamp: new Date().toISOString(),
+      });
+      toast.success(type === "entry" ? (isRTL ? "تم تسجيل الدخول" : "Entry recorded") : (isRTL ? "تم تسجيل الخروج" : "Exit recorded"));
+    } catch (e) { toast.error(e.message); }
+    setSwipeLoading(false);
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-4">
+      <h1 className="text-xl font-black text-stone-900 flex items-center gap-2">
+        <Fingerprint size={22} className="text-blue-600" /> {isRTL ? "الحضور والبوابة" : "Attendance & Gate"}
+      </h1>
+
+      {/* Gate Swipe Buttons */}
+      <Card className="p-5 rounded-2xl border-stone-100">
+        <h3 className="text-sm font-black text-stone-700 mb-4">{isRTL ? "بوابة اليوم" : "Today's Gate"}</h3>
+        <div className="grid grid-cols-2 gap-4">
+          <button
+            onClick={() => handleGateSwipe("entry")}
+            disabled={swipeLoading || alreadySwiped}
+            className={`h-20 rounded-2xl font-black text-sm flex flex-col items-center justify-center gap-2 transition-all ${
+              alreadySwiped ? "bg-stone-100 text-stone-400" : "bg-emerald-500 text-white hover:bg-emerald-600 shadow-lg"
+            }`}
+          >
+            <ArrowUpRight size={24} className={isRTL ? "rotate-[225deg]" : ""} />
+            {isRTL ? "دخول" : "Entry"}
+          </button>
+          <button
+            onClick={() => handleGateSwipe("exit")}
+            disabled={swipeLoading || !alreadySwiped}
+            className={`h-20 rounded-2xl font-black text-sm flex flex-col items-center justify-center gap-2 transition-all ${
+              !alreadySwiped ? "bg-stone-100 text-stone-400" : "bg-red-500 text-white hover:bg-red-600 shadow-lg"
+            }`}
+          >
+            <ChevronLeft size={24} className={isRTL ? "rotate-180" : ""} />
+            {isRTL ? "خروج" : "Exit"}
+          </button>
+        </div>
+        {todayLogs.length > 0 && (
+          <div className="mt-3 text-xs text-stone-500 text-center">
+            {isRTL ? "تم التسجيل اليوم" : "Recorded today"}: {todayLogs.length}
+          </div>
+        )}
+      </Card>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-3 gap-3">
+        <Card className="p-4 rounded-2xl border-stone-100 text-center">
+          <div className="text-2xl font-black text-emerald-600">{presentDays}</div>
+          <div className="text-xs text-stone-500 font-bold">{isRTL ? "ايام حضور" : "Present"}</div>
+        </Card>
+        <Card className="p-4 rounded-2xl border-stone-100 text-center">
+          <div className="text-2xl font-black text-red-600">{absentDays}</div>
+          <div className="text-xs text-stone-500 font-bold">{isRTL ? "ايام غياب" : "Absent"}</div>
+        </Card>
+        <Card className="p-4 rounded-2xl border-stone-100 text-center">
+          <div className="text-2xl font-black text-blue-600">{attendanceLogs?.length || 0}</div>
+          <div className="text-xs text-stone-500 font-bold">{isRTL ? "الكل" : "Total"}</div>
+        </Card>
+      </div>
+
+      {/* Attendance Log */}
+      <Card className="p-4 rounded-2xl border-stone-100">
+        <h3 className="text-sm font-black text-stone-700 mb-3">{isRTL ? "سجل الحضور" : "Attendance Log"}</h3>
+        <div className="space-y-2 max-h-[400px] overflow-y-auto">
+          {(attendanceLogs || []).slice(0, 50).map((a, i) => (
+            <div key={a.id || i} className="flex items-center justify-between p-2 rounded-xl bg-stone-50">
+              <div className="flex items-center gap-3">
+                <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${
+                  a.status === "present" || a.status === "gate_passed" ? "bg-emerald-100 text-emerald-600"
+                    : a.status === "absent" ? "bg-red-100 text-red-600" : "bg-stone-100 text-stone-500"
+                }`}>
+                  <Fingerprint size={14} />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-stone-900">{a.gate_type || a.status || ""}</div>
+                  <div className="text-[10px] text-stone-500">{a.date || (a.created_at || "").slice(0, 10)}</div>
+                </div>
+              </div>
+              <div className="text-[10px] text-stone-400">{a.timestamp ? new Date(a.timestamp).toLocaleTimeString(isRTL ? "ar" : "en", { hour: "2-digit", minute: "2-digit" }) : ""}</div>
+            </div>
+          ))}
+          {(!attendanceLogs || attendanceLogs.length === 0) && (
+            <div className="text-center py-6 text-stone-400 text-sm">
+              {isRTL ? "لا يوجد سجلات حضور" : "No attendance records yet"}
+            </div>
+          )}
+        </div>
+      </Card>
+    </motion.div>
+  );
+}
+
+// ─── Grades Tab ───
+function GradesTab({ studentId, studentGrade, isRTL }) {
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+      <h1 className="text-xl font-black text-stone-900 mb-4 flex items-center gap-2">
+        <Award size={22} className="text-purple-600" /> {isRTL ? "الدرجات" : "Grades"}
+      </h1>
+      <PortalGrades studentId={studentId} studentGrade={studentGrade} />
+    </motion.div>
+  );
+}
+
+// ─── Schedule Tab ───
+function ScheduleTab({ schedules, tasks, isRTL }) {
+  const dayNames = ["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
+  const dayNamesAr = ["الأحد","الإثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"];
+  const todayIdx = new Date().getDay();
+
+  const classes = (schedules || []).map(s => ({
+    id: s.id,
+    title: s.subject || s.title || "",
+    day: dayNames.indexOf(s.day_of_week),
+    startTime: s.start_time || "08:00",
+    endTime: s.end_time || "09:00",
+    classroom: s.classroom || "",
+    teacher: s.teacher_name || "",
+  }));
+
+  const taskItems = (tasks || []).map(t => ({
+    id: t.id,
+    title: t.title || t.description || "",
+    dueDate: t.due_date || t.created_at || "",
+    subject: t.subject || "",
+  }));
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-4">
+      <h1 className="text-xl font-black text-stone-900 flex items-center gap-2">
+        <Calendar size={22} className="text-blue-600" /> {isRTL ? "الجدول الأسبوعي" : "Weekly Schedule"}
+      </h1>
+
+      {/* Day Tabs */}
+      <div className="grid grid-cols-7 gap-1">
+        {dayNames.map((d, i) => (
+          <div key={d} className={`text-center p-2 rounded-xl text-xs font-bold ${i === todayIdx ? "bg-blue-500 text-white" : "bg-stone-100 text-stone-600"}`}>
+            {isRTL ? dayNamesAr[i] : d.slice(0, 3)}
+          </div>
+        ))}
+      </div>
+
+      {/* Today's Schedule */}
+      <Card className="p-4 rounded-2xl border-stone-100">
+        <h3 className="text-sm font-black text-stone-700 mb-3">
+          {isRTL ? `اليوم (${dayNamesAr[todayIdx]})` : `Today (${dayNames[todayIdx]})`}
+        </h3>
+        <div className="space-y-2">
+          {classes.filter(c => c.day === todayIdx).length > 0 ? (
+            classes.filter(c => c.day === todayIdx).sort((a, b) => a.startTime.localeCompare(b.startTime)).map((c, i) => (
+              <div key={c.id || i} className="flex items-center gap-3 p-3 rounded-xl bg-stone-50">
+                <div className="text-xs font-mono text-blue-600 w-14">{c.startTime}</div>
+                <div className="flex-1">
+                  <div className="text-sm font-bold text-stone-900">{c.title}</div>
+                  <div className="text-xs text-stone-500">{c.teacher} {c.classroom ? `- ${c.classroom}` : ""}</div>
+                </div>
+                <div className="text-xs text-stone-400">{c.endTime}</div>
+              </div>
+            ))
+          ) : (
+            <div className="text-center py-6 text-stone-400 text-sm">{isRTL ? "لا حصص اليوم" : "No classes today"}</div>
+          )}
+        </div>
+      </Card>
+
+      {/* All Classes */}
+      {classes.length > 0 && (
+        <Card className="p-4 rounded-2xl border-stone-100">
+          <h3 className="text-sm font-black text-stone-700 mb-3">{isRTL ? "جميع الحصص" : "All Classes"}</h3>
+          <VisualSchedule classes={classes} tasks={taskItems} />
+        </Card>
+      )}
+
+      {classes.length === 0 && (
+        <Card className="p-8 rounded-2xl border-stone-100 text-center">
+          <Calendar size={40} className="text-stone-300 mx-auto mb-3" />
+          <div className="text-sm font-bold text-stone-500">{isRTL ? "لا يوجد جدول بعد" : "No schedule yet"}</div>
+        </Card>
+      )}
+    </motion.div>
+  );
+}
+
+// ─── Levels & XP Tab ───
+function LevelsTab({ student, studentAwards, assignments, submissions, attendanceLogs, isRTL }) {
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+      <h1 className="text-xl font-black text-stone-900 mb-4 flex items-center gap-2">
+        <Sparkles size={22} className="text-amber-500" /> {isRTL ? "المستويات والخبرة" : "Levels & XP"}
+      </h1>
+      <StudentLevelsXP
+        student={student}
+        studentAwards={studentAwards}
+        assignments={assignments}
+        submissions={submissions}
+        attendanceLogs={attendanceLogs}
+      />
+    </motion.div>
+  );
+}
+
+// ─── Announcements Tab ───
+function AnnouncementsTab({ announcements, isRTL }) {
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-4">
+      <h1 className="text-xl font-black text-stone-900 flex items-center gap-2">
+        <Megaphone size={22} className="text-emerald-600" /> {isRTL ? "الإعلانات" : "Announcements"}
+      </h1>
+
+      <div className="grid gap-3">
+        {(announcements || []).map(a => (
+          <Card key={a.id} className="p-4 rounded-2xl border-stone-100">
+            <div className="flex items-start gap-3">
+              <div className="h-10 w-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                <Megaphone size={18} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-black text-stone-900">{a.title}</div>
+                <div className="text-xs text-stone-500 mt-1">{a.body || a.content || ""}</div>
+                <div className="flex gap-2 mt-2 flex-wrap">
+                  {a.priority && <Badge className={`text-[10px] ${a.priority === "high" ? "bg-red-50 text-red-700" : a.priority === "medium" ? "bg-amber-50 text-amber-700" : "bg-stone-100 text-stone-600"}`}>{a.priority}</Badge>}
+                  {a.target_audience && <Badge className="text-[10px] bg-blue-50 text-blue-700">{a.target_audience}</Badge>}
+                  <span className="text-[10px] text-stone-400">{a.created_at ? new Date(a.created_at).toLocaleDateString(isRTL ? "ar" : "en") : ""}</span>
+                </div>
+              </div>
+            </div>
+          </Card>
+        ))}
+        {(!announcements || announcements.length === 0) && (
+          <Card className="p-8 rounded-2xl border-stone-100 text-center">
+            <Megaphone size={40} className="text-stone-300 mx-auto mb-3" />
+            <div className="text-sm font-bold text-stone-500">{isRTL ? "لا يوجد إعلانات" : "No announcements"}</div>
+          </Card>
+        )}
+      </div>
     </motion.div>
   );
 }
