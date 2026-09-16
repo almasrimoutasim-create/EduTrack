@@ -1024,8 +1024,47 @@ if (process.env.DATABASE_URL) {
       created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     )
-  `.then(() => console.log('[neon] student_teacher_bonds table verified/created'))
+   `.then(() => console.log('[neon] student_teacher_bonds table verified/created'))
     .catch(err => console.error('[neon] student_teacher_bonds:', err.message));
+
+   // Migrate bonds and teachers tables for payment flow
+   sql`ALTER TABLE student_teacher_bonds ADD COLUMN IF NOT EXISTS payment_status TEXT DEFAULT 'pending'`.catch(()=>{});
+   sql`ALTER TABLE student_teacher_bonds ADD COLUMN IF NOT EXISTS payment_receipt_url TEXT`.catch(()=>{});
+   sql`ALTER TABLE student_teacher_bonds ADD COLUMN IF NOT EXISTS teacher_bank_account TEXT`.catch(()=>{});
+   sql`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS bank_account TEXT`.catch(()=>{});
+
+   // Auto-create teacher_bank_accounts table
+   sql`
+     CREATE TABLE IF NOT EXISTS teacher_bank_accounts (
+       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+       teacher_id UUID NOT NULL REFERENCES teachers(id) ON DELETE CASCADE,
+       account_number TEXT NOT NULL,
+       account_name TEXT,
+       bank_name TEXT,
+       is_active BOOLEAN DEFAULT true,
+       created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+     )
+   `.then(() => console.log('[neon] teacher_bank_accounts table verified/created'))
+    .catch(err => console.error('[neon] teacher_bank_accounts:', err.message));
+
+   // Auto-create bond_payments table for payment tracking
+   sql`
+     CREATE TABLE IF NOT EXISTS bond_payments (
+       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+       bond_id UUID NOT NULL REFERENCES student_teacher_bonds(id) ON DELETE CASCADE,
+       student_id UUID NOT NULL,
+       teacher_id UUID NOT NULL,
+       amount TEXT,
+       payment_method TEXT DEFAULT 'bank_transfer',
+       receipt_url TEXT,
+       status TEXT DEFAULT 'pending_payment',
+       confirmed_at TIMESTAMP WITH TIME ZONE,
+       confirmed_by UUID,
+       created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+       updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+     )
+   `.then(() => console.log('[neon] bond_payments table verified/created'))
+    .catch(err => console.error('[neon] bond_payments:', err.message));
 
   // Auto-create subscription_pricing table
   sql`
@@ -2309,20 +2348,112 @@ export function createApiHandler() {
           }
         }
 
-        const hashedPw = hashPassword(portalPassword);
-        await dbQuery(
-          `UPDATE student_teacher_bonds SET status = 'approved', portal_username = $1, portal_password = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3`,
-          [portalUsername || null, hashedPw, bondId]
-        );
-        return res.end(JSON.stringify({ success: true }));
-      } catch (error) {
-        console.error('[teacher-bond-approve] error:', error);
-        res.statusCode = 500;
-        return res.end(JSON.stringify({ error: error.message }));
-      }
-    }
+         const hashedPw = hashPassword(portalPassword);
+         const teacherAcc = await dbQuery('SELECT bank_account FROM teachers WHERE id = $1', [me.id]);
+         const bankAccount = teacherAcc[0]?.bank_account || null;
+         await dbQuery(
+           `UPDATE student_teacher_bonds SET status = 'approved', portal_username = $1, portal_password = $2, payment_status = 'pending_payment', teacher_bank_account = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4`,
+           [portalUsername || null, hashedPw, bankAccount, bondId]
+         );
+         return res.end(JSON.stringify({ success: true, bankAccount }));
+       } catch (error) {
+         console.error('[teacher-bond-approve] error:', error);
+         res.statusCode = 500;
+         return res.end(JSON.stringify({ error: error.message }));
+       }
+     }
 
-    // ── Teacher Bond Reject (own bonds only) ──
+      // ── Bond Upload Payment Receipt ──
+      if (req.url === '/api/bond-upload-receipt' && req.method === 'POST') {
+        res.setHeader('Content-Type', 'application/json');
+        try {
+          const me = getBearerUser(req);
+          if (!me) { res.statusCode = 401; return res.end(JSON.stringify({ error: 'Auth required' })); }
+          const body = await parseBody(req);
+          const { bondId, receiptFile, receiptName } = body;
+          const bond = await dbQuery('SELECT id, student_id FROM student_teacher_bonds WHERE id = $1', [bondId]);
+          if (!bond[0]) { res.statusCode = 404; return res.end(JSON.stringify({ error: 'Bond not found' })); }
+          if (bond[0].student_id !== me.id && me.role !== 'founder') { res.statusCode = 403; return res.end(JSON.stringify({ error: 'Forbidden' })); }
+          if (!receiptFile) { res.statusCode = 400; return res.end(JSON.stringify({ error: 'receiptFile required' })); }
+          const fs = await import('fs');
+          const pathMod = await import('path');
+          const uploadDir = pathMod.join(process.cwd(), 'public', 'uploads');
+          if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+          const safeName = `${bondId}_receipt_${Date.now()}.png`;
+          fs.writeFileSync(pathMod.join(uploadDir, safeName), Buffer.from(receiptFile, 'base64'));
+          await dbQuery(
+            `UPDATE student_teacher_bonds SET payment_receipt_url = $1, payment_status = 'receipt_uploaded', updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+            [`/uploads/${safeName}`, bondId]
+          );
+          await dbQuery(
+            `INSERT INTO bond_payments (bond_id, student_id, teacher_id, receipt_url, status)
+             SELECT $1, student_id, teacher_id, $2, 'receipt_uploaded' FROM student_teacher_bonds WHERE id = $1`,
+            [bondId, `/uploads/${safeName}`]
+          );
+          return res.end(JSON.stringify({ success: true }));
+        } catch (error) {
+          console.error('[bond-upload-receipt] error:', error);
+          res.statusCode = 500;
+          return res.end(JSON.stringify({ error: error.message }));
+        }
+      }
+
+      // ── Teacher Profile (GET/UPDATE) ──
+      if (req.url === '/api/teacher-profile' && req.method === 'GET') {
+        res.setHeader('Content-Type', 'application/json');
+        try {
+          const me = getBearerUser(req);
+          if (!me) { res.statusCode = 401; return res.end(JSON.stringify({ error: 'Auth required' })); }
+          const data = await dbQuery('SELECT id, full_name, email, bank_account FROM teachers WHERE id = $1', [me.id]);
+          if (!data[0]) { res.statusCode = 404; return res.end(JSON.stringify({ error: 'Teacher not found' })); }
+          return res.end(JSON.stringify({ success: true, ...data[0] }));
+        } catch (error) {
+          res.statusCode = 500;
+          return res.end(JSON.stringify({ error: error.message }));
+        }
+      }
+
+      if (req.url === '/api/teacher-profile' && req.method === 'PATCH') {
+        res.setHeader('Content-Type', 'application/json');
+        try {
+          const me = getBearerUser(req);
+          if (!me) { res.statusCode = 401; return res.end(JSON.stringify({ error: 'Auth required' })); }
+          const body = await parseBody(req);
+          const { bank_account } = body;
+          await dbQuery('UPDATE teachers SET bank_account = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [bank_account, me.id]);
+          return res.end(JSON.stringify({ success: true }));
+        } catch (error) {
+          res.statusCode = 500;
+          return res.end(JSON.stringify({ error: error.message }));
+        }
+      }
+
+      // ── Bond Confirm Payment ──
+     if (req.url === '/api/bond-confirm-payment' && req.method === 'POST') {
+       res.setHeader('Content-Type', 'application/json');
+       try {
+         const me = getBearerUser(req);
+         if (!me) { res.statusCode = 401; return res.end(JSON.stringify({ error: 'Auth required' })); }
+         const body = await parseBody(req);
+         const { bondId } = body;
+         if (!bondId) { res.statusCode = 400; return res.end(JSON.stringify({ error: 'bondId required' })); }
+         const own = await dbQuery('SELECT id FROM student_teacher_bonds WHERE id = $1 AND teacher_id = $2', [bondId, me.id]);
+         if (own.length === 0) { res.statusCode = 403; return res.end(JSON.stringify({ error: 'Forbidden' })); }
+         await dbQuery(
+           `UPDATE student_teacher_bonds SET payment_status = 'confirmed', confirmed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+           [bondId]
+         );
+         await dbQuery(
+           `UPDATE bond_payments SET status = 'confirmed', confirmed_at = CURRENT_TIMESTAMP, confirmed_by = $1 WHERE bond_id = $2`,
+           [me.id, bondId]
+         );
+         return res.end(JSON.stringify({ success: true }));
+       } catch (error) {
+         console.error('[bond-confirm-payment] error:', error);
+         res.statusCode = 500;
+         return res.end(JSON.stringify({ error: error.message }));
+       }
+     }
     if (req.url === '/api/teacher-bond-reject' && req.method === 'POST') {
       res.setHeader('Content-Type', 'application/json');
       try {

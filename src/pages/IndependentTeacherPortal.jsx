@@ -1,6 +1,6 @@
 import YouTubePlayerModal, { extractYouTubeId, getYouTubeThumbnail } from "@/components/video/YouTubePlayerModal";
 import YouTubeVideoCard from "@/components/video/YouTubeVideoCard";
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { entities } from "@/api/dbClient";
@@ -16,8 +16,8 @@ import {
   Plus, Search, LogOut, Settings, Bell, ChevronRight, ChevronDown,
   CheckCircle2, AlertCircle, Clock, Eye, EyeOff, Trash2, Edit,
   ExternalLink, Send, PlayCircle, FileText, Award, Star, Play,
-  GraduationCap, Copy, UserPlus, BookMarked, X, Download, MessageCircle,
-  UserCheck, RefreshCw, Check, Loader2
+   GraduationCap, Copy, UserPlus, BookMarked, X, Download, MessageCircle,
+   UserCheck, RefreshCw, Check, Loader2, CreditCard
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
@@ -81,8 +81,18 @@ export default function IndependentTeacherPortal() {
     window.location.href = "/";
   };
 
-  // Queries
-  const { data: students = [], isLoading: loadingStudents } = useQuery({
+   const [bankAccount, setBankAccount] = useState("");
+
+   const { data: teacherProfile, isLoading: loadingProfile } = useQuery({
+     queryKey: ["teacher-profile", teacherId],
+     queryFn: () => fetch(`/api/teacher-profile?teacherId=${teacherId}`).then(r => r.json()).catch(() => null),
+     enabled: !!teacherId,
+   });
+
+   useEffect(() => { if (teacherProfile?.bank_account) setBankAccount(teacherProfile.bank_account); }, [teacherProfile]);
+
+   // Queries
+   const { data: students = [], isLoading: loadingStudents } = useQuery({
     queryKey: ["teacher-own-students", teacherId],
     queryFn: () => entities.TeacherOwnStudent.list("-created_at", { teacher_id: teacherId }),
     enabled: !!teacherId,
@@ -135,23 +145,29 @@ export default function IndependentTeacherPortal() {
     enabled: !!teacherId,
   });
 
-  const approveBondMutation = useMutation({
-    mutationFn: ({ bondId, studentName }) => {
-      const username = "std_" + (studentName || "user").replace(/[^a-zA-Z0-9]/g, "").slice(0, 6).toLowerCase() + "_" + Math.random().toString(36).slice(2, 6);
-      const password = Math.random().toString(36).slice(-8) + Math.random().toString(10).slice(-4);
-      return fetch("/api/teacher-bond-approve", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("portal_jwt_token") || localStorage.getItem("token") || ""}` },
-        body: JSON.stringify({ bondId, portalUsername: username, portalPassword: password }),
-      }).then(async r => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || "غير مصرح"); return { ...d, username, password }; })
-    },
-    onSuccess: (data) => {
-      toast.success(isRTL ? "تم قبول ربط الطالب" : "Student bond approved");
-      setCredentialsDialog(data);
-      queryClient.invalidateQueries({ queryKey: ["teacher-bonds"] });
-    },
-    onError: (err) => toast.error(err.message),
-  });
+   const approveBondMutation = useMutation({
+     mutationFn: ({ bondId, studentName }) => {
+       const username = "std_" + (studentName || "user").replace(/[^a-zA-Z0-9]/g, "").slice(0, 6).toLowerCase() + "_" + Math.random().toString(36).slice(2, 6);
+       const password = Math.random().toString(36).slice(-8) + Math.random().toString(10).slice(-4);
+       return fetch("/api/teacher-bond-approve", {
+         method: "POST",
+         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("portal_jwt_token") || localStorage.getItem("token") || ""}` },
+         body: JSON.stringify({ bondId, portalUsername: username, portalPassword: password }),
+       }).then(async r => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || "غير مصرح"); return { ...d, username, password }; })
+     },
+     onSuccess: (data) => {
+       toast.success(isRTL ? "تم قبول ربط الطالب - انتظر الدفع" : "Bond approved - await payment");
+       setCredentialsDialog(data);
+       queryClient.invalidateQueries({ queryKey: ["teacher-bonds"] });
+     },
+     onError: (err) => toast.error(err.message),
+   });
+
+   const confirmPaymentMutation = useMutation({
+     mutationFn: (bondId) => fetch("/api/bond-confirm-payment", { method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("portal_jwt_token") || localStorage.getItem("token") || ""}` }, body: JSON.stringify({ bondId }) }).then(async r => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || "Failed"); return d; }),
+     onSuccess: () => { toast.success(isRTL ? "تم تأكيد الدفع" : "Payment confirmed"); queryClient.invalidateQueries({ queryKey: ["teacher-bonds"] }); },
+     onError: (err) => toast.error(err.message),
+   });
 
   const rejectBondMutation = useMutation({
     mutationFn: (bondId) => fetch("/api/teacher-bond-reject", { method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("portal_jwt_token") || localStorage.getItem("token") || ""}` }, body: JSON.stringify({ bondId }) }).then(async r => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || "غير مصرح"); return d; }),
@@ -255,17 +271,26 @@ export default function IndependentTeacherPortal() {
     <div className="min-h-screen bg-stone-50 flex" dir={isRTL ? "rtl" : "ltr"}>
       {/* Sidebar */}
       <aside className="hidden lg:flex w-64 bg-white border-l border-stone-200 flex-col fixed inset-y-0 right-0 z-30">
-        <div className="p-4 border-b border-stone-100">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
-              <GraduationCap size={20} />
-            </div>
-            <div>
-              <div className="font-black text-sm text-stone-900">بوابة المعلم</div>
-              <div className="text-xs text-stone-500 truncate max-w-[150px]">{teacherName}</div>
-            </div>
-          </div>
-        </div>
+         <div className="p-4 border-b border-stone-100">
+           <div className="flex items-center gap-3">
+             <div className="h-10 w-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+               <GraduationCap size={20} />
+             </div>
+             <div>
+               <div className="font-black text-sm text-stone-900">بوابة المعلم</div>
+               <div className="text-xs text-stone-500 truncate max-w-[150px]">{teacherName}</div>
+             </div>
+           </div>
+           <div className="mt-3 space-y-2">
+             <label className="text-[10px] font-bold text-stone-500">{isRTL ? "رقم الحساب البنكي" : "Bank Account"}</label>
+             <input type="text" value={bankAccount} onChange={e => setBankAccount(e.target.value)} placeholder={isRTL ? "رقم الحساب" : "Account number"}
+               className="w-full rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-xs font-bold text-stone-700 focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+             <button onClick={() => {
+               fetch(`/api/teacher-profile?teacherId=${teacherId}`, { method: "PATCH", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("portal_jwt_token") || localStorage.getItem("token") || ""}` }, body: JSON.stringify({ bank_account: bankAccount }) }).then(r => r.json()).then(d => { if (d.success) toast.success(isRTL ? "تم الحفظ" : "Saved"); }).catch(() => {});
+             }}
+               className="w-full text-[10px] font-bold text-white bg-emerald-600 hover:bg-emerald-700 py-1 rounded-lg">{isRTL ? "حفظ" : "Save"}</button>
+           </div>
+         </div>
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
           {SIDEBAR_ITEMS.map(item => (
             <button key={item.id} onClick={() => setActiveTab(item.id)}
@@ -328,7 +353,7 @@ export default function IndependentTeacherPortal() {
             {activeTab === "live" && <LiveClassesTab key="live" teacherId={teacherId} liveClasses={liveClasses} isRTL={isRTL} queryClient={queryClient} />}
             {activeTab === "videos" && <VideosTab key="videos" teacherId={teacherId} videos={videos} students={students} isRTL={isRTL} queryClient={queryClient} />}
             {activeTab === "subscriptions" && <SubscriptionsTab key="subs" teacherId={teacherId} subscriptions={subscriptions} isRTL={isRTL} queryClient={queryClient} />}
-            {activeTab === "bonds" && <BondsTab key="bonds" bonds={bonds} isRTL={isRTL} approveBond={(bondId) => approveBondMutation.mutate({ bondId, studentName: bonds.find(b => b.id === bondId)?.student_name })} rejectBond={rejectBondMutation.mutate} approveLoading={approveBondMutation.isPending} rejectLoading={rejectBondMutation.isPending} />}
+             {activeTab === "bonds" && <BondsTab key="bonds" bonds={bonds} isRTL={isRTL} approveBond={(bondId) => approveBondMutation.mutate({ bondId, studentName: bonds.find(b => b.id === bondId)?.student_name })} rejectBond={rejectBondMutation.mutate} confirmPayment={(bondId) => confirmPaymentMutation.mutate(bondId)} approveLoading={approveBondMutation.isPending} rejectLoading={rejectBondMutation.isPending} confirmLoading={confirmPaymentMutation.isPending} />}
           </AnimatePresence>
           )}
         </div>
@@ -1546,86 +1571,143 @@ function SubscriptionsTab({ teacherId, subscriptions, isRTL, queryClient }) {
 }
 
 // ─── Student Bonds Tab ───
-function BondsTab({ bonds, isRTL, approveBond, rejectBond, approveLoading, rejectLoading }) {
-  const pendingBonds = bonds?.filter(b => b.status === "pending") || [];
-  const processedBonds = bonds?.filter(b => b.status !== "pending") || [];
+ function BondsTab({ bonds, isRTL, approveBond, rejectBond, confirmPayment, approveLoading, rejectLoading, confirmLoading }) {
+   const pendingBonds = bonds?.filter(b => b.status === "pending") || [];
+   const paymentBonds = bonds?.filter(b => b.status === "approved" && (b.payment_status === "pending_payment" || b.payment_status === "receipt_uploaded")) || [];
+   const processedBonds = bonds?.filter(b => b.status === "approved" && b.payment_status === "confirmed") || [];
+   const rejectedBonds = bonds?.filter(b => b.status === "rejected") || [];
 
-  return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-      <h1 className="text-xl font-black text-stone-900 mb-4 flex items-center gap-2">
-        <UserCheck size={22} className="text-indigo-600" /> {isRTL ? "ربط الطلاب" : "Student Bonds"}
-      </h1>
+   return (
+     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+       <h1 className="text-xl font-black text-stone-900 mb-4 flex items-center gap-2">
+         <UserCheck size={22} className="text-indigo-600" /> {isRTL ? "ربط الطلاب" : "Student Bonds"}
+       </h1>
 
-      {/* Pending Requests */}
-      <div className="mb-6">
-        <h2 className="text-sm font-bold text-stone-700 mb-3 flex items-center gap-2">
-          <Clock size={14} className="text-orange-500" />
-          {isRTL ? "طلبات معلقة" : "Pending Requests"} ({pendingBonds.length})
-        </h2>
-        {pendingBonds.length === 0 ? (
-          <Card className="p-6 rounded-2xl border-stone-100 text-center flex flex-col items-center justify-center">
-            <CheckCircle2 size={36} className="text-stone-300 mb-2" />
-            <div className="text-sm font-bold text-stone-500">{isRTL ? "لا توجد طلبات معلقة" : "No pending requests"}</div>
-          </Card>
-        ) : (
-          <div className="space-y-3">
-            {pendingBonds.map(bond => (
-              <Card key={bond.id} className="p-4 rounded-2xl border-stone-100">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center">
-                      <GraduationCap size={18} />
+       {/* Pending Requests */}
+       <div className="mb-6">
+         <h2 className="text-sm font-bold text-stone-700 mb-3 flex items-center gap-2">
+           <Clock size={14} className="text-orange-500" />
+           {isRTL ? "طلبات معلقة" : "Pending Requests"} ({pendingBonds.length})
+         </h2>
+         {pendingBonds.length === 0 ? (
+           <Card className="p-6 rounded-2xl border-stone-100 text-center flex flex-col items-center justify-center">
+             <CheckCircle2 size={36} className="text-stone-300 mb-2" />
+             <div className="text-sm font-bold text-stone-500">{isRTL ? "لا توجد طلبات معلقة" : "No pending requests"}</div>
+           </Card>
+         ) : (
+           <div className="space-y-3">
+              {pendingBonds.map(bond => (
+                <Card key={bond.id} className="p-4 rounded-2xl border-stone-100">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-black text-sm shrink-0">
+                        {(bond.student_name || "م").charAt(0)}
+                      </div>
+                      <div>
+                        <div className="font-bold text-sm text-stone-900">{bond.student_name || (isRTL ? "طالب" : "Student")}</div>
+                        <div className="text-xs text-stone-500">{bond.student_email || bond.student_id}</div>
+                      </div>
                     </div>
-                    <div>
-                      <div className="font-bold text-sm text-stone-900">{bond.student_name || (isRTL ? "طالب" : "Student")}</div>
-                      <div className="text-xs text-stone-500">{bond.student_email || bond.student_id}</div>
+                    <div className="flex gap-2">
+                      <button onClick={() => approveBond(bond.id)} disabled={approveLoading}
+                        className="h-8 px-3 rounded-lg bg-emerald-500 text-white text-xs font-bold hover:bg-emerald-600 inline-flex items-center justify-center gap-1 disabled:opacity-50">
+                        <Check size={12} /> {isRTL ? "قبول" : "Approve"}
+                      </button>
+                      <button onClick={() => rejectBond(bond.id)} disabled={rejectLoading}
+                        className="h-8 px-3 rounded-lg bg-red-500 text-white text-xs font-bold hover:bg-red-600 inline-flex items-center justify-center gap-1 disabled:opacity-50">
+                        <X size={12} /> {isRTL ? "رفض" : "Reject"}
+                      </button>
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    <button onClick={() => approveBond(bond.id)} disabled={approveLoading}
-                      className="h-8 px-3 rounded-lg bg-emerald-500 text-white text-xs font-bold hover:bg-emerald-600 inline-flex items-center justify-center gap-1 disabled:opacity-50">
-                      <Check size={12} /> {isRTL ? "قبول" : "Approve"}
-                    </button>
-                    <button onClick={() => rejectBond(bond.id)} disabled={rejectLoading}
-                      className="h-8 px-3 rounded-lg bg-red-500 text-white text-xs font-bold hover:bg-red-600 inline-flex items-center justify-center gap-1 disabled:opacity-50">
-                      <X size={12} /> {isRTL ? "رفض" : "Reject"}
-                    </button>
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
-        )}
-      </div>
+                </Card>
+              ))}
+           </div>
+         )}
+       </div>
 
-      {/* Processed Bonds */}
-      <div>
-        <h2 className="text-sm font-bold text-stone-700 mb-3 flex items-center gap-2">
-          <RefreshCw size={14} className="text-blue-500" />
-          {isRTL ? "طلبات معالجة" : "Processed Requests"} ({processedBonds.length})
-        </h2>
-        <div className="space-y-2">
-          {processedBonds.map(bond => (
-            <Card key={bond.id} className="p-4 rounded-2xl border-stone-100 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${bond.status === "approved" ? "bg-emerald-100 text-emerald-600" : "bg-red-100 text-red-600"}`}>
-                  {bond.status === "approved" ? <CheckCircle2 size={14} /> : <X size={14} />}
-                </div>
-                <div>
-                  <div className="font-bold text-sm text-stone-900">{bond.student_name || (isRTL ? "طالب" : "Student")}</div>
-                  <div className="text-xs text-stone-500">{bond.student_email}</div>
-                </div>
-              </div>
-              <Badge className={`text-[10px] ${bond.status === "approved" ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>
-                {bond.status === "approved" ? (isRTL ? "مقبول" : "Approved") : (isRTL ? "مرفوض" : "Rejected")}
-              </Badge>
-            </Card>
-          ))}
-          {processedBonds.length === 0 && (
-            <div className="text-center py-6 text-stone-400 text-sm">{isRTL ? "لا توجد طلبات معالجة بعد" : "No processed requests yet"}</div>
-          )}
-        </div>
-      </div>
-    </motion.div>
-  );
-}
+       {/* Payment Required */}
+       {paymentBonds.length > 0 && (
+         <div className="mb-6">
+           <h2 className="text-sm font-bold text-stone-700 mb-3 flex items-center gap-2">
+             <CreditCard size={14} className="text-emerald-500" />
+             {isRTL ? "بانتظار الدفع" : "Awaiting Payment"} ({paymentBonds.length})
+           </h2>
+           <div className="space-y-3">
+             {paymentBonds.map(bond => (
+               <Card key={bond.id} className="p-4 rounded-2xl border-stone-100">
+                 <div className="flex items-center justify-between">
+                   <div className="flex items-center gap-3">
+                     <div className="h-10 w-10 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-black text-sm shrink-0">
+                       {(bond.student_name || "م").charAt(0)}
+                     </div>
+                     <div>
+                       <div className="font-bold text-sm text-stone-900">{bond.student_name || (isRTL ? "طالب" : "Student")}</div>
+                       <div className="text-xs text-stone-500">{bond.student_email || bond.student_id}</div>
+                       <div className="text-xs font-bold text-emerald-600 mt-1">
+                         {isRTL ? "رقم الحساب" : "Account"}: {bond.teacher_bank_account || "غير محدد"}
+                       </div>
+                     </div>
+                   </div>
+                   <button onClick={() => confirmPayment(bond.id)} disabled={confirmLoading}
+                     className="h-8 px-3 rounded-lg bg-blue-500 text-white text-xs font-bold hover:bg-blue-600 inline-flex items-center justify-center gap-1 disabled:opacity-50">
+                     <CheckCircle2 size={12} /> {isRTL ? "تأكيد الدفع" : "Confirm Payment"}
+                   </button>
+                 </div>
+               </Card>
+             ))}
+           </div>
+         </div>
+       )}
+
+       {/* Processed Bonds */}
+       <div>
+         <h2 className="text-sm font-bold text-stone-700 mb-3 flex items-center gap-2">
+           <RefreshCw size={14} className="text-blue-500" />
+           {isRTL ? "طلبات معالجة" : "Processed Requests"} ({processedBonds.length})
+         </h2>
+         <div className="space-y-2">
+           {processedBonds.map(bond => (
+             <Card key={bond.id} className="p-4 rounded-2xl border-stone-100 flex items-center justify-between">
+               <div className="flex items-center gap-3">
+                 <div className="h-8 w-8 rounded-lg flex items-center justify-center bg-emerald-100 text-emerald-600">
+                   <CheckCircle2 size={14} />
+                 </div>
+                 <div>
+                   <div className="font-bold text-sm text-stone-900">{bond.student_name || (isRTL ? "طالب" : "Student")}</div>
+                   <div className="text-xs text-stone-500">{bond.student_email}</div>
+                 </div>
+               </div>
+               <Badge className="text-[10px] bg-emerald-50 text-emerald-700">{isRTL ? "مكتمل" : "Completed"}</Badge>
+             </Card>
+           ))}
+           {processedBonds.length === 0 && (
+             <div className="text-center py-6 text-stone-400 text-sm">{isRTL ? "لا توجد طلبات معالجة بعد" : "No processed requests yet"}</div>
+           )}
+         </div>
+       </div>
+
+       {/* Rejected Bonds */}
+       {rejectedBonds.length > 0 && (
+         <div className="mt-6">
+           <h2 className="text-sm font-bold text-stone-700 mb-3">{isRTL ? "الطلبات المرفوضة" : "Rejected"} ({rejectedBonds.length})</h2>
+           <div className="space-y-2">
+             {rejectedBonds.map(bond => (
+               <Card key={bond.id} className="p-4 rounded-2xl border-stone-100 flex items-center justify-between opacity-60">
+                 <div className="flex items-center gap-3">
+                   <div className="h-8 w-8 rounded-lg flex items-center justify-center bg-red-100 text-red-600">
+                     <X size={14} />
+                   </div>
+                   <div>
+                     <div className="font-bold text-sm text-stone-900">{bond.student_name || (isRTL ? "طالب" : "Student")}</div>
+                     <div className="text-xs text-stone-500">{bond.student_email}</div>
+                   </div>
+                 </div>
+                 <Badge className="text-[10px] bg-red-50 text-red-700">{isRTL ? "مرفوض" : "Rejected"}</Badge>
+               </Card>
+             ))}
+           </div>
+         </div>
+       )}
+     </motion.div>
+   );
+ }
