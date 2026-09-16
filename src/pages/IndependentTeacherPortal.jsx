@@ -1,3 +1,5 @@
+import YouTubePlayerModal, { extractYouTubeId, getYouTubeThumbnail } from "@/components/video/YouTubePlayerModal";
+import YouTubeVideoCard from "@/components/video/YouTubeVideoCard";
 import React, { useState, useMemo } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -29,7 +31,7 @@ const SIDEBAR_ITEMS = [
   { id: "assignments", icon: ClipboardCheck, label: "الواجبات", labelEn: "Assignments" },
   { id: "exams", icon: FileText, label: "الامتحانات", labelEn: "Exams" },
   { id: "live", icon: Video, label: "الحصص المباشرة", labelEn: "Live Classes" },
-  { id: "videos", icon: PlayCircle, label: "فيديوهات يوتيوب", labelEn: "YouTube Videos" },
+  { id: "videos", icon: PlayCircle, label: "الحصص المسجلة (يوتيوب)", labelEn: "Recorded Classes" },
   { id: "subscriptions", icon: Star, label: "طلبات الاشتراك", labelEn: "Subscriptions" },
   { id: "bonds", icon: UserCheck, label: "ربط الطلاب", labelEn: "Student Bonds" },
 ];
@@ -324,7 +326,7 @@ export default function IndependentTeacherPortal() {
             {activeTab === "assignments" && <AssignmentsTab key="assignments" teacherId={teacherId} assignments={assignments} isRTL={isRTL} queryClient={queryClient} />}
             {activeTab === "exams" && <ExamsTab key="exams" teacherId={teacherId} exams={exams} isRTL={isRTL} queryClient={queryClient} />}
             {activeTab === "live" && <LiveClassesTab key="live" teacherId={teacherId} liveClasses={liveClasses} isRTL={isRTL} queryClient={queryClient} />}
-            {activeTab === "videos" && <VideosTab key="videos" teacherId={teacherId} videos={videos} isRTL={isRTL} queryClient={queryClient} />}
+            {activeTab === "videos" && <VideosTab key="videos" teacherId={teacherId} videos={videos} students={students} isRTL={isRTL} queryClient={queryClient} />}
             {activeTab === "subscriptions" && <SubscriptionsTab key="subs" teacherId={teacherId} subscriptions={subscriptions} isRTL={isRTL} queryClient={queryClient} />}
             {activeTab === "bonds" && <BondsTab key="bonds" bonds={bonds} isRTL={isRTL} approveBond={(bondId) => approveBondMutation.mutate({ bondId, studentName: bonds.find(b => b.id === bondId)?.student_name })} rejectBond={rejectBondMutation.mutate} approveLoading={approveBondMutation.isPending} rejectLoading={rejectBondMutation.isPending} />}
           </AnimatePresence>
@@ -878,117 +880,553 @@ function LiveClassesTab({ teacherId, liveClasses, isRTL, queryClient }) {
 }
 
 // ─── YouTube Videos Tab ───
-function VideosTab({ teacherId, videos, isRTL, queryClient }) {
-  const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm] = useState({ title: "", description: "", youtube_url: "", subject: "", grade: "", is_hidden: false });
+function VideosTab({ teacherId, videos, students = [], isRTL, queryClient }) {
+  const [showDialog, setShowDialog] = useState(false);
+  const [editingVideo, setEditingVideo] = useState(null);
+  const [activePlayerVideo, setActivePlayerVideo] = useState(null);
+  const [search, setSearch] = useState("");
+  const [filterSubject, setFilterSubject] = useState("");
+  const [filterGrade, setFilterGrade] = useState("");
+  const [filterStudent, setFilterStudent] = useState("");
+  const [copiedId, setCopiedId] = useState(null);
   const [loading, setLoading] = useState(false);
-  const EMPTY_VIDEO_FORM = { title: "", description: "", youtube_url: "", subject: "", grade: "", is_hidden: false };
 
-  const handleAdd = async () => {
-    if (!form.title.trim() || !form.youtube_url.trim()) { toast.error(isRTL ? "أدخل العنوان والرابط" : "Enter title and URL"); return; }
+  const INITIAL_FORM = {
+    title: "",
+    description: "",
+    youtube_url: "",
+    subject: "",
+    grade: "",
+    video_duration: "",
+    target_type: "all",
+    target_student_id: "",
+    target_student_name: "",
+    is_hidden: false,
+  };
+
+  const [form, setForm] = useState(INITIAL_FORM);
+
+  const openAdd = () => {
+    setEditingVideo(null);
+    setForm(INITIAL_FORM);
+    setShowDialog(true);
+  };
+
+  const openEdit = (v) => {
+    setEditingVideo(v);
+    setForm({
+      title: v.title || "",
+      description: v.description || "",
+      youtube_url: v.youtube_url || "",
+      subject: v.subject || "",
+      grade: v.grade || "",
+      video_duration: v.video_duration || "",
+      target_type: v.target_type || (v.target_student_id ? "specific" : "all"),
+      target_student_id: v.target_student_id || "",
+      target_student_name: v.target_student_name || "",
+      is_hidden: !!v.is_hidden,
+    });
+    setShowDialog(true);
+  };
+
+  const detectedVideoId = extractYouTubeId(form.youtube_url);
+  const detectedThumbnail = detectedVideoId ? `https://img.youtube.com/vi/${detectedVideoId}/hqdefault.jpg` : null;
+
+  const handleSave = async (e) => {
+    e?.preventDefault();
+    if (!form.title.trim()) {
+      toast.error(isRTL ? "يرجى إدخال عنوان الحصة" : "Enter lesson title");
+      return;
+    }
+    if (!form.youtube_url.trim() || !detectedVideoId) {
+      toast.error(isRTL ? "يرجى إدخال رابط يوتيوب صالح (غير مدرج)" : "Enter a valid YouTube URL");
+      return;
+    }
+
     setLoading(true);
     try {
-      await entities.TeacherYoutubeVideo.create({ ...form, teacher_id: teacherId, order_index: videos?.length || 0 });
+      const selectedStudent = students.find(s => s.id === form.target_student_id);
+      const payload = {
+        title: form.title.trim(),
+        description: form.description.trim(),
+        youtube_url: form.youtube_url.trim(),
+        thumbnail_url: detectedThumbnail,
+        subject: form.subject.trim(),
+        grade: form.grade,
+        video_duration: form.video_duration.trim(),
+        target_type: form.target_type,
+        target_student_id: form.target_type === "specific" ? form.target_student_id || null : null,
+        target_student_name: form.target_type === "specific" ? (selectedStudent?.student_name || form.target_student_name || "") : null,
+        is_hidden: form.is_hidden,
+      };
+
+      if (editingVideo) {
+        await entities.TeacherYoutubeVideo.update(editingVideo.id, payload);
+        toast.success(isRTL ? "تم تحديث بيانات الحصة بنجاح" : "Lesson updated successfully");
+      } else {
+        await entities.TeacherYoutubeVideo.create({
+          ...payload,
+          teacher_id: teacherId,
+          order_index: videos?.length || 0,
+        });
+        toast.success(isRTL ? "تم إضافة الحصة المسجلة وحفظها لطلابك المشتركين" : "Lesson added and linked to students");
+      }
+
       queryClient.invalidateQueries({ queryKey: ["teacher-youtube-videos"] });
-      setShowAdd(false);
-      setForm({ title: "", description: "", youtube_url: "", subject: "", grade: "", is_hidden: false });
-      toast.success(isRTL ? "تم إضافة الفيديو" : "Video added");
-    } catch (e) { toast.error(e.message); }
-    setLoading(false);
+      setShowDialog(false);
+      setEditingVideo(null);
+      setForm(INITIAL_FORM);
+    } catch (err) {
+      toast.error(err.message || (isRTL ? "حدث خطأ أثناء الحفظ" : "Error saving video"));
+    } finally {
+      setLoading(false);
+    }
   };
 
   const toggleHidden = async (id, current) => {
     try {
       await entities.TeacherYoutubeVideo.update(id, { is_hidden: !current });
       queryClient.invalidateQueries({ queryKey: ["teacher-youtube-videos"] });
-    } catch (e) { toast.error(e.message); }
+      toast.success(current ? (isRTL ? "تم إظهار الحصة للطلاب" : "Lesson is now visible") : (isRTL ? "تم إخفاء الحصة عن الطلاب" : "Lesson is now hidden"));
+    } catch (e) {
+      toast.error(e.message);
+    }
   };
 
   const handleDelete = async (id) => {
-    if (!confirm(isRTL ? "هل أنت متأكد؟" : "Are you sure?")) return;
-    try { await entities.TeacherYoutubeVideo.delete(id); queryClient.invalidateQueries({ queryKey: ["teacher-youtube-videos"] }); toast.success(isRTL ? "تم الحذف" : "Deleted"); } catch (e) { toast.error(e.message); }
+    if (!confirm(isRTL ? "هل أنت متأكد من حذف هذه الحصة المسجلة؟" : "Are you sure you want to delete this recorded lesson?")) return;
+    try {
+      await entities.TeacherYoutubeVideo.delete(id);
+      queryClient.invalidateQueries({ queryKey: ["teacher-youtube-videos"] });
+      toast.success(isRTL ? "تم حذف الحصة" : "Lesson deleted");
+    } catch (e) {
+      toast.error(e.message);
+    }
   };
 
-  const extractThumbnail = (url) => {
-    try {
-      const u = new URL(url.replace("youtu.be/", "youtube.com/watch?v="));
-      const vid = u.searchParams.get("v");
-      return vid ? `https://img.youtube.com/vi/${vid}/mqdefault.jpg` : null;
-    } catch { return null; }
+  const handleCopyLink = (v) => {
+    if (!v.youtube_url) return;
+    navigator.clipboard.writeText(v.youtube_url);
+    setCopiedId(v.id);
+    toast.success(isRTL ? "تم نسخ رابط الفيديو غير المدرج" : "Unlisted link copied");
+    setTimeout(() => setCopiedId(null), 2500);
   };
+
+  // Filtered videos
+  const subjectsList = Array.from(new Set((videos || []).map(v => v.subject).filter(Boolean)));
+  const filteredVideos = (videos || []).filter(v => {
+    const matchSearch = !search || 
+      v.title?.toLowerCase().includes(search.toLowerCase()) || 
+      v.description?.toLowerCase().includes(search.toLowerCase());
+    const matchSubject = !filterSubject || v.subject === filterSubject;
+    const matchGrade = !filterGrade || v.grade === filterGrade;
+    const matchStudent = !filterStudent || (filterStudent === "all" ? !v.target_student_id : v.target_student_id === filterStudent);
+    return matchSearch && matchSubject && matchGrade && matchStudent;
+  });
+
+  const visibleCount = (videos || []).filter(v => !v.is_hidden).length;
+  const hiddenCount = (videos || []).filter(v => v.is_hidden).length;
 
   return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-xl font-black">{isRTL ? "فيديوهات يوتيوب" : "YouTube Videos"}</h1>
-        <button onClick={() => setShowAdd(true)} className={btnPrimary}><Plus size={16} />{isRTL ? "فيديو جديد" : "New Video"}</button>
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
+      {/* Top Banner / Header */}
+      <div className="bg-gradient-to-r from-stone-900 to-stone-800 text-white p-6 rounded-3xl shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <div className="h-8 w-8 rounded-xl bg-red-600 flex items-center justify-center text-white">
+              <PlayCircle size={18} />
+            </div>
+            <h1 className="text-xl font-black">
+              {isRTL ? "الحصص المسجلة (فيديوهات يوتيوب غير مدرجة)" : "Recorded Classes (Unlisted YouTube)"}
+            </h1>
+          </div>
+          <p className="text-xs text-stone-300 max-w-xl leading-relaxed">
+            {isRTL
+              ? "أضف روابط فيديوهات حصصك غير المدرجة (Unlisted) على يوتيوب، وسيتم تشغيلها بسلاسة داخل المنصة للطلاب المفعلين فقط المشتركين معك."
+              : "Add unlisted YouTube links for your lessons. Subscribed and approved students can watch them smoothly inside the platform player."}
+          </p>
+        </div>
+
+        <button
+          onClick={openAdd}
+          className="h-11 px-5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-md active:scale-95 cursor-pointer shrink-0"
+        >
+          <Plus size={18} />
+          <span>{isRTL ? "إضافة حصة مسجلة جديدة" : "New Recorded Lesson"}</span>
+        </button>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {videos?.map(v => (
-          <Card key={v.id} className="rounded-2xl border-stone-100 overflow-hidden">
-            <div className="relative">
-              {extractThumbnail(v.youtube_url) ? (
-                <img src={extractThumbnail(v.youtube_url)} alt={v.title} className="w-full h-40 object-cover" />
-              ) : (
-                <div className="w-full h-40 bg-stone-200 flex items-center justify-center"><PlayCircle size={40} className="text-stone-400" /></div>
-              )}
-              {v.is_hidden && (
-                <div className="absolute top-2 right-2 bg-amber-500 text-white text-[10px] font-black px-2 py-1 rounded-full flex items-center gap-1">
-                  <EyeOff size={10} /> {isRTL ? "مخفي" : "Hidden"}
+
+      {/* Stats summary bar */}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="p-4 rounded-2xl bg-white border border-stone-200/80 shadow-sm flex items-center justify-between">
+          <div>
+            <div className="text-xs text-stone-500 font-bold">{isRTL ? "إجمالي الحصص" : "Total Lessons"}</div>
+            <div className="text-2xl font-black text-stone-900 mt-0.5">{videos?.length || 0}</div>
+          </div>
+          <div className="h-10 w-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+            <Video size={20} />
+          </div>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-white border border-stone-200/80 shadow-sm flex items-center justify-between">
+          <div>
+            <div className="text-xs text-stone-500 font-bold">{isRTL ? "متاحة للطلاب" : "Visible to Students"}</div>
+            <div className="text-2xl font-black text-emerald-600 mt-0.5">{visibleCount}</div>
+          </div>
+          <div className="h-10 w-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+            <Eye size={20} />
+          </div>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-white border border-stone-200/80 shadow-sm flex items-center justify-between">
+          <div>
+            <div className="text-xs text-stone-500 font-bold">{isRTL ? "مسودات / مخفية" : "Hidden / Drafts"}</div>
+            <div className="text-2xl font-black text-amber-600 mt-0.5">{hiddenCount}</div>
+          </div>
+          <div className="h-10 w-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+            <EyeOff size={20} />
+          </div>
+        </div>
+      </div>
+
+      {/* Filter and Search Bar */}
+      <div className="bg-white p-4 rounded-2xl border border-stone-200/80 shadow-sm flex flex-wrap items-center gap-3">
+        <div className="relative flex-1 min-w-[220px]">
+          <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400" />
+          <Input
+            placeholder={isRTL ? "بحث في عنوان أو وصف الحصة..." : "Search lesson title or description..."}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="h-10 pr-9 pl-3 rounded-xl border-stone-200 text-sm font-semibold"
+          />
+        </div>
+
+        {subjectsList.length > 0 && (
+          <select
+            value={filterSubject}
+            onChange={(e) => setFilterSubject(e.target.value)}
+            className="h-10 px-3 rounded-xl border border-stone-200 bg-white text-xs font-bold text-stone-700 outline-none"
+          >
+            <option value="">{isRTL ? "جميع المواد" : "All Subjects"}</option>
+            {subjectsList.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+        )}
+
+        <select
+          value={filterGrade}
+          onChange={(e) => setFilterGrade(e.target.value)}
+          className="h-10 px-3 rounded-xl border border-stone-200 bg-white text-xs font-bold text-stone-700 outline-none"
+        >
+          <option value="">{isRTL ? "جميع الصفوف" : "All Grades"}</option>
+          {["1","2","3","4","5","6","7","8","9","10","11","12"].map(g => (
+            <option key={g} value={g}>{isRTL ? `الصف ${g}` : `Grade ${g}`}</option>
+          ))}
+        </select>
+
+        {students.length > 0 && (
+          <select
+            value={filterStudent}
+            onChange={(e) => setFilterStudent(e.target.value)}
+            className="h-10 px-3 rounded-xl border border-stone-200 bg-white text-xs font-bold text-stone-700 outline-none"
+          >
+            <option value="">{isRTL ? "الارتباط بالطلاب (الكل)" : "Student Link (All)"}</option>
+            <option value="all">{isRTL ? "متاح لكل المشتركين" : "All Subscribed"}</option>
+            {students.map(s => <option key={s.id} value={s.id}>{s.student_name}</option>)}
+          </select>
+        )}
+      </div>
+
+      {/* Videos Grid */}
+      {filteredVideos.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredVideos.map(v => (
+            <YouTubeVideoCard
+              key={v.id}
+              video={v}
+              isRTL={isRTL}
+              isTeacher={true}
+              onPlay={(vid) => setActivePlayerVideo(vid)}
+              onEdit={(vid) => openEdit(vid)}
+              onToggleHidden={toggleHidden}
+              onDelete={handleDelete}
+              onCopyLink={handleCopyLink}
+              copiedId={copiedId}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="bg-white p-12 rounded-3xl border border-stone-200/80 text-center space-y-3">
+          <div className="h-16 w-16 rounded-2xl bg-stone-100 text-stone-400 flex items-center justify-center mx-auto mb-2">
+            <PlayCircle size={36} />
+          </div>
+          <h3 className="text-base font-black text-stone-800">
+            {videos?.length === 0
+              ? (isRTL ? "لا توجد حصص مسجلة حتى الآن" : "No recorded lessons yet")
+              : (isRTL ? "لا توجد حصص تطابق معايير البحث" : "No lessons match your filters")}
+          </h3>
+          <p className="text-xs text-stone-500 max-w-md mx-auto leading-relaxed">
+            {videos?.length === 0
+              ? (isRTL ? "ابدأ بإضافة أول حصة مسجلة باستخدام رابط يوتيوب غير المدرج، لتظهر لطلابك في بوابتهم الخاصة." : "Start by adding your first unlisted YouTube lesson.")
+              : (isRTL ? "جرب مسح فلاتر البحث أو تغيير الكلمات المفتاحية." : "Try clearing your filters.")}
+          </p>
+          {videos?.length === 0 && (
+            <button
+              onClick={openAdd}
+              className="mt-2 inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition-all shadow-sm"
+            >
+              <Plus size={16} /> {isRTL ? "إضافة حصة الآن" : "Add Lesson Now"}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Add / Edit Video Dialog */}
+      <Dialog open={showDialog} onOpenChange={(o) => { if (!o) { setEditingVideo(null); setForm(INITIAL_FORM); } setShowDialog(o); }}>
+        <DialogContent className="max-w-lg rounded-[28px] p-6 max-h-[90vh] overflow-y-auto" dir={isRTL ? "rtl" : "ltr"}>
+          <DialogHeader className="pb-2 border-b border-stone-100">
+            <DialogTitle className="text-lg font-black flex items-center gap-2 text-stone-900">
+              <PlayCircle size={20} className="text-red-600" />
+              {editingVideo 
+                ? (isRTL ? "تعديل بيانات الحصة المسجلة" : "Edit Recorded Lesson")
+                : (isRTL ? "إضافة حصة مسجلة جديدة (يوتيوب غير مدرج)" : "New Recorded Lesson (Unlisted YouTube)")}
+            </DialogTitle>
+          </DialogHeader>
+
+          <form onSubmit={handleSave} className="space-y-4 pt-2">
+            {/* Title */}
+            <div>
+              <label className="block text-xs font-black text-stone-700 mb-1.5">
+                {isRTL ? "عنوان الحصة / الدرس *" : "Lesson Title *"}
+              </label>
+              <Input
+                placeholder={isRTL ? "مثال: مراجعة شاملة للوحدة الأولى - التفاضل والتكامل" : "e.g. Unit 1 Comprehensive Review"}
+                value={form.title}
+                onChange={(e) => setForm({ ...form, title: e.target.value })}
+                className="h-11 rounded-xl font-semibold text-sm border-stone-200"
+                required
+              />
+            </div>
+
+            {/* YouTube URL with Live Preview */}
+            <div>
+              <label className="block text-xs font-black text-stone-700 mb-1.5">
+                {isRTL ? "رابط فيديو يوتيوب غير المدرج (Unlisted URL) *" : "Unlisted YouTube URL *"}
+              </label>
+              <Input
+                placeholder="https://www.youtube.com/watch?v=... أو https://youtu.be/..."
+                value={form.youtube_url}
+                onChange={(e) => setForm({ ...form, youtube_url: e.target.value })}
+                className="h-11 rounded-xl font-mono text-xs border-stone-200"
+                dir="ltr"
+                required
+              />
+
+              {/* URL detection feedback */}
+              {form.youtube_url.trim() && (
+                <div className="mt-2 p-2.5 rounded-xl border bg-stone-50 flex items-center justify-between gap-3 text-xs">
+                  {detectedVideoId ? (
+                    <>
+                      <div className="flex items-center gap-2 text-emerald-700 font-bold min-w-0">
+                        <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+                        <span className="truncate">
+                          {isRTL ? `تم التعرف على معرف الفيديو: ${detectedVideoId}` : `Valid Video ID: ${detectedVideoId}`}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setActivePlayerVideo({ title: form.title || "معاينة الفيديو", youtube_url: form.youtube_url })}
+                        className="h-7 px-3 rounded-lg bg-red-600 text-white text-[11px] font-bold hover:bg-red-700 shrink-0 cursor-pointer flex items-center gap-1"
+                      >
+                        <Play size={10} fill="currentColor" /> {isRTL ? "معاينة المشغل" : "Test Player"}
+                      </button>
+                    </>
+                  ) : (
+                    <div className="flex items-center gap-2 text-amber-700 font-bold">
+                      <AlertCircle size={16} className="text-amber-600 shrink-0" />
+                      <span>{isRTL ? "الرابط المدخل غير مكتمل أو غير صالح" : "Invalid YouTube link"}</span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
-            <div className="p-3">
-              <div className="text-sm font-black text-stone-900">{v.title}</div>
-              <div className="text-xs text-stone-500 mt-1 line-clamp-2">{v.description || ""}</div>
-              <div className="flex gap-2 mt-2 flex-wrap">
-                {v.subject && <Badge className="text-[10px] bg-blue-50 text-blue-700">{v.subject}</Badge>}
-                {v.grade && <Badge className="text-[10px] bg-purple-50 text-purple-700">{isRTL ? `صف ${v.grade}` : `Grade ${v.grade}`}</Badge>}
-              </div>
-              <div className="flex items-center gap-2 mt-3">
-                <a href={v.youtube_url} target="_blank" rel="noopener noreferrer" className="flex-1 h-8 rounded-lg bg-red-50 text-red-600 text-xs font-bold inline-flex items-center justify-center gap-1 hover:bg-red-100">
-                  <Play size={12} /> YouTube
-                </a>
-                <button onClick={() => toggleHidden(v.id, v.is_hidden)} className="h-8 px-3 rounded-lg bg-stone-100 text-stone-600 text-xs font-bold inline-flex items-center justify-center gap-1 hover:bg-stone-200">
-                  {v.is_hidden ? <><Eye size={12} /> {isRTL ? "إظهار" : "Show"}</> : <><EyeOff size={12} /> {isRTL ? "إخفاء" : "Hide"}</>}
-                </button>
-                <button onClick={() => handleDelete(v.id)} className="h-8 px-3 rounded-lg bg-red-50 text-red-500 text-xs font-bold inline-flex items-center justify-center gap-1 hover:bg-red-100"><Trash2 size={12} /></button>
-              </div>
-            </div>
-          </Card>
-        ))}
-        {(!videos || videos.length === 0) && <div className="text-center py-12 text-stone-400 text-sm col-span-2">{isRTL ? "لا يوجد فيديوهات" : "No videos yet"}</div>}
-      </div>
 
-      <Dialog open={showAdd} onOpenChange={(o) => { if (!o) setForm(EMPTY_VIDEO_FORM); setShowAdd(o); }}>
-        <DialogContent className="max-w-md rounded-[24px]" dir={isRTL ? "rtl" : "ltr"}>
-          <DialogHeader><DialogTitle className="font-black">{isRTL ? "فيديو يوتيوب جديد" : "New YouTube Video"}</DialogTitle></DialogHeader>
-          <div className="space-y-3 p-1">
-            <Input placeholder={isRTL ? "عنوان الفيديو *" : "Title *"} value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className="h-10 rounded-xl" />
-            <Input placeholder="https://youtube.com/watch?v=..." value={form.youtube_url} onChange={e => setForm({ ...form, youtube_url: e.target.value })} className="h-10 rounded-xl" dir="ltr" />
-            <textarea name="description" aria-label="description" placeholder={isRTL ? "الوصف" : "Description"} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="w-full h-16 rounded-xl border border-stone-200 p-3 text-sm" />
-            <div className="grid grid-cols-2 gap-2">
-              <Input placeholder={isRTL ? "المادة" : "Subject"} value={form.subject} onChange={e => setForm({ ...form, subject: e.target.value })} className="h-10 rounded-xl" />
-              <select name="grade" aria-label="grade" value={form.grade} onChange={e => setForm({ ...form, grade: e.target.value })} className="h-10 rounded-xl border border-stone-200 bg-white px-3 text-sm">
-                <option value="">{isRTL ? "الصف" : "Grade"}</option>
-                {["1","2","3","4","5","6","7","8","9","10","11","12"].map(g => <option key={g} value={g}>{g}</option>)}
-              </select>
+            {/* Description */}
+            <div>
+              <label className="block text-xs font-black text-stone-700 mb-1.5">
+                {isRTL ? "وصف الحصة والملاحظات للطلاب" : "Description & Lesson Notes"}
+              </label>
+              <textarea
+                rows={3}
+                placeholder={isRTL ? "أضف تفاصيل الحصة، الواجبات المرتبطة، أو الملاحظات الهامة..." : "Enter lesson description, homework, or notes..."}
+                value={form.description}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                className="w-full p-3 rounded-xl border border-stone-200 bg-white text-xs leading-relaxed focus:border-emerald-600 focus:ring-0 outline-none"
+              />
             </div>
-            <label htmlFor="field-independentteacherportal-input-1" className="flex items-center gap-2 cursor-pointer">
-              <input id="field-independentteacherportal-input-1" name="input_1" aria-label="input 1" type="checkbox" checked={form.is_hidden} onChange={e => setForm({ ...form, is_hidden: e.target.checked })} className="rounded" />
-              <span className="text-sm font-bold text-stone-700">{isRTL ? "مخفي عن الطلاب (معلمين فقط)" : "Hidden from students (teachers only)"}</span>
+
+            {/* Subject, Grade, Duration */}
+            <div className="grid grid-cols-3 gap-2.5">
+              <div>
+                <label className="block text-[11px] font-black text-stone-700 mb-1">
+                  {isRTL ? "المادة" : "Subject"}
+                </label>
+                <Input
+                  placeholder={isRTL ? "مثال: الرياضيات" : "e.g. Math"}
+                  value={form.subject}
+                  onChange={(e) => setForm({ ...form, subject: e.target.value })}
+                  className="h-10 rounded-xl text-xs font-semibold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-black text-stone-700 mb-1">
+                  {isRTL ? "الصف" : "Grade"}
+                </label>
+                <select
+                  value={form.grade}
+                  onChange={(e) => setForm({ ...form, grade: e.target.value })}
+                  className="w-full h-10 px-2.5 rounded-xl border border-stone-200 bg-white text-xs font-semibold"
+                >
+                  <option value="">{isRTL ? "اختر الصف" : "Select"}</option>
+                  {["1","2","3","4","5","6","7","8","9","10","11","12"].map(g => (
+                    <option key={g} value={g}>{isRTL ? `الصف ${g}` : `Grade ${g}`}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-black text-stone-700 mb-1">
+                  {isRTL ? "مدة الحصة" : "Duration"}
+                </label>
+                <Input
+                  placeholder={isRTL ? "مثال: 45 دقيقة" : "e.g. 45 min"}
+                  value={form.video_duration}
+                  onChange={(e) => setForm({ ...form, video_duration: e.target.value })}
+                  className="h-10 rounded-xl text-xs font-semibold"
+                />
+              </div>
+            </div>
+
+            {/* Student linkage / Target Audience */}
+            <div className="p-3.5 rounded-2xl bg-stone-50 border border-stone-200/80 space-y-2.5">
+              <label className="block text-xs font-black text-stone-800">
+                {isRTL ? "ربط الحصة بالطلاب المشتركين:" : "Link Lesson to Subscribed Students:"}
+              </label>
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, target_type: "all", target_student_id: "", target_student_name: "" })}
+                  className={`h-10 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                    form.target_type === "all"
+                      ? "bg-emerald-600 text-white shadow-sm"
+                      : "bg-white border border-stone-200 text-stone-700 hover:bg-stone-100"
+                  }`}
+                >
+                  <Users size={14} />
+                  <span>{isRTL ? "جميع طلابي المشتركين" : "All Subscribed"}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, target_type: "specific" })}
+                  className={`h-10 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                    form.target_type === "specific"
+                      ? "bg-emerald-600 text-white shadow-sm"
+                      : "bg-white border border-stone-200 text-stone-700 hover:bg-stone-100"
+                  }`}
+                >
+                  <User size={14} />
+                  <span>{isRTL ? "طالب محدد فقط" : "Specific Student"}</span>
+                </button>
+              </div>
+
+              {form.target_type === "specific" && (
+                <div className="pt-1">
+                  <select
+                    value={form.target_student_id}
+                    onChange={(e) => {
+                      const sel = students.find(s => s.id === e.target.value);
+                      setForm({
+                        ...form,
+                        target_student_id: e.target.value,
+                        target_student_name: sel?.student_name || ""
+                      });
+                    }}
+                    className="w-full h-10 px-3 rounded-xl border border-stone-200 bg-white text-xs font-bold text-stone-800"
+                  >
+                    <option value="">{isRTL ? "اختر الطالب المشترك..." : "Select subscribed student..."}</option>
+                    {students.map(s => (
+                      <option key={s.id} value={s.id}>
+                        {s.student_name} {s.grade ? `(الصف ${s.grade})` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  {students.length === 0 && (
+                    <p className="text-[10px] text-amber-700 mt-1">
+                      {isRTL ? "لا يوجد طلاب مسجلون بعد. يمكنك إتاحتها لجميع المشتركين حالياً." : "No registered students found yet."}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Visibility checkbox */}
+            <label className="flex items-center gap-2.5 p-3 rounded-xl border border-stone-200 bg-white cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={form.is_hidden}
+                onChange={(e) => setForm({ ...form, is_hidden: e.target.checked })}
+                className="h-4 w-4 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+              />
+              <div className="flex-1">
+                <span className="text-xs font-bold text-stone-900 block">
+                  {isRTL ? "إخفاء مؤقت عن الطلاب (مسودة للمعلم فقط)" : "Keep hidden from students (Draft)"}
+                </span>
+                <span className="text-[10px] text-stone-500">
+                  {isRTL ? "لن يتمكن الطلاب من مشاهدة الحصة حتى تقوم بإلغاء الإخفاء" : "Students will not be able to watch until unhidden"}
+                </span>
+              </div>
             </label>
-          </div>
-          <DialogFooter className="gap-2">
-            <button onClick={() => setShowAdd(false)} className={btnOutline}>{isRTL ? "إلغاء" : "Cancel"}</button>
-            <button onClick={handleAdd} disabled={loading} className={btnPrimary}>{loading ? "..." : isRTL ? "إضافة" : "Add"}</button>
-          </DialogFooter>
+
+            <DialogFooter className="gap-2 pt-2 border-t border-stone-100">
+              <button
+                type="button"
+                onClick={() => setShowDialog(false)}
+                className="h-11 px-5 rounded-xl border-2 border-stone-200 bg-white text-stone-700 hover:bg-stone-50 text-xs font-bold cursor-pointer"
+              >
+                {isRTL ? "إلغاء" : "Cancel"}
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className="h-11 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-md active:scale-95 disabled:opacity-50 cursor-pointer flex-1"
+              >
+                {loading && <Loader2 size={16} className="animate-spin" />}
+                <span>
+                  {editingVideo 
+                    ? (isRTL ? "حفظ التعديلات" : "Save Changes") 
+                    : (isRTL ? "إضافة الحصة المسجلة" : "Add Lesson")}
+                </span>
+              </button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
+
+      {/* Built-in Video Player Modal */}
+      {activePlayerVideo && (
+        <YouTubePlayerModal
+          video={activePlayerVideo}
+          isOpen={!!activePlayerVideo}
+          onClose={() => setActivePlayerVideo(null)}
+          isRTL={isRTL}
+          canManage={true}
+        />
+      )}
     </motion.div>
   );
 }
-
 // ─── Subscriptions Tab ───
 function SubscriptionsTab({ teacherId, subscriptions, isRTL, queryClient }) {
   const [filter, setFilter] = useState("all");

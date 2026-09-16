@@ -2402,6 +2402,91 @@ export function createApiHandler() {
       }
     }
 
+    // ── GET /api/student/teacher-videos — secure retrieval of teacher recorded YouTube videos for approved students only ──
+    if ((req.url === '/api/student/teacher-videos' || req.url.startsWith('/api/student/teacher-videos?')) && req.method === 'GET') {
+      res.setHeader('Content-Type', 'application/json');
+      try {
+        const urlObj = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+        const teacherId = urlObj.searchParams.get('teacherId');
+        const studentId = urlObj.searchParams.get('studentId');
+        const user = getBearerUser(req);
+
+        const actualStudentId = (user && user.role === 'student') ? user.id : studentId;
+
+        if (!actualStudentId) {
+          res.statusCode = 401;
+          return res.end(JSON.stringify({ error: 'Student authentication required', authorized: false, videos: [] }));
+        }
+
+        // If a specific teacher is queried, verify the student has an approved subscription or bond
+        if (teacherId) {
+          const approvedRel = await dbQuery(
+            `SELECT 1 FROM teacher_subscriptions WHERE teacher_id = $1 AND student_id = $2 AND status = 'approved'
+             UNION
+             SELECT 1 FROM student_teacher_bonds WHERE teacher_id = $1 AND student_id = $2 AND status = 'approved'`,
+            [teacherId, actualStudentId]
+          );
+
+          if (!approvedRel || approvedRel.length === 0) {
+            res.statusCode = 403;
+            return res.end(JSON.stringify({
+              error: 'فيديوهات الحصص متاحة حصرياً للطلاب المشتركين والمفعلين مع المعلم.',
+              authorized: false,
+              videos: []
+            }));
+          }
+
+          const videos = await dbQuery(
+            `SELECT v.*, t.full_name as teacher_name
+             FROM teacher_youtube_videos v
+             LEFT JOIN teachers t ON t.id = v.teacher_id
+             WHERE v.teacher_id = $1
+               AND (v.is_hidden IS FALSE OR v.is_hidden IS NULL)
+               AND (v.target_student_id IS NULL OR v.target_student_id = $2 OR v.target_type = 'all')
+             ORDER BY v.order_index ASC, v.created_at DESC`,
+            [teacherId, actualStudentId]
+          );
+
+          return res.end(JSON.stringify({ success: true, authorized: true, videos: Array.isArray(videos) ? videos : [] }));
+        }
+
+        // Otherwise, fetch recorded videos from all approved teachers of this student
+        const approvedTeachers = await dbQuery(
+          `SELECT teacher_id FROM teacher_subscriptions WHERE student_id = $1 AND status = 'approved'
+           UNION
+           SELECT teacher_id FROM student_teacher_bonds WHERE student_id = $1 AND status = 'approved'`,
+          [actualStudentId]
+        );
+
+        if (!approvedTeachers || approvedTeachers.length === 0) {
+          return res.end(JSON.stringify({ success: true, authorized: true, videos: [] }));
+        }
+
+        const tIds = approvedTeachers.map(r => r.teacher_id).filter(Boolean);
+        if (tIds.length === 0) {
+          return res.end(JSON.stringify({ success: true, authorized: true, videos: [] }));
+        }
+
+        const placeholders = tIds.map((_, i) => `${i + 2}`).join(',');
+        const videos = await dbQuery(
+          `SELECT v.*, t.full_name as teacher_name
+           FROM teacher_youtube_videos v
+           LEFT JOIN teachers t ON t.id = v.teacher_id
+           WHERE v.teacher_id IN (${placeholders})
+             AND (v.is_hidden IS FALSE OR v.is_hidden IS NULL)
+             AND (v.target_student_id IS NULL OR v.target_student_id = $1 OR v.target_type = 'all')
+           ORDER BY v.order_index ASC, v.created_at DESC`,
+          [actualStudentId, ...tIds]
+        );
+
+        return res.end(JSON.stringify({ success: true, authorized: true, videos: Array.isArray(videos) ? videos : [] }));
+      } catch (error) {
+        console.error('[student/teacher-videos] error:', error);
+        res.statusCode = 500;
+        return res.end(JSON.stringify({ error: error.message, videos: [] }));
+      }
+    }
+
     // ── GET /api/independent-teachers — list active independent teachers for students to browse ──
     if (req.url === '/api/independent-teachers' && req.method === 'GET') {
       res.setHeader('Content-Type', 'application/json');
@@ -2982,7 +3067,13 @@ export function createApiHandler() {
           order_index INTEGER DEFAULT 0,
           created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
         )
-      `.then(() => console.log('[neon] teacher_youtube_videos table verified'))
+      `.then(async () => {
+        await sql.query(`ALTER TABLE teacher_youtube_videos ADD COLUMN IF NOT EXISTS target_type TEXT DEFAULT 'all'`).catch(()=>{});
+        await sql.query(`ALTER TABLE teacher_youtube_videos ADD COLUMN IF NOT EXISTS target_student_id UUID`).catch(()=>{});
+        await sql.query(`ALTER TABLE teacher_youtube_videos ADD COLUMN IF NOT EXISTS target_student_name TEXT`).catch(()=>{});
+        await sql.query(`ALTER TABLE teacher_youtube_videos ADD COLUMN IF NOT EXISTS video_duration TEXT`).catch(()=>{});
+        console.log('[neon] teacher_youtube_videos table verified with target columns');
+      })
         .catch(err => console.error('[neon] teacher_youtube_videos:', err.message));
 
       sql`

@@ -1,3 +1,5 @@
+import YouTubePlayerModal from "@/components/video/YouTubePlayerModal";
+import YouTubeVideoCard from "@/components/video/YouTubeVideoCard";
 import React, { useState, useMemo } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -974,54 +976,120 @@ function LiveClassesTab({ liveClasses, isRTL }) {
 }
 
 // ─── YouTube Videos Tab ───
-function VideosTab({ videos, isRTL }) {
-  const extractThumbnail = (url) => {
-    try {
-      const u = new URL(url.replace("youtu.be/", "youtube.com/watch?v="));
-      const vid = u.searchParams.get("v");
-      return vid ? `https://img.youtube.com/vi/${vid}/mqdefault.jpg` : null;
-    } catch { return null; }
+function VideosTab({ videos, isRTL, studentId, teacherIds = [] }) {
+  const [activeVideo, setActiveVideo] = useState(null);
+  const [copiedId, setCopiedId] = useState(null);
+  const [search, setSearch] = useState("");
+  const [selectedSubject, setSelectedSubject] = useState("");
+
+  const handleCopyLink = (v) => {
+    if (!v.youtube_url) return;
+    navigator.clipboard.writeText(v.youtube_url);
+    setCopiedId(v.id);
+    toast.success(isRTL ? "تم نسخ رابط الحصة" : "Lesson link copied");
+    setTimeout(() => setCopiedId(null), 2500);
   };
 
+  const subjects = Array.from(new Set((videos || []).map(v => v.subject).filter(Boolean)));
+  const filtered = (videos || []).filter(v => {
+    const matchSearch = !search || 
+      v.title?.toLowerCase().includes(search.toLowerCase()) || 
+      v.description?.toLowerCase().includes(search.toLowerCase());
+    const matchSubject = !selectedSubject || v.subject === selectedSubject;
+    return matchSearch && matchSubject;
+  });
+
   return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-      <h1 className="text-xl font-black mb-4">{isRTL ? "فيديوهات يوتيوب" : "YouTube Videos"}</h1>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-        {videos?.map(v => (
-          <Card key={v.id} className="rounded-2xl border-stone-100 overflow-hidden">
-            <a href={v.youtube_url} target="_blank" rel="noopener noreferrer">
-              {extractThumbnail(v.youtube_url) ? (
-                <div className="relative">
-                  <img src={extractThumbnail(v.youtube_url)} alt={v.title} className="w-full h-40 object-cover" />
-                  <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                    <div className="h-12 w-12 rounded-full bg-red-600 text-white flex items-center justify-center"><Play size={20} /></div>
-                  </div>
-                </div>
-              ) : (
-                <div className="w-full h-40 bg-stone-200 flex items-center justify-center"><PlayCircle size={40} className="text-stone-400" /></div>
-              )}
-            </a>
-            <div className="p-3">
-              <div className="text-sm font-black text-stone-900">{v.title}</div>
-              <div className="text-xs text-stone-500 mt-1 line-clamp-2">{v.description || ""}</div>
-              <div className="flex gap-2 mt-2 flex-wrap">
-                {v.subject && <Badge className="text-[10px] bg-blue-50 text-blue-700">{v.subject}</Badge>}
-                {v.grade && <Badge className="text-[10px] bg-purple-50 text-purple-700">{isRTL ? `صف ${v.grade}` : `Grade ${v.grade}`}</Badge>}
-              </div>
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-5">
+      {/* Header Banner */}
+      <div className="bg-gradient-to-r from-stone-900 to-stone-800 text-white p-6 rounded-3xl shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 mb-1.5">
+            <div className="h-8 w-8 rounded-xl bg-red-600 flex items-center justify-center text-white">
+              <PlayCircle size={18} />
             </div>
-          </Card>
-        ))}
-        {(!videos || videos.length === 0) && (
-          <Card className="p-8 rounded-2xl border-stone-100 text-center col-span-full">
-            <PlayCircle size={40} className="text-stone-300 mx-auto mb-3" />
-            <div className="text-sm font-bold text-stone-500">{isRTL ? "لا يوجد فيديوهات" : "No videos yet"}</div>
-          </Card>
+            <h1 className="text-xl font-black">{isRTL ? "فيديوهات الحصص المسجلة" : "Recorded Class Videos"}</h1>
+          </div>
+          <p className="text-xs text-stone-300 max-w-xl leading-relaxed">
+            {isRTL
+              ? "استعرض وشاهد الحصص المسجلة التي أضافها معلمك مباشرة داخل المنصة بجودة عالية وبشكل آمن."
+              : "Watch lessons recorded by your teacher smoothly and securely inside the platform."}
+          </p>
+        </div>
+
+        <Badge className="bg-red-600/90 text-white border-0 text-xs font-bold px-3 py-1.5 shrink-0 self-start md:self-auto">
+          {filtered.length} {isRTL ? "حصة متاحة" : "Lessons available"}
+        </Badge>
+      </div>
+
+      {/* Filter and Search Bar */}
+      <div className="bg-white p-4 rounded-2xl border border-stone-200/80 shadow-sm flex flex-wrap items-center gap-3">
+        <div className="relative flex-1 min-w-[220px]">
+          <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400" />
+          <Input
+            placeholder={isRTL ? "بحث في عنوان أو وصف الحصة..." : "Search lesson title or description..."}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="h-10 pr-9 pl-3 rounded-xl border-stone-200 text-sm font-semibold"
+          />
+        </div>
+
+        {subjects.length > 0 && (
+          <select
+            value={selectedSubject}
+            onChange={(e) => setSelectedSubject(e.target.value)}
+            className="h-10 px-3 rounded-xl border border-stone-200 bg-white text-xs font-bold text-stone-700 outline-none"
+          >
+            <option value="">{isRTL ? "جميع المواد" : "All Subjects"}</option>
+            {subjects.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
         )}
       </div>
+
+      {/* Videos Grid */}
+      {filtered.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filtered.map(v => (
+            <YouTubeVideoCard
+              key={v.id}
+              video={v}
+              isRTL={isRTL}
+              isTeacher={false}
+              onPlay={(vid) => setActiveVideo(vid)}
+              onCopyLink={handleCopyLink}
+              copiedId={copiedId}
+            />
+          ))}
+        </div>
+      ) : (
+        <Card className="p-12 rounded-3xl border-stone-200/80 text-center space-y-3 bg-white">
+          <div className="h-16 w-16 rounded-2xl bg-stone-100 text-stone-400 flex items-center justify-center mx-auto mb-2">
+            <PlayCircle size={36} />
+          </div>
+          <h3 className="text-base font-black text-stone-800">
+            {isRTL ? "لا توجد حصص مسجلة متاحة حالياً" : "No recorded lessons available right now"}
+          </h3>
+          <p className="text-xs text-stone-500 max-w-md mx-auto leading-relaxed">
+            {isRTL
+              ? "عندما يقوم معلمك المشترك معه برفع حصص مسجلة جديدة، ستظهر هنا تلقائياً لتتمكن من مشاهدتها."
+              : "When your enrolled teacher adds recorded lessons, they will appear here automatically."}
+          </p>
+        </Card>
+      )}
+
+      {/* Embedded Player Modal */}
+      {activeVideo && (
+        <YouTubePlayerModal
+          video={activeVideo}
+          isOpen={!!activeVideo}
+          onClose={() => setActiveVideo(null)}
+          isRTL={isRTL}
+          canManage={false}
+        />
+      )}
     </motion.div>
   );
 }
-
 // ─── Curriculum Books Tab ───
 function CurriculumTab({ books, isRTL }) {
   const [search, setSearch] = useState("");
@@ -1085,6 +1153,11 @@ function CurriculumTab({ books, isRTL }) {
 
 // ─── My Teacher Tab ───
 function MyTeacherTab({ approvedTeachers, pendingSubs, studentId, isRTL, queryClient }) {
+  const [activeVideo, setActiveVideo] = useState(null);
+  const [copiedId, setCopiedId] = useState(null);
+  const [videoSearch, setVideoSearch] = useState("");
+  const [videoSubjectFilter, setVideoSubjectFilter] = useState("");
+
   const { data: myBonds = [], isLoading: loadingBonds } = useQuery({
     queryKey: ["student-bonds", studentId],
     queryFn: () => fetch(`/api/teacher-bonds?studentId=${studentId}`, {
@@ -1100,66 +1173,116 @@ function MyTeacherTab({ approvedTeachers, pendingSubs, studentId, isRTL, queryCl
   const pendingBondRequests = myBonds?.filter(b => b.status === "pending") || [];
   const hasApprovedTeacher = approvedTeachers?.length > 0 || approvedBondTeachers.length > 0;
 
+  // Secure query for teacher recorded class videos
+  const { data: teacherVideos = [], isLoading: loadingVideos } = useQuery({
+    queryKey: ["student-portal-teacher-videos", studentId],
+    queryFn: async () => {
+      try {
+        const token = localStorage.getItem("portal_jwt_token") || localStorage.getItem("token") || "";
+        const res = await fetch(`/api/student/teacher-videos?studentId=${studentId}`, {
+          headers: token ? { "Authorization": `Bearer ${token}` } : {},
+        });
+        if (res.ok) {
+          const json = await res.json();
+          if (Array.isArray(json.videos)) return json.videos;
+        }
+      } catch (err) {
+        console.warn("Secure videos endpoint fallback:", err);
+      }
+      // Fallback
+      const allTeacherIds = [
+        ...(approvedTeachers || []).map(t => t.teacher_id),
+        ...(approvedBondTeachers || []).map(b => b.teacher_id)
+      ].filter(Boolean);
+
+      if (allTeacherIds.length > 0) {
+        const r = await Promise.all(
+          allTeacherIds.map(tid => entities.TeacherYoutubeVideo.list("-created_at", { teacher_id: tid }))
+        );
+        return r.flat().filter(v => !v.is_hidden);
+      }
+      return [];
+    },
+    enabled: !!studentId && hasApprovedTeacher,
+  });
+
+  const handleCopyLink = (v) => {
+    if (!v.youtube_url) return;
+    navigator.clipboard.writeText(v.youtube_url);
+    setCopiedId(v.id);
+    toast.success(isRTL ? "تم نسخ رابط الحصة" : "Lesson link copied");
+    setTimeout(() => setCopiedId(null), 2500);
+  };
+
+  const videoSubjects = Array.from(new Set(teacherVideos.map(v => v.subject).filter(Boolean)));
+  const filteredTeacherVideos = teacherVideos.filter(v => {
+    const matchSearch = !videoSearch || 
+      v.title?.toLowerCase().includes(videoSearch.toLowerCase()) || 
+      v.description?.toLowerCase().includes(videoSearch.toLowerCase());
+    const matchSubject = !videoSubjectFilter || v.subject === videoSubjectFilter;
+    return matchSearch && matchSubject;
+  });
+
   return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-      <h1 className="text-xl font-black text-stone-900 mb-4 flex items-center gap-2">
-        <UserCheck size={22} className="text-indigo-600" /> {isRTL ? "معلمي" : "My Teacher"}
-      </h1>
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-black text-stone-900 flex items-center gap-2">
+          <UserCheck size={22} className="text-indigo-600" /> {isRTL ? "معلمي الخاص والتفاعل الأكاديمي" : "My Teacher"}
+        </h1>
+      </div>
 
       {/* No teacher assigned state */}
       {!hasApprovedTeacher && (
-        <Card className="p-8 rounded-2xl border-stone-100 text-center mb-6">
-          <div className="h-16 w-16 rounded-2xl bg-indigo-100 text-indigo-600 flex items-center justify-center mx-auto mb-4">
+        <Card className="p-8 rounded-3xl border-stone-200/80 text-center bg-white shadow-sm">
+          <div className="h-16 w-16 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto mb-4">
             <UserCheck size={32} />
           </div>
-          <h2 className="text-lg font-black text-stone-900 mb-2">{isRTL ? "لم يتم تعيين معلم لك بعد" : "No teacher assigned yet"}</h2>
-          <p className="text-sm text-stone-500 mb-4 max-w-md mx-auto">
-            {isRTL ? "يمكنك ربط حسابك بمعلم عن طريق الذهاب إلى قسم المعلمين وإرسال طلب اشتراك" : "You can connect with a teacher by going to the Teachers section and sending a subscription request"}
+          <h2 className="text-lg font-black text-stone-900 mb-2">{isRTL ? "لم يتم تفعيل اشتراكك مع معلم بعد" : "No teacher assigned yet"}</h2>
+          <p className="text-xs text-stone-500 mb-4 max-w-md mx-auto leading-relaxed">
+            {isRTL 
+              ? "للوصول إلى الحصص المسجلة والواجبات والامتحانات، انتقل إلى قسم المعلمين وأرسل طلب اشتراك لمعلمك."
+              : "To access recorded classes and assignments, visit the Teachers section and send a subscription request."}
           </p>
         </Card>
       )}
 
-      {/* Approved Teachers */}
+      {/* Approved Teachers Section */}
       {hasApprovedTeacher && (
-        <div className="mb-6">
+        <div>
           <h2 className="text-sm font-bold text-stone-700 mb-3 flex items-center gap-2">
-            <CheckCircle2 size={14} className="text-emerald-500" />
-            {isRTL ? "معلمون مسجلون" : "Enrolled Teachers"} ({approvedTeachers.length + approvedBondTeachers.length})
+            <CheckCircle2 size={16} className="text-emerald-500" />
+            {isRTL ? "المعلمون المعتمدون" : "Enrolled Teachers"} ({approvedTeachers.length + approvedBondTeachers.length})
           </h2>
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {approvedTeachers.map(sub => (
-              <Card key={sub.id} className="p-4 rounded-2xl border-stone-100">
+              <Card key={sub.id} className="p-4 rounded-2xl border-stone-200/80 bg-white shadow-sm">
                 <div className="flex items-center gap-3">
-                  <div className="h-12 w-12 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                  <div className="h-12 w-12 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
                     <GraduationCap size={22} />
                   </div>
-                  <div className="flex-1">
-                    <div className="font-bold text-sm text-stone-900">{sub.teacher_name || isRTL ? "معلم" : "Teacher"}</div>
-                    <div className="text-xs text-stone-500">{sub.subject || isRTL ? "غير محدد" : "Not specified"}</div>
-                    <Badge className="mt-1 text-[10px] bg-emerald-50 text-emerald-700">{isRTL ? "مقبول ✓" : "Approved ✓"}</Badge>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-bold text-sm text-stone-900 truncate">{sub.teacher_name || (isRTL ? "معلم" : "Teacher")}</div>
+                    <div className="text-xs text-stone-500">{sub.subject || (isRTL ? "غير محدد" : "Not specified")}</div>
+                    <Badge className="mt-1 text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200">{isRTL ? "اشتراك معتمد ✓" : "Approved ✓"}</Badge>
                   </div>
-                  <div className="flex gap-2">
-                    {sub.teacher_id && (
-                      <>
-                        <a href={`tel:${sub.teacher_phone || ""}`} className="h-8 px-3 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 flex items-center gap-1">
-                          <MessageCircle size={12} /> {isRTL ? "تواصل" : "Contact"}
-                        </a>
-                      </>
-                    )}
-                  </div>
+                  {sub.teacher_phone && (
+                    <a href={`tel:${sub.teacher_phone}`} className="h-8 px-3 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 flex items-center gap-1 shrink-0">
+                      <MessageCircle size={12} /> {isRTL ? "تواصل" : "Contact"}
+                    </a>
+                  )}
                 </div>
               </Card>
             ))}
             {approvedBondTeachers.map(bond => (
-              <Card key={bond.id} className="p-4 rounded-2xl border-stone-100">
+              <Card key={bond.id} className="p-4 rounded-2xl border-stone-200/80 bg-white shadow-sm">
                 <div className="flex items-center gap-3">
-                  <div className="h-12 w-12 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center">
+                  <div className="h-12 w-12 rounded-2xl bg-indigo-100 text-indigo-700 flex items-center justify-center shrink-0">
                     <GraduationCap size={22} />
                   </div>
-                  <div className="flex-1">
-                    <div className="font-bold text-sm text-stone-900">{bond.teacher_name || isRTL ? "معلم" : "Teacher"}</div>
-                    <div className="text-xs text-stone-500">{bond.teacher_email}</div>
-                    <Badge className="mt-1 text-[10px] bg-indigo-50 text-indigo-700">{isRTL ? "ربط مباشر ✓" : "Bonded ✓"}</Badge>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-bold text-sm text-stone-900 truncate">{bond.teacher_name || (isRTL ? "معلم" : "Teacher")}</div>
+                    <div className="text-xs text-stone-500 truncate">{bond.teacher_email}</div>
+                    <Badge className="mt-1 text-[10px] bg-indigo-50 text-indigo-700 border-indigo-200">{isRTL ? "ربط مباشر معتمد ✓" : "Bonded ✓"}</Badge>
                   </div>
                 </div>
               </Card>
@@ -1167,6 +1290,101 @@ function MyTeacherTab({ approvedTeachers, pendingSubs, studentId, isRTL, queryCl
           </div>
         </div>
       )}
+
+      {/* ─── قسم فيديوهات الحصص (Class Videos Section) ─── */}
+      <div className="pt-2">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <div className="h-7 w-7 rounded-lg bg-red-600 text-white flex items-center justify-center">
+              <PlayCircle size={16} />
+            </div>
+            <h2 className="text-base font-black text-stone-900">
+              {isRTL ? "فيديوهات الحصص المسجلة" : "Class Video Lessons"}
+            </h2>
+            {hasApprovedTeacher && (
+              <Badge className="bg-stone-100 text-stone-700 text-xs font-bold px-2 py-0.5">
+                {filteredTeacherVideos.length} {isRTL ? "حصة" : "lessons"}
+              </Badge>
+            )}
+          </div>
+        </div>
+
+        {/* If student has approved teachers: show search and videos grid */}
+        {hasApprovedTeacher ? (
+          <div className="space-y-4">
+            {/* Filter toolbar */}
+            <div className="bg-white p-3.5 rounded-2xl border border-stone-200/80 shadow-sm flex flex-wrap items-center gap-3">
+              <div className="relative flex-1 min-w-[200px]">
+                <Search size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400" />
+                <Input
+                  placeholder={isRTL ? "بحث في حصص المعلم المسجلة..." : "Search teacher lessons..."}
+                  value={videoSearch}
+                  onChange={(e) => setVideoSearch(e.target.value)}
+                  className="h-9 pr-9 pl-3 rounded-xl border-stone-200 text-xs font-semibold"
+                />
+              </div>
+
+              {videoSubjects.length > 0 && (
+                <select
+                  value={videoSubjectFilter}
+                  onChange={(e) => setVideoSubjectFilter(e.target.value)}
+                  className="h-9 px-3 rounded-xl border border-stone-200 bg-white text-xs font-bold text-stone-700 outline-none"
+                >
+                  <option value="">{isRTL ? "جميع المواد" : "All Subjects"}</option>
+                  {videoSubjects.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              )}
+            </div>
+
+            {/* Video Cards */}
+            {loadingVideos ? (
+              <div className="py-12 text-center text-stone-400 text-xs flex flex-col items-center justify-center gap-2">
+                <Loader2 size={24} className="animate-spin text-emerald-600" />
+                <span>{isRTL ? "جاري تحميل حصص المعلم المسجلة..." : "Loading lesson videos..."}</span>
+              </div>
+            ) : filteredTeacherVideos.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredTeacherVideos.map(v => (
+                  <YouTubeVideoCard
+                    key={v.id}
+                    video={v}
+                    isRTL={isRTL}
+                    isTeacher={false}
+                    onPlay={(vid) => setActiveVideo(vid)}
+                    onCopyLink={handleCopyLink}
+                    copiedId={copiedId}
+                  />
+                ))}
+              </div>
+            ) : (
+              <Card className="p-8 rounded-2xl border-stone-200/80 text-center bg-white">
+                <PlayCircle size={36} className="text-stone-300 mx-auto mb-2" />
+                <h4 className="text-sm font-bold text-stone-700">
+                  {isRTL ? "لا توجد حصص مسجلة من المعلم حالياً" : "No recorded lessons from teacher yet"}
+                </h4>
+                <p className="text-xs text-stone-400 mt-1">
+                  {isRTL ? "سيتم إشعارك فور قيام المعلم بنشر حصص فيديو جديدة." : "You will be notified when the teacher posts new videos."}
+                </p>
+              </Card>
+            )}
+          </div>
+        ) : (
+          /* Locked State if no approved teacher */
+          <Card className="p-6 rounded-2xl border-stone-200 bg-stone-50 text-center space-y-2">
+            <div className="h-12 w-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mx-auto">
+              <Lock size={20} />
+            </div>
+            <h4 className="text-sm font-black text-stone-800">
+              {isRTL ? "فيديوهات الحصص مغلقة" : "Class Videos Locked"}
+            </h4>
+            <p className="text-xs text-stone-500 max-w-md mx-auto leading-relaxed">
+              {isRTL
+                ? "هذا القسم مؤمن ومخصص حصرياً للطلاب الذين تمت الموافقة على اشتراكهم مع المعلم. يرجى الاشتراك مع معلم لتفعيل المشاهدة."
+                : "This section is exclusive to students approved by their teacher. Please subscribe to a teacher to unlock."}
+            </p>
+          </Card>
+        )}
+      </div>
 
       {/* Pending Bond Requests */}
       {pendingBondRequests.length > 0 && (
@@ -1183,7 +1401,7 @@ function MyTeacherTab({ approvedTeachers, pendingSubs, studentId, isRTL, queryCl
                     <Clock size={14} />
                   </div>
                   <div>
-                    <div className="font-bold text-sm text-stone-900">{bond.teacher_name || isRTL ? "معلم" : "Teacher"}</div>
+                    <div className="font-bold text-sm text-stone-900">{bond.teacher_name || (isRTL ? "معلم" : "Teacher")}</div>
                     <div className="text-xs text-stone-500">{bond.teacher_email}</div>
                   </div>
                 </div>
@@ -1194,33 +1412,19 @@ function MyTeacherTab({ approvedTeachers, pendingSubs, studentId, isRTL, queryCl
         </div>
       )}
 
-      {/* Blocked features teaser */}
-      {!hasApprovedTeacher && (
-        <div className="mt-6">
-          <h3 className="text-sm font-bold text-stone-700 mb-3">{isRTL ? "الميزات المتاحة بعد التعيين" : "Features Available After Assignment"}</h3>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-            {[
-              { icon: ClipboardCheck, label: isRTL ? "الواجبات" : "Assignments", locked: true },
-              { icon: FileText, label: isRTL ? "الامتحانات" : "Exams", locked: true },
-              { icon: Video, label: isRTL ? "الحصص المباشرة" : "Live Classes", locked: true },
-              { icon: PlayCircle, label: isRTL ? "فيديوهات يوتيوب" : "YouTube Videos", locked: true },
-              { icon: BookMarked, label: isRTL ? "الكتب الدراسية" : "Curriculum", locked: false },
-            ].map((f, i) => (
-              <div key={i} className={`p-3 rounded-xl border ${f.locked ? "border-stone-200 bg-stone-50 opacity-60" : "border-stone-100 bg-white"}`}>
-                <div className="flex items-center gap-2">
-                  <f.icon size={14} className={f.locked ? "text-stone-400" : "text-blue-600"} />
-                  <span className={`text-xs font-bold ${f.locked ? "text-stone-400" : "text-stone-700"}`}>{f.label}</span>
-                </div>
-                {f.locked && <div className="text-[9px] text-stone-400 mt-1">🔒 {isRTL ? "يتطلب تعيين معلم" : "Requires teacher assignment"}</div>}
-              </div>
-            ))}
-          </div>
-        </div>
+      {/* Embedded Video Player Modal */}
+      {activeVideo && (
+        <YouTubePlayerModal
+          video={activeVideo}
+          isOpen={!!activeVideo}
+          onClose={() => setActiveVideo(null)}
+          isRTL={isRTL}
+          canManage={false}
+        />
       )}
     </motion.div>
   );
 }
-
 // ─── Attendance / Gate Tab ───
 function AttendanceTab({ attendanceLogs, stats, studentId, isRTL }) {
   const [swipeLoading, setSwipeLoading] = useState(false);
