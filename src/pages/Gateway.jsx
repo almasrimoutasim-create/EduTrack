@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Eye, EyeOff, AlertCircle, Building2, ArrowRight, ArrowLeft, Sparkles, CheckCircle2, Search, Shield, Users } from "lucide-react";
 import { Card } from "@/components/ui/card";
 
+const DEFAULT_SCHOOL_SLUG = "مدارس-إيديوتراك-العالمية";
+
 export default function Gateway() {
   const { schoolSlug: routeSlug } = useParams();
   const navigate = useNavigate();
@@ -14,6 +16,13 @@ export default function Gateway() {
   // Check URL query param fallback (?school=...)
   const querySlug = new URLSearchParams(window.location.search).get("school");
   const schoolSlug = (routeSlug || querySlug || "").trim();
+
+  // Redirect /gateway (no slug) → /gateway/{DEFAULT_SCHOOL_SLUG}
+  useEffect(() => {
+    if (!schoolSlug) {
+      navigate(`/gateway/${DEFAULT_SCHOOL_SLUG}`, { replace: true });
+    }
+  }, [schoolSlug, navigate]);
 
   const [schoolData, setSchoolData] = useState(null);
   const [loadingSchool, setLoadingSchool] = useState(Boolean(schoolSlug));

@@ -164,7 +164,7 @@ export default function RoleGate({ children }) {
 
   // Authenticated & authorized? Let the children render!
   // للبوابات التي لا تستخدم AppLayout (طالب/معلم/ولي أمر/دعم) نضيف زر رجوع ثابت أعلى اليسار
-  const portalRolesWithFixedBack = ["teacher", "student", "parent", "support", "staff", "bus", "bus_supervisor"];
+  const portalRolesWithFixedBack = ["student", "parent", "support", "staff", "bus", "bus_supervisor"];
   const showFixedBack = isAuthenticated && portalRolesWithFixedBack.includes(user?.role) && !isPublicPath;
   if (showFixedBack) {
     return (

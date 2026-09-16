@@ -2,8 +2,6 @@ import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import path from 'path'
 
-const hasNeon = process.env.DATABASE_URL;
-
 export default defineConfig({
   logLevel: 'info',
   resolve: {
@@ -52,7 +50,7 @@ export default defineConfig({
   },
   plugins: [
     react(),
-    hasNeon ? {
+    {
       name: 'neon-api-middleware',
       async configureServer(server) {
         const { createApiHandler, setupWebSocket } = await import("./server/api.js");
@@ -60,6 +58,6 @@ export default defineConfig({
         setupWebSocket(server.httpServer);
         console.log('[neon] API routes enabled at /neon-db/* and WS at /api/classroom-ws');
       }
-    } : null
-  ].filter(Boolean)
+    }
+  ]
 });

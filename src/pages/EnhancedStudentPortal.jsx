@@ -15,7 +15,7 @@ import {
   Play, GraduationCap, Send, BookMarked, Download,
   CheckCircle2, AlertCircle, MessageCircle,
   UserCheck, Loader2, Megaphone, Award, Sparkles,
-  ArrowUpRight, ChevronLeft, MapPin, Calendar, Fingerprint
+  ArrowUpRight, ChevronLeft, MapPin, Calendar, Fingerprint, CreditCard
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
@@ -126,6 +126,14 @@ export default function StudentPortal() {
   const { data: curriculumBooks = [], isLoading: loadingBooks } = useQuery({
     queryKey: ["curriculum-books"],
     queryFn: () => entities.CurriculumBook.list("-grade", {}),
+  });
+
+  const { data: bonds = [] } = useQuery({
+    queryKey: ["student-bonds", studentId],
+    queryFn: () => fetch(`/api/teacher-bonds?studentId=${studentId}`, {
+      headers: { "Authorization": `Bearer ${localStorage.getItem("portal_jwt_token") || localStorage.getItem("token") || ""}` },
+    }).then(r => r.json()).then(d => Array.isArray(d) ? d : []).catch(() => []),
+    enabled: !!studentId,
   });
 
   const { data: mySubmissions = [], isLoading: loadingSubmissions } = useQuery({
@@ -352,7 +360,7 @@ export default function StudentPortal() {
           <AnimatePresence mode="wait">
             {activeTab === "dashboard" && <DashboardTab key="dashboard" stats={stats} studentId={studentId} studentName={studentName} isRTL={isRTL} setActiveTab={setActiveTab} studentAnnouncements={studentAnnouncements} />}
             {activeTab === "my-teacher" && <MyTeacherTab key="my-teacher" approvedTeachers={approvedTeachers} pendingSubs={pendingSubs} studentId={studentId} isRTL={isRTL} queryClient={queryClient} />}
-            {activeTab === "teachers" && <TeachersTab key="teachers" studentId={studentId} subscriptions={subscriptions} approvedTeachers={approvedTeachers} pendingSubs={pendingSubs} isRTL={isRTL} queryClient={queryClient} />}
+            {activeTab === "teachers" && <TeachersTab key="teachers" studentId={studentId} subscriptions={subscriptions} approvedTeachers={approvedTeachers} pendingSubs={pendingSubs} bonds={bonds} isRTL={isRTL} queryClient={queryClient} />}
             {activeTab === "attendance" && <AttendanceTab key="attendance" attendanceLogs={attendanceLogs} stats={stats} studentId={studentId} isRTL={isRTL} />}
             {activeTab === "grades" && <GradesTab key="grades" studentId={studentId} studentGrade={studentGrade} isRTL={isRTL} />}
             {activeTab === "schedule" && <ScheduleTab key="schedule" schedules={studentSchedules} tasks={studentTasks} isRTL={isRTL} />}
@@ -473,26 +481,59 @@ function DashboardTab({ stats, studentId, studentName, isRTL, setActiveTab, stud
 }
 
 // ─── Teachers Tab (Subscribe/Unsubscribe) ───
-function TeachersTab({ studentId, subscriptions, approvedTeachers, pendingSubs, isRTL, queryClient }) {
+function TeachersTab({ studentId, subscriptions, approvedTeachers, pendingSubs, bonds, isRTL, queryClient }) {
   const [showSubscribe, setShowSubscribe] = useState(false);
   const [teacherCode, setTeacherCode] = useState("");
+  const [receiptFile, setReceiptFile] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [subscribingTo, setSubscribingTo] = useState(null);
 
-  const handleSubscribe = async () => {
-    if (!teacherCode.trim()) { toast.error(isRTL ? "أدخل كود المعلم" : "Enter teacher code"); return; }
+  // Fetch all independent teachers
+  const { data: independentTeachers = [], isLoading: loadingTeachers } = useQuery({
+    queryKey: ["independent-teachers"],
+    queryFn: () => fetch("/api/independent-teachers").then(r => r.json()).catch(() => []),
+  });
+
+  // IDs of teachers we already have a bond with
+  const bondedTeacherIds = new Set([
+    ...bonds.map(b => b.teacher_id),
+    ...approvedTeachers.map(s => s.teacher_id),
+    ...pendingSubs.map(s => s.teacher_id),
+  ]);
+
+  const handleSubscribe = async (targetTeacherId, targetTeacherName) => {
+    const useId = targetTeacherId || teacherCode.trim();
+    if (!useId) { toast.error(isRTL ? "أدخل كود المعلم" : "Enter teacher code"); return; }
     setLoading(true);
     try {
-      await entities.TeacherSubscription.create({
-        student_id: studentId,
-        student_name: localStorage.getItem("portal_user_name") || "",
-        teacher_id: teacherCode.trim(),
-        status: "pending",
-        plan: "student_free",
-        amount: 0,
-      });
-      queryClient.invalidateQueries({ queryKey: ["student-subscriptions"] });
+      const payload = {
+        studentId,
+        studentName: localStorage.getItem("portal_user_name") || "",
+        studentEmail: localStorage.getItem("portal_user_email") || "",
+        teacherId: useId,
+        teacherName: targetTeacherName || "",
+        requestMessage: isRTL ? "طلب اشتراك من الطالب" : "Subscription request from student",
+      };
+      if (receiptFile) {
+        const reader = new FileReader();
+        const base64 = await new Promise((resolve, reject) => {
+          reader.onload = () => resolve(reader.result.split(",")[1]);
+          reader.onerror = reject;
+          reader.readAsDataURL(receiptFile);
+        });
+        payload.receiptFile = base64;
+        payload.receiptName = receiptFile.name;
+      }
+      await fetch("/api/student-bond-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      }).then(async r => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || "Failed"); return d; });
+      queryClient.invalidateQueries({ queryKey: ["teacher-bonds"] });
       setShowSubscribe(false);
       setTeacherCode("");
+      setReceiptFile(null);
+      setSubscribingTo(null);
       toast.success(isRTL ? "تم إرسال طلب الاشتراك" : "Subscription request sent");
     } catch (e) { toast.error(e.message); }
     setLoading(false);
@@ -514,6 +555,7 @@ function TeachersTab({ studentId, subscriptions, approvedTeachers, pendingSubs, 
         <button onClick={() => setShowSubscribe(true)} className={btnPrimary}><Users size={16} />{isRTL ? "اشترك مع معلم" : "Subscribe to Teacher"}</button>
       </div>
 
+      {/* Enrolled Teachers */}
       {approvedTeachers.length > 0 && (
         <div className="mb-6">
           <h3 className="text-sm font-black text-stone-700 mb-3">{isRTL ? "المعلمون المسجلون" : "Enrolled Teachers"}</h3>
@@ -535,8 +577,9 @@ function TeachersTab({ studentId, subscriptions, approvedTeachers, pendingSubs, 
         </div>
       )}
 
+      {/* Pending Requests */}
       {pendingSubs.length > 0 && (
-        <div>
+        <div className="mb-6">
           <h3 className="text-sm font-black text-stone-700 mb-3">{isRTL ? "طلبات معلقة" : "Pending Requests"}</h3>
           <div className="grid gap-3">
             {pendingSubs.map(s => (
@@ -555,7 +598,112 @@ function TeachersTab({ studentId, subscriptions, approvedTeachers, pendingSubs, 
         </div>
       )}
 
-      {approvedTeachers.length === 0 && pendingSubs.length === 0 && (
+      {/* Pending Bond Requests */}
+      {bonds.filter(b => b.status === "pending").length > 0 && (
+        <div className="mb-6">
+          <h3 className="text-sm font-black text-stone-700 mb-3">{isRTL ? "طلبات ربط معلقة" : "Pending Bond Requests"}</h3>
+          <div className="grid gap-3">
+            {bonds.filter(b => b.status === "pending").map(b => (
+              <Card key={b.id} className="p-4 rounded-2xl border-stone-100 flex items-center gap-4">
+                <div className="h-10 w-10 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center shrink-0">
+                  <UserCheck size={18} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-bold text-stone-900">{b.teacher_name || (isRTL ? "معلم" : "Teacher")}</div>
+                  <div className="text-xs text-stone-500">{isRTL ? "في انتظار موافقة المعلم" : "Awaiting teacher approval"}</div>
+                  {b.receipt_url && <div className="text-[10px] text-emerald-600 font-bold mt-1">{isRTL ? "تم رفع الإيصال" : "Receipt uploaded"} ✓</div>}
+                </div>
+                <Badge className="text-[10px] bg-amber-50 text-amber-700">{isRTL ? "معلق" : "Pending"}</Badge>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Approved Bonds */}
+      {bonds.filter(b => b.status === "approved").length > 0 && (
+        <div className="mb-6">
+          <h3 className="text-sm font-black text-stone-700 mb-3">{isRTL ? "روابط مقبولة" : "Approved Bonds"}</h3>
+          <div className="grid gap-3">
+            {bonds.filter(b => b.status === "approved").map(b => (
+              <Card key={b.id} className="p-4 rounded-2xl border-stone-100 flex items-center gap-4">
+                <div className="h-10 w-10 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                  <CheckCircle2 size={18} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-bold text-stone-900">{b.teacher_name || (isRTL ? "معلم" : "Teacher")}</div>
+                  {b.portal_username && <div className="text-xs text-stone-500">{isRTL ? "اسم المستخدم" : "Username"}: <span className="font-mono font-bold text-stone-700">{b.portal_username}</span></div>}
+                </div>
+                <Badge className="text-[10px] bg-emerald-50 text-emerald-700">{isRTL ? "مقبول" : "Approved"}</Badge>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Browse Independent Teachers */}
+      <div className="mb-6">
+        <h3 className="text-sm font-black text-stone-700 mb-3 flex items-center gap-2">
+          <GraduationCap size={16} className="text-indigo-600" />
+          {isRTL ? "المعلمون المستقلون" : "Independent Teachers"}
+          <span className="text-xs font-normal text-stone-400">({independentTeachers.length})</span>
+        </h3>
+        {loadingTeachers ? (
+          <div className="flex items-center justify-center py-8"><Loader2 size={24} className="animate-spin text-stone-400" /></div>
+        ) : independentTeachers.length > 0 ? (
+          <div className="grid gap-3">
+            {independentTeachers.map(t => {
+              const isBonded = bondedTeacherIds.has(t.id);
+              const isSubscribing = subscribingTo === t.id;
+              return (
+                <Card key={t.id} className="p-4 rounded-2xl border-stone-100">
+                  <div className="flex items-center gap-3">
+                    <div className="h-12 w-12 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-black text-base shrink-0">
+                      {(t.full_name || "م").charAt(0)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-bold text-stone-900">{t.full_name || (isRTL ? "معلم" : "Teacher")}</div>
+                      {t.subjects && <div className="text-xs text-stone-500">{t.subjects}</div>}
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        {t.employee_id && <span className="text-[10px] font-mono text-stone-400">#{t.employee_id}</span>}
+                        {t.city && <span className="text-[10px] text-stone-400 flex items-center gap-0.5"><MapPin size={9}/>{t.city}</span>}
+                        {t.experience_years > 0 && <span className="text-[10px] text-stone-400">{t.experience_years} {isRTL ? "سنة خبرة" : "yr exp"}</span>}
+                      </div>
+                      {t.bio && <div className="text-[11px] text-stone-400 mt-1 line-clamp-2">{t.bio}</div>}
+                    </div>
+                    <div className="shrink-0">
+                      {isBonded ? (
+                        <Badge className="text-[10px] bg-emerald-50 text-emerald-700 flex items-center gap-1"><CheckCircle2 size={10}/>{isRTL ? "مسجل" : "Joined"}</Badge>
+                      ) : isSubscribing ? (
+                        <div className="space-y-2">
+                          <input type="file" accept="image/*,application/pdf" onChange={e => setReceiptFile(e.target.files[0])}
+                            className="w-full rounded-lg border border-stone-200 bg-white p-2 text-[10px] file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-emerald-600 file:text-white file:text-[10px] file:font-bold file:cursor-pointer" />
+                          <div className="flex gap-1">
+                            <button onClick={() => { setSubscribingTo(null); setReceiptFile(null); }} className="flex-1 text-[10px] font-bold py-1.5 rounded-lg border border-stone-200 text-stone-600">{isRTL ? "إلغاء" : "Cancel"}</button>
+                            <button onClick={() => handleSubscribe(t.id, t.full_name)} disabled={loading}
+                              className="flex-1 text-[10px] font-bold py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50">{loading ? "..." : isRTL ? "إرسال" : "Send"}</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button onClick={() => setSubscribingTo(t.id)} className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1">
+                          <Send size={10}/>{isRTL ? "اشترك" : "Subscribe"}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        ) : (
+          <Card className="p-6 rounded-2xl border-stone-100 text-center">
+            <GraduationCap size={32} className="text-stone-300 mx-auto mb-2" />
+            <div className="text-xs font-bold text-stone-500">{isRTL ? "لا يوجد معلمون مستقلون بعد" : "No independent teachers yet"}</div>
+          </Card>
+        )}
+      </div>
+
+      {approvedTeachers.length === 0 && pendingSubs.length === 0 && bonds.length === 0 && independentTeachers.length === 0 && (
         <Card className="p-8 rounded-2xl border-stone-100 text-center">
           <Users size={40} className="text-stone-300 mx-auto mb-3" />
           <div className="text-sm font-bold text-stone-500 mb-2">{isRTL ? "لم تسجل مع أي معلم بعد" : "You haven't subscribed to any teacher yet"}</div>
@@ -570,10 +718,17 @@ function TeachersTab({ studentId, subscriptions, approvedTeachers, pendingSubs, 
           <div className="space-y-3 p-1">
             <div className="text-xs text-stone-500">{isRTL ? "أدخل كود المعلم الذي تحصله منه على الدروس" : "Enter the teacher code you received from your teacher"}</div>
             <Input placeholder={isRTL ? "كود المعلم" : "Teacher code"} value={teacherCode} onChange={e => setTeacherCode(e.target.value)} className="h-10 rounded-xl font-mono text-center text-lg tracking-wider" dir="ltr" />
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-stone-600 flex items-center gap-1"><CreditCard size={12}/> {isRTL ? "إيصال الدفع (اختياري)" : "Payment Receipt (optional)"}</label>
+              <input type="file" accept="image/*,application/pdf" onChange={e => setReceiptFile(e.target.files[0])}
+                className="w-full rounded-xl border border-stone-200 bg-white p-3 text-sm file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-emerald-600 file:text-white file:text-xs file:font-bold file:cursor-pointer" />
+              {receiptFile && <p className="text-[10px] text-emerald-600 font-bold">{receiptFile.name}</p>}
+              <p className="text-[10px] text-stone-400">{isRTL ? "ارفع صورة أو PDF للإيصال" : "Upload receipt image or PDF"}</p>
+            </div>
           </div>
           <DialogFooter className="gap-2">
-            <button onClick={() => setShowSubscribe(false)} className={btnOutline}>{isRTL ? "إلغاء" : "Cancel"}</button>
-            <button onClick={handleSubscribe} disabled={loading} className={btnPrimary}>{loading ? "..." : isRTL ? "إرسال" : "Send"}</button>
+            <button onClick={() => { setShowSubscribe(false); setReceiptFile(null); }} className={btnOutline}>{isRTL ? "إلغاء" : "Cancel"}</button>
+            <button onClick={() => handleSubscribe(null, null)} disabled={loading} className={btnPrimary}>{loading ? "..." : isRTL ? "إرسال" : "Send"}</button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -52,6 +52,7 @@ export default function IndependentTeacherPortal() {
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState("");
   const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [credentialsDialog, setCredentialsDialog] = useState(null);
 
   const handleTeacherLogin = async (e) => {
     e.preventDefault();
@@ -133,8 +134,20 @@ export default function IndependentTeacherPortal() {
   });
 
   const approveBondMutation = useMutation({
-    mutationFn: (bondId) => fetch("/api/teacher-bond-approve", { method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("portal_jwt_token") || localStorage.getItem("token") || ""}` }, body: JSON.stringify({ bondId }) }).then(async r => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || "غير مصرح"); return d; }),
-    onSuccess: () => { toast.success(isRTL ? "تم قبول ربط الطالب" : "Student bond approved"); queryClient.invalidateQueries({ queryKey: ["teacher-bonds"] }); },
+    mutationFn: ({ bondId, studentName }) => {
+      const username = "std_" + (studentName || "user").replace(/[^a-zA-Z0-9]/g, "").slice(0, 6).toLowerCase() + "_" + Math.random().toString(36).slice(2, 6);
+      const password = Math.random().toString(36).slice(-8) + Math.random().toString(10).slice(-4);
+      return fetch("/api/teacher-bond-approve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("portal_jwt_token") || localStorage.getItem("token") || ""}` },
+        body: JSON.stringify({ bondId, portalUsername: username, portalPassword: password }),
+      }).then(async r => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || "غير مصرح"); return { ...d, username, password }; })
+    },
+    onSuccess: (data) => {
+      toast.success(isRTL ? "تم قبول ربط الطالب" : "Student bond approved");
+      setCredentialsDialog(data);
+      queryClient.invalidateQueries({ queryKey: ["teacher-bonds"] });
+    },
     onError: (err) => toast.error(err.message),
   });
 
@@ -313,11 +326,36 @@ export default function IndependentTeacherPortal() {
             {activeTab === "live" && <LiveClassesTab key="live" teacherId={teacherId} liveClasses={liveClasses} isRTL={isRTL} queryClient={queryClient} />}
             {activeTab === "videos" && <VideosTab key="videos" teacherId={teacherId} videos={videos} isRTL={isRTL} queryClient={queryClient} />}
             {activeTab === "subscriptions" && <SubscriptionsTab key="subs" teacherId={teacherId} subscriptions={subscriptions} isRTL={isRTL} queryClient={queryClient} />}
-            {activeTab === "bonds" && <BondsTab key="bonds" bonds={bonds} isRTL={isRTL} approveBond={approveBondMutation.mutate} rejectBond={rejectBondMutation.mutate} approveLoading={approveBondMutation.isPending} rejectLoading={rejectBondMutation.isPending} />}
+            {activeTab === "bonds" && <BondsTab key="bonds" bonds={bonds} isRTL={isRTL} approveBond={(bondId) => approveBondMutation.mutate({ bondId, studentName: bonds.find(b => b.id === bondId)?.student_name })} rejectBond={rejectBondMutation.mutate} approveLoading={approveBondMutation.isPending} rejectLoading={rejectBondMutation.isPending} />}
           </AnimatePresence>
           )}
         </div>
       </main>
+
+      {/* Credentials Dialog */}
+      {credentialsDialog && (
+        <Dialog open={!!credentialsDialog} onOpenChange={() => setCredentialsDialog(null)}>
+          <DialogContent className="max-w-sm rounded-[24px]" dir={isRTL ? "rtl" : "ltr"}>
+            <DialogHeader><DialogTitle className="font-black">{isRTL ? "حساب الطالب" : "Student Credentials"}</DialogTitle></DialogHeader>
+            <div className="space-y-3 p-1">
+              <div className="bg-emerald-50 rounded-xl p-4 text-center">
+                <CheckCircle2 size={32} className="text-emerald-600 mx-auto mb-2" />
+                <div className="text-sm font-bold text-stone-900">{isRTL ? "تم إنشاء الحساب بنجاح" : "Account created successfully"}</div>
+              </div>
+              <div className="bg-stone-50 rounded-xl p-3 space-y-2">
+                <div className="text-xs text-stone-500">{isRTL ? "اسم المستخدم" : "Username"}</div>
+                <div className="font-mono font-bold text-stone-900 bg-white rounded-lg p-2 text-center border border-stone-200" dir="ltr">{credentialsDialog.username}</div>
+                <div className="text-xs text-stone-500 mt-2">{isRTL ? "كلمة المرور" : "Password"}</div>
+                <div className="font-mono font-bold text-stone-900 bg-white rounded-lg p-2 text-center border border-stone-200" dir="ltr">{credentialsDialog.password}</div>
+              </div>
+              <p className="text-[10px] text-stone-400 text-center">{isRTL ? "شارك هذه البيانات مع الطالب" : "Share these credentials with the student"}</p>
+            </div>
+            <DialogFooter>
+              <button onClick={() => setCredentialsDialog(null)} className={btnPrimary}>OK</button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

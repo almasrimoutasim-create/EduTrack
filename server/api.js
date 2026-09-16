@@ -2402,6 +2402,22 @@ export function createApiHandler() {
       }
     }
 
+    // ── GET /api/independent-teachers — list active independent teachers for students to browse ──
+    if (req.url === '/api/independent-teachers' && req.method === 'GET') {
+      res.setHeader('Content-Type', 'application/json');
+      try {
+        const rows = await dbQuery(
+          `SELECT id, full_name, employee_id, subjects, experience_years, bio, city, created_at
+           FROM teachers WHERE status = 'active' ORDER BY created_at DESC`
+        );
+        return res.end(JSON.stringify(Array.isArray(rows) ? rows : []));
+      } catch (error) {
+        console.error('[independent-teachers] error:', error);
+        res.statusCode = 500;
+        return res.end(JSON.stringify([]));
+      }
+    }
+
     // ── Get Teacher Subscription Requests (founder only — contains PII) ──
     if (req.url === '/api/teacher-subscription-requests' && req.method === 'GET') {
       res.setHeader('Content-Type', 'application/json');
