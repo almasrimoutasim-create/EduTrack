@@ -479,10 +479,10 @@ export default function Students() {
                 <div className="flex flex-col lg:flex-row gap-3 w-full lg:w-auto">
                   <div className="flex flex-col gap-1.5">
                     <Label className="text-xs font-semibold text-stone-500">{t("students.grade", language)}</Label>
-                    <select id="field-students-select-4" name="select_4" aria-label="select 4" 
-                      value={selectedGrade}
-                      onChange={(e) => setSelectedGrade(e.target.value)}
-                      aria-label={t("students.grade", language)}
+<select id="field-students-select-4" name="select_4"
+                       value={selectedGrade}
+                       onChange={(e) => setSelectedGrade(e.target.value)}
+                       aria-label={t("students.grade", language)}
                       className="bg-white border border-stone-200 rounded-xl h-11 px-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20"
                       dir={isRTL ? "rtl" : "ltr"}
                     >
@@ -494,10 +494,10 @@ export default function Students() {
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <Label className="text-xs font-semibold text-stone-500">{t("common.status", language)}</Label>
-                    <select id="field-students-select-3" name="select_3" aria-label="select 3" 
-                      value={selectedStatus}
-                      onChange={(e) => setSelectedStatus(e.target.value)}
-                      aria-label={t("common.status", language)}
+<select id="field-students-select-3" name="select_3"
+                       value={selectedStatus}
+                       onChange={(e) => setSelectedStatus(e.target.value)}
+                       aria-label={t("common.status", language)}
                       className="bg-white border border-stone-200 rounded-xl h-11 px-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20"
                       dir={isRTL ? "rtl" : "ltr"}
                     >
@@ -508,10 +508,10 @@ export default function Students() {
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <Label className="text-xs font-semibold text-stone-500">{t("students.section", language)}</Label>
-                    <select id="field-students-select-2" name="select_2" aria-label="select 2"
-                      value={selectedSection}
-                      onChange={(e) => setSelectedSection(e.target.value)}
-                      aria-label={t("students.section", language)}
+<select id="field-students-select-2" name="select_2"
+                       value={selectedSection}
+                       onChange={(e) => setSelectedSection(e.target.value)}
+                       aria-label={t("students.section", language)}
                       className="bg-white border border-stone-200 rounded-xl h-11 px-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20"
                       dir={isRTL ? "rtl" : "ltr"}
                     >
