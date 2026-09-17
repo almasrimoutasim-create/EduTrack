@@ -25,11 +25,28 @@ const PORTAL_REDIRECTS = {
   support: "/staff-portal"
 };
 
-const isPathAllowed = (role, path) => {
+const getDefaultRedirect = (user) => {
+  if (!user) return "/";
+  if (user.role === 'teacher') return user.school_id ? "/teacher-portal" : "/teacher-panel";
+  if (user.role === 'student') return user.school_id ? "/student-portal" : "/student-panel";
+  return PORTAL_REDIRECTS[user.role] || "/";
+};
+
+const isPathAllowed = (user, path) => {
+  const role = user?.role;
+  const schoolId = user?.school_id;
   if (role === 'admin') return true;
 
-  if (role === 'teacher') return path.startsWith('/teacher-portal') || path.startsWith('/teacher-panel');
-  if (role === 'student') return path.startsWith('/student-portal') || path.startsWith('/student-panel') || path.startsWith('/store');
+  if (role === 'teacher') {
+    const isIndependent = !schoolId;
+    if (isIndependent) return path.startsWith('/teacher-panel');
+    return path.startsWith('/teacher-portal');
+  }
+  if (role === 'student') {
+    const isIndependent = !schoolId;
+    if (isIndependent) return path.startsWith('/student-panel') || path.startsWith('/store');
+    return path.startsWith('/student-portal') || path.startsWith('/store');
+  }
   if (role === 'parent') return path.startsWith('/parent-portal') || path.startsWith('/store');
   if (role === 'bus' || role === 'bus_supervisor') {
     return path.startsWith('/staff-portal') || path.startsWith('/bus-supervisor');
@@ -102,13 +119,13 @@ export default function RoleGate({ children }) {
 
     if (isAuthenticated && user) {
       const userRole = user.role;
-      const isAllowed = isPathAllowed(userRole, path);
-      console.log("[RoleGate Debug]", { userRole, path, isAllowed, redirecting });
+      const isAllowed = isPathAllowed(user, path);
+      console.log("[RoleGate Debug]", { userRole, school_id: user.school_id, path, isAllowed, redirecting });
       // Validate path authorization
       if (!isAllowed) {
         console.warn(`Unauthorized access attempt to ${path} by role: ${userRole}`);
         setRedirecting(true);
-        const defaultRedirect = PORTAL_REDIRECTS[userRole] || "/";
+        const defaultRedirect = getDefaultRedirect(user);
         window.location.href = defaultRedirect;
       }
     }
