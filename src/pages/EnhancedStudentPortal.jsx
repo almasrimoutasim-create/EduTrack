@@ -17,7 +17,8 @@ import {
   Play, GraduationCap, BookMarked, Download,
   CheckCircle2, AlertCircle, MessageCircle,
   UserCheck, Loader2, Megaphone, Award, Sparkles,
-  ArrowUpRight, ChevronLeft, Calendar, Fingerprint, Lock
+  ArrowUpRight, ChevronLeft, Calendar, Fingerprint, Lock,
+  Phone, Mail
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
@@ -642,24 +643,42 @@ function TeachersTab({ studentId, subscriptions, approvedTeachers, pendingSubs, 
                 const isReceiptUploaded = bond && bond.payment_status === "receipt_uploaded";
                 const isConfirmed = bond && bond.status === "approved" && bond.payment_status === "confirmed";
                 return (
-                  <Card key={t.id} className="p-0 rounded-2xl border-stone-200 overflow-hidden flex flex-col aspect-square bg-white shadow-sm">
-                    <div className="h-[58%] w-full bg-stone-100 overflow-hidden flex items-center justify-center shrink-0">
+                  <Card key={t.id} dir={isRTL ? "rtl" : "ltr"} className="p-6 rounded-[24px] border border-stone-100 bg-white shadow-[0_4px_24px_rgba(0,0,0,0.04)] flex flex-col items-center text-center aspect-square overflow-hidden">
+                    {/* Avatar - circular centered with breathing space */}
+                    <div className="pt-2 pb-1">
                       {t.avatar_url ? (
-                        <img src={t.avatar_url} alt={t.full_name} className="h-full w-full object-cover" />
+                        <img src={t.avatar_url} alt={t.full_name} className="h-[88px] w-[88px] rounded-full object-cover border-[3px] border-white shadow-[0_4px_16px_rgba(0,0,0,0.08)]" />
                       ) : (
-                        <div className="h-full w-full bg-indigo-50 text-indigo-700 flex flex-col items-center justify-center gap-1">
-                          <div className="h-12 w-12 rounded-full bg-indigo-100 flex items-center justify-center font-black text-xl">{(t.full_name || "م").charAt(0)}</div>
-                          <span className="text-[10px] font-bold text-stone-400">{isRTL ? "بدون صورة" : "No photo"}</span>
+                        <div className="h-[88px] w-[88px] rounded-full bg-gradient-to-br from-indigo-50 to-indigo-100 border-[3px] border-white shadow-[0_4px_16px_rgba(0,0,0,0.06)] flex items-center justify-center">
+                          <span className="font-black text-[28px] text-indigo-600 leading-none">{(t.full_name || "م").trim().charAt(0)}</span>
                         </div>
                       )}
                     </div>
-                    <div className="flex-1 p-3 flex flex-col items-center text-center gap-0.5 overflow-hidden">
-                      <div className="font-black text-stone-900 text-[13px] leading-tight line-clamp-1">{t.full_name || (isRTL ? "معلم" : "Teacher")}</div>
-                      <div className="text-[11px] text-stone-600 font-bold ltr:font-mono" dir="ltr">{t.phone || (isRTL ? "—" : "—")}</div>
-                      <div className="text-[11px] text-stone-500 truncate w-full" dir="ltr">{t.email || (isRTL ? "—" : "—")}</div>
-                      <div className="text-[11px] text-indigo-600 font-bold line-clamp-1">{t.subjects || (isRTL ? "غير محدد" : "—")}</div>
+
+                    {/* Name - primary title */}
+                    <div className="mt-4 font-black text-stone-900 text-[15px] leading-tight line-clamp-1 px-2">
+                      {t.full_name || (isRTL ? "معلم" : "Teacher")}
                     </div>
-                    <div className="p-2 pt-0 mt-auto w-full">
+
+                    {/* Subject - calm grey, clear separation */}
+                    <div className="mt-1.5 text-xs font-semibold text-stone-500 leading-none line-clamp-1 px-2 min-h-[16px]">
+                      {t.subjects || (isRTL ? "—" : "—")}
+                    </div>
+
+                    {/* Contact info - ordered with mini icons, regular spacing */}
+                    <div className="mt-4 w-full flex flex-col items-center gap-1.5">
+                      <div className="flex items-center justify-center gap-1.5 text-[11px] font-medium text-stone-600" dir="ltr">
+                        <Phone size={12} className="text-stone-400 shrink-0" />
+                        <span className="tracking-wide">{t.phone || "—"}</span>
+                      </div>
+                      <div className="flex items-center justify-center gap-1.5 text-[11px] font-medium text-stone-500 max-w-full" dir="ltr">
+                        <Mail size={12} className="text-stone-400 shrink-0" />
+                        <span className="truncate">{t.email || "—"}</span>
+                      </div>
+                    </div>
+
+                    {/* CTA - clear safe distance, independent visual element */}
+                    <div className="mt-auto pt-6 w-full">
                      {isConfirmed ? (
                        <Badge className="text-[10px] bg-emerald-50 text-emerald-700 flex items-center gap-1 mt-1"><CheckCircle2 size={10}/>{isRTL ? "مسجل ✓" : "Joined ✓"}</Badge>
                      ) : isPaymentPending ? (
