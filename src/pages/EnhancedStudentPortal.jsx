@@ -633,7 +633,7 @@ function TeachersTab({ studentId, subscriptions, approvedTeachers, pendingSubs, 
         {loadingTeachers ? (
           <div className="flex items-center justify-center py-8"><Loader2 size={24} className="animate-spin text-stone-400" /></div>
         ) : independentTeachers.length > 0 ? (
-          <div className="grid gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
  {independentTeachers.map(t => {
                 const isBonded = bondedTeacherIds.has(t.id);
                 const isSubscribing = subscribingTo === t.id;
@@ -642,16 +642,24 @@ function TeachersTab({ studentId, subscriptions, approvedTeachers, pendingSubs, 
                 const isReceiptUploaded = bond && bond.payment_status === "receipt_uploaded";
                 const isConfirmed = bond && bond.status === "approved" && bond.payment_status === "confirmed";
                 return (
-                  <Card key={t.id} className="p-4 rounded-2xl border-stone-100 flex flex-col items-center text-center">
-                    {t.avatar_url ? (
-                      <img src={t.avatar_url} alt={t.full_name} className="h-16 w-16 rounded-full object-cover border border-stone-200 shrink-0 mb-3" />
-                    ) : (
-                      <div className="h-16 w-16 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-black text-xl shrink-0 mb-3">
-                        {(t.full_name || "م").charAt(0)}
-                      </div>
-                    )}
-                    <div className="font-bold text-stone-900 text-sm">{t.full_name || (isRTL ? "معلم" : "Teacher")}</div>
-                    {t.subjects && <div className="text-xs text-stone-500 mb-1">{t.subjects}</div>}
+                  <Card key={t.id} className="p-0 rounded-2xl border-stone-200 overflow-hidden flex flex-col aspect-square bg-white shadow-sm">
+                    <div className="h-[58%] w-full bg-stone-100 overflow-hidden flex items-center justify-center shrink-0">
+                      {t.avatar_url ? (
+                        <img src={t.avatar_url} alt={t.full_name} className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="h-full w-full bg-indigo-50 text-indigo-700 flex flex-col items-center justify-center gap-1">
+                          <div className="h-12 w-12 rounded-full bg-indigo-100 flex items-center justify-center font-black text-xl">{(t.full_name || "م").charAt(0)}</div>
+                          <span className="text-[10px] font-bold text-stone-400">{isRTL ? "بدون صورة" : "No photo"}</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 p-3 flex flex-col items-center text-center gap-0.5 overflow-hidden">
+                      <div className="font-black text-stone-900 text-[13px] leading-tight line-clamp-1">{t.full_name || (isRTL ? "معلم" : "Teacher")}</div>
+                      <div className="text-[11px] text-stone-600 font-bold ltr:font-mono" dir="ltr">{t.phone || (isRTL ? "—" : "—")}</div>
+                      <div className="text-[11px] text-stone-500 truncate w-full" dir="ltr">{t.email || (isRTL ? "—" : "—")}</div>
+                      <div className="text-[11px] text-indigo-600 font-bold line-clamp-1">{t.subjects || (isRTL ? "غير محدد" : "—")}</div>
+                    </div>
+                    <div className="p-2 pt-0 mt-auto w-full">
                      {isConfirmed ? (
                        <Badge className="text-[10px] bg-emerald-50 text-emerald-700 flex items-center gap-1 mt-1"><CheckCircle2 size={10}/>{isRTL ? "مسجل ✓" : "Joined ✓"}</Badge>
                      ) : isPaymentPending ? (
@@ -696,11 +704,12 @@ function TeachersTab({ studentId, subscriptions, approvedTeachers, pendingSubs, 
                          </div>
                        </div>
                      ) : (
-                       <button onClick={() => { setSubscribingTo(t.id); handleSubscribe(t.id, t.full_name); }} disabled={loading} className="mt-2 w-full text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 py-2 rounded-xl disabled:opacity-50">
-                         {isRTL ? "طلب اشتراك في درس خصوصي" : "Request Private Lesson"}
-                       </button>
-                     )}
-                  </Card>
+                        <button onClick={() => { setSubscribingTo(t.id); handleSubscribe(t.id, t.full_name); }} disabled={loading} className="w-full text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 py-2 rounded-xl disabled:opacity-50">
+                          {isRTL ? "طلب اشتراك في درس خصوصي" : "Request Private Lesson"}
+                        </button>
+                      )}
+                    </div>
+                   </Card>
                 );
              })}
           </div>

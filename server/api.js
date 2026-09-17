@@ -2643,7 +2643,7 @@ export function createApiHandler() {
       res.setHeader('Content-Type', 'application/json');
       try {
         const rows = await dbQuery(
-          `SELECT id, full_name, employee_id, subjects, experience_years, bio, city, avatar_url, created_at
+          `SELECT id, full_name, employee_id, subjects, experience_years, bio, city, avatar_url, phone, email, created_at
            FROM teachers WHERE status = 'active' ORDER BY created_at DESC`
         );
         return res.end(JSON.stringify(Array.isArray(rows) ? rows : []));
