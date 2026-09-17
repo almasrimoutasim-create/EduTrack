@@ -1703,6 +1703,9 @@ export function createApiHandler() {
         let gwRows = [];
         if (sid) {
           gwRows = await dbQuery('SELECT id, username FROM gateway_accounts WHERE username = $1 AND school_id = $2 LIMIT 1', [id, sid]);
+          if (gwRows.length === 0) {
+            gwRows = await dbQuery('SELECT id, username FROM gateway_accounts WHERE username = $1 AND school_id IS NULL LIMIT 1', [id]);
+          }
         } else {
           gwRows = await dbQuery('SELECT id, username FROM gateway_accounts WHERE username = $1 AND school_id IS NULL LIMIT 1', [id]);
         }
@@ -1738,6 +1741,10 @@ export function createApiHandler() {
             'SELECT * FROM gateway_accounts WHERE username = $1 AND school_id = $2',
             [username, schoolId]
           );
+          // Fallback: also try global NULL-school accounts (shared across all schools)
+          if (rows.length === 0) {
+            rows = await dbQuery('SELECT * FROM gateway_accounts WHERE username = $1 AND school_id IS NULL', [username]);
+          }
         } else {
           rows = await dbQuery('SELECT * FROM gateway_accounts WHERE username = $1 AND school_id IS NULL', [username]);
         }
