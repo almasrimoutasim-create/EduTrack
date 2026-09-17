@@ -251,11 +251,11 @@ export default function StudentPortal() {
               <div className="h-16 w-16 rounded-2xl bg-blue-100 text-blue-700 flex items-center justify-center mx-auto mb-4">
                 <GraduationCap size={32} />
               </div>
-              <h1 className="text-2xl font-black text-stone-900">
-                {isRTL ? "بوابة الطالب" : "Student Portal"}
+              <h1 className="text-2xl font-black text-stone-900 text-center">
+                دخول بوابة الطالب
               </h1>
-              <p className="text-sm text-stone-500 mt-2">
-                {isRTL ? "سجّل الدخول لمتابعة دروسك" : "Sign in to track your classes"}
+              <p className="text-sm text-stone-500 mt-2 text-center">
+                سجّل دخولك لعرض واجباتك ودرجاتك
               </p>
             </div>
 
