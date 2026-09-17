@@ -18,7 +18,7 @@ import {
   CheckCircle2, AlertCircle, MessageCircle,
   UserCheck, Loader2, Megaphone, Award, Sparkles,
   ArrowUpRight, ChevronLeft, Calendar, Fingerprint, Lock,
-  Phone, Mail
+  Phone, Mail, RefreshCw
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
@@ -29,6 +29,27 @@ import PortalGrades from "@/components/portal/PortalGrades";
 
 const btnPrimary = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-bold transition-all bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer shadow-lg disabled:opacity-50";
 const btnOutline = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-bold transition-all border-2 border-stone-200 bg-white text-stone-700 hover:bg-stone-50 hover:border-stone-300 cursor-pointer";
+
+class TabErrorBoundary extends React.Component {
+  constructor(props){ super(props); this.state={hasError:false, err:null}; }
+  static getDerivedStateFromError(err){ return {hasError:true, err}; }
+  componentDidCatch(err,info){ console.error("[StudentPanel TabError]", this.props.tab, err, info); }
+  render(){
+    if(this.state.hasError){
+      return (
+        <Card className="p-8 rounded-[20px] border border-red-200 bg-red-50 text-center">
+          <AlertCircle size={32} className="text-red-500 mx-auto mb-3" />
+          <div className="text-sm font-black text-red-800">حدث خطأ في تحميل هذه الصفحة</div>
+          <div className="text-xs text-red-600 mt-1 font-mono break-all">{String(this.state.err?.message || this.state.err || "")}</div>
+          <button onClick={()=>{ this.setState({hasError:false, err:null}); if(this.props.onRetry) this.props.onRetry(); }} className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-red-200 text-sm font-bold text-red-700 hover:bg-red-100">
+            <RefreshCw size={14} /> إعادة المحاولة
+          </button>
+        </Card>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const SIDEBAR_ITEMS = [
   { id: "dashboard", icon: BarChart3, label: "لوحة التحكم", labelEn: "Dashboard" },
@@ -361,6 +382,7 @@ export default function StudentPortal() {
       <main className={`flex-1 ${isRTL ? 'lg:mr-64' : 'lg:ml-64'} pt-14 lg:pt-0 pb-20 lg:pb-0`}>
         <div className="max-w-6xl mx-auto p-4 md:p-6">
           <AnimatePresence mode="wait">
+            <TabErrorBoundary key={`eb-${activeTab}`} tab={activeTab} onRetry={()=> queryClient.invalidateQueries()}>
             {activeTab === "dashboard" && <DashboardTab key="dashboard" stats={stats} studentId={studentId} studentName={studentName} isRTL={isRTL} setActiveTab={setActiveTab} />}
             {activeTab === "my-teacher" && <MyTeacherTab key="my-teacher" approvedTeachers={approvedTeachers} pendingSubs={pendingSubs} studentId={studentId} isRTL={isRTL} queryClient={queryClient} setActiveTab={setActiveTab} />}
             {activeTab === "teachers" && <TeachersTab key="teachers" studentId={studentId} subscriptions={subscriptions} approvedTeachers={approvedTeachers} pendingSubs={pendingSubs} bonds={bonds} isRTL={isRTL} queryClient={queryClient} />}
@@ -372,6 +394,7 @@ export default function StudentPortal() {
             {activeTab === "videos" && <VideosTab key="videos" videos={allVideos} isRTL={isRTL} />}
             {activeTab === "announcements" && <AnnouncementsTab key="announcements" announcements={studentAnnouncements} isRTL={isRTL} />}
             {activeTab === "curriculum" && <CurriculumTab key="curriculum" books={curriculumBooks} isRTL={isRTL} />}
+            </TabErrorBoundary>
           </AnimatePresence>
         </div>
       </main>
@@ -387,66 +410,72 @@ function DashboardTab({ stats, studentId, studentName, isRTL, setActiveTab }) {
   const todayAr = ["الأحد","الإثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"][todayIdx];
 
   const quickStats = [
-    { label: isRTL ? "معلموني" : "My Teachers", value: stats.teachers, icon: UserCheck, color: "bg-indigo-50 text-indigo-600", tab: "my-teacher" },
-    { label: isRTL ? "واجبات" : "Assignments", value: stats.assignments, icon: ClipboardCheck, color: "bg-amber-50 text-amber-600", tab: "assignments" },
-    { label: isRTL ? "امتحانات" : "Exams", value: stats.exams, icon: FileText, color: "bg-purple-50 text-purple-600", tab: "exams" },
-    { label: isRTL ? "حصص مباشرة" : "Live", value: stats.liveClasses, icon: Video, color: "bg-emerald-50 text-emerald-600", tab: "live" },
-    { label: isRTL ? "إعلانات" : "Announcements", value: stats.announcements, icon: Megaphone, color: "bg-rose-50 text-rose-600", tab: "announcements" },
+    { label: "معلموني", labelEn: "My Teachers", value: stats.teachers, icon: UserCheck, gradient: "from-indigo-500 to-violet-600", tab: "my-teacher" },
+    { label: "واجبات", labelEn: "Assignments", value: stats.assignments, icon: ClipboardCheck, gradient: "from-amber-500 to-orange-500", tab: "assignments" },
+    { label: "امتحانات", labelEn: "Exams", value: stats.exams, icon: FileText, gradient: "from-purple-500 to-fuchsia-600", tab: "exams" },
+    { label: "حصص مباشرة", labelEn: "Live", value: stats.liveClasses, icon: Video, gradient: "from-emerald-500 to-teal-600", tab: "live" },
+    { label: "إعلانات", labelEn: "Announcements", value: stats.announcements, icon: Megaphone, gradient: "from-rose-500 to-pink-600", tab: "announcements" },
   ];
 
   return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-4">
-      <h1 className="text-xl font-black text-stone-900">{isRTL ? "لوحة التحكم" : "Dashboard"}</h1>
-
-      <div className="flex items-end justify-between gap-3">
-        <div>
-          <p className="text-sm font-bold text-stone-700">{isRTL ? `مرحباً ${studentName}` : `Welcome, ${studentName}`}</p>
-          <p className="text-xs text-stone-400 mt-1">{isRTL ? "هذه أهم المعلومات التي تحتاجها لمتابعة يومك الدراسي." : "Here is what matters most for your school day."}</p>
-        </div>
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} dir="rtl" className="space-y-6">
+      {/* 1 - التسلسل الهرمي والخطوط - عنوان بارز ومحاذاة RTL */}
+      <div className="text-right">
+        <h1 className="text-[26px] font-black text-stone-900 leading-tight tracking-tight">لوحة التحكم</h1>
+        <p className="mt-2 text-[18px] font-bold text-stone-800 leading-tight">مرحباً {studentName}</p>
+        <p className="mt-1 text-sm font-medium text-stone-600 leading-relaxed">هذه أهم المعلومات التي تحتاجها لمتابعة يومك الدراسي.</p>
         {stats.pendingSubs > 0 && (
-          <button onClick={() => setActiveTab("teachers")} className="text-xs font-black text-indigo-600 hover:text-indigo-700 whitespace-nowrap">
-            {isRTL ? `${stats.pendingSubs} طلب بانتظارك` : `${stats.pendingSubs} pending request${stats.pendingSubs === 1 ? "" : "s"}`}
+          <button onClick={() => setActiveTab("teachers")} className="mt-3 inline-flex items-center gap-1.5 text-sm font-bold text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-full transition-colors">
+            {stats.pendingSubs} طلب بانتظارك <ArrowUpRight size={14} />
           </button>
         )}
       </div>
 
-      {/* Today's Schedule */}
+      {/* 2 - بطاقات الإحصاء - مربعات متناسقة بمساحة تنفس */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        {quickStats.map((c, i) => (
+          <button
+            key={i}
+            onClick={() => setActiveTab(c.tab)}
+            className="flex flex-col items-center justify-center p-6 rounded-[20px] border border-stone-100 bg-white shadow-[0_4px_16px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] hover:border-stone-200 transition-all text-center aspect-square"
+          >
+            {/* أيقونة داخل حاوية مربعة ملونة بتدرج */}
+            <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${c.gradient} flex items-center justify-center shadow-sm shrink-0`}>
+              <c.icon size={22} className="text-white" />
+            </div>
+            {/* رقم كبير بارز في مكان بصري بارز */}
+            <div className="mt-4 text-[30px] font-black text-stone-900 leading-none">{c.value}</div>
+            {/* اسم البطاقة تحت الرقم بخط متوسط مريح */}
+            <div className="mt-1.5 text-xs font-semibold text-stone-600 leading-tight">{isRTL ? c.label : c.labelEn}</div>
+          </button>
+        ))}
+      </div>
+
+      {/* جدول اليوم - بتباين سليم وظل خفيف */}
       {stats.todaySchedules?.length > 0 && (
-        <Card className="p-4 rounded-2xl border-stone-100">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-black text-stone-900 flex items-center gap-2">
-              <Calendar size={16} className="text-blue-500" /> {isRTL ? `جدول اليوم (${todayAr})` : `Today's Schedule (${todayEn})`}
+        <Card className="p-5 rounded-[20px] border border-stone-100 bg-white shadow-[0_4px_16px_rgba(0,0,0,0.04)]">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-[15px] font-black text-stone-900 flex items-center gap-2">
+              <span className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center"><Calendar size={16} /></span>
+              {`جدول اليوم (${todayAr})`}
             </h3>
-            <button onClick={() => setActiveTab("schedule")} className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1">
-              {isRTL ? "عرض الكل" : "View All"} <ArrowUpRight size={12} />
+            <button onClick={() => setActiveTab("schedule")} className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-full transition-colors">
+              عرض الكل <ArrowUpRight size={12} />
             </button>
           </div>
           <div className="space-y-2">
             {stats.todaySchedules.map((s, i) => (
-              <div key={s.id || i} className="flex items-center gap-3 p-2 rounded-xl bg-stone-50">
-                <div className="text-xs font-bold text-blue-600 w-16">{s.start_time || ""}</div>
-                <div className="flex-1">
-                  <div className="text-sm font-bold text-stone-900">{s.subject || s.title || ""}</div>
-                  <div className="text-xs text-stone-500">{s.teacher_name || ""} {s.classroom ? `- ${s.classroom}` : ""}</div>
+              <div key={s.id || i} className="flex items-center gap-3 p-3 rounded-xl bg-stone-50 border border-stone-100">
+                <div className="text-xs font-black text-blue-600 bg-white border border-blue-100 px-2 py-1 rounded-lg shrink-0">{s.start_time || "--:--"}</div>
+                <div className="flex-1 min-w-0 text-right">
+                  <div className="text-sm font-bold text-stone-900 truncate">{s.subject || s.title || "—"}</div>
+                  <div className="text-xs font-medium text-stone-500 truncate">{s.teacher_name || ""} {s.classroom ? `• ${s.classroom}` : ""}</div>
                 </div>
               </div>
             ))}
           </div>
         </Card>
       )}
-
-      {/* Quick Stats Grid */}
-      <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
-        {quickStats.map((c, i) => (
-          <button key={i} onClick={() => setActiveTab(c.tab)} className={`p-3 rounded-2xl border border-stone-100 bg-white hover:bg-stone-50 transition-all text-left`}>
-            <div className={`h-8 w-8 rounded-lg ${c.color} flex items-center justify-center mb-2`}>
-              <c.icon size={16} />
-            </div>
-            <div className="text-lg font-black text-stone-900">{c.value}</div>
-            <div className="text-[10px] text-stone-500 font-bold leading-tight">{c.label}</div>
-          </button>
-        ))}
-      </div>
     </motion.div>
   );
 }
@@ -1580,12 +1609,13 @@ function AttendanceTab({ attendanceLogs, stats, studentId, isRTL }) {
 
 // ─── Grades Tab ───
 function GradesTab({ studentId, studentGrade, isRTL }) {
+  const studentObj = { student_id: studentId, full_name: (typeof window !== 'undefined' ? localStorage.getItem("portal_user_name") : "") || "" };
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
       <h1 className="text-xl font-black text-stone-900 mb-4 flex items-center gap-2">
         <Award size={22} className="text-purple-600" /> {isRTL ? "الدرجات" : "Grades"}
       </h1>
-      <PortalGrades studentId={studentId} studentGrade={studentGrade} />
+      <PortalGrades student={studentObj} />
     </motion.div>
   );
 }
