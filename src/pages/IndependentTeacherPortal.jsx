@@ -17,7 +17,7 @@ import {
   CheckCircle2, AlertCircle, Clock, Eye, EyeOff, Trash2, Edit,
   PlayCircle, FileText, Award, Star, Play,
    GraduationCap, Copy, X,
-   UserCheck, User, RefreshCw, Check, Loader2, CreditCard
+   UserCheck, User, RefreshCw, Check, Loader2, CreditCard, Settings, Image as ImageIcon
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
@@ -34,6 +34,7 @@ const SIDEBAR_ITEMS = [
   { id: "videos", icon: PlayCircle, label: "الحصص المسجلة (يوتيوب)", labelEn: "Recorded Classes" },
   { id: "subscriptions", icon: Star, label: "طلبات الاشتراك", labelEn: "Subscriptions" },
   { id: "bonds", icon: UserCheck, label: "ربط الطلاب", labelEn: "Student Bonds" },
+  { id: "settings", icon: Settings, label: "الإعدادات العامة", labelEn: "Settings" },
 ];
 
 export default function IndependentTeacherPortal() {
@@ -275,31 +276,25 @@ export default function IndependentTeacherPortal() {
       <aside className="hidden lg:flex w-64 bg-white border-l border-stone-200 flex-col fixed inset-y-0 right-0 z-30">
          <div className="p-4 border-b border-stone-100">
            <div className="flex items-center gap-3">
-             <div className="h-10 w-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
-               <GraduationCap size={20} />
-             </div>
+             {teacherProfile?.avatar_url ? (
+               <img src={teacherProfile.avatar_url} alt="avatar" className="h-10 w-10 rounded-xl object-cover border border-stone-200" />
+             ) : (
+               <div className="h-10 w-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                 <GraduationCap size={20} />
+               </div>
+             )}
              <div>
                <div className="font-black text-sm text-stone-900">بوابة المعلم</div>
                <div className="text-xs text-stone-500 truncate max-w-[150px]">{teacherName}</div>
              </div>
            </div>
-           <div className="mt-3 space-y-2">
-             <label className="text-[10px] font-bold text-stone-500">{isRTL ? "رقم الحساب البنكي" : "Bank Account"}</label>
-             <input type="text" value={bankAccount} onChange={e => setBankAccount(e.target.value)} placeholder={isRTL ? "رقم الحساب" : "Account number"}
-               className="w-full rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-xs font-bold text-stone-700 focus:outline-none focus:ring-2 focus:ring-emerald-400" />
-             <button onClick={() => {
-               fetch(`/api/teacher-profile?teacherId=${teacherId}`, { method: "PATCH", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("portal_jwt_token") || localStorage.getItem("token") || ""}` }, body: JSON.stringify({ bank_account: bankAccount }) }).then(r => r.json()).then(d => { if (d.success) { toast.success(isRTL ? "تم الحفظ" : "Saved"); queryClient.invalidateQueries({ queryKey: ["teacher-profile"] }); } else toast.error(d.error || "Failed"); }).catch(() => toast.error("Failed"));
-             }}
-               className="w-full text-[10px] font-bold text-white bg-emerald-600 hover:bg-emerald-700 py-1 rounded-lg">{isRTL ? "حفظ" : "Save"}</button>
-             {loadingProfile && <div className="text-[10px] text-stone-400">{isRTL ? "جاري التحميل..." : "Loading..."}</div>}
-           </div>
          </div>
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
           {SIDEBAR_ITEMS.map(item => (
             <button key={item.id} onClick={() => setActiveTab(item.id)}
-              className={`w-full inline-flex items-center justify-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all text-center ${activeTab === item.id ? "bg-emerald-50 text-emerald-700" : "text-stone-600 hover:bg-stone-50"}`}>
-              <item.icon size={18} />
-              <span>{isRTL ? item.label : item.labelEn}</span>
+              className={`w-full flex items-center justify-start gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all text-right ${activeTab === item.id ? "bg-emerald-50 text-emerald-700" : "text-stone-600 hover:bg-stone-50"}`}>
+              <item.icon size={18} className="shrink-0" />
+              <span className="flex-1 text-right">{isRTL ? item.label : item.labelEn}</span>
               {item.id === "subscriptions" && stats.pendingSubs > 0 && (
                 <span className="mr-auto bg-red-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">{stats.pendingSubs}</span>
               )}
@@ -310,7 +305,7 @@ export default function IndependentTeacherPortal() {
           ))}
         </nav>
         <div className="p-3 border-t border-stone-100">
-          <button onClick={handleLogout} className="w-full inline-flex items-center justify-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-red-600 hover:bg-red-50 transition-all">
+          <button onClick={handleLogout} className="w-full flex items-center justify-start gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-red-600 hover:bg-red-50 transition-all text-right">
             <LogOut size={18} /> خروج
           </button>
         </div>
@@ -357,6 +352,7 @@ export default function IndependentTeacherPortal() {
             {activeTab === "videos" && <VideosTab key="videos" teacherId={teacherId} videos={videos} students={students} isRTL={isRTL} queryClient={queryClient} />}
             {activeTab === "subscriptions" && <SubscriptionsTab key="subs" teacherId={teacherId} subscriptions={subscriptions} isRTL={isRTL} queryClient={queryClient} />}
              {activeTab === "bonds" && <BondsTab key="bonds" bonds={bonds} isRTL={isRTL} approveBond={(bondId) => approveBondMutation.mutate({ bondId, studentName: bonds.find(b => b.id === bondId)?.student_name })} rejectBond={rejectBondMutation.mutate} confirmPayment={(bondId) => confirmPaymentMutation.mutate(bondId)} approveLoading={approveBondMutation.isPending} rejectLoading={rejectBondMutation.isPending} confirmLoading={confirmPaymentMutation.isPending} />}
+            {activeTab === "settings" && <SettingsTab key="settings" teacherId={teacherId} teacherProfile={teacherProfile} isRTL={isRTL} queryClient={queryClient} />}
           </AnimatePresence>
           )}
         </div>
@@ -1696,26 +1692,107 @@ function SubscriptionsTab({ teacherId, subscriptions, isRTL, queryClient }) {
 
        {/* Rejected Bonds */}
        {rejectedBonds.length > 0 && (
-         <div className="mt-6">
-           <h2 className="text-sm font-bold text-stone-700 mb-3">{isRTL ? "الطلبات المرفوضة" : "Rejected"} ({rejectedBonds.length})</h2>
-           <div className="space-y-2">
-             {rejectedBonds.map(bond => (
-               <Card key={bond.id} className="p-4 rounded-2xl border-stone-100 flex items-center justify-between opacity-60">
-                 <div className="flex items-center gap-3">
-                   <div className="h-8 w-8 rounded-lg flex items-center justify-center bg-red-100 text-red-600">
-                     <X size={14} />
-                   </div>
-                   <div>
-                     <div className="font-bold text-sm text-stone-900">{bond.student_name || (isRTL ? "طالب" : "Student")}</div>
-                     <div className="text-xs text-stone-500">{bond.student_email}</div>
-                   </div>
-                 </div>
-                 <Badge className="text-[10px] bg-red-50 text-red-700">{isRTL ? "مرفوض" : "Rejected"}</Badge>
-               </Card>
-             ))}
+          <div className="mt-6">
+            <h2 className="text-sm font-bold text-stone-700 mb-3">{isRTL ? "الطلبات المرفوضة" : "Rejected"} ({rejectedBonds.length})</h2>
+            <div className="space-y-2">
+              {rejectedBonds.map(bond => (
+                <Card key={bond.id} className="p-4 rounded-2xl border-stone-100 flex items-center justify-between opacity-60">
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-lg flex items-center justify-center bg-red-100 text-red-600">
+                      <X size={14} />
+                    </div>
+                    <div>
+                      <div className="font-bold text-sm text-stone-900">{bond.student_name || (isRTL ? "طالب" : "Student")}</div>
+                      <div className="text-xs text-stone-500">{bond.student_email}</div>
+                    </div>
+                  </div>
+                  <Badge className="text-[10px] bg-red-50 text-red-700">{isRTL ? "مرفوض" : "Rejected"}</Badge>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+      </motion.div>
+    );
+  }
+
+ // ─── Settings Tab (General) ───
+ function SettingsTab({ teacherId, teacherProfile, isRTL, queryClient }) {
+   const [bankAccount, setBankAccount] = useState(teacherProfile?.bank_account || "");
+   const [saving, setSaving] = useState(false);
+   const [avatarPreview, setAvatarPreview] = useState(teacherProfile?.avatar_url || "");
+   const [avatarFileB64, setAvatarFileB64] = useState(null);
+   const [avatarName, setAvatarName] = useState("");
+
+   useEffect(() => {
+     if (teacherProfile?.bank_account) setBankAccount(teacherProfile.bank_account);
+     if (teacherProfile?.avatar_url) setAvatarPreview(teacherProfile.avatar_url);
+   }, [teacherProfile]);
+
+   const handleAvatarChange = (e) => {
+     const file = e.target.files?.[0];
+     if (!file) return;
+     setAvatarName(file.name);
+     const reader = new FileReader();
+     reader.onload = () => {
+       const b64 = reader.result.split(",")[1];
+       setAvatarFileB64(b64);
+       setAvatarPreview(reader.result);
+     };
+     reader.readAsDataURL(file);
+   };
+
+   const handleSave = async () => {
+     setSaving(true);
+     try {
+       const payload = { bank_account: bankAccount };
+       if (avatarFileB64) { payload.avatarFile = avatarFileB64; payload.avatarName = avatarName; }
+       const res = await fetch(`/api/teacher-profile?teacherId=${teacherId}`, {
+         method: "PATCH",
+         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("portal_jwt_token") || localStorage.getItem("token") || ""}` },
+         body: JSON.stringify(payload),
+       });
+       const d = await res.json().catch(() => ({}));
+       if (!res.ok) throw new Error(d.error || "Failed");
+       if (d.avatar_url) setAvatarPreview(d.avatar_url);
+       queryClient.invalidateQueries({ queryKey: ["teacher-profile"] });
+       // also refresh independent-teachers cache for student view
+       queryClient.invalidateQueries({ queryKey: ["independent-teachers"] });
+       toast.success(isRTL ? "تم حفظ الإعدادات" : "Settings saved");
+       setAvatarFileB64(null);
+     } catch (e) { toast.error(e.message); }
+     setSaving(false);
+   };
+
+   return (
+     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-4">
+       <h1 className="text-xl font-black text-stone-900 flex items-center gap-2"><Settings size={22} className="text-emerald-600" /> {isRTL ? "الإعدادات العامة" : "General Settings"}</h1>
+
+       <Card className="p-5 rounded-2xl border-stone-100 space-y-4">
+         <div>
+           <h3 className="text-sm font-black text-stone-900 flex items-center gap-2"><ImageIcon size={16} className="text-stone-500" /> {isRTL ? "صورة المعلم" : "Profile Photo"}</h3>
+           <p className="text-xs text-stone-500 mt-1">{isRTL ? "ستظهر في القائمة الجانبية وفي كرت المعلم لدى الطالب." : "Shown in sidebar and on student teacher card."}</p>
+           <div className="mt-3 flex items-center gap-4">
+             <div className="h-20 w-20 rounded-2xl overflow-hidden bg-stone-100 border border-stone-200 flex items-center justify-center shrink-0">
+               {avatarPreview ? <img src={avatarPreview} alt="avatar" className="h-full w-full object-cover" /> : <GraduationCap size={28} className="text-stone-400" />}
+             </div>
+             <label className="h-10 px-4 rounded-xl bg-white border border-stone-200 text-sm font-bold text-stone-700 hover:bg-stone-50 cursor-pointer inline-flex items-center justify-center gap-2">
+               <ImageIcon size={16} /> {isRTL ? "رفع صورة" : "Upload Image"}
+               <input type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
+             </label>
            </div>
          </div>
-       )}
+
+         <div className="pt-4 border-t border-stone-100">
+           <label className="block text-xs font-black text-stone-700 mb-1.5">{isRTL ? "رقم الحساب البنكي" : "Bank Account Number"}</label>
+           <Input value={bankAccount} onChange={e => setBankAccount(e.target.value)} placeholder={isRTL ? "مثال: SA1234..." : "e.g. SA1234..."} className="h-11 rounded-xl font-mono" dir="ltr" />
+           <p className="text-[11px] text-stone-400 mt-1">{isRTL ? "يُرسل للطالب بعد الموافقة لاستكمال الدفع." : "Sent to student after approval to complete payment."}</p>
+         </div>
+
+         <button onClick={handleSave} disabled={saving} className="w-full h-11 rounded-xl bg-emerald-600 text-white font-black text-sm hover:bg-emerald-700 disabled:opacity-50 inline-flex items-center justify-center gap-2">
+           {saving ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />} {isRTL ? "حفظ الإعدادات" : "Save Settings"}
+         </button>
+       </Card>
      </motion.div>
    );
  }

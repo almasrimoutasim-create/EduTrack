@@ -1032,6 +1032,8 @@ if (process.env.DATABASE_URL) {
    sql`ALTER TABLE student_teacher_bonds ADD COLUMN IF NOT EXISTS payment_receipt_url TEXT`.catch(()=>{});
    sql`ALTER TABLE student_teacher_bonds ADD COLUMN IF NOT EXISTS teacher_bank_account TEXT`.catch(()=>{});
    sql`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS bank_account TEXT`.catch(()=>{});
+   sql`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS avatar_url TEXT`.catch(()=>{});
+   sql`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP`.catch(()=>{});
 
    // Auto-create teacher_bank_accounts table
    sql`
@@ -2399,12 +2401,12 @@ export function createApiHandler() {
       }
 
        // ── Teacher Profile (GET/UPDATE) ──
-       if (req.url.startsWith('/api/teacher-profile') && req.method === 'GET') {
+        if (req.url.startsWith('/api/teacher-profile') && req.method === 'GET') {
         res.setHeader('Content-Type', 'application/json');
         try {
           const me = getBearerUser(req);
           if (!me) { res.statusCode = 401; return res.end(JSON.stringify({ error: 'Auth required' })); }
-          const data = await dbQuery('SELECT id, full_name, email, bank_account FROM teachers WHERE id = $1', [me.id]);
+          const data = await dbQuery('SELECT id, full_name, email, bank_account, avatar_url FROM teachers WHERE id = $1', [me.id]);
           if (!data[0]) { res.statusCode = 404; return res.end(JSON.stringify({ error: 'Teacher not found' })); }
           return res.end(JSON.stringify({ success: true, ...data[0] }));
         } catch (error) {
@@ -2419,9 +2421,27 @@ export function createApiHandler() {
           const me = getBearerUser(req);
           if (!me) { res.statusCode = 401; return res.end(JSON.stringify({ error: 'Auth required' })); }
           const body = await parseBody(req);
-          const { bank_account } = body;
-          await dbQuery('UPDATE teachers SET bank_account = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [bank_account, me.id]);
-          return res.end(JSON.stringify({ success: true }));
+          let { bank_account, avatar_url, avatarFile, avatarName } = body;
+          // handle base64 avatar upload
+          if (avatarFile) {
+            const fs = await import('fs');
+            const pathMod = await import('path');
+            const uploadDir = pathMod.join(process.cwd(), 'public', 'uploads');
+            if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+            const safeName = `teacher_${me.id}_avatar_${Date.now()}.png`;
+            fs.writeFileSync(pathMod.join(uploadDir, safeName), Buffer.from(avatarFile, 'base64'));
+            avatar_url = `/uploads/${safeName}`;
+          }
+          const updates = [];
+          const vals = [];
+          let idx = 1;
+          if (bank_account !== undefined) { updates.push(`bank_account = $${idx++}`); vals.push(bank_account); }
+          if (avatar_url !== undefined) { updates.push(`avatar_url = $${idx++}`); vals.push(avatar_url); }
+          if (updates.length === 0) return res.end(JSON.stringify({ success: true }));
+          updates.push(`updated_at = CURRENT_TIMESTAMP`);
+          vals.push(me.id);
+          await dbQuery(`UPDATE teachers SET ${updates.join(', ')} WHERE id = $${idx}`, vals);
+          return res.end(JSON.stringify({ success: true, avatar_url }));
         } catch (error) {
           res.statusCode = 500;
           return res.end(JSON.stringify({ error: error.message }));
@@ -2623,7 +2643,7 @@ export function createApiHandler() {
       res.setHeader('Content-Type', 'application/json');
       try {
         const rows = await dbQuery(
-          `SELECT id, full_name, employee_id, subjects, experience_years, bio, city, created_at
+          `SELECT id, full_name, employee_id, subjects, experience_years, bio, city, avatar_url, created_at
            FROM teachers WHERE status = 'active' ORDER BY created_at DESC`
         );
         return res.end(JSON.stringify(Array.isArray(rows) ? rows : []));

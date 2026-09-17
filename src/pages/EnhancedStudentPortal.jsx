@@ -643,9 +643,13 @@ function TeachersTab({ studentId, subscriptions, approvedTeachers, pendingSubs, 
                 const isConfirmed = bond && bond.status === "approved" && bond.payment_status === "confirmed";
                 return (
                   <Card key={t.id} className="p-4 rounded-2xl border-stone-100 flex flex-col items-center text-center">
-                    <div className="h-16 w-16 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-black text-xl shrink-0 mb-3">
-                      {(t.full_name || "م").charAt(0)}
-                    </div>
+                    {t.avatar_url ? (
+                      <img src={t.avatar_url} alt={t.full_name} className="h-16 w-16 rounded-full object-cover border border-stone-200 shrink-0 mb-3" />
+                    ) : (
+                      <div className="h-16 w-16 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-black text-xl shrink-0 mb-3">
+                        {(t.full_name || "م").charAt(0)}
+                      </div>
+                    )}
                     <div className="font-bold text-stone-900 text-sm">{t.full_name || (isRTL ? "معلم" : "Teacher")}</div>
                     {t.subjects && <div className="text-xs text-stone-500 mb-1">{t.subjects}</div>}
                      {isConfirmed ? (
