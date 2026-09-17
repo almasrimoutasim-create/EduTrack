@@ -643,42 +643,42 @@ function TeachersTab({ studentId, subscriptions, approvedTeachers, pendingSubs, 
                 const isReceiptUploaded = bond && bond.payment_status === "receipt_uploaded";
                 const isConfirmed = bond && bond.status === "approved" && bond.payment_status === "confirmed";
                 return (
-                  <Card key={t.id} dir={isRTL ? "rtl" : "ltr"} className="p-6 rounded-[24px] border border-stone-100 bg-white shadow-[0_4px_24px_rgba(0,0,0,0.04)] flex flex-col items-center text-center aspect-square overflow-hidden">
-                    {/* Avatar - circular centered with breathing space */}
-                    <div className="pt-2 pb-1">
+                  <Card key={t.id} dir="rtl" className="flex flex-col items-center p-6 rounded-[20px] border border-stone-100 bg-white shadow-[0_4px_16px_rgba(0,0,0,0.04)] text-center">
+                    {/* 1 - حاوية صورة المعلم - دائرية مركزية بمساحة تنفس نظيفة */}
+                    <div className="w-full flex justify-center px-4 py-2">
                       {t.avatar_url ? (
-                        <img src={t.avatar_url} alt={t.full_name} className="h-[88px] w-[88px] rounded-full object-cover border-[3px] border-white shadow-[0_4px_16px_rgba(0,0,0,0.08)]" />
+                        <img src={t.avatar_url} alt={t.full_name} className="w-20 h-20 rounded-full object-cover border-2 border-white shadow-sm shrink-0" />
                       ) : (
-                        <div className="h-[88px] w-[88px] rounded-full bg-gradient-to-br from-indigo-50 to-indigo-100 border-[3px] border-white shadow-[0_4px_16px_rgba(0,0,0,0.06)] flex items-center justify-center">
-                          <span className="font-black text-[28px] text-indigo-600 leading-none">{(t.full_name || "م").trim().charAt(0)}</span>
+                        <div className="w-20 h-20 rounded-full bg-indigo-50 border-2 border-white shadow-sm flex items-center justify-center shrink-0">
+                          <span className="font-bold text-xl text-indigo-600 leading-none">{(t.full_name || "م").trim().charAt(0)}</span>
                         </div>
                       )}
                     </div>
 
-                    {/* Name - primary title */}
-                    <div className="mt-4 font-black text-stone-900 text-[15px] leading-tight line-clamp-1 px-2">
-                      {t.full_name || (isRTL ? "معلم" : "Teacher")}
-                    </div>
+                    {/* 2 - اسم المعلم - سطر مستقل تحت الصورة بمسافة واضحة */}
+                    <h3 className="mt-4 w-full text-center font-bold text-[16px] text-stone-900 leading-tight px-2">
+                      {t.full_name || "معلم"}
+                    </h3>
 
-                    {/* Subject - calm grey, clear separation */}
-                    <div className="mt-1.5 text-xs font-semibold text-stone-500 leading-none line-clamp-1 px-2 min-h-[16px]">
-                      {t.subjects || (isRTL ? "—" : "—")}
-                    </div>
+                    {/* 3 - المادة الدراسية - سطر مستقل تحت الاسم مباشرة */}
+                    <p className="mt-2 w-full text-center text-sm font-medium text-stone-500 leading-tight px-2">
+                      {t.subjects || "—"}
+                    </p>
 
-                    {/* Contact info - ordered with mini icons, regular spacing */}
-                    <div className="mt-4 w-full flex flex-col items-center gap-1.5">
-                      <div className="flex items-center justify-center gap-1.5 text-[11px] font-medium text-stone-600" dir="ltr">
-                        <Phone size={12} className="text-stone-400 shrink-0" />
-                        <span className="tracking-wide">{t.phone || "—"}</span>
+                    {/* 4 - معلومات التواصل - أسفل المادة بمسافات رأسية منتظمة */}
+                    <div className="mt-4 w-full flex flex-col gap-2">
+                      <div className="flex items-center justify-center gap-2 text-xs font-medium text-stone-600" dir="ltr">
+                        <Phone size={13} className="text-stone-400 shrink-0" />
+                        <span>{t.phone || "—"}</span>
                       </div>
-                      <div className="flex items-center justify-center gap-1.5 text-[11px] font-medium text-stone-500 max-w-full" dir="ltr">
-                        <Mail size={12} className="text-stone-400 shrink-0" />
+                      <div className="flex items-center justify-center gap-2 text-xs font-medium text-stone-500 max-w-full" dir="ltr">
+                        <Mail size={13} className="text-stone-400 shrink-0" />
                         <span className="truncate">{t.email || "—"}</span>
                       </div>
                     </div>
 
-                    {/* CTA - clear safe distance, independent visual element */}
-                    <div className="mt-auto pt-6 w-full">
+                    {/* 5 - زر الإجراء - في أسفل الكرت بمسافة أمان فاصلة */}
+                    <div className="mt-6 w-full pt-2">
                      {isConfirmed ? (
                        <Badge className="text-[10px] bg-emerald-50 text-emerald-700 flex items-center gap-1 mt-1"><CheckCircle2 size={10}/>{isRTL ? "مسجل ✓" : "Joined ✓"}</Badge>
                      ) : isPaymentPending ? (
