@@ -1832,13 +1832,20 @@ export function createApiHandler() {
 
         // 1. Admin login
         if (role === 'admin') {
-          const rows = await dbQuery('SELECT * FROM system_admins WHERE email = $1', [identifier]);
+          const rows = await dbQuery(
+            `SELECT * FROM system_admins
+             WHERE LOWER(email) = LOWER($1)
+                OR LOWER(username) = LOWER($1)
+                OR LOWER(portal_username) = LOWER($1)`,
+            [identifier]
+          );
           if (rows.length === 0) {
             res.statusCode = 401;
             return res.end(JSON.stringify({ error: 'Admin account not found' }));
           }
           const adminRow = rows[0];
-          if (!bcrypt.compareSync(password, adminRow.password)) {
+          const adminPassword = adminRow.password || adminRow.portal_password;
+          if (!adminPassword || !bcrypt.compareSync(password, adminPassword)) {
             res.statusCode = 401;
             return res.end(JSON.stringify({ error: 'Invalid admin credentials' }));
           }
@@ -1860,7 +1867,11 @@ export function createApiHandler() {
         // 2. Teacher login
         if (role === 'teacher') {
           const rows = await dbQuery(
-            'SELECT * FROM teachers WHERE (email = $1 OR employee_id = $1) AND status = \'active\'',
+            `SELECT * FROM teachers
+             WHERE (LOWER(email) = LOWER($1)
+                 OR LOWER(employee_id) = LOWER($1)
+                 OR LOWER(username) = LOWER($1))
+               AND status = 'active'`,
             [identifier]
           );
           if (rows.length === 0) {
@@ -1890,7 +1901,11 @@ export function createApiHandler() {
         // 3. Student login
         if (role === 'student') {
           const rows = await dbQuery(
-            'SELECT * FROM students WHERE (user_email = $1 OR student_id = $1) AND status = \'active\'',
+            `SELECT * FROM students
+             WHERE (LOWER(user_email) = LOWER($1)
+                 OR LOWER(student_id) = LOWER($1)
+                 OR LOWER(username) = LOWER($1))
+               AND status = 'active'`,
             [identifier]
           );
           if (rows.length === 0) {
@@ -1981,7 +1996,11 @@ export function createApiHandler() {
         // 6. Staff members login (staff_members table)
         if (role === 'staff') {
           const rows = await dbQuery(
-            'SELECT * FROM staff_members WHERE (email = $1 OR employee_id = $1) AND status = \'active\'',
+            `SELECT * FROM staff_members
+             WHERE (LOWER(email) = LOWER($1)
+                 OR LOWER(employee_id) = LOWER($1)
+                 OR LOWER(username) = LOWER($1))
+               AND status = 'active'`,
             [identifier]
           );
           if (rows.length === 0) {
