@@ -2398,8 +2398,8 @@ export function createApiHandler() {
         }
       }
 
-      // ── Teacher Profile (GET/UPDATE) ──
-      if (req.url === '/api/teacher-profile' && req.method === 'GET') {
+       // ── Teacher Profile (GET/UPDATE) ──
+       if (req.url.startsWith('/api/teacher-profile') && req.method === 'GET') {
         res.setHeader('Content-Type', 'application/json');
         try {
           const me = getBearerUser(req);
@@ -2413,7 +2413,7 @@ export function createApiHandler() {
         }
       }
 
-      if (req.url === '/api/teacher-profile' && req.method === 'PATCH') {
+       if (req.url.startsWith('/api/teacher-profile') && req.method === 'PATCH') {
         res.setHeader('Content-Type', 'application/json');
         try {
           const me = getBearerUser(req);

@@ -1,4 +1,4 @@
-import YouTubePlayerModal, { extractYouTubeId, getYouTubeThumbnail } from "@/components/video/YouTubePlayerModal";
+import YouTubePlayerModal, { extractYouTubeId } from "@/components/video/YouTubePlayerModal";
 import YouTubeVideoCard from "@/components/video/YouTubeVideoCard";
 import React, { useState, useMemo, useEffect } from "react";
 import { useSearchParams, Link } from "react-router-dom";
@@ -12,12 +12,12 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Users, BookOpen, ClipboardCheck, Video, Calendar, BarChart3,
-  Plus, Search, LogOut, Settings, Bell, ChevronRight, ChevronDown,
+  Users, ClipboardCheck, Video, BarChart3,
+  Plus, Search, LogOut, ChevronRight, ChevronDown,
   CheckCircle2, AlertCircle, Clock, Eye, EyeOff, Trash2, Edit,
-  ExternalLink, Send, PlayCircle, FileText, Award, Star, Play,
-   GraduationCap, Copy, UserPlus, BookMarked, X, Download, MessageCircle,
-   UserCheck, RefreshCw, Check, Loader2, CreditCard
+  PlayCircle, FileText, Award, Star, Play,
+   GraduationCap, Copy, X,
+   UserCheck, User, RefreshCw, Check, Loader2, CreditCard
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
@@ -85,7 +85,9 @@ export default function IndependentTeacherPortal() {
 
    const { data: teacherProfile, isLoading: loadingProfile } = useQuery({
      queryKey: ["teacher-profile", teacherId],
-     queryFn: () => fetch(`/api/teacher-profile?teacherId=${teacherId}`).then(r => r.json()).catch(() => null),
+     queryFn: () => fetch(`/api/teacher-profile?teacherId=${teacherId}`, {
+       headers: { "Authorization": `Bearer ${localStorage.getItem("portal_jwt_token") || localStorage.getItem("token") || ""}` },
+     }).then(r => r.json()).catch(() => null),
      enabled: !!teacherId,
    });
 
@@ -286,9 +288,10 @@ export default function IndependentTeacherPortal() {
              <input type="text" value={bankAccount} onChange={e => setBankAccount(e.target.value)} placeholder={isRTL ? "رقم الحساب" : "Account number"}
                className="w-full rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-xs font-bold text-stone-700 focus:outline-none focus:ring-2 focus:ring-emerald-400" />
              <button onClick={() => {
-               fetch(`/api/teacher-profile?teacherId=${teacherId}`, { method: "PATCH", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("portal_jwt_token") || localStorage.getItem("token") || ""}` }, body: JSON.stringify({ bank_account: bankAccount }) }).then(r => r.json()).then(d => { if (d.success) toast.success(isRTL ? "تم الحفظ" : "Saved"); }).catch(() => {});
+               fetch(`/api/teacher-profile?teacherId=${teacherId}`, { method: "PATCH", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("portal_jwt_token") || localStorage.getItem("token") || ""}` }, body: JSON.stringify({ bank_account: bankAccount }) }).then(r => r.json()).then(d => { if (d.success) { toast.success(isRTL ? "تم الحفظ" : "Saved"); queryClient.invalidateQueries({ queryKey: ["teacher-profile"] }); } else toast.error(d.error || "Failed"); }).catch(() => toast.error("Failed"));
              }}
                className="w-full text-[10px] font-bold text-white bg-emerald-600 hover:bg-emerald-700 py-1 rounded-lg">{isRTL ? "حفظ" : "Save"}</button>
+             {loadingProfile && <div className="text-[10px] text-stone-400">{isRTL ? "جاري التحميل..." : "Loading..."}</div>}
            </div>
          </div>
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
@@ -1646,9 +1649,14 @@ function SubscriptionsTab({ teacherId, subscriptions, isRTL, queryClient }) {
                        <div className="text-xs font-bold text-emerald-600 mt-1">
                          {isRTL ? "رقم الحساب" : "Account"}: {bond.teacher_bank_account || "غير محدد"}
                        </div>
+                       <div className={`text-[10px] font-bold mt-1 ${bond.payment_status === "receipt_uploaded" ? "text-emerald-600" : "text-amber-600"}`}>
+                         {bond.payment_status === "receipt_uploaded"
+                           ? (isRTL ? "تم رفع الإيصال، راجعه قبل التأكيد" : "Receipt uploaded, review before confirming")
+                           : (isRTL ? "بانتظار رفع إيصال الدفع" : "Waiting for payment receipt")}
+                       </div>
                      </div>
                    </div>
-                   <button onClick={() => confirmPayment(bond.id)} disabled={confirmLoading}
+                   <button onClick={() => confirmPayment(bond.id)} disabled={confirmLoading || bond.payment_status !== "receipt_uploaded"}
                      className="h-8 px-3 rounded-lg bg-blue-500 text-white text-xs font-bold hover:bg-blue-600 inline-flex items-center justify-center gap-1 disabled:opacity-50">
                      <CheckCircle2 size={12} /> {isRTL ? "تأكيد الدفع" : "Confirm Payment"}
                    </button>

@@ -14,10 +14,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Users, ClipboardCheck, Video, BarChart3,
   Search, LogOut, Clock, Eye, EyeOff, PlayCircle, FileText,
-  Play, GraduationCap, Send, BookMarked, Download,
+  Play, GraduationCap, BookMarked, Download,
   CheckCircle2, AlertCircle, MessageCircle,
   UserCheck, Loader2, Megaphone, Award, Sparkles,
-  ArrowUpRight, ChevronLeft, MapPin, Calendar, Fingerprint, CreditCard
+  ArrowUpRight, ChevronLeft, Calendar, Fingerprint
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
@@ -33,7 +33,7 @@ const SIDEBAR_ITEMS = [
   { id: "dashboard", icon: BarChart3, label: "لوحة التحكم", labelEn: "Dashboard" },
   { id: "my-teacher", icon: UserCheck, label: "معلمي", labelEn: "My Teacher" },
   { id: "teachers", icon: Users, label: "معلمون", labelEn: "Teachers" },
-  { id: "attendance", icon: Fingerprint, label: "الحضور والgate", labelEn: "Attendance" },
+  { id: "attendance", icon: Fingerprint, label: "الحضور والبوابة", labelEn: "Attendance" },
   { id: "grades", icon: Award, label: "الدرجات", labelEn: "Grades" },
   { id: "schedule", icon: Calendar, label: "الجدول", labelEn: "Schedule" },
   { id: "assignments", icon: ClipboardCheck, label: "الواجبات", labelEn: "Assignments" },
@@ -99,7 +99,20 @@ export default function StudentPortal() {
   const approvedTeachers = subscriptions?.filter(s => s.status === "approved") || [];
   const pendingSubs = subscriptions?.filter(s => s.status === "pending") || [];
 
-  const teacherIds = approvedTeachers.map(s => s.teacher_id).filter(Boolean);
+  const { data: bonds = [] } = useQuery({
+    queryKey: ["student-bonds", studentId],
+    queryFn: () => fetch(`/api/teacher-bonds?studentId=${studentId}`, {
+      headers: { "Authorization": `Bearer ${localStorage.getItem("portal_jwt_token") || localStorage.getItem("token") || ""}` },
+    }).then(r => r.json()).then(d => Array.isArray(d) ? d : []).catch(() => []),
+    enabled: !!studentId,
+  });
+
+  const teacherIds = Array.from(new Set([
+    ...approvedTeachers.map(s => s.teacher_id),
+    ...bonds
+      .filter(b => b.status === "approved" && b.payment_status === "confirmed")
+      .map(b => b.teacher_id),
+  ].filter(Boolean)));
 
   const { data: allAssignments = [], isLoading: loadingAssignments } = useQuery({
     queryKey: ["student-assignments", teacherIds],
@@ -128,14 +141,6 @@ export default function StudentPortal() {
   const { data: curriculumBooks = [], isLoading: loadingBooks } = useQuery({
     queryKey: ["curriculum-books"],
     queryFn: () => entities.CurriculumBook.list("-grade", {}),
-  });
-
-  const { data: bonds = [] } = useQuery({
-    queryKey: ["student-bonds", studentId],
-    queryFn: () => fetch(`/api/teacher-bonds?studentId=${studentId}`, {
-      headers: { "Authorization": `Bearer ${localStorage.getItem("portal_jwt_token") || localStorage.getItem("token") || ""}` },
-    }).then(r => r.json()).then(d => Array.isArray(d) ? d : []).catch(() => []),
-    enabled: !!studentId,
   });
 
   const { data: mySubmissions = [], isLoading: loadingSubmissions } = useQuery({
@@ -194,7 +199,7 @@ export default function StudentPortal() {
     const totalXP = baseXP + awardsXP + homeworkXP + attendanceXP;
     const studentLevel = Math.floor(totalXP / 200);
     return {
-      teachers: approvedTeachers.length,
+      teachers: teacherIds.length,
       pendingSubs: pendingSubs.length,
       assignments: allAssignments?.length || 0,
       exams: allExams?.length || 0,
@@ -214,7 +219,7 @@ export default function StudentPortal() {
         return s.day_of_week === today;
       }),
     };
-  }, [approvedTeachers, pendingSubs, allAssignments, allExams, allLiveClasses, allVideos, curriculumBooks, mySubmissions, studentAwards, attendanceLogs, studentAnnouncements, studentSchedules]);
+  }, [approvedTeachers, pendingSubs, teacherIds, allAssignments, allExams, allLiveClasses, allVideos, curriculumBooks, mySubmissions, studentAwards, attendanceLogs, studentAnnouncements, studentSchedules]);
 
   // Login screen for unauthenticated users
   if (loginMode || !studentId) {
@@ -358,7 +363,7 @@ export default function StudentPortal() {
         <div className="max-w-6xl mx-auto p-4 md:p-6">
           <AnimatePresence mode="wait">
             {activeTab === "dashboard" && <DashboardTab key="dashboard" stats={stats} studentId={studentId} studentName={studentName} isRTL={isRTL} setActiveTab={setActiveTab} studentAnnouncements={studentAnnouncements} />}
-            {activeTab === "my-teacher" && <MyTeacherTab key="my-teacher" approvedTeachers={approvedTeachers} pendingSubs={pendingSubs} studentId={studentId} isRTL={isRTL} queryClient={queryClient} />}
+            {activeTab === "my-teacher" && <MyTeacherTab key="my-teacher" approvedTeachers={approvedTeachers} pendingSubs={pendingSubs} studentId={studentId} isRTL={isRTL} queryClient={queryClient} setActiveTab={setActiveTab} />}
             {activeTab === "teachers" && <TeachersTab key="teachers" studentId={studentId} subscriptions={subscriptions} approvedTeachers={approvedTeachers} pendingSubs={pendingSubs} bonds={bonds} isRTL={isRTL} queryClient={queryClient} />}
             {activeTab === "attendance" && <AttendanceTab key="attendance" attendanceLogs={attendanceLogs} stats={stats} studentId={studentId} isRTL={isRTL} />}
             {activeTab === "grades" && <GradesTab key="grades" studentId={studentId} studentGrade={studentGrade} isRTL={isRTL} />}
@@ -385,17 +390,29 @@ function DashboardTab({ stats, studentId, studentName, isRTL, setActiveTab, stud
   const todayAr = ["الأحد","الإثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"][todayIdx];
 
   const quickStats = [
+    { label: isRTL ? "معلموني" : "My Teachers", value: stats.teachers, icon: UserCheck, color: "bg-indigo-50 text-indigo-600", tab: "my-teacher" },
     { label: isRTL ? "واجبات" : "Assignments", value: stats.assignments, icon: ClipboardCheck, color: "bg-amber-50 text-amber-600", tab: "assignments" },
     { label: isRTL ? "امتحانات" : "Exams", value: stats.exams, icon: FileText, color: "bg-purple-50 text-purple-600", tab: "exams" },
     { label: isRTL ? "حصص مباشرة" : "Live", value: stats.liveClasses, icon: Video, color: "bg-emerald-50 text-emerald-600", tab: "live" },
-    { label: isRTL ? "فيديوهات" : "Videos", value: stats.videos, icon: PlayCircle, color: "bg-red-50 text-red-600", tab: "videos" },
-    { label: isRTL ? "شهادات" : "Awards", value: stats.awards, icon: Award, color: "bg-orange-50 text-orange-600", tab: "levels" },
     { label: isRTL ? "حضور" : "Attendance", value: stats.attendance, icon: Fingerprint, color: "bg-blue-50 text-blue-600", tab: "attendance" },
+    { label: isRTL ? "إعلانات" : "Announcements", value: stats.announcements, icon: Megaphone, color: "bg-rose-50 text-rose-600", tab: "announcements" },
   ];
 
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-4">
       <h1 className="text-xl font-black text-stone-900">{isRTL ? "لوحة التحكم" : "Dashboard"}</h1>
+
+      <div className="flex items-end justify-between gap-3">
+        <div>
+          <p className="text-sm font-bold text-stone-700">{isRTL ? `مرحباً ${studentName}` : `Welcome, ${studentName}`}</p>
+          <p className="text-xs text-stone-400 mt-1">{isRTL ? "هذه أهم المعلومات التي تحتاجها لمتابعة يومك الدراسي." : "Here is what matters most for your school day."}</p>
+        </div>
+        {stats.pendingSubs > 0 && (
+          <button onClick={() => setActiveTab("teachers")} className="text-xs font-black text-indigo-600 hover:text-indigo-700 whitespace-nowrap">
+            {isRTL ? `${stats.pendingSubs} طلب بانتظارك` : `${stats.pendingSubs} pending request${stats.pendingSubs === 1 ? "" : "s"}`}
+          </button>
+        )}
+      </div>
 
       {/* Student ID Card + XP Level Card */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -415,6 +432,39 @@ function DashboardTab({ stats, studentId, studentName, isRTL, setActiveTab, stud
           </button>
         </Card>
       </div>
+
+      <Card className="p-4 rounded-2xl border-stone-100">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-black text-stone-900">{isRTL ? "ما يحتاج انتباهك" : "Needs your attention"}</h3>
+          <span className="text-[10px] font-bold text-stone-400">{isRTL ? "ملخص اليوم" : "Today"}</span>
+        </div>
+        <div className="grid gap-2 md:grid-cols-3">
+          {stats.pendingSubs > 0 && (
+            <button onClick={() => setActiveTab("teachers")} className="p-3 rounded-xl bg-indigo-50 text-right hover:bg-indigo-100 transition-colors">
+              <div className="text-xs font-black text-indigo-700">{isRTL ? "طلبات اشتراك" : "Subscription requests"}</div>
+              <div className="text-[11px] text-indigo-600 mt-1">{isRTL ? `${stats.pendingSubs} طلب في انتظار المراجعة` : `${stats.pendingSubs} request${stats.pendingSubs === 1 ? "" : "s"} awaiting review`}</div>
+            </button>
+          )}
+          {stats.assignments > stats.graded && (
+            <button onClick={() => setActiveTab("assignments")} className="p-3 rounded-xl bg-amber-50 text-right hover:bg-amber-100 transition-colors">
+              <div className="text-xs font-black text-amber-700">{isRTL ? "واجبات تحتاج متابعة" : "Assignments to follow up"}</div>
+              <div className="text-[11px] text-amber-600 mt-1">{stats.assignments - stats.graded} {isRTL ? "واجب" : "assignment(s)"}</div>
+            </button>
+          )}
+          {stats.todaySchedules?.length > 0 && (
+            <button onClick={() => setActiveTab("schedule")} className="p-3 rounded-xl bg-blue-50 text-right hover:bg-blue-100 transition-colors">
+              <div className="text-xs font-black text-blue-700">{isRTL ? "حصص اليوم" : "Today's classes"}</div>
+              <div className="text-[11px] text-blue-600 mt-1">{stats.todaySchedules.length} {isRTL ? "حصة مجدولة" : "scheduled class(es)"}</div>
+            </button>
+          )}
+          {stats.pendingSubs === 0 && stats.assignments <= stats.graded && stats.todaySchedules?.length === 0 && (
+            <div className="p-3 rounded-xl bg-emerald-50 text-emerald-700 md:col-span-3">
+              <div className="text-xs font-black">{isRTL ? "أنت على المسار الصحيح" : "You are on track"}</div>
+              <div className="text-[11px] text-emerald-600 mt-1">{isRTL ? "لا توجد مهام عاجلة الآن. استكشف المواد أو تابع مستوياتك." : "Nothing urgent right now. Explore the curriculum or check your levels."}</div>
+            </div>
+          )}
+        </div>
+      </Card>
 
       {/* Today's Schedule */}
       {stats.todaySchedules?.length > 0 && (
@@ -517,7 +567,7 @@ function TeachersTab({ studentId, subscriptions, approvedTeachers, pendingSubs, 
          headers: { "Content-Type": "application/json" },
          body: JSON.stringify(payload),
        }).then(async r => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || "Failed"); return d; });
-       queryClient.invalidateQueries({ queryKey: ["teacher-bonds"] });
+      queryClient.invalidateQueries({ queryKey: ["student-bonds", studentId] });
        setShowSubscribe(false);
        setTeacherCode("");
        setSubscribingTo(null);
@@ -608,11 +658,11 @@ function TeachersTab({ studentId, subscriptions, approvedTeachers, pendingSubs, 
       )}
 
        {/* Payment Pending Bonds (Approved but awaiting payment) */}
-       {bonds.filter(b => b.status === "approved" && b.payment_status === "pending_payment").length > 0 && (
+       {bonds.filter(b => b.status === "approved" && (b.payment_status === "pending_payment" || b.payment_status === "receipt_uploaded")).length > 0 && (
          <div className="mb-6">
            <h3 className="text-sm font-black text-amber-700 mb-3">{isRTL ? "بانتظار الدفع" : "Awaiting Payment"}</h3>
            <div className="grid gap-3">
-             {bonds.filter(b => b.status === "approved" && b.payment_status === "pending_payment").map(b => (
+             {bonds.filter(b => b.status === "approved" && (b.payment_status === "pending_payment" || b.payment_status === "receipt_uploaded")).map(b => (
                <Card key={b.id} className="p-4 rounded-2xl border-amber-200 bg-amber-50/30">
                  <div className="flex items-center gap-4">
                    <div className="h-10 w-10 rounded-full bg-amber-200 text-amber-700 flex items-center justify-center shrink-0">
@@ -620,10 +670,10 @@ function TeachersTab({ studentId, subscriptions, approvedTeachers, pendingSubs, 
                    </div>
                    <div className="flex-1 min-w-0">
                      <div className="text-sm font-bold text-stone-900">{b.teacher_name || (isRTL ? "معلم" : "Teacher")}</div>
-                     <div className="text-xs text-stone-600 font-bold mt-1">{isRTL ? "رقم الحساب" : "Bank Account"}: {b.teacher_bank_account}</div>
-                     {b.payment_receipt_url && <div className="text-[10px] text-emerald-600 font-bold mt-1">{isRTL ? "تم رفع الإيصال ✓" : "Receipt uploaded ✓"}</div>}
+                     <div className="text-xs text-stone-600 font-bold mt-1">{isRTL ? "رقم الحساب" : "Bank Account"}: {b.teacher_bank_account || (isRTL ? "—" : "—")}</div>
+                     {b.payment_receipt_url && <div className="text-[10px] text-emerald-600 font-bold mt-1">{isRTL ? "تم رفع الإيصال بانتظار التأكيد ✓" : "Receipt uploaded, awaiting confirmation ✓"}</div>}
                    </div>
-                   <Badge className="text-[10px] bg-amber-500 text-white">{isRTL ? "بانتظار الدفع" : "Payment Pending"}</Badge>
+                   <Badge className={`text-[10px] ${b.payment_status === "receipt_uploaded" ? "bg-blue-500 text-white" : "bg-amber-500 text-white"}`}>{b.payment_status === "receipt_uploaded" ? (isRTL ? "بانتظار التأكيد" : "Awaiting Confirmation") : (isRTL ? "بانتظار الدفع" : "Payment Pending")}</Badge>
                  </div>
                </Card>
              ))}
@@ -667,7 +717,8 @@ function TeachersTab({ studentId, subscriptions, approvedTeachers, pendingSubs, 
                 const isBonded = bondedTeacherIds.has(t.id);
                 const isSubscribing = subscribingTo === t.id;
                 const bond = bonds.find(b => b.teacher_id === t.id);
-                const isPaymentPending = bond && bond.status === "approved" && bond.payment_status === "pending_payment";
+                const isPaymentPending = bond && bond.status === "approved" && (bond.payment_status === "pending_payment" || bond.payment_status === "receipt_uploaded");
+                const isReceiptUploaded = bond && bond.payment_status === "receipt_uploaded";
                 const isConfirmed = bond && bond.status === "approved" && bond.payment_status === "confirmed";
                 return (
                   <Card key={t.id} className="p-4 rounded-2xl border-stone-100 flex flex-col items-center text-center">
@@ -680,37 +731,47 @@ function TeachersTab({ studentId, subscriptions, approvedTeachers, pendingSubs, 
                        <Badge className="text-[10px] bg-emerald-50 text-emerald-700 flex items-center gap-1 mt-1"><CheckCircle2 size={10}/>{isRTL ? "مسجل ✓" : "Joined ✓"}</Badge>
                      ) : isPaymentPending ? (
                        <div className="space-y-2 w-full mt-2">
-                         <div className="text-xs font-bold text-amber-600">{isRTL ? "رقم الحساب" : "Bank Account"}: {bond.teacher_bank_account}</div>
-                         <div className="space-y-1.5">
-                           <input type="file" accept="image/*" onChange={e => {
-                             const file = e.target.files[0];
-                             if (!file) return;
-                             const reader = new FileReader();
-                             reader.onload = async () => {
-                               const base64 = reader.result.split(",")[1];
-                               await fetch("/api/bond-upload-receipt", { method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("portal_jwt_token") || localStorage.getItem("token") || ""}` }, body: JSON.stringify({ bondId: bond.id, receiptFile: base64, receiptName: file.name }) }).then(r => r.json()).catch(() => {});
-                               queryClient.invalidateQueries({ queryKey: ["teacher-bonds"] });
-                               queryClient.invalidateQueries({ queryKey: ["independent-teachers"] });
-                               toast.success(isRTL ? "تم رفع الإيصال" : "Receipt uploaded");
-                             };
-                             reader.readAsDataURL(file);
-                           }}
-                             className="w-full rounded-lg border border-amber-200 bg-white p-2 text-[10px] file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-amber-600 file:text-white file:text-[10px] file:font-bold file:cursor-pointer" />
-                           <button onClick={() => setSubscribingTo(null)} className="flex-1 text-[10px] font-bold py-1.5 rounded-lg border border-stone-200 text-stone-600">{isRTL ? "إلغاء" : "Cancel"}</button>
-                         </div>
+                         <div className="text-xs font-bold text-amber-600">{isRTL ? "رقم الحساب" : "Bank Account"}: {bond.teacher_bank_account || (isRTL ? "—" : "—")}</div>
+                         {isReceiptUploaded ? (
+                           <Badge className="text-[10px] bg-blue-50 text-blue-700">{isRTL ? "تم رفع الإيصال بانتظار تأكيد المعلم" : "Receipt uploaded, awaiting teacher confirmation"}</Badge>
+                         ) : (
+                           <div className="space-y-1.5">
+                             <input type="file" accept="image/*" onChange={e => {
+                               const file = e.target.files[0];
+                               if (!file) return;
+                               const reader = new FileReader();
+                               reader.onload = async () => {
+                                 const base64 = reader.result.split(",")[1];
+                                 await fetch("/api/bond-upload-receipt", { method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("portal_jwt_token") || localStorage.getItem("token") || ""}` }, body: JSON.stringify({ bondId: bond.id, receiptFile: base64, receiptName: file.name }) }).then(r => r.json()).catch(() => {});
+                                 queryClient.invalidateQueries({ queryKey: ["student-bonds", studentId] });
+                                 toast.success(isRTL ? "تم رفع الإيصال" : "Receipt uploaded");
+                               };
+                               reader.readAsDataURL(file);
+                             }}
+                               className="w-full rounded-lg border border-amber-200 bg-white p-2 text-[10px] file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-amber-600 file:text-white file:text-[10px] file:font-bold file:cursor-pointer" />
+                             <button onClick={() => setSubscribingTo(null)} className="w-full text-[10px] font-bold py-1.5 rounded-lg border border-stone-200 text-stone-600">{isRTL ? "إلغاء" : "Cancel"}</button>
+                           </div>
+                         )}
                        </div>
                      ) : isSubscribing ? (
                        <div className="space-y-2 w-full mt-2">
-                         <div className="flex items-center justify-center gap-2 text-amber-600">
-                           <Loader2 size={14} className="animate-spin" />
-                           <span className="text-xs font-bold">{isRTL ? "في انتظار الموافقة" : "Awaiting approval"}</span>
-                         </div>
+                         {loading && subscribingTo === t.id ? (
+                           <div className="flex items-center justify-center gap-2 text-indigo-600">
+                             <Loader2 size={14} className="animate-spin" />
+                             <span className="text-xs font-bold">{isRTL ? "جاري إرسال الطلب" : "Sending request"}</span>
+                           </div>
+                         ) : (
+                           <div className="flex items-center justify-center gap-2 text-amber-600">
+                             <Clock size={14} />
+                             <span className="text-xs font-bold">{isRTL ? "في انتظار الموافقة" : "Awaiting approval"}</span>
+                           </div>
+                         )}
                          <div className="flex gap-1">
-                           <button onClick={() => setSubscribingTo(null)} className="flex-1 text-[10px] font-bold py-1.5 rounded-lg border border-stone-200 text-stone-600">{isRTL ? "إلغاء" : "Cancel"}</button>
+                           <button onClick={() => setSubscribingTo(null)} disabled={loading} className="flex-1 text-[10px] font-bold py-1.5 rounded-lg border border-stone-200 text-stone-600 disabled:opacity-50">{isRTL ? "إلغاء" : "Cancel"}</button>
                          </div>
                        </div>
                      ) : (
-                       <button onClick={() => setSubscribingTo(t.id)} className="mt-2 w-full text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 py-2 rounded-xl">
+                       <button onClick={() => { setSubscribingTo(t.id); handleSubscribe(t.id, t.full_name); }} disabled={loading} className="mt-2 w-full text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 py-2 rounded-xl disabled:opacity-50">
                          {isRTL ? "طلب اشتراك في درس خصوصي" : "Request Private Lesson"}
                        </button>
                      )}
@@ -1166,7 +1227,7 @@ function CurriculumTab({ books, isRTL }) {
 }
 
 // ─── My Teacher Tab ───
-function MyTeacherTab({ approvedTeachers, pendingSubs, studentId, isRTL, queryClient }) {
+function MyTeacherTab({ approvedTeachers, pendingSubs, studentId, isRTL, queryClient, setActiveTab }) {
   const [activeVideo, setActiveVideo] = useState(null);
   const [copiedId, setCopiedId] = useState(null);
   const [videoSearch, setVideoSearch] = useState("");
@@ -1183,8 +1244,8 @@ function MyTeacherTab({ approvedTeachers, pendingSubs, studentId, isRTL, queryCl
     enabled: !!studentId,
   });
 
-  const approvedBondTeachers = myBonds?.filter(b => b.status === "approved") || [];
-  const pendingBondRequests = myBonds?.filter(b => b.status === "pending") || [];
+  const approvedBondTeachers = myBonds?.filter(b => b.status === "approved" && b.payment_status === "confirmed") || [];
+  const pendingBondRequests = myBonds?.filter(b => b.status === "pending" || (b.status === "approved" && b.payment_status !== "confirmed")) || [];
   const hasApprovedTeacher = approvedTeachers?.length > 0 || approvedBondTeachers.length > 0;
 
   // Secure query for teacher recorded class videos
@@ -1243,6 +1304,9 @@ function MyTeacherTab({ approvedTeachers, pendingSubs, studentId, isRTL, queryCl
         <h1 className="text-xl font-black text-stone-900 flex items-center gap-2">
           <UserCheck size={22} className="text-indigo-600" /> {isRTL ? "معلمي الخاص والتفاعل الأكاديمي" : "My Teacher"}
         </h1>
+        <button onClick={() => setActiveTab("teachers")} className="h-9 px-3 rounded-xl bg-indigo-50 text-indigo-700 text-xs font-black hover:bg-indigo-100 transition-colors">
+          {isRTL ? "استكشاف المعلمين" : "Browse teachers"}
+        </button>
       </div>
 
       {/* No teacher assigned state */}
@@ -1257,6 +1321,9 @@ function MyTeacherTab({ approvedTeachers, pendingSubs, studentId, isRTL, queryCl
               ? "للوصول إلى الحصص المسجلة والواجبات والامتحانات، انتقل إلى قسم المعلمين وأرسل طلب اشتراك لمعلمك."
               : "To access recorded classes and assignments, visit the Teachers section and send a subscription request."}
           </p>
+          <button onClick={() => setActiveTab("teachers")} className={btnPrimary}>
+            <Users size={15} /> {isRTL ? "اختيار معلم" : "Choose a teacher"}
+          </button>
         </Card>
       )}
 
@@ -1419,7 +1486,11 @@ function MyTeacherTab({ approvedTeachers, pendingSubs, studentId, isRTL, queryCl
                     <div className="text-xs text-stone-500">{bond.teacher_email}</div>
                   </div>
                 </div>
-                <Badge className="text-[10px] bg-orange-50 text-orange-700">{isRTL ? "بانتظار الموافقة" : "Awaiting Approval"}</Badge>
+                <Badge className={`text-[10px] ${bond.status === "approved" ? "bg-amber-50 text-amber-700" : "bg-orange-50 text-orange-700"}`}>
+                  {bond.status === "approved"
+                    ? (isRTL ? "بانتظار تأكيد الدفع" : "Awaiting payment confirmation")
+                    : (isRTL ? "بانتظار الموافقة" : "Awaiting approval")}
+                </Badge>
               </Card>
             ))}
           </div>
