@@ -17,9 +17,9 @@ import {
   Play, GraduationCap, BookMarked, Download,
   CheckCircle2, AlertCircle, MessageCircle,
   UserCheck, Loader2, Megaphone, Award, Sparkles,
-  ArrowUpRight, ChevronLeft, Calendar, Fingerprint, Lock,
-  Phone, Mail, RefreshCw
-} from "lucide-react";
+   ArrowUpRight, ChevronLeft, Calendar, Fingerprint, Lock,
+   Phone, Mail, RefreshCw
+ } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import StudentIDCard from "@/components/student-dashboard/StudentIDCard";
@@ -482,8 +482,9 @@ function DashboardTab({ stats, studentId, studentName, isRTL, setActiveTab }) {
 function TeachersTab({ studentId, subscriptions, approvedTeachers, pendingSubs, bonds, isRTL, queryClient }) {
   const [showSubscribe, setShowSubscribe] = useState(false);
   const [teacherCode, setTeacherCode] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [subscribingTo, setSubscribingTo] = useState(null);
+   const [loading, setLoading] = useState(false);
+   const [subscribingTo, setSubscribingTo] = useState(null);
+   const [receiptPreview, setReceiptPreview] = useState(null);
 
   // Fetch all independent teachers
   const { data: independentTeachers = [], isLoading: loadingTeachers } = useQuery({
@@ -608,33 +609,51 @@ function TeachersTab({ studentId, subscriptions, approvedTeachers, pendingSubs, 
         </div>
       )}
 
-       {/* Payment Pending Bonds (Approved but awaiting payment) */}
-       {bonds.filter(b => b.status === "approved" && (b.payment_status === "pending_payment" || b.payment_status === "receipt_uploaded")).length > 0 && (
-         <div className="mb-6">
-           <h3 className="text-sm font-black text-amber-700 mb-3">{isRTL ? "بانتظار الدفع" : "Awaiting Payment"}</h3>
-           <div className="grid gap-3">
-             {bonds.filter(b => b.status === "approved" && (b.payment_status === "pending_payment" || b.payment_status === "receipt_uploaded")).map(b => (
-               <Card key={b.id} className="p-4 rounded-2xl border-amber-200 bg-amber-50/30">
-                 <div className="flex items-center gap-4">
-                   <div className="h-10 w-10 rounded-full bg-amber-200 text-amber-700 flex items-center justify-center shrink-0">
-                     <Clock size={18} />
-                   </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-bold text-stone-900">{b.teacher_name || (isRTL ? "معلم" : "Teacher")}</div>
-                      {b.teacher_bank_account ? (
-                        <div className="text-xs text-stone-600 font-bold mt-1">{isRTL ? "رقم الحساب" : "Bank Account"}: {b.teacher_bank_account}</div>
-                      ) : (
-                        <div className="text-xs font-bold mt-1 text-red-600">{isRTL ? "المعلم لم يحدد الحساب بعد - تواصل معه" : "Teacher hasn't set account yet"}</div>
-                      )}
-                      {b.payment_receipt_url && <div className="text-[10px] text-emerald-600 font-bold mt-1">{isRTL ? "تم رفع الإيصال بانتظار التأكيد ✓" : "Receipt uploaded, awaiting confirmation ✓"}</div>}
+{/* Payment Pending Bonds (Approved but awaiting payment) */}
+        {bonds.filter(b => b.status === "approved" && (b.payment_status === "pending_payment" || b.payment_status === "receipt_uploaded")).length > 0 && (
+          <div className="mb-6">
+            <h3 className="text-sm font-black text-amber-700 mb-3">{isRTL ? "بانتظار الدفع" : "Awaiting Payment"}</h3>
+            <div className="grid gap-3">
+              {bonds.filter(b => b.status === "approved" && (b.payment_status === "pending_payment" || b.payment_status === "receipt_uploaded")).map(b => (
+                <Card key={b.id} className="p-4 rounded-2xl border-amber-200 bg-amber-50/30">
+                  <div className="flex items-center gap-4">
+                    <div className="h-10 w-10 rounded-full bg-amber-200 text-amber-700 flex items-center justify-center shrink-0">
+                      <Clock size={18} />
                     </div>
-                    <Badge className={`text-[10px] ${!b.teacher_bank_account ? "bg-red-500 text-white" : b.payment_status === "receipt_uploaded" ? "bg-blue-500 text-white" : "bg-amber-500 text-white"}`}>{!b.teacher_bank_account ? (isRTL ? "بانتظار الحساب" : "Awaiting Account") : b.payment_status === "receipt_uploaded" ? (isRTL ? "بانتظار التأكيد" : "Awaiting Confirmation") : (isRTL ? "بانتظار الدفع" : "Payment Pending")}</Badge>
-                 </div>
-               </Card>
-             ))}
-           </div>
-         </div>
-       )}
+                     <div className="flex-1 min-w-0">
+                       <div className="text-sm font-bold text-stone-900">{b.teacher_name || (isRTL ? "معلم" : "Teacher")}</div>
+                       {b.teacher_bank_account ? (
+                         <div className="text-xs text-stone-600 font-bold mt-1">{isRTL ? "رقم الحساب" : "Bank Account"}: {b.teacher_bank_account}</div>
+                       ) : (
+                         <div className="text-xs font-bold mt-1 text-red-600">{isRTL ? "المعلم لم يحدد الحساب بعد - تواصل معه" : "Teacher hasn't set account yet"}</div>
+                       )}
+                       {b.payment_receipt_url && <button onClick={() => setReceiptPreview(b.payment_receipt_url)} className="text-[10px] text-emerald-600 font-bold mt-1 flex items-center gap-1 hover:text-emerald-800 underline">{isRTL ? "📄 عرض الإيصال" : "📄 View Receipt"} <Eye size={10} /></button>}
+                     </div>
+                     <Badge className={`text-[10px] ${!b.teacher_bank_account ? "bg-red-500 text-white" : b.payment_status === "receipt_uploaded" ? "bg-blue-500 text-white" : "bg-amber-500 text-white"}`}>{!b.teacher_bank_account ? (isRTL ? "بانتظار الحساب" : "Awaiting Account") : b.payment_status === "receipt_uploaded" ? (isRTL ? "بانتظار التأكيد" : "Awaiting Confirmation") : (isRTL ? "بانتظار الدفع" : "Payment Pending")}</Badge>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Receipt Preview Dialog */}
+        {receiptPreview && (
+          <Dialog open={!!receiptPreview} onOpenChange={() => setReceiptPreview(null)}>
+            <DialogContent className="max-w-lg rounded-[24px]" dir={isRTL ? "rtl" : "ltr"}>
+              <DialogHeader><DialogTitle className="font-black">{isRTL ? "معاينة الإيصال" : "Receipt Preview"}</DialogTitle></DialogHeader>
+              {receiptPreview && (
+                <div className="flex justify-center p-4 bg-stone-50 rounded-xl">
+                  {receiptPreview.match(/^data:/) ? (
+                    <img src={receiptPreview} alt="Receipt" className="max-h-[70vh] object-contain rounded-lg" />
+                  ) : (
+                    <img src={receiptPreview} alt="Receipt" className="max-h-[70vh] object-contain rounded-lg" />
+                  )}
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
+        )}
 
        {/* Approved Bonds */}
        {bonds.filter(b => b.status === "approved" && b.payment_status === "confirmed").length > 0 && (
