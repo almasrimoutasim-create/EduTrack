@@ -103,7 +103,7 @@ const isPathAllowed = (user, path) => {
   return false;
 };
 
-const PUBLIC_PATHS = ["/", "/gateway", "/login", "/register", "/registration"];
+const PUBLIC_PATHS = ["/", "/gateway", "/login", "/register", "/registration", "/teacher-panel", "/student-panel"];
 
 export default function RoleGate({ children }) {
   const { user, isAuthenticated, isLoadingAuth, isGatewayPassed } = useAuth();

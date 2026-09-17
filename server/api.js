@@ -2440,6 +2440,10 @@ export function createApiHandler() {
           if (updates.length === 0) return res.end(JSON.stringify({ success: true }));
           updates.push(`updated_at = CURRENT_TIMESTAMP`);
           vals.push(me.id);
+          // إذا حدّث المعلم حسابه، حدّث أيضاً الطلبات التي قُبلت بدون حساب (التي تظهر "غير محدد")
+          if (bank_account) {
+            await dbQuery(`UPDATE student_teacher_bonds SET teacher_bank_account = $1 WHERE teacher_id = $2 AND payment_status = 'pending_payment' AND (teacher_bank_account IS NULL OR teacher_bank_account = '')`, [bank_account, me.id]).catch(()=>{});
+          }
           await dbQuery(`UPDATE teachers SET ${updates.join(', ')} WHERE id = $${idx}`, vals);
           return res.end(JSON.stringify({ success: true, avatar_url }));
         } catch (error) {

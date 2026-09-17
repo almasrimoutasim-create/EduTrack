@@ -150,6 +150,11 @@ export default function IndependentTeacherPortal() {
 
    const approveBondMutation = useMutation({
      mutationFn: ({ bondId, studentName }) => {
+       if (!teacherProfile?.bank_account) {
+         toast.error(isRTL ? "يجب إدخال رقم الحساب البنكي في الإعدادات العامة أولاً" : "Please set bank account in Settings first");
+         setActiveTab("settings");
+         return Promise.reject(new Error(isRTL ? "رقم الحساب غير محدد" : "Bank account not set"));
+       }
        const username = "std_" + (studentName || "user").replace(/[^a-zA-Z0-9]/g, "").slice(0, 6).toLowerCase() + "_" + Math.random().toString(36).slice(2, 6);
        const password = Math.random().toString(36).slice(-8) + Math.random().toString(10).slice(-4);
        return fetch("/api/teacher-bond-approve", {

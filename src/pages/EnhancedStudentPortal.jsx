@@ -619,12 +619,16 @@ function TeachersTab({ studentId, subscriptions, approvedTeachers, pendingSubs, 
                    <div className="h-10 w-10 rounded-full bg-amber-200 text-amber-700 flex items-center justify-center shrink-0">
                      <Clock size={18} />
                    </div>
-                   <div className="flex-1 min-w-0">
-                     <div className="text-sm font-bold text-stone-900">{b.teacher_name || (isRTL ? "معلم" : "Teacher")}</div>
-                     <div className="text-xs text-stone-600 font-bold mt-1">{isRTL ? "رقم الحساب" : "Bank Account"}: {b.teacher_bank_account || (isRTL ? "—" : "—")}</div>
-                     {b.payment_receipt_url && <div className="text-[10px] text-emerald-600 font-bold mt-1">{isRTL ? "تم رفع الإيصال بانتظار التأكيد ✓" : "Receipt uploaded, awaiting confirmation ✓"}</div>}
-                   </div>
-                   <Badge className={`text-[10px] ${b.payment_status === "receipt_uploaded" ? "bg-blue-500 text-white" : "bg-amber-500 text-white"}`}>{b.payment_status === "receipt_uploaded" ? (isRTL ? "بانتظار التأكيد" : "Awaiting Confirmation") : (isRTL ? "بانتظار الدفع" : "Payment Pending")}</Badge>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-bold text-stone-900">{b.teacher_name || (isRTL ? "معلم" : "Teacher")}</div>
+                      {b.teacher_bank_account ? (
+                        <div className="text-xs text-stone-600 font-bold mt-1">{isRTL ? "رقم الحساب" : "Bank Account"}: {b.teacher_bank_account}</div>
+                      ) : (
+                        <div className="text-xs font-bold mt-1 text-red-600">{isRTL ? "المعلم لم يحدد الحساب بعد - تواصل معه" : "Teacher hasn't set account yet"}</div>
+                      )}
+                      {b.payment_receipt_url && <div className="text-[10px] text-emerald-600 font-bold mt-1">{isRTL ? "تم رفع الإيصال بانتظار التأكيد ✓" : "Receipt uploaded, awaiting confirmation ✓"}</div>}
+                    </div>
+                    <Badge className={`text-[10px] ${!b.teacher_bank_account ? "bg-red-500 text-white" : b.payment_status === "receipt_uploaded" ? "bg-blue-500 text-white" : "bg-amber-500 text-white"}`}>{!b.teacher_bank_account ? (isRTL ? "بانتظار الحساب" : "Awaiting Account") : b.payment_status === "receipt_uploaded" ? (isRTL ? "بانتظار التأكيد" : "Awaiting Confirmation") : (isRTL ? "بانتظار الدفع" : "Payment Pending")}</Badge>
                  </div>
                </Card>
              ))}
@@ -711,13 +715,17 @@ function TeachersTab({ studentId, subscriptions, approvedTeachers, pendingSubs, 
                      {isConfirmed ? (
                        <Badge className="text-[10px] bg-emerald-50 text-emerald-700 flex items-center gap-1 mt-1"><CheckCircle2 size={10}/>{isRTL ? "مسجل ✓" : "Joined ✓"}</Badge>
                      ) : isPaymentPending ? (
-                       <div className="space-y-2 w-full mt-2">
-                         <div className="text-xs font-bold text-amber-600">{isRTL ? "رقم الحساب" : "Bank Account"}: {bond.teacher_bank_account || (isRTL ? "—" : "—")}</div>
-                         {isReceiptUploaded ? (
-                           <Badge className="text-[10px] bg-blue-50 text-blue-700">{isRTL ? "تم رفع الإيصال بانتظار تأكيد المعلم" : "Receipt uploaded, awaiting teacher confirmation"}</Badge>
-                         ) : (
-                           <div className="space-y-1.5">
-                             <input type="file" accept="image/*" onChange={e => {
+                        <div className="space-y-2 w-full mt-2">
+                          {!bond.teacher_bank_account ? (
+                            <div className="text-xs font-bold text-red-600 bg-red-50 border border-red-200 rounded-lg px-2 py-1">{isRTL ? "المعلم لم يحدد الحساب بعد" : "Teacher hasn't set account yet"}</div>
+                          ) : (
+                            <div className="text-xs font-bold text-amber-600">{isRTL ? "رقم الحساب" : "Bank Account"}: {bond.teacher_bank_account}</div>
+                          )}
+                          {isReceiptUploaded ? (
+                            <Badge className="text-[10px] bg-blue-50 text-blue-700">{isRTL ? "تم رفع الإيصال بانتظار تأكيد المعلم" : "Receipt uploaded, awaiting teacher confirmation"}</Badge>
+                          ) : !bond.teacher_bank_account ? null : (
+                            <div className="space-y-1.5">
+                              <input type="file" accept="image/*" onChange={e => {
                                const file = e.target.files[0];
                                if (!file) return;
                                const reader = new FileReader();
