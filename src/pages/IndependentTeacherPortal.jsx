@@ -1763,12 +1763,16 @@ function SubscriptionsTab({ teacherId, subscriptions, isRTL, queryClient }) {
        });
        const d = await res.json().catch(() => ({}));
        if (!res.ok) throw new Error(d.error || "Failed");
-       if (d.avatar_url) setAvatarPreview(d.avatar_url);
-       queryClient.invalidateQueries({ queryKey: ["teacher-profile"] });
-       // also refresh independent-teachers cache for student view
-       queryClient.invalidateQueries({ queryKey: ["independent-teachers"] });
-       toast.success(isRTL ? "تم حفظ الإعدادات" : "Settings saved");
-       setAvatarFileB64(null);
+        if (d.avatar_url) setAvatarPreview(d.avatar_url);
+        // invalidation must match exact key ["teacher-profile", teacherId]
+        queryClient.invalidateQueries({ queryKey: ["teacher-profile", teacherId] });
+        queryClient.invalidateQueries({ queryKey: ["teacher-profile"] });
+        // force refetch for sidebar
+        queryClient.refetchQueries({ queryKey: ["teacher-profile", teacherId] }).catch(()=>{});
+        // also refresh independent-teachers cache for student view (student has separate QueryClient, but clear local)
+        queryClient.invalidateQueries({ queryKey: ["independent-teachers"] });
+        toast.success(isRTL ? "تم حفظ الإعدادات" : "Settings saved");
+        setAvatarFileB64(null);
      } catch (e) { toast.error(e.message); }
      setSaving(false);
    };

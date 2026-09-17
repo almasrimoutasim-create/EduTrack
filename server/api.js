@@ -2422,15 +2422,19 @@ export function createApiHandler() {
           if (!me) { res.statusCode = 401; return res.end(JSON.stringify({ error: 'Auth required' })); }
           const body = await parseBody(req);
           let { bank_account, avatar_url, avatarFile, avatarName } = body;
-          // handle base64 avatar upload
+          // handle base64 avatar upload - store as data URL for instant display (no file persistence needed on Render/Vercel)
           if (avatarFile) {
-            const fs = await import('fs');
-            const pathMod = await import('path');
-            const uploadDir = pathMod.join(process.cwd(), 'public', 'uploads');
-            if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-            const safeName = `teacher_${me.id}_avatar_${Date.now()}.png`;
-            fs.writeFileSync(pathMod.join(uploadDir, safeName), Buffer.from(avatarFile, 'base64'));
-            avatar_url = `/uploads/${safeName}`;
+            // try to also write file for backwards compat, but primary is data URL
+            try {
+              const fs = await import('fs');
+              const pathMod = await import('path');
+              const uploadDir = pathMod.join(process.cwd(), 'public', 'uploads');
+              if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+              const safeName = `teacher_${me.id}_avatar_${Date.now()}.png`;
+              fs.writeFileSync(pathMod.join(uploadDir, safeName), Buffer.from(avatarFile, 'base64'));
+            } catch {}
+            const ext = (avatarName || '').toLowerCase().endsWith('.jpg') || (avatarName || '').toLowerCase().endsWith('.jpeg') ? 'jpeg' : 'png';
+            avatar_url = `data:image/${ext};base64,${avatarFile}`;
           }
           const updates = [];
           const vals = [];

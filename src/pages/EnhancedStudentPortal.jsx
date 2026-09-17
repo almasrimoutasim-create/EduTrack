@@ -489,6 +489,8 @@ function TeachersTab({ studentId, subscriptions, approvedTeachers, pendingSubs, 
   const { data: independentTeachers = [], isLoading: loadingTeachers } = useQuery({
     queryKey: ["independent-teachers"],
     queryFn: () => fetch("/api/independent-teachers").then(r => r.json()).catch(() => []),
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 
   // IDs of teachers we already have a bond with
