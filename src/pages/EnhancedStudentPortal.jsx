@@ -33,14 +33,12 @@ const SIDEBAR_ITEMS = [
   { id: "dashboard", icon: BarChart3, label: "لوحة التحكم", labelEn: "Dashboard" },
   { id: "my-teacher", icon: UserCheck, label: "معلمي", labelEn: "My Teacher" },
   { id: "teachers", icon: Users, label: "معلمون", labelEn: "Teachers" },
-  { id: "attendance", icon: Fingerprint, label: "الحضور والبوابة", labelEn: "Attendance" },
   { id: "grades", icon: Award, label: "الدرجات", labelEn: "Grades" },
   { id: "schedule", icon: Calendar, label: "الجدول", labelEn: "Schedule" },
   { id: "assignments", icon: ClipboardCheck, label: "الواجبات", labelEn: "Assignments" },
   { id: "exams", icon: FileText, label: "الامتحانات", labelEn: "Exams" },
   { id: "live", icon: Video, label: "الحصص المباشرة", labelEn: "Live Classes" },
   { id: "videos", icon: PlayCircle, label: "فيديوهات يوتيوب", labelEn: "YouTube" },
-  { id: "levels", icon: Sparkles, label: "المستويات", labelEn: "Levels & XP" },
   { id: "announcements", icon: Megaphone, label: "الإعلانات", labelEn: "Announcements" },
   { id: "curriculum", icon: BookMarked, label: "الكتب الدراسية", labelEn: "Curriculum" },
 ];
@@ -362,17 +360,15 @@ export default function StudentPortal() {
       <main className={`flex-1 ${isRTL ? 'lg:mr-64' : 'lg:ml-64'} pt-14 lg:pt-0 pb-20 lg:pb-0`}>
         <div className="max-w-6xl mx-auto p-4 md:p-6">
           <AnimatePresence mode="wait">
-            {activeTab === "dashboard" && <DashboardTab key="dashboard" stats={stats} studentId={studentId} studentName={studentName} isRTL={isRTL} setActiveTab={setActiveTab} studentAnnouncements={studentAnnouncements} />}
+            {activeTab === "dashboard" && <DashboardTab key="dashboard" stats={stats} studentId={studentId} studentName={studentName} isRTL={isRTL} setActiveTab={setActiveTab} />}
             {activeTab === "my-teacher" && <MyTeacherTab key="my-teacher" approvedTeachers={approvedTeachers} pendingSubs={pendingSubs} studentId={studentId} isRTL={isRTL} queryClient={queryClient} setActiveTab={setActiveTab} />}
             {activeTab === "teachers" && <TeachersTab key="teachers" studentId={studentId} subscriptions={subscriptions} approvedTeachers={approvedTeachers} pendingSubs={pendingSubs} bonds={bonds} isRTL={isRTL} queryClient={queryClient} />}
-            {activeTab === "attendance" && <AttendanceTab key="attendance" attendanceLogs={attendanceLogs} stats={stats} studentId={studentId} isRTL={isRTL} />}
             {activeTab === "grades" && <GradesTab key="grades" studentId={studentId} studentGrade={studentGrade} isRTL={isRTL} />}
             {activeTab === "schedule" && <ScheduleTab key="schedule" schedules={studentSchedules} tasks={studentTasks} isRTL={isRTL} />}
             {activeTab === "assignments" && <AssignmentsTab key="assignments" assignments={allAssignments} mySubmissions={mySubmissions} studentId={studentId} isRTL={isRTL} queryClient={queryClient} />}
             {activeTab === "exams" && <ExamsTab key="exams" exams={allExams} mySubmissions={mySubmissions} studentId={studentId} isRTL={isRTL} queryClient={queryClient} />}
             {activeTab === "live" && <LiveClassesTab key="live" liveClasses={allLiveClasses} isRTL={isRTL} />}
             {activeTab === "videos" && <VideosTab key="videos" videos={allVideos} isRTL={isRTL} />}
-            {activeTab === "levels" && <LevelsTab key="levels" student={{ id: studentId, name: studentName, grade: studentGrade }} studentAwards={studentAwards} assignments={allAssignments} submissions={mySubmissions} attendanceLogs={attendanceLogs} isRTL={isRTL} />}
             {activeTab === "announcements" && <AnnouncementsTab key="announcements" announcements={studentAnnouncements} isRTL={isRTL} />}
             {activeTab === "curriculum" && <CurriculumTab key="curriculum" books={curriculumBooks} isRTL={isRTL} />}
           </AnimatePresence>
@@ -383,7 +379,7 @@ export default function StudentPortal() {
 }
 
 // ─── Dashboard Tab ───
-function DashboardTab({ stats, studentId, studentName, isRTL, setActiveTab, studentAnnouncements }) {
+function DashboardTab({ stats, studentId, studentName, isRTL, setActiveTab }) {
   const dayNames = ["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
   const todayIdx = new Date().getDay();
   const todayEn = dayNames[todayIdx];
@@ -394,7 +390,6 @@ function DashboardTab({ stats, studentId, studentName, isRTL, setActiveTab, stud
     { label: isRTL ? "واجبات" : "Assignments", value: stats.assignments, icon: ClipboardCheck, color: "bg-amber-50 text-amber-600", tab: "assignments" },
     { label: isRTL ? "امتحانات" : "Exams", value: stats.exams, icon: FileText, color: "bg-purple-50 text-purple-600", tab: "exams" },
     { label: isRTL ? "حصص مباشرة" : "Live", value: stats.liveClasses, icon: Video, color: "bg-emerald-50 text-emerald-600", tab: "live" },
-    { label: isRTL ? "حضور" : "Attendance", value: stats.attendance, icon: Fingerprint, color: "bg-blue-50 text-blue-600", tab: "attendance" },
     { label: isRTL ? "إعلانات" : "Announcements", value: stats.announcements, icon: Megaphone, color: "bg-rose-50 text-rose-600", tab: "announcements" },
   ];
 
@@ -413,58 +408,6 @@ function DashboardTab({ stats, studentId, studentName, isRTL, setActiveTab, stud
           </button>
         )}
       </div>
-
-      {/* Student ID Card + XP Level Card */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <StudentIDCard studentId={studentId} studentName={studentName} size="md" />
-        <Card className="p-5 rounded-2xl border-stone-100">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-black text-stone-900 flex items-center gap-2">
-              <Sparkles size={16} className="text-amber-500" /> {isRTL ? "المستوى والخبرة" : "Level & XP"}
-            </h3>
-            <Badge className="text-[10px] bg-blue-50 text-blue-700">Lvl {stats.level}</Badge>
-          </div>
-          <div className="text-3xl font-black text-stone-900 mb-1">{stats.xp.toLocaleString()} <span className="text-sm text-stone-400">XP</span></div>
-          <Progress value={((stats.xp % 200) / 200) * 100} className="h-2 bg-stone-100" />
-          <div className="text-xs text-stone-400 mt-1">{200 - (stats.xp % 200)} {isRTL ? "XP للمستوى التالي" : "XP to next level"}</div>
-          <button onClick={() => setActiveTab("levels")} className="mt-3 text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1">
-            {isRTL ? "التفاصيل" : "Details"} <ArrowUpRight size={12} />
-          </button>
-        </Card>
-      </div>
-
-      <Card className="p-4 rounded-2xl border-stone-100">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-black text-stone-900">{isRTL ? "ما يحتاج انتباهك" : "Needs your attention"}</h3>
-          <span className="text-[10px] font-bold text-stone-400">{isRTL ? "ملخص اليوم" : "Today"}</span>
-        </div>
-        <div className="grid gap-2 md:grid-cols-3">
-          {stats.pendingSubs > 0 && (
-            <button onClick={() => setActiveTab("teachers")} className="p-3 rounded-xl bg-indigo-50 text-right hover:bg-indigo-100 transition-colors">
-              <div className="text-xs font-black text-indigo-700">{isRTL ? "طلبات اشتراك" : "Subscription requests"}</div>
-              <div className="text-[11px] text-indigo-600 mt-1">{isRTL ? `${stats.pendingSubs} طلب في انتظار المراجعة` : `${stats.pendingSubs} request${stats.pendingSubs === 1 ? "" : "s"} awaiting review`}</div>
-            </button>
-          )}
-          {stats.assignments > stats.graded && (
-            <button onClick={() => setActiveTab("assignments")} className="p-3 rounded-xl bg-amber-50 text-right hover:bg-amber-100 transition-colors">
-              <div className="text-xs font-black text-amber-700">{isRTL ? "واجبات تحتاج متابعة" : "Assignments to follow up"}</div>
-              <div className="text-[11px] text-amber-600 mt-1">{stats.assignments - stats.graded} {isRTL ? "واجب" : "assignment(s)"}</div>
-            </button>
-          )}
-          {stats.todaySchedules?.length > 0 && (
-            <button onClick={() => setActiveTab("schedule")} className="p-3 rounded-xl bg-blue-50 text-right hover:bg-blue-100 transition-colors">
-              <div className="text-xs font-black text-blue-700">{isRTL ? "حصص اليوم" : "Today's classes"}</div>
-              <div className="text-[11px] text-blue-600 mt-1">{stats.todaySchedules.length} {isRTL ? "حصة مجدولة" : "scheduled class(es)"}</div>
-            </button>
-          )}
-          {stats.pendingSubs === 0 && stats.assignments <= stats.graded && stats.todaySchedules?.length === 0 && (
-            <div className="p-3 rounded-xl bg-emerald-50 text-emerald-700 md:col-span-3">
-              <div className="text-xs font-black">{isRTL ? "أنت على المسار الصحيح" : "You are on track"}</div>
-              <div className="text-[11px] text-emerald-600 mt-1">{isRTL ? "لا توجد مهام عاجلة الآن. استكشف المواد أو تابع مستوياتك." : "Nothing urgent right now. Explore the curriculum or check your levels."}</div>
-            </div>
-          )}
-        </div>
-      </Card>
 
       {/* Today's Schedule */}
       {stats.todaySchedules?.length > 0 && (
@@ -485,28 +428,6 @@ function DashboardTab({ stats, studentId, studentName, isRTL, setActiveTab, stud
                   <div className="text-sm font-bold text-stone-900">{s.subject || s.title || ""}</div>
                   <div className="text-xs text-stone-500">{s.teacher_name || ""} {s.classroom ? `- ${s.classroom}` : ""}</div>
                 </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
-
-      {/* Recent Announcements */}
-      {stats.announcements > 0 && (
-        <Card className="p-4 rounded-2xl border-stone-100">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-black text-stone-900 flex items-center gap-2">
-              <Megaphone size={16} className="text-emerald-500" /> {isRTL ? "آخر الإعلانات" : "Recent Announcements"}
-            </h3>
-            <button onClick={() => setActiveTab("announcements")} className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1">
-              {isRTL ? "عرض الكل" : "View All"} <ArrowUpRight size={12} />
-            </button>
-          </div>
-          <div className="space-y-2">
-            {(studentAnnouncements || []).slice(0, 3).map(a => (
-              <div key={a.id} className="p-2 rounded-xl bg-stone-50">
-                <div className="text-sm font-bold text-stone-900">{a.title}</div>
-                <div className="text-xs text-stone-500 line-clamp-1">{a.body || a.content || ""}</div>
               </div>
             ))}
           </div>
