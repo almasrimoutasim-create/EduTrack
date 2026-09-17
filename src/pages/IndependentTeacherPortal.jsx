@@ -323,13 +323,13 @@ export default function IndependentTeacherPortal() {
         </div>
       </div>
 
-      {/* Mobile Bottom Nav */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-stone-200 h-16 flex items-center justify-around px-2">
-        {SIDEBAR_ITEMS.slice(0, 5).map(item => (
+      {/* Mobile Bottom Nav - scrollable */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-stone-200 h-16 flex items-center gap-1 px-2 overflow-x-auto scrollbar-none">
+        {SIDEBAR_ITEMS.map(item => (
           <button key={item.id} onClick={() => setActiveTab(item.id)}
-            className={`flex flex-col items-center gap-0.5 py-1 px-2 rounded-lg text-center ${activeTab === item.id ? "text-emerald-600" : "text-stone-400"}`}>
+            className={`flex flex-col items-center gap-0.5 py-1 px-3 rounded-xl shrink-0 text-center transition-all ${activeTab === item.id ? "text-emerald-600 bg-emerald-50" : "text-stone-400"}`}>
             <item.icon size={20} />
-            <span className="text-[10px] font-bold">{isRTL ? item.label.split(" ").pop() : item.labelEn.split(" ").pop()}</span>
+            <span className="text-[10px] font-bold whitespace-nowrap">{isRTL ? item.label.split(" ").pop() : item.labelEn.split(" ").pop()}</span>
           </button>
         ))}
       </div>
@@ -389,43 +389,49 @@ export default function IndependentTeacherPortal() {
 // ─── Dashboard Tab ───
 function DashboardTab({ stats, isRTL, students }) {
   const cards = [
-    { label: isRTL ? "الطلاب" : "Students", value: stats.students, icon: Users, color: "bg-blue-50 text-blue-600" },
-    { label: isRTL ? "الواجبات" : "Assignments", value: stats.assignments, icon: ClipboardCheck, color: "bg-amber-50 text-amber-600" },
-    { label: isRTL ? "الامتحانات" : "Exams", value: stats.exams, icon: FileText, color: "bg-purple-50 text-purple-600" },
-    { label: isRTL ? "الحصص المباشرة" : "Live Classes", value: stats.liveClasses, icon: Video, color: "bg-emerald-50 text-emerald-600" },
-    { label: isRTL ? "فيديوهات يوتيوب" : "YouTube Videos", value: stats.videos, icon: PlayCircle, color: "bg-red-50 text-red-600" },
-    { label: isRTL ? "طلبات اشتراك" : "Pending Subs", value: stats.pendingSubs, icon: Star, color: "bg-orange-50 text-orange-600" },
-    { label: isRTL ? "واجبات قيد التصحيح" : "Pending Grading", value: stats.pendingGrading, icon: Award, color: "bg-cyan-50 text-cyan-600" },
+    { label: isRTL ? "الطلاب" : "Students", value: stats.students, icon: Users, gradient: "from-blue-500 to-sky-600" },
+    { label: isRTL ? "الواجبات" : "Assignments", value: stats.assignments, icon: ClipboardCheck, gradient: "from-amber-500 to-orange-500" },
+    { label: isRTL ? "الامتحانات" : "Exams", value: stats.exams, icon: FileText, gradient: "from-purple-500 to-fuchsia-600" },
+    { label: isRTL ? "الحصص المباشرة" : "Live Classes", value: stats.liveClasses, icon: Video, gradient: "from-emerald-500 to-teal-600" },
+    { label: isRTL ? "فيديوهات يوتيوب" : "YouTube Videos", value: stats.videos, icon: PlayCircle, gradient: "from-red-500 to-rose-600" },
+    { label: isRTL ? "طلبات اشتراك" : "Pending Subs", value: stats.pendingSubs, icon: Star, gradient: "from-orange-500 to-amber-500" },
+    { label: isRTL ? "واجبات قيد التصحيح" : "Pending Grading", value: stats.pendingGrading, icon: Award, gradient: "from-cyan-500 to-blue-600" },
   ];
 
   return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-      <h1 className="text-xl font-black text-stone-900 mb-4">{isRTL ? "لوحة التحكم" : "Dashboard"}</h1>
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} dir={isRTL ? "rtl" : "ltr"} className="space-y-6">
+      <div className="text-right">
+        <h1 className="text-[26px] font-black text-stone-900 leading-tight tracking-tight">{isRTL ? "لوحة التحكم" : "Dashboard"}</h1>
+        <p className="mt-1 text-sm font-medium text-stone-500 leading-relaxed">{isRTL ? "نظرة شاملة على فصلك وطلابك ونشاطك التعليمي." : "A complete overview of your class and teaching activity."}</p>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {cards.map((c, i) => (
-          <Card key={i} className="p-4 rounded-2xl border-stone-100 flex flex-col items-center justify-center text-center">
-            <div className={`h-10 w-10 rounded-xl ${c.color} flex items-center justify-center mb-3`}>
-              <c.icon size={18} />
+          <div key={i} className="flex flex-col items-center justify-center p-6 rounded-[20px] border border-stone-100 bg-white shadow-[0_4px_16px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] hover:border-stone-200 transition-all text-center">
+            <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${c.gradient} flex items-center justify-center shadow-sm shrink-0`}>
+              <c.icon size={22} className="text-white" />
             </div>
-            <div className="text-2xl font-black text-stone-900">{c.value}</div>
-            <div className="text-xs text-stone-500 font-bold">{c.label}</div>
-          </Card>
+            <div className="mt-4 text-[30px] font-black text-stone-900 leading-none">{c.value}</div>
+            <div className="mt-1.5 text-xs font-semibold text-stone-600 leading-tight">{c.label}</div>
+          </div>
         ))}
       </div>
       {students?.length > 0 && (
-        <Card className="mt-4 p-4 rounded-2xl border-stone-100">
-          <h3 className="font-black text-sm mb-3">{isRTL ? "آخر الطلاب المسجلين" : "Recent Students"}</h3>
+        <Card className="p-5 rounded-[20px] border border-stone-100 bg-white shadow-[0_4px_16px_rgba(0,0,0,0.04)]">
+          <h3 className="font-black text-[15px] text-stone-900 mb-4 flex items-center gap-2">
+            <span className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center"><Users size={16} /></span>
+            {isRTL ? "آخر الطلاب المسجلين" : "Recent Students"}
+          </h3>
           <div className="space-y-2">
             {students.slice(0, 5).map(s => (
-              <div key={s.id} className="flex items-center gap-3 p-2 rounded-xl bg-stone-50">
-                <div className="h-8 w-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-black">
+              <div key={s.id} className="flex items-center gap-3 p-3 rounded-xl bg-stone-50 border border-stone-100 hover:bg-white hover:shadow-sm transition-all">
+                <div className="h-9 w-9 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-black shrink-0">
                   {(s.student_name || "").charAt(0)}
                 </div>
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 text-right">
                   <div className="text-sm font-bold text-stone-900 truncate">{s.student_name}</div>
-                  <div className="text-xs text-stone-500">{s.grade ? `الصف ${s.grade}` : ""}</div>
+                  <div className="text-xs font-medium text-stone-500">{s.grade ? `الصف ${s.grade}` : "—"}</div>
                 </div>
-                <Badge variant={s.status === "active" ? "default" : "secondary"} className="text-[10px]">{s.status === "active" ? "نشط" : s.status}</Badge>
+                <Badge variant={s.status === "active" ? "default" : "secondary"} className="text-[10px] shrink-0">{s.status === "active" ? "نشط" : s.status === "inactive" ? "متوقف" : s.status}</Badge>
               </div>
             ))}
           </div>
