@@ -191,9 +191,27 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('portal_gateway_passed', 'true');
       if (loggedUser.school_id) {
         localStorage.setItem('portal_school_id', loggedUser.school_id);
+      } else {
+        localStorage.removeItem('portal_school_id');
       }
       if (data.token) {
         localStorage.setItem('portal_jwt_token', data.token);
+        // عزل جلسات البوابات المستقلة عن بوابات المدارس لمنع الكتابة فوق بعضها عند الاختبار على نفس المتصفح
+        if (!loggedUser.school_id) {
+          if (loggedUser.role === 'teacher') {
+            localStorage.setItem('ind_teacher_id', loggedUser.id);
+            localStorage.setItem('ind_teacher_name', loggedUser.full_name);
+            localStorage.setItem('ind_teacher_email', loggedUser.email || '');
+            localStorage.setItem('ind_teacher_token', data.token);
+            localStorage.setItem('ind_teacher_user', JSON.stringify(loggedUser));
+          } else if (loggedUser.role === 'student') {
+            localStorage.setItem('ind_student_id', loggedUser.id);
+            localStorage.setItem('ind_student_name', loggedUser.full_name);
+            localStorage.setItem('ind_student_email', loggedUser.email || '');
+            localStorage.setItem('ind_student_token', data.token);
+            localStorage.setItem('ind_student_user', JSON.stringify(loggedUser));
+          }
+        }
       }
 
       return loggedUser;
@@ -249,8 +267,10 @@ export const AuthProvider = ({ children }) => {
       setUser(null);
       setIsAuthenticated(false);
       setIsGatewayPassed(false);
-      const keys = ['portal_role', 'portal_user', 'portal_user_id', 'portal_user_name',
-        'portal_is_auth', 'portal_jwt_token', 'portal_gateway_passed', 'token', 'user'];
+      const keys = ['portal_role', 'portal_user', 'portal_user_id', 'portal_user_name', 'portal_user_email',
+        'portal_is_auth', 'portal_jwt_token', 'portal_gateway_passed', 'token', 'user',
+        'ind_teacher_id','ind_teacher_name','ind_teacher_email','ind_teacher_token','ind_teacher_user',
+        'ind_student_id','ind_student_name','ind_student_email','ind_student_token','ind_student_user'];
       keys.forEach(k => { try { localStorage.removeItem(k); } catch { /* ignore */ } });
       try { slug = localStorage.getItem('portal_school_slug'); } catch { slug = null; }
       try { localStorage.removeItem('portal_school_slug'); } catch { /* ignore */ }

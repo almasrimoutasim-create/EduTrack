@@ -45,8 +45,8 @@ export default function IndependentTeacherPortal() {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get("tab") || "dashboard";
 
-  const teacherId = localStorage.getItem("portal_user_id");
-  const teacherName = localStorage.getItem("portal_user_name") || "";
+  const teacherId = localStorage.getItem("ind_teacher_id") || localStorage.getItem("portal_user_id");
+  const teacherName = localStorage.getItem("ind_teacher_name") || localStorage.getItem("portal_user_name") || "";
 
   // Login state for unauthenticated users
   const [loginMode, setLoginMode] = useState(!teacherId);
@@ -75,9 +75,7 @@ export default function IndependentTeacherPortal() {
   const setActiveTab = (tab) => setSearchParams({ tab });
 
   const handleLogout = () => {
-    localStorage.removeItem("portal_role");
-    localStorage.removeItem("portal_user_id");
-    localStorage.removeItem("portal_user_name");
+    ["portal_role","portal_user_id","portal_user_name","portal_user","portal_is_auth","portal_jwt_token","ind_teacher_id","ind_teacher_name","ind_teacher_email","ind_teacher_token","ind_teacher_user"].forEach(k=>localStorage.removeItem(k));
     logout(false);
     window.location.href = "/";
   };
@@ -87,7 +85,7 @@ export default function IndependentTeacherPortal() {
    const { data: teacherProfile, isLoading: loadingProfile } = useQuery({
      queryKey: ["teacher-profile", teacherId],
      queryFn: () => fetch(`/api/teacher-profile?teacherId=${teacherId}`, {
-       headers: { "Authorization": `Bearer ${localStorage.getItem("portal_jwt_token") || localStorage.getItem("token") || ""}` },
+       headers: { "Authorization": `Bearer ${localStorage.getItem("ind_teacher_token") || localStorage.getItem("portal_jwt_token") || localStorage.getItem("token") || ""}` },
      }).then(r => r.json()).catch(() => null),
      enabled: !!teacherId,
    });
@@ -140,7 +138,7 @@ export default function IndependentTeacherPortal() {
   const { data: bonds = [], isLoading: loadingBonds } = useQuery({
     queryKey: ["teacher-bonds", teacherId],
     queryFn: () => fetch(`/api/teacher-bonds?teacherId=${teacherId}`, {
-        headers: { "Authorization": `Bearer ${localStorage.getItem("portal_jwt_token") || localStorage.getItem("token") || ""}` },
+        headers: { "Authorization": `Bearer ${localStorage.getItem("ind_teacher_token") || localStorage.getItem("portal_jwt_token") || localStorage.getItem("token") || ""}` },
       })
       .then(r => r.json())
       .then(d => Array.isArray(d) ? d : (d?.bonds || []))
@@ -159,7 +157,7 @@ export default function IndependentTeacherPortal() {
        const password = Math.random().toString(36).slice(-8) + Math.random().toString(10).slice(-4);
        return fetch("/api/teacher-bond-approve", {
          method: "POST",
-         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("portal_jwt_token") || localStorage.getItem("token") || ""}` },
+         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("ind_teacher_token") || localStorage.getItem("portal_jwt_token") || localStorage.getItem("token") || ""}` },
          body: JSON.stringify({ bondId, portalUsername: username, portalPassword: password }),
        }).then(async r => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || "غير مصرح"); return { ...d, username, password }; })
      },
@@ -172,13 +170,13 @@ export default function IndependentTeacherPortal() {
    });
 
    const confirmPaymentMutation = useMutation({
-     mutationFn: (bondId) => fetch("/api/bond-confirm-payment", { method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("portal_jwt_token") || localStorage.getItem("token") || ""}` }, body: JSON.stringify({ bondId }) }).then(async r => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || "Failed"); return d; }),
+     mutationFn: (bondId) => fetch("/api/bond-confirm-payment", { method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("ind_teacher_token") || localStorage.getItem("portal_jwt_token") || localStorage.getItem("token") || ""}` }, body: JSON.stringify({ bondId }) }).then(async r => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || "Failed"); return d; }),
      onSuccess: () => { toast.success(isRTL ? "تم تأكيد الدفع" : "Payment confirmed"); queryClient.invalidateQueries({ queryKey: ["teacher-bonds"] }); },
      onError: (err) => toast.error(err.message),
    });
 
   const rejectBondMutation = useMutation({
-    mutationFn: (bondId) => fetch("/api/teacher-bond-reject", { method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("portal_jwt_token") || localStorage.getItem("token") || ""}` }, body: JSON.stringify({ bondId }) }).then(async r => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || "غير مصرح"); return d; }),
+    mutationFn: (bondId) => fetch("/api/teacher-bond-reject", { method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("ind_teacher_token") || localStorage.getItem("portal_jwt_token") || localStorage.getItem("token") || ""}` }, body: JSON.stringify({ bondId }) }).then(async r => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || "غير مصرح"); return d; }),
     onSuccess: () => { toast.success(isRTL ? "تم رفض ربط الطالب" : "Student bond rejected"); queryClient.invalidateQueries({ queryKey: ["teacher-bonds"] }); },
     onError: (err) => toast.error(err.message),
   });
@@ -1760,7 +1758,7 @@ function SubscriptionsTab({ teacherId, subscriptions, isRTL, queryClient }) {
        if (avatarFileB64) { payload.avatarFile = avatarFileB64; payload.avatarName = avatarName; }
        const res = await fetch(`/api/teacher-profile?teacherId=${teacherId}`, {
          method: "PATCH",
-         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("portal_jwt_token") || localStorage.getItem("token") || ""}` },
+         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("ind_teacher_token") || localStorage.getItem("portal_jwt_token") || localStorage.getItem("token") || ""}` },
          body: JSON.stringify(payload),
        });
        const d = await res.json().catch(() => ({}));

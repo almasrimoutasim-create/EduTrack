@@ -73,8 +73,8 @@ export default function StudentPortal() {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get("tab") || "dashboard";
 
-  const studentId = localStorage.getItem("portal_user_id");
-  const studentName = localStorage.getItem("portal_user_name") || "";
+  const studentId = localStorage.getItem("ind_student_id") || localStorage.getItem("portal_user_id");
+  const studentName = localStorage.getItem("ind_student_name") || localStorage.getItem("ind_student_name") || localStorage.getItem("portal_user_name") || "";
 
   // Login state for unauthenticated users
   const [loginMode, setLoginMode] = useState(!studentId);
@@ -102,9 +102,7 @@ export default function StudentPortal() {
   const setActiveTab = (tab) => setSearchParams({ tab });
 
   const handleLogout = () => {
-    localStorage.removeItem("portal_role");
-    localStorage.removeItem("portal_user_id");
-    localStorage.removeItem("portal_user_name");
+    ["portal_role","portal_user_id","portal_user_name","portal_user","portal_is_auth","portal_jwt_token","ind_student_id","ind_student_name","ind_student_email","ind_student_token","ind_student_user"].forEach(k=>localStorage.removeItem(k));
     logout(false);
     window.location.href = "/";
   };
@@ -122,7 +120,7 @@ export default function StudentPortal() {
   const { data: bonds = [] } = useQuery({
     queryKey: ["student-bonds", studentId],
     queryFn: () => fetch(`/api/teacher-bonds?studentId=${studentId}`, {
-      headers: { "Authorization": `Bearer ${localStorage.getItem("portal_jwt_token") || localStorage.getItem("token") || ""}` },
+      headers: { "Authorization": `Bearer ${localStorage.getItem("ind_student_token") || localStorage.getItem("portal_jwt_token") || localStorage.getItem("token") || ""}` },
     }).then(r => r.json()).then(d => Array.isArray(d) ? d : []).catch(() => []),
     enabled: !!studentId,
   });
@@ -507,8 +505,8 @@ function TeachersTab({ studentId, subscriptions, approvedTeachers, pendingSubs, 
      try {
        const payload = {
          studentId,
-         studentName: localStorage.getItem("portal_user_name") || "",
-         studentEmail: localStorage.getItem("portal_user_email") || "",
+         studentName: localStorage.getItem("ind_student_name") || localStorage.getItem("portal_user_name") || "",
+         studentEmail: localStorage.getItem("ind_student_email") || localStorage.getItem("portal_user_email") || "",
          teacherId: useId,
          teacherName: targetTeacherName || "",
          requestMessage: isRTL ? "طلب اشتراك من الطالب" : "Subscription request from student",
@@ -731,7 +729,7 @@ function TeachersTab({ studentId, subscriptions, approvedTeachers, pendingSubs, 
                                const reader = new FileReader();
                                reader.onload = async () => {
                                  const base64 = reader.result.split(",")[1];
-                                 await fetch("/api/bond-upload-receipt", { method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("portal_jwt_token") || localStorage.getItem("token") || ""}` }, body: JSON.stringify({ bondId: bond.id, receiptFile: base64, receiptName: file.name }) }).then(r => r.json()).catch(() => {});
+                                 await fetch("/api/bond-upload-receipt", { method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("ind_student_token") || localStorage.getItem("portal_jwt_token") || localStorage.getItem("token") || ""}` }, body: JSON.stringify({ bondId: bond.id, receiptFile: base64, receiptName: file.name }) }).then(r => r.json()).catch(() => {});
                                  queryClient.invalidateQueries({ queryKey: ["student-bonds", studentId] });
                                  toast.success(isRTL ? "تم رفع الإيصال" : "Receipt uploaded");
                                };
@@ -819,7 +817,7 @@ function AssignmentsTab({ assignments, mySubmissions, studentId, isRTL, queryCli
       await entities.TeacherSubmission.create({
         assignment_id: showSubmit,
         student_id: studentId,
-        student_name: localStorage.getItem("portal_user_name") || "",
+        student_name: localStorage.getItem("ind_student_name") || localStorage.getItem("portal_user_name") || "",
         teacher_id: assignment?.teacher_id,
         answer_text: answer,
         status: "submitted",
@@ -906,7 +904,7 @@ function ExamsTab({ exams, mySubmissions, studentId, isRTL, queryClient }) {
       await entities.TeacherSubmission.create({
         exam_id: showExam,
         student_id: studentId,
-        student_name: localStorage.getItem("portal_user_name") || "",
+        student_name: localStorage.getItem("ind_student_name") || localStorage.getItem("portal_user_name") || "",
         teacher_id: exam?.teacher_id,
         answers,
         status: "submitted",
@@ -1226,7 +1224,7 @@ function MyTeacherTab({ approvedTeachers, pendingSubs, studentId, isRTL, queryCl
   const { data: myBonds = [], isLoading: loadingBonds } = useQuery({
     queryKey: ["student-bonds", studentId],
     queryFn: () => fetch(`/api/teacher-bonds?studentId=${studentId}`, {
-        headers: { "Authorization": `Bearer ${localStorage.getItem("portal_jwt_token") || localStorage.getItem("token") || ""}` },
+        headers: { "Authorization": `Bearer ${localStorage.getItem("ind_student_token") || localStorage.getItem("portal_jwt_token") || localStorage.getItem("token") || ""}` },
       })
       .then(r => r.json())
       .then(d => Array.isArray(d) ? d : (d?.bonds || []))
@@ -1243,7 +1241,7 @@ function MyTeacherTab({ approvedTeachers, pendingSubs, studentId, isRTL, queryCl
     queryKey: ["student-portal-teacher-videos", studentId],
     queryFn: async () => {
       try {
-        const token = localStorage.getItem("portal_jwt_token") || localStorage.getItem("token") || "";
+        const token = localStorage.getItem("ind_student_token") || localStorage.getItem("portal_jwt_token") || localStorage.getItem("token") || "";
         const res = await fetch(`/api/student/teacher-videos?studentId=${studentId}`, {
           headers: token ? { "Authorization": `Bearer ${token}` } : {},
         });
@@ -1518,7 +1516,7 @@ function AttendanceTab({ attendanceLogs, stats, studentId, isRTL }) {
     try {
       await entities.Attendance.create({
         student_id: studentId,
-        student_name: localStorage.getItem("portal_user_name") || "",
+        student_name: localStorage.getItem("ind_student_name") || localStorage.getItem("portal_user_name") || "",
         status: "gate_passed",
         gate_type: type,
         date: today,
@@ -1617,7 +1615,7 @@ function AttendanceTab({ attendanceLogs, stats, studentId, isRTL }) {
 
 // ─── Grades Tab ───
 function GradesTab({ studentId, studentGrade, isRTL }) {
-  const studentObj = { student_id: studentId, full_name: (typeof window !== 'undefined' ? localStorage.getItem("portal_user_name") : "") || "" };
+  const studentObj = { student_id: studentId, full_name: (typeof window !== 'undefined' ? localStorage.getItem("ind_student_name") || localStorage.getItem("portal_user_name") : "") || "" };
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
       <h1 className="text-xl font-black text-stone-900 mb-4 flex items-center gap-2">
