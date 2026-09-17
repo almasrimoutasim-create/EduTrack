@@ -17,7 +17,7 @@ import {
   Play, GraduationCap, BookMarked, Download,
   CheckCircle2, AlertCircle, MessageCircle,
   UserCheck, Loader2, Megaphone, Award, Sparkles,
-  ArrowUpRight, ChevronLeft, Calendar, Fingerprint
+  ArrowUpRight, ChevronLeft, Calendar, Fingerprint, Lock
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
