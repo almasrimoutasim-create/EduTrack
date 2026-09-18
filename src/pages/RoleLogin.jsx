@@ -103,7 +103,7 @@ export default function RoleLogin() {
         resolvedRole = "staff";
       }
 
-      await login(resolvedRole, identifier.trim(), password);
+      await login(resolvedRole, identifier.trim(), password, schoolBrand?.id || null);
       window.location.href = selectedRole.path || "/";
     } catch (err) {
       console.error("Login failed:", err);
@@ -160,7 +160,7 @@ export default function RoleLogin() {
     } catch {}
     setAdminLoading(true);
     try {
-      await login("admin", adminId.trim(), adminPass);
+      await login("admin", adminId.trim(), adminPass, schoolBrand?.id || null);
       // تأكد أن حالة البوابة لا تخلط مع المدير
       localStorage.removeItem('portal_gateway_passed');
       window.location.href = "/admin-dashboard";

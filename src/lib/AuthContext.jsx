@@ -150,7 +150,7 @@ export const AuthProvider = ({ children }) => {
     setAuthChecked(true);
   };
 
-  const login = async (role, identifier, password) => {
+  const login = async (role, identifier, password, schoolId = null) => {
     setAuthError(null);
     try {
       const apiBase = import.meta.env.VITE_BACKEND_URL || '';
@@ -161,7 +161,7 @@ export const AuthProvider = ({ children }) => {
       const response = await fetch(loginUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role, identifier, password })
+        body: JSON.stringify({ role, identifier, password, schoolId })
       });
 
       let data;
