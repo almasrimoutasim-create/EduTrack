@@ -2602,6 +2602,9 @@ const FounderDashboard = () => {
           </div>
         )}
 
+        {/* ───── إدارة طلبات ترقية اشتراكات المدارس ───── */}
+        {section === "subscriptions" && <SchoolSubscriptionRequests />}
+
         {/* ───── إيصالات الدفع البنتقالية ───── */}
         {section === "subscriptions" && <PaymentReceiptsSection />}
 
@@ -3303,6 +3306,123 @@ const FounderDashboard = () => {
     </div>
   );
 };
+
+/* ───── إدارة طلبات ترقية اشتراكات المدارس ───── */
+function SchoolSubscriptionRequests() {
+  const { language } = useLanguage();
+  const isRTL = language === 'ar';
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [reviewNotes, setReviewNotes] = useState('');
+  const [activeTab, setActiveTab] = useState('all');
+
+  const { data: requests = [], isLoading } = useQuery({
+    queryKey: ['school-subscription-requests'],
+    queryFn: () => fetch('/api/school-subscription-requests').then(r => r.json())
+  });
+
+  const approveMutation = useMutation({
+    mutationFn: async (id) => {
+      const res = await fetch(`/api/school-subscription-requests/${id}/approve`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ notes: reviewNotes }) });
+      if (!res.ok) throw new Error('Failed');
+      return res.json();
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['school-subscription-requests'] }); setSelectedRequest(null); setReviewNotes(''); toast.success(isRTL ? 'تمت الموافقة' : 'Approved!'); }
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: async (id) => {
+      const res = await fetch(`/api/school-subscription-requests/${id}/reject`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ notes: reviewNotes }) });
+      if (!res.ok) throw new Error('Failed');
+      return res.json();
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['school-subscription-requests'] }); setSelectedRequest(null); setReviewNotes(''); toast.success(isRTL ? 'تم الرفض' : 'Rejected!'); }
+  });
+
+  const filtered = activeTab === 'all' ? requests : requests.filter(r => r.status === activeTab);
+  const statusBadge = {
+    pending: { ar: 'قيد المراجعة', cls: 'bg-amber-100 text-amber-700' },
+    approved: { ar: 'تمت الموافقة', cls: 'bg-emerald-100 text-emerald-700' },
+    rejected: { ar: 'مرفوض', cls: 'bg-rose-100 text-rose-700' },
+  };
+
+  if (isLoading) return <div className="flex items-center justify-center p-8"><Loader2 className="w-6 h-6 animate-spin text-slate-400" /></div>;
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="p-5 border-b border-slate-100 flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h3 className="font-bold text-slate-900 flex items-center gap-2"><Clock size={18} className="text-blue-500"/> طلبات ترقية الاشتراكات</h3>
+          <p className="text-xs text-slate-500 mt-0.5">{requests.filter(r=>r.status==='pending').length} طلب قيد المراجعة</p>
+        </div>
+        <div className="flex gap-2">
+          {['all', 'pending', 'approved', 'rejected'].map(tab => (
+            <button key={tab} onClick={() => setActiveTab(tab)} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${activeTab===tab ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+              {tab === 'all' ? 'الكل' : tab === 'pending' ? 'قيد المراجعة' : tab === 'approved' ? 'موافق' : 'مرفوض'}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="divide-y divide-slate-100">
+        {filtered.length === 0 && <div className="p-8 text-center text-sm text-slate-400">لا توجد طلبات</div>}
+        {filtered.map(req => (
+          <div key={req.id} className="p-5 hover:bg-slate-50/50">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-bold text-slate-900">{req.school_name}</span>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${statusBadge[req.status]?.cls || 'bg-slate-100'}`}>
+                    {statusBadge[req.status]?.ar || req.status}
+                  </span>
+                  <span className="text-xs text-slate-500">{req.current_plan} → {req.requested_plan}</span>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">{isRTL ? 'الباقة:' : 'Plan:'} {req.requested_plan} • {isRTL ? 'الدورة:' : 'Cycle:'} {req.billing_cycle} • {isRTL ? 'المرسل:' : 'Sender:'} {req.sender_name}</p>
+                {req.receipt_url && <img src={req.receipt_url} alt="receipt" className="mt-2 max-h-20 rounded-lg object-contain border" />}
+                {req.founder_notes && <p className="text-xs text-slate-500 mt-1 italic">ملاحظات: {req.founder_notes}</p>}
+              </div>
+              {req.status === 'pending' && (
+                <div className="flex gap-2 shrink-0">
+                  <button onClick={() => { setSelectedRequest(req); setReviewNotes(''); }} className="text-xs font-bold bg-emerald-600 text-white px-3 py-2 rounded-lg hover:bg-emerald-700">{isRTL ? 'موافق' : 'Approve'}</button>
+                  <button onClick={() => { setSelectedRequest(req); setReviewNotes(''); }} className="text-xs font-bold bg-rose-600 text-white px-3 py-2 rounded-lg hover:bg-rose-700">{isRTL ? 'رفض' : 'Reject'}</button>
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Modal الموافقة/الرفض ── */}
+      {selectedRequest && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-xl">
+            <h3 className="font-bold text-lg mb-4">{isRTL ? 'مراجعة الطلب' : 'Review Request'}</h3>
+            <div className="bg-slate-50 rounded-xl p-4 mb-4 space-y-2 text-sm">
+              <p><span className="font-semibold">{isRTL ? 'المدرسة:' : 'School:'}</span> {selectedRequest.school_name}</p>
+              <p><span className="font-semibold">{isRTL ? 'الباقة الحالية:' : 'Current:'}</span> {selectedRequest.current_plan}</p>
+              <p><span className="font-semibold">{isRTL ? 'الباقة المطلوبة:' : 'Requested:'}</span> <span className="text-blue-600 font-bold">{selectedRequest.requested_plan}</span></p>
+              <p><span className="font-semibold">{isRTL ? 'الدورة:' : 'Cycle:'}</span> {selectedRequest.billing_cycle}</p>
+              {selectedRequest.payment_receipt_url && <img src={selectedRequest.payment_receipt_url} alt="receipt" className="max-h-32 rounded-lg object-contain mt-2" />}
+            </div>
+            <div className="mb-4">
+              <label className="text-sm font-bold text-slate-600">{isRTL ? 'ملاحظات (اختياري)' : 'Notes (optional)'}</label>
+              <textarea value={reviewNotes} onChange={e => setReviewNotes(e.target.value)} rows={3} className="w-full mt-1 rounded-xl border border-slate-300 p-3 text-sm" placeholder={isRTL ? 'أضف ملاحظات...' : 'Add notes...'} />
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => approveMutation.mutate(selectedRequest.id)} disabled={approveMutation.isPending} className="flex-1 bg-emerald-600 text-white py-2 rounded-xl font-bold text-sm hover:bg-emerald-700 disabled:opacity-50">
+                {approveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : (isRTL ? 'موافق' : 'Approve')}
+              </button>
+              <button onClick={() => rejectMutation.mutate(selectedRequest.id)} disabled={rejectMutation.isPending} className="flex-1 bg-rose-600 text-white py-2 rounded-xl font-bold text-sm hover:bg-rose-700 disabled:opacity-50">
+                {rejectMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : (isRTL ? 'رفض' : 'Reject')}
+              </button>
+              <button onClick={() => { setSelectedRequest(null); setReviewNotes(''); }} className="px-4 py-2 rounded-xl border border-slate-300 text-sm font-bold">إلغاء</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 const Toggle = ({ label, desc, checked, onChange }) => (
   <div className="flex items-center justify-between border-b border-slate-100 pb-4 last:border-0 last:pb-0">

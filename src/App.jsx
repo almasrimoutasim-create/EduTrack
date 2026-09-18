@@ -12,6 +12,7 @@ import { lazy, Suspense } from 'react';
 import AppLayout from './components/layout/AppLayout';
 import RoleGate from './components/RoleGate';
 import FounderGuard from './components/founder/FounderGuard';
+import PlanAccessGuard from './components/PlanAccessGuard';
 import RoleLogin from './pages/RoleLogin';
 import Gateway from './pages/Gateway';
 import TeacherLogin from './pages/TeacherLogin';
@@ -162,33 +163,35 @@ const AuthenticatedApp = () => {
           <Route path="/room-view" element={<RoomView />} />
           <Route path="/activity" element={<ActivityFeed />} />
           <Route path="/awards" element={<Awards />} />
-          <Route path="/finance" element={<Finance />} />
-          <Route path="/staff-control" element={<StaffControl />} />
-          <Route path="/staff/contracts" element={<StaffContracts />} />
-          <Route path="/staff/attendance" element={<StaffAttendance />} />
-          <Route path="/staff/payroll" element={<StaffPayroll />} />
-          <Route path="/staff/requests" element={<StaffRequests />} />
-          <Route path="/staff/leaves" element={<StaffLeaves />} />
-          <Route path="/staff/evaluations" element={<StaffEvaluations />} />
-          <Route path="/staff/reports" element={<HRReports />} />
-          <Route path="/staff/departments" element={<Departments />} />
-          <Route path="/staff/career" element={<CareerLadder />} />
-          <Route path="/staff/personal-requests" element={<StaffPersonalRequests />} />
-          <Route path="/student-directory" element={<StudentDirectory />} />
-          <Route path="/grades" element={<Grades />} />
-          <Route path="/print-results" element={<PrintResults />} />
-          <Route path="/audit-log" element={<AuditLog />} />
-          <Route path="/library" element={<Library />} />
-          <Route path="/arabic-showcase" element={<ArabicShowcase />} />
-          <Route path="/virtual-classroom/:id" element={<VirtualClassroom />} />
-          <Route path="/admin-virtual-classrooms" element={<AdminVirtualClassrooms />} />
-          <Route path="/admin-chats" element={<AdminChats />} />
-          <Route path="/official-announcements" element={<OfficialAnnouncements />} />
-          <Route path="/counseling" element={<CounselingDashboard />} />
-          <Route path="/counseling/cases" element={<CounselingCases />} />
-          <Route path="/counseling/:id" element={<CounselingCaseDetail />} />
-          <Route path="/bus-routes" element={<BusRouteManagement />} />
-          <Route path="/renew-subscription" element={<RenewSubscription />} />
+           <Route path="/finance" element={<PlanAccessGuard><Finance /></PlanAccessGuard>} />
+           <Route path="/staff-control" element={<PlanAccessGuard><StaffControl /></PlanAccessGuard>} />
+           <Route path="/staff/contracts" element={<PlanAccessGuard><StaffContracts /></PlanAccessGuard>} />
+           <Route path="/staff/payroll" element={<PlanAccessGuard><StaffPayroll /></PlanAccessGuard>} />
+           <Route path="/staff/leaves" element={<PlanAccessGuard><StaffLeaves /></PlanAccessGuard>} />
+           <Route path="/staff/evaluations" element={<PlanAccessGuard><StaffEvaluations /></PlanAccessGuard>} />
+           <Route path="/staff/reports" element={<PlanAccessGuard><HRReports /></PlanAccessGuard>} />
+           <Route path="/staff/departments" element={<PlanAccessGuard><Departments /></PlanAccessGuard>} />
+           <Route path="/staff/career" element={<PlanAccessGuard><CareerLadder /></PlanAccessGuard>} />
+           <Route path="/student-directory" element={<StudentDirectory />} />
+           <Route path="/grades" element={<Grades />} />
+           <Route path="/print-results" element={<PlanAccessGuard><PrintResults /></PlanAccessGuard>} />
+           <Route path="/audit-log" element={<PlanAccessGuard><AuditLog /></PlanAccessGuard>} />
+           <Route path="/library" element={<PlanAccessGuard><Library /></PlanAccessGuard>} />
+           <Route path="/virtual-classroom/:id" element={<VirtualClassroom />} />
+           <Route path="/admin-virtual-classrooms" element={<PlanAccessGuard><AdminVirtualClassrooms /></PlanAccessGuard>} />
+           <Route path="/admin-chats" element={<PlanAccessGuard><AdminChats /></PlanAccessGuard>} />
+           <Route path="/official-announcements" element={<PlanAccessGuard><OfficialAnnouncements /></PlanAccessGuard>} />
+           <Route path="/bus-routes" element={<PlanAccessGuard><BusRouteManagement /></PlanAccessGuard>} />
+           <Route path="/store" element={<PlanAccessGuard><Store /></PlanAccessGuard>} />
+           <Route path="/store/inventory" element={<PlanAccessGuard><StoreInventory /></PlanAccessGuard>} />
+           <Route path="/store/categories" element={<PlanAccessGuard><StoreCategories /></PlanAccessGuard>} />
+           <Route path="/store/pos" element={<PlanAccessGuard><StorePOS /></PlanAccessGuard>} />
+           <Route path="/store/orders" element={<PlanAccessGuard><SalesOrders /></PlanAccessGuard>} />
+           <Route path="/store/reports" element={<PlanAccessGuard><SalesReports /></PlanAccessGuard>} />
+           <Route path="/counseling" element={<PlanAccessGuard><CounselingDashboard /></PlanAccessGuard>} />
+           <Route path="/counseling/cases" element={<PlanAccessGuard><CounselingCases /></PlanAccessGuard>} />
+           <Route path="/counseling/:id" element={<PlanAccessGuard><CounselingCaseDetail /></PlanAccessGuard>} />
+           <Route path="/renew-subscription" element={<RenewSubscription />} />
         </Route>
 
         <Route path="/student-portal" element={<StudentPortal />} />

@@ -978,7 +978,40 @@ if (process.env.DATABASE_URL) {
   sql`CREATE INDEX IF NOT EXISTS idx_subscription_payments_school_id ON subscription_payments(school_id)`.catch(()=>{});
   sql`CREATE INDEX IF NOT EXISTS idx_subscription_payments_status ON subscription_payments(status)`.catch(()=>{});
   sql`CREATE INDEX IF NOT EXISTS idx_subscription_notifications_school_id ON subscription_notifications(school_id)`.catch(()=>{});
-  sql`CREATE INDEX IF NOT EXISTS idx_subscription_notifications_status ON subscription_notifications(status)`.catch(()=>{});
+   sql`CREATE INDEX IF NOT EXISTS idx_subscription_notifications_status ON subscription_notifications(status)`.catch(()=>{});
+
+   // ── School Subscriptions table (لوحة الباقات — طلبات ترقية المدارس) ──
+   sql`
+     CREATE TABLE IF NOT EXISTS school_subscriptions (
+       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+       school_id UUID NOT NULL REFERENCES schools(id),
+       current_plan TEXT NOT NULL DEFAULT 'starter',
+       requested_plan TEXT NOT NULL,
+       billing_cycle TEXT NOT NULL DEFAULT 'monthly',
+       payment_receipt_url TEXT,
+       payment_receipt_filename TEXT,
+       sender_name TEXT,
+       transfer_reference TEXT,
+       bank_name TEXT,
+       status TEXT NOT NULL DEFAULT 'pending',
+       founder_notes TEXT,
+       approved_at TIMESTAMP WITH TIME ZONE,
+       rejected_at TIMESTAMP WITH TIME ZONE,
+       approved_by TEXT,
+       plan_duration TEXT,
+       approved_plan TEXT,
+       created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+       updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+     )
+   `.then(() => console.log('[neon] school_subscriptions table verified/created'))
+     .catch(err => console.error('[neon] school_subscriptions:', err.message));
+   sql`ALTER TABLE school_subscriptions ADD COLUMN IF NOT EXISTS plan_duration TEXT`.catch(()=>{});
+   sql`ALTER TABLE school_subscriptions ADD COLUMN IF NOT EXISTS approved_plan TEXT`.catch(()=>{});
+   sql`CREATE INDEX IF NOT EXISTS idx_school_subs_school_id ON school_subscriptions(school_id)`.catch(()=>{});
+   sql`CREATE INDEX IF NOT EXISTS idx_school_subs_status ON school_subscriptions(status)`.catch(()=>{});
+
+   sql`CREATE INDEX IF NOT EXISTS idx_subscription_notifications_school_id ON subscription_notifications(school_id)`.catch(()=>{});
+   sql`CREATE INDEX IF NOT EXISTS idx_subscription_notifications_status ON subscription_notifications(status)`.catch(()=>{});
 
   // Auto-create teacher_subscription_requests table
   sql`
@@ -3222,7 +3255,7 @@ export function createApiHandler() {
       }
 
       // Multi-tenant helpers
-      const TENANT_TABLES_SET = new Set(['students','teachers','attendance','subjects','library_books','financial_records','activity_posts','activity_comments','activity_chats','audit_logs','bus_drivers','bus_driver_reports','card_top_ups','class_schedules','donations','friend_requests','store_items','purchases','study_rooms','study_groups','study_group_posts','study_materials','student_awards','student_grades','student_reports','supervisors','staff_members','teacher_ratings','teacher_tasks','portal_access_configs','portal_groups','portal_group_messages','portal_notifications','private_messages','room_messages','room_videos','book_reviews','message_read_receipts','typing_indicators','fines','parent_link_requests','virtual_sessions','session_participants','official_announcements','counseling_cases','case_assessments','intervention_plans','follow_ups','case_visibility_logs','fee_structures','student_fees','fee_payments','activity_fees','student_activity_fees','student_wallet','wallet_transactions','hall_rentals','other_revenue','expenses','salary_records','purchase_orders','visitors','system_admins','student_teacher_bonds','bond_payments']);
+       const TENANT_TABLES_SET = new Set(['students','teachers','attendance','subjects','library_books','financial_records','activity_posts','activity_comments','activity_chats','audit_logs','bus_drivers','bus_driver_reports','card_top_ups','class_schedules','donations','friend_requests','store_items','purchases','study_rooms','study_groups','study_group_posts','study_materials','student_awards','student_grades','student_reports','supervisors','staff_members','teacher_ratings','teacher_tasks','portal_access_configs','portal_groups','portal_group_messages','portal_notifications','private_messages','room_messages','room_videos','book_reviews','message_read_receipts','typing_indicators','fines','parent_link_requests','virtual_sessions','session_participants','official_announcements','counseling_cases','case_assessments','intervention_plans','follow_ups','case_visibility_logs','fee_structures','student_fees','fee_payments','activity_fees','student_activity_fees','student_wallet','wallet_transactions','hall_rentals','other_revenue','expenses','salary_records','purchase_orders','visitors','system_admins','student_teacher_bonds','bond_payments','school_subscriptions']);
       const isTenantTable = TENANT_TABLES_SET.has(table);
       const tenantId = req.user?.school_id || null;
 
@@ -4028,14 +4061,131 @@ export function createApiHandler() {
           );
           console.log(`[founder/school-plan] School ${school_id} → plan: ${plan}`);
           return res.end(JSON.stringify({ ok: true, school_id, plan }));
-        } catch (error) {
-          console.error('[founder/school-plan] POST error:', error);
-          res.statusCode = 500;
-          return res.end(JSON.stringify({ error: error.message }));
-        }
-      }
+         } catch (error) {
+           console.error('[founder/school-plan] POST error:', error);
+           res.statusCode = 500;
+           return res.end(JSON.stringify({ error: error.message }));
+         }
+       }
 
-      // ── GET /api/teacher-subscription-requests — List all teacher subscription requests (founder) ──
+       // ── POST /api/school-subscription-request — School requests plan upgrade ──
+       if (req.url === '/api/school-subscription-request' && req.method === 'POST') {
+         res.setHeader('Content-Type', 'application/json');
+         try {
+           const me = getBearerUser(req);
+           if (!me) { res.statusCode = 401; return res.end(JSON.stringify({ error: 'Auth required' })); }
+           const body = await parseBody(req);
+           const { requested_plan, billing_cycle, payment_receipt_url, payment_receipt_filename, sender_name, transfer_reference, bank_name } = body;
+           if (!requested_plan || !['starter','professional','enterprise'].includes(requested_plan)) {
+             res.statusCode = 400; return res.end(JSON.stringify({ error: 'Invalid requested_plan' }));
+           }
+           const schoolInfo = await dbQuery('SELECT id, plan FROM schools WHERE id = $1', [me.school_id]);
+           if (schoolInfo.length === 0) { res.statusCode = 404; return res.end(JSON.stringify({ error: 'School not found' })); }
+           const currentPlan = schoolInfo[0].plan;
+           if (requested_plan === currentPlan) {
+             res.statusCode = 400; return res.end(JSON.stringify({ error: 'Already on this plan' }));
+           }
+           const result = await dbQuery(
+             `INSERT INTO school_subscriptions (school_id, current_plan, requested_plan, billing_cycle, payment_receipt_url, payment_receipt_filename, sender_name, transfer_reference, bank_name, status, created_at)
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending', NOW())
+              RETURNING *`,
+             [me.school_id, currentPlan, requested_plan, billing_cycle || 'monthly', payment_receipt_url || null, payment_receipt_filename || null, sender_name || null, transfer_reference || null, bank_name || null]
+           );
+           return res.end(JSON.stringify({ success: true, subscription: result[0] }));
+         } catch (error) {
+           console.error('[school-subscription-request] error:', error);
+           res.statusCode = 500;
+           return res.end(JSON.stringify({ error: error.message }));
+         }
+       }
+
+       // ── GET /api/school-subscription-requests — List all school subscription requests (founder) ──
+       if (req.url === '/api/school-subscription-requests' && req.method === 'GET') {
+         res.setHeader('Content-Type', 'application/json');
+         const founder = isFounderUser(req);
+         if (!founder) { res.statusCode = 401; return res.end(JSON.stringify({ error: 'Founder auth required' })); }
+         try {
+           const rows = await dbQuery(`
+             SELECT ss.*, s.name_ar, s.name_en, s.name AS school_name
+             FROM school_subscriptions ss
+             JOIN schools s ON s.id = ss.school_id
+             ORDER BY ss.created_at DESC
+           `);
+           return res.end(JSON.stringify(rows));
+         } catch (error) {
+           console.error('[school-subscription-requests] GET error:', error);
+           res.statusCode = 500;
+           return res.end(JSON.stringify({ error: error.message }));
+         }
+       }
+
+       // ── POST /api/school-subscription-requests/:id/approve — Approve school subscription ──
+       if (req.url?.startsWith('/api/school-subscription-requests/') && req.url.endsWith('/approve') && req.method === 'POST') {
+         res.setHeader('Content-Type', 'application/json');
+         const founder = isFounderUser(req);
+         if (!founder) { res.statusCode = 401; return res.end(JSON.stringify({ error: 'Founder auth required' })); }
+         try {
+           const me = getBearerUser(req);
+           const requestId = req.url.split('/api/school-subscription-requests/')[1].split('/')[0];
+           const body = await parseBody(req);
+           const { founder_notes } = body;
+           const rows = await dbQuery('SELECT * FROM school_subscriptions WHERE id = $1', [requestId]);
+           if (rows.length === 0) { res.statusCode = 404; return res.end(JSON.stringify({ error: 'Request not found' })); }
+           const sub = rows[0];
+           await dbQuery(
+             `UPDATE school_subscriptions SET status = 'approved', founder_notes = $1, approved_at = NOW(), approved_by = $2, updated_at = NOW() WHERE id = $3`,
+             [founder_notes || 'Approved by founder', me?.id || 'founder', requestId]
+           );
+           await dbQuery(
+             `UPDATE schools SET plan = $1, subscription_status = 'active', updated_at = NOW() WHERE id = $2`,
+             [sub.requested_plan, sub.school_id]
+           );
+           return res.end(JSON.stringify({ success: true, school_id: sub.school_id, new_plan: sub.requested_plan }));
+         } catch (error) {
+           console.error('[school-subscription-requests/approve] error:', error);
+           res.statusCode = 500;
+           return res.end(JSON.stringify({ error: error.message }));
+         }
+       }
+
+       // ── POST /api/school-subscription-requests/:id/reject — Reject school subscription ──
+       if (req.url?.startsWith('/api/school-subscription-requests/') && req.url.endsWith('/reject') && req.method === 'POST') {
+         res.setHeader('Content-Type', 'application/json');
+         const founder = isFounderUser(req);
+         if (!founder) { res.statusCode = 401; return res.end(JSON.stringify({ error: 'Founder auth required' })); }
+         try {
+           const me = getBearerUser(req);
+           const requestId = req.url.split('/api/school-subscription-requests/')[1].split('/')[0];
+           const body = await parseBody(req);
+           const { founder_notes } = body;
+           await dbQuery(
+             `UPDATE school_subscriptions SET status = 'rejected', founder_notes = $1, rejected_at = NOW(), approved_by = $2, updated_at = NOW() WHERE id = $3`,
+             [founder_notes || 'Rejected by founder', me?.id || 'founder', requestId]
+           );
+           return res.end(JSON.stringify({ success: true }));
+         } catch (error) {
+           console.error('[school-subscription-requests/reject] error:', error);
+           res.statusCode = 500;
+           return res.end(JSON.stringify({ error: error.message }));
+         }
+       }
+
+       // ── GET /api/my-subscription-request — My school's subscription request ──
+       if (req.url === '/api/my-subscription-request' && req.method === 'GET') {
+         res.setHeader('Content-Type', 'application/json');
+         try {
+           const me = getBearerUser(req);
+           if (!me) { res.statusCode = 401; return res.end(JSON.stringify({ error: 'Auth required' })); }
+           const rows = await dbQuery('SELECT * FROM school_subscriptions WHERE school_id = $1 ORDER BY created_at DESC LIMIT 5', [me.school_id]);
+           return res.end(JSON.stringify(rows));
+         } catch (error) {
+           console.error('[my-subscription-request] error:', error);
+           res.statusCode = 500;
+           return res.end(JSON.stringify({ error: error.message }));
+         }
+       }
+
+       // ── GET /api/teacher-subscription-requests — List all teacher subscription requests (founder) ──
       if (req.url === '/api/teacher-subscription-requests' && req.method === 'GET') {
         res.setHeader('Content-Type', 'application/json');
         try {
