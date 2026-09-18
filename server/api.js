@@ -1368,19 +1368,28 @@ export function createApiHandler() {
           rows = await dbQuery('SELECT * FROM system_settings WHERE school_id IS NULL ORDER BY created_at DESC LIMIT 1');
         }
         const s = rows[0] || {};
-        if (!s.school_name_ar) {
-          const fallback = await dbQuery('SELECT * FROM system_settings ORDER BY created_at DESC LIMIT 1');
-          const fs = fallback[0] || {};
-           return res.end(JSON.stringify({
-             school_name_ar: fs.school_name_ar || 'مدارس عباد الرحمن التعليمية',
-             school_name_en: fs.school_name_en || 'Abad Al-Rahman Educational Schools',
-             school_logo: fs.school_logo || '',
-             school_background_image: fs.school_background_image || 'https://images.unsplash.com/photo-1510519138101-570d1dcb3d8e?q=80&w=2000&auto=format&fit=crop',
-             sidebar_logo: fs.sidebar_logo || fs.school_logo || '',
-             sidebar_short_name: fs.sidebar_short_name || '',
-           }));
-         }
-       } catch (e) {
+        // If school has settings, return them directly (no cross-school fallback)
+        if (s.school_name_ar || s.school_logo || s.sidebar_logo || s.sidebar_short_name) {
+          return res.end(JSON.stringify({
+            school_name_ar: s.school_name_ar || 'مدارس عباد الرحمن التعليمية',
+            school_name_en: s.school_name_en || 'Abad Al-Rahman Educational Schools',
+            school_logo: s.school_logo || '',
+            school_background_image: s.school_background_image || 'https://images.unsplash.com/photo-1510519138101-570d1dcb3d8e?q=80&w=2000&auto=format&fit=crop',
+            sidebar_logo: s.sidebar_logo || s.school_logo || '',
+            sidebar_short_name: s.sidebar_short_name || '',
+          }));
+        }
+        // If no school_id provided and no record found, return defaults (not another school's data)
+        return res.end(JSON.stringify({
+          school_name_ar: 'مدارس عباد الرحمن التعليمية',
+          school_name_en: 'Abad Al-Rahman Educational Schools',
+          school_logo: '',
+          school_background_image: 'https://images.unsplash.com/photo-1510519138101-570d1dcb3d8e?q=80&w=2000&auto=format&fit=crop',
+          sidebar_logo: '',
+          sidebar_short_name: '',
+        }));
+      } catch (e) {
+        console.error('[public-settings]', e);
         return res.end(JSON.stringify({ school_name_ar: 'مدارس عباد الرحمن التعليمية', school_name_en: 'Abad Al-Rahman Educational Schools', school_logo: '', school_background_image: 'https://images.unsplash.com/photo-1510519138101-570d1dcb3d8e?q=80&w=2000&auto=format&fit=crop', sidebar_logo: '', sidebar_short_name: '' }));
       }
     }
@@ -3654,12 +3663,13 @@ WHERE email = $10`,
           }
         }
         // Multi-tenant: حقن school_id تلقائياً (الأولوية لـ req.user school_id)
+        // CRITICAL: Always force school_id to prevent cross-school record creation
         const tenantIdFromUser = req.user?.school_id;
-        if (isTenantTable && tenantIdFromUser && !body.school_id) {
+        if (isTenantTable && tenantIdFromUser) {
           body.school_id = tenantIdFromUser;
         }
         // Gateway lock accounts: scope to the admin's school automatically (Option A shared credential)
-        if (table === 'gateway_accounts' && tenantIdFromUser && !body.school_id) {
+        if (table === 'gateway_accounts' && tenantIdFromUser) {
           body.school_id = tenantIdFromUser;
         }
         
@@ -3812,6 +3822,10 @@ WHERE email = $10`,
         if (keys.length === 0) {
           res.statusCode = 400;
           return res.end(JSON.stringify({ error: 'No fields to update' }));
+        }
+        // Multi-tenant: CRITICAL - force school_id in SET to prevent cross-school record tampering
+        if (isTenantTable && tenantId) {
+          body.school_id = tenantId;
         }
         const sets = keys.map((k, i) => `${sanitizeColumn(k)} = $${i + 1}`);
         const values = keys.map(k => body[k]);
