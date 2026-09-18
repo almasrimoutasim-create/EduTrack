@@ -4019,9 +4019,71 @@ export function createApiHandler() {
         }
       }
 
-      // ── GET /api/school-features/:schoolId — Get enabled features for a school ──
-      if (req.url?.startsWith('/api/school-features/') && req.method === 'GET') {
-        const schoolId = req.url.split('/api/school-features/')[1];
+// ── POST /api/tier-features/:tier/:featureKey — Toggle single feature for a tier (founder only) ──
+        if (req.url?.startsWith('/api/tier-features/') && req.method === 'POST' && !req.url.includes('/bulk')) {
+          res.setHeader('Content-Type', 'application/json');
+          const founder = isFounderUser(req);
+          if (!founder) { res.statusCode = 401; return res.end(JSON.stringify({ error: 'Founder auth required' })); }
+          try {
+            const parts = req.url.split('/api/tier-features/')[1].split('/');
+            const tier = parts[0];
+            const featureKey = parts[1];
+            const body = await parseBody(req);
+            const { enabled } = body;
+            if (!tier || !featureKey || typeof enabled !== 'boolean') {
+              res.statusCode = 400;
+              return res.end(JSON.stringify({ error: 'tier, featureKey and enabled required' }));
+            }
+            await dbQuery(
+              `INSERT INTO tier_features (tier, feature_key, enabled)
+               VALUES ($1, $2, $3)
+               ON CONFLICT (tier, feature_key) DO UPDATE SET enabled = $3`,
+              [tier, featureKey, enabled]
+            );
+            return res.end(JSON.stringify({ ok: true, tier, feature_key: featureKey, enabled }));
+          } catch (error) {
+            console.error('[tier-features/toggle] error:', error);
+            res.statusCode = 500;
+            return res.end(JSON.stringify({ error: error.message }));
+          }
+        }
+
+        // ── POST /api/tier-features/:tier/bulk — Bulk update single tier (founder only) ──
+        if (req.url?.startsWith('/api/tier-features/') && req.url.includes('/bulk') && req.method === 'POST') {
+          res.setHeader('Content-Type', 'application/json');
+          const founder = isFounderUser(req);
+          if (!founder) { res.statusCode = 401; return res.end(JSON.stringify({ error: 'Founder auth required' })); }
+          try {
+            const parts = req.url.split('/api/tier-features/')[1].split('/');
+            const tier = parts[0];
+            const body = await parseBody(req);
+            const { features } = body;
+            if (!tier || !features || typeof features !== 'object') {
+              res.statusCode = 400;
+              return res.end(JSON.stringify({ error: 'tier and features object required' }));
+            }
+            let count = 0;
+            for (const [key, enabled] of Object.entries(features)) {
+              await dbQuery(
+                `INSERT INTO tier_features (tier, feature_key, enabled)
+                 VALUES ($1, $2, $3)
+                 ON CONFLICT (tier, feature_key) DO UPDATE SET enabled = $3`,
+                [tier, key, enabled]
+              );
+              count++;
+            }
+            console.log(`[tier-features/${tier}/bulk] Updated ${count} features`);
+            return res.end(JSON.stringify({ ok: true, tier, updated: count }));
+          } catch (error) {
+            console.error('[tier-features/tier-bulk] error:', error);
+            res.statusCode = 500;
+            return res.end(JSON.stringify({ error: error.message }));
+          }
+        }
+
+        // ── GET /api/school-features/:schoolId — Get enabled features for a school ──
+        if (req.url?.startsWith('/api/school-features/') && req.method === 'GET') {
+          const schoolId = req.url.split('/api/school-features/')[1];
         res.setHeader('Content-Type', 'application/json');
         try {
           const schoolRows = await dbQuery('SELECT plan FROM schools WHERE id = $1', [schoolId]);

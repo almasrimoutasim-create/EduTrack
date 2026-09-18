@@ -7,7 +7,7 @@ import {
   LogOut, CheckCircle2, XCircle, Bell, School as SchoolIcon, TrendingUp,
   Users, CircleDollarSign, RefreshCw, Eye, Plus, Clock, AlertTriangle, AlertCircle, ImageIcon,
   BarChart3, MessageCircle, Save, Download, KeyRound, PauseCircle, Timer,
-  MapPin, Calendar, Phone, Mail, Crown, Zap, Shield, Copy, Printer, Send, UserPlus, Lock, Link2, ExternalLink, GraduationCap, Trash2, SlidersHorizontal
+  MapPin, Calendar, Phone, Mail, Crown, Zap, Shield, Copy, Printer, Send, UserPlus, Lock, Link2, ExternalLink, GraduationCap, Trash2, SlidersHorizontal, Search, X, CheckCircle
 } from "lucide-react";
 import LandingContentEditor from "@/components/LandingContentEditor";
 
@@ -212,12 +212,18 @@ function PaymentReceiptsSection() {
   );
 }
 
+/* ───── إدارة ميزات الخطط — واجهة Matrix تفاعلية ───── */
 function TierFeaturesSection() {
+  const { language } = useLanguage();
+  const isRTL = language === 'ar';
   const [features, setFeatures] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [saveIndicators, setSaveIndicators] = useState({});
   const [localTiers, setLocalTiers] = useState({});
-  const [dirty, setDirty] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [expandedCategories, setExpandedCategories] = useState(null);
+  const [selectedTiers, setSelectedTiers] = useState(['starter', 'professional', 'enterprise']);
 
   useEffect(() => {
     fetchFeatures();
@@ -244,12 +250,32 @@ function TierFeaturesSection() {
     setLoading(false);
   };
 
-  const toggleFeature = (featureKey, tier) => {
+  const toggleFeature = async (featureKey, tier) => {
+    const newValue = !localTiers[featureKey]?.[tier];
     setLocalTiers(prev => ({
       ...prev,
-      [featureKey]: { ...prev[featureKey], [tier]: !prev[featureKey]?.[tier] }
+      [featureKey]: { ...prev[featureKey], [tier]: newValue }
     }));
-    setDirty(true);
+    setSaveIndicators(prev => ({ ...prev, [`${featureKey}-${tier}`]: 'saving' }));
+    try {
+      const token = localStorage.getItem("portal_jwt_token") || localStorage.getItem("jwt_token");
+      const res = await fetch(`/api/tier-features/${tier}/${featureKey}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ enabled: newValue }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      setSaveIndicators(prev => ({ ...prev, [`${featureKey}-${tier}`]: 'saved' }));
+      toast.success("تم الحفظ");
+    } catch (e) {
+      setLocalTiers(prev => ({
+        ...prev,
+        [featureKey]: { ...prev[featureKey], [tier]: !newValue }
+      }));
+      setSaveIndicators(prev => ({ ...prev, [`${featureKey}-${tier}`]: 'error' }));
+      toast.error("فشل الحفظ");
+    }
+    setTimeout(() => setSaveIndicators(prev => { const n = { ...prev }; delete n[`${featureKey}-${tier}`]; return n; }), 1500);
   };
 
   const toggleAllForTier = (tier, enabled) => {
@@ -261,38 +287,32 @@ function TierFeaturesSection() {
       });
       return next;
     });
-    setDirty(true);
+    handleBulkSave(tier, enabled);
   };
 
-  const handleSave = async () => {
+  const handleBulkSave = async (tier, enabled) => {
     setSaving(true);
     try {
       const token = localStorage.getItem("portal_jwt_token") || localStorage.getItem("jwt_token");
-      const tiers = {};
-      ["starter", "professional", "enterprise"].forEach(tier => {
-        tiers[tier] = {};
-        features.forEach(f => {
-          tiers[tier][f.feature_key] = !!localTiers[f.feature_key]?.[tier];
-        });
-      });
-      const res = await fetch("/api/tier-features/bulk", {
+      const toggles = {};
+      features.forEach(f => { toggles[f.feature_key] = enabled; });
+      const res = await fetch(`/api/tier-features/${tier}/bulk`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ tiers }),
+        body: JSON.stringify({ features: toggles }),
       });
       if (!res.ok) throw new Error("Failed");
-      toast.success("تم حفظ الميزات بنجاح");
-      setDirty(false);
+      toast.success(`تم ${enabled ? 'تفعيل' : 'تعطيل'} جميع الميزات لـ ${tier}`);
     } catch (e) {
-      toast.error("فشل حفظ الميزات");
+      toast.error("فشل الحفظ الجماعي");
     }
     setSaving(false);
   };
 
   const categories = [...new Set(features.map(f => f.category))];
   const categoryLabels = {
-    core: "الميزات الأساسية",
-    live: "البث المباشر والمحادثات",
+    core: "الأساسيات",
+    live: "البث والمحادثات",
     extras: "المكتبة والإضافات",
     finance: "المالية والمحافظ",
     logistics: "الخدمات اللوجستية",
@@ -302,10 +322,26 @@ function TierFeaturesSection() {
   };
 
   const tierMeta = {
-    starter: { label: "Starter", color: "bg-slate-600", price: "$49/شهر" },
-    professional: { label: "Professional", color: "bg-blue-600", price: "$99/شهر" },
-    enterprise: { label: "Enterprise", color: "bg-violet-600", price: "$199/شهر" },
+    starter: { label: "Starter", color: "bg-slate-500", textColor: "text-slate-600", bgLight: "bg-slate-50" },
+    professional: { label: "Professional", color: "bg-blue-500", textColor: "text-blue-600", bgLight: "bg-blue-50" },
+    enterprise: { label: "Enterprise", color: "bg-violet-500", textColor: "text-violet-600", bgLight: "bg-violet-50" },
   };
+
+  const filteredFeatures = searchQuery
+    ? features.filter(f =>
+        f.name_ar.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        f.name_en.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        f.feature_key.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : features;
+
+  const groupedFeatures = filteredFeatures.reduce((acc, f) => {
+    if (!acc[f.category]) acc[f.category] = [];
+    acc[f.category].push(f);
+    return acc;
+  }, {});
+
+  const enabledCount = (tier) => features.filter(f => localTiers[f.feature_key]?.[tier]).length;
 
   if (loading) {
     return (
@@ -317,93 +353,141 @@ function TierFeaturesSection() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h3 className="text-lg font-extrabold text-slate-900">إدارة ميزات الخطط</h3>
-          <p className="text-sm text-slate-500 mt-1">تفعيل/تعطيل الميزات لكل خطة اشتراك — التغييرات تؤثر فوراً على المدارس</p>
+          <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
+            <SlidersHorizontal size={20} className="text-blue-500" />
+            إدارة ميزات الخطط
+          </h3>
+          <p className="text-sm text-slate-500 mt-1">
+            تحكم بالباقات الثلاث — التغييرات تُحفظ تلقائياً فور التبديل
+          </p>
         </div>
-        <div className="flex items-center gap-3">
-          {dirty && (
-            <span className="text-xs font-bold text-amber-600 bg-amber-50 px-3 py-1 rounded-full">غيّر غير محفوظ</span>
+        <div className="flex items-center gap-2">
+          {selectedTiers.map(tier => {
+            const count = enabledCount(tier);
+            const total = features.length;
+            const meta = tierMeta[tier];
+            return (
+              <div key={tier} className={`${meta.bgLight} rounded-xl px-4 py-2 text-center border border-slate-200`}>
+                <p className={`font-bold text-sm ${meta.textColor}`}>{meta.label}</p>
+                <p className="text-lg font-extrabold text-slate-900">{count}<span className="text-xs font-normal text-slate-400">/{total}</span></p>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Search Bar + Tier Toggles */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex flex-wrap items-center gap-4">
+        <div className="relative flex-1 min-w-[240px] max-w-md">
+          <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder={isRTL ? "بحث عن صفحة أو ميزة..." : "Search pages or features..."}
+            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          {searchQuery && (
+            <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+              <X size={16} />
+            </button>
           )}
-          <button
-            onClick={handleSave}
-            disabled={saving || !dirty}
-            className={`px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all ${
-              dirty ? "bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-900/30" : "bg-slate-100 text-slate-400 cursor-not-allowed"
-            }`}
-          >
-            <Save size={16} />
-            {saving ? "جاري الحفظ..." : "حفظ التغييرات"}
-          </button>
+        </div>
+        <div className="flex items-center gap-2">
+          {["starter", "professional", "enterprise"].map(tier => {
+            const meta = tierMeta[tier];
+            const isActive = selectedTiers.includes(tier);
+            return (
+              <button
+                key={tier}
+                onClick={() => setSelectedTiers(prev => prev.includes(tier) ? prev.filter(t => t !== tier) : [...prev, tier])}
+                className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all ${
+                  isActive ? `border-${meta.color === 'bg-slate-500' ? 'slate' : meta.color === 'bg-blue-500' ? 'blue' : 'violet'}-500 bg-white shadow-sm` : 'border-slate-200 opacity-50 bg-slate-50'
+                }`}
+              >
+                {meta.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* Tier summary cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {Object.entries(tierMeta).map(([key, meta]) => {
-          const count = features.filter(f => localTiers[f.feature_key]?.[key]).length;
-          return (
-            <div key={key} className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-              <div className="flex items-center gap-3">
-                <span className={`w-3 h-3 rounded-full ${meta.color}`} />
-                <div>
-                  <p className="font-bold text-slate-900">{meta.label}</p>
-                  <p className="text-xs text-slate-400">{meta.price}</p>
-                </div>
-              </div>
-              <p className="mt-3 text-2xl font-extrabold text-slate-900">{count}<span className="text-sm font-normal text-slate-400">/{features.length} ميزة</span></p>
-              <div className="mt-2 flex gap-2">
-                <button onClick={() => toggleAllForTier(key, true)} className="text-xs font-bold text-emerald-600 hover:text-emerald-700">تفعيل الكل</button>
-                <span className="text-slate-300">|</span>
-                <button onClick={() => toggleAllForTier(key, false)} className="text-xs font-bold text-rose-600 hover:text-rose-700">تعطيل الكل</button>
-              </div>
+      {/* Tier Quick Controls */}
+      {selectedTiers.map(tier => (
+        <div key={tier} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="bg-gradient-to-r from-slate-50 to-white border-b border-slate-200 px-5 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className={`w-3 h-3 rounded-full ${tierMeta[tier].color}`} />
+              <h4 className="font-bold text-slate-800">{tierMeta[tier].label}</h4>
+              <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                {enabledCount(tier)}/{features.length} ميزة
+              </span>
             </div>
-          );
-        })}
-      </div>
-
-      {/* Feature matrix by category */}
-      {categories.map(cat => (
-        <div key={cat} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="bg-slate-50 border-b border-slate-200 px-5 py-3">
-            <h4 className="font-bold text-slate-800 text-sm">{categoryLabels[cat] || cat}</h4>
+            <div className="flex gap-2">
+              <button onClick={() => toggleAllForTier(tier, true)} className="text-xs font-bold text-emerald-600 hover:text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg hover:bg-emerald-100 transition">
+                تفعيل الكل ✓
+              </button>
+              <button onClick={() => toggleAllForTier(tier, false)} className="text-xs font-bold text-rose-600 hover:text-rose-700 bg-rose-50 px-3 py-1.5 rounded-lg hover:bg-rose-100 transition">
+                تعطيل الكل ✗
+              </button>
+            </div>
           </div>
           <div className="divide-y divide-slate-100">
-            {features.filter(f => f.category === cat).map(feature => (
-              <div key={feature.feature_key} className="px-5 py-3 flex items-center gap-4">
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-sm text-slate-900">{feature.name_ar}</p>
-                  <p className="text-xs text-slate-400">{feature.name_en} · <code className="text-[10px] bg-slate-100 px-1 rounded">{feature.feature_key}</code></p>
+            {/* Feature headers */}
+            <div className="grid grid-cols-[2fr_1fr_1fr_1fr] px-5 py-2 bg-slate-50 text-xs font-bold text-slate-500">
+              <span>الميزة</span>
+              <span>Status</span>
+              <span>Description</span>
+              <span className="text-right">Toggle</span>
+            </div>
+            {Object.entries(groupedFeatures).map(([cat, catFeatures]) => (
+              <div key={cat}>
+                <div className="px-5 py-2 bg-slate-100 text-xs font-bold text-slate-600">
+                  {categoryLabels[cat] || cat}
                 </div>
-                {["starter", "professional", "enterprise"].map(tier => (
-                  <label key={tier} className="flex items-center gap-2 cursor-pointer shrink-0" title={`${tierMeta[tier].label}: ${localTiers[feature.feature_key]?.[tier] ? "مفعّل" : "معطّل"}`}>
-                    <div
-                      onClick={() => toggleFeature(feature.feature_key, tier)}
-                      className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer ${
-                        localTiers[feature.feature_key]?.[tier] ? "bg-emerald-500" : "bg-slate-200"
-                      }`}
-                    >
-                      <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
-                        localTiers[feature.feature_key]?.[tier] ? "right-0.5 translate-x-4" : "right-0.5"
-                      }`} />
+                {catFeatures.map(feature => (
+                  <div key={feature.feature_key} className="grid grid-cols-[2fr_1fr_1fr_1fr] px-5 py-3 hover:bg-slate-50/50 items-center gap-3">
+                    <div className="min-w-0">
+                      <p className="font-bold text-sm text-slate-900 truncate">{feature.name_ar}</p>
+                      <p className="text-[10px] text-slate-400 truncate">{feature.name_en} · <code className="bg-slate-100 px-1 rounded">{feature.feature_key}</code></p>
                     </div>
-                  </label>
+                    <div>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${localTiers[feature.feature_key]?.[tier] ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                        {localTiers[feature.feature_key]?.[tier] ? 'مفعّل' : 'معطّل'}
+                      </span>
+                    </div>
+                    <div className="text-xs text-slate-500 truncate">{feature.description_ar || feature.name_en}</div>
+                    <div className="flex justify-center">
+                      <button
+                        onClick={() => toggleFeature(feature.feature_key, tier)}
+                        className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer ${
+                          localTiers[feature.feature_key]?.[tier] ? 'bg-emerald-500' : 'bg-slate-200'
+                        }`}
+                      >
+                        <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${
+                          localTiers[feature.feature_key]?.[tier] ? 'right-0.5 translate-x-5' : 'right-0.5'
+                        }`} />
+                        {saveIndicators[`${feature.feature_key}-${tier}`] === 'saving' && (
+                          <div className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 rounded-full animate-pulse" />
+                        )}
+                        {saveIndicators[`${feature.feature_key}-${tier}`] === 'saved' && (
+                          <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full flex items-center justify-center">
+                            <CheckCircle size={10} className="text-white" />
+                          </div>
+                        )}
+                      </button>
+                    </div>
+                  </div>
                 ))}
               </div>
             ))}
           </div>
         </div>
       ))}
-
-      {/* Tier legend */}
-      <div className="flex items-center justify-center gap-6 text-xs text-slate-400">
-        <span className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-slate-600" /> Starter</span>
-        <span className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-blue-600" /> Professional</span>
-        <span className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-violet-600" /> Enterprise</span>
-      </div>
     </div>
   );
 }
@@ -3371,14 +3455,14 @@ function SchoolSubscriptionRequests() {
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-bold text-slate-900">{req.school_name}</span>
+                  <span className="font-bold text-slate-900">{req.school_name || req.name_ar || 'مدرسة'}</span>
                   <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${statusBadge[req.status]?.cls || 'bg-slate-100'}`}>
                     {statusBadge[req.status]?.ar || req.status}
                   </span>
                   <span className="text-xs text-slate-500">{req.current_plan} → {req.requested_plan}</span>
                 </div>
                 <p className="text-xs text-slate-500 mt-1">{isRTL ? 'الباقة:' : 'Plan:'} {req.requested_plan} • {isRTL ? 'الدورة:' : 'Cycle:'} {req.billing_cycle} • {isRTL ? 'المرسل:' : 'Sender:'} {req.sender_name}</p>
-                {req.receipt_url && <img src={req.receipt_url} alt="receipt" className="mt-2 max-h-20 rounded-lg object-contain border" />}
+                {req.payment_receipt_url && <img src={req.payment_receipt_url} alt="receipt" className="mt-2 max-h-20 rounded-lg object-contain border" />}
                 {req.founder_notes && <p className="text-xs text-slate-500 mt-1 italic">ملاحظات: {req.founder_notes}</p>}
               </div>
               {req.status === 'pending' && (
@@ -3398,7 +3482,7 @@ function SchoolSubscriptionRequests() {
           <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-xl">
             <h3 className="font-bold text-lg mb-4">{isRTL ? 'مراجعة الطلب' : 'Review Request'}</h3>
             <div className="bg-slate-50 rounded-xl p-4 mb-4 space-y-2 text-sm">
-              <p><span className="font-semibold">{isRTL ? 'المدرسة:' : 'School:'}</span> {selectedRequest.school_name}</p>
+              <p><span className="font-semibold">{isRTL ? 'المدرسة:' : 'School:'}</span> {selectedRequest.school_name || selectedRequest.name_ar || 'مدرسة'}</p>
               <p><span className="font-semibold">{isRTL ? 'الباقة الحالية:' : 'Current:'}</span> {selectedRequest.current_plan}</p>
               <p><span className="font-semibold">{isRTL ? 'الباقة المطلوبة:' : 'Requested:'}</span> <span className="text-blue-600 font-bold">{selectedRequest.requested_plan}</span></p>
               <p><span className="font-semibold">{isRTL ? 'الدورة:' : 'Cycle:'}</span> {selectedRequest.billing_cycle}</p>
