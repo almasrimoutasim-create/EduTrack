@@ -1823,7 +1823,7 @@ export function createApiHandler() {
       res.setHeader('Content-Type', 'application/json');
       try {
         const body = await parseBody(req);
-        const { role, identifier, password } = body;
+        const { role, identifier, password, schoolId } = body;
 
         if (!identifier || !password) {
           res.statusCode = 400;
@@ -1832,13 +1832,26 @@ export function createApiHandler() {
 
         // 1. Admin login
         if (role === 'admin') {
-          const rows = await dbQuery(
-            `SELECT * FROM system_admins
-             WHERE LOWER(email) = LOWER($1)
-                OR LOWER(username) = LOWER($1)
-                OR LOWER(portal_username) = LOWER($1)`,
-            [identifier]
-          );
+          let rows;
+          if (schoolId) {
+            rows = await dbQuery(
+              `SELECT * FROM system_admins
+               WHERE (LOWER(email) = LOWER($1)
+                   OR LOWER(username) = LOWER($1)
+                   OR LOWER(portal_username) = LOWER($1))
+                 AND school_id = $2`,
+              [identifier, schoolId]
+            );
+          } else {
+            rows = await dbQuery(
+              `SELECT * FROM system_admins
+               WHERE (LOWER(email) = LOWER($1)
+                   OR LOWER(username) = LOWER($1)
+                   OR LOWER(portal_username) = LOWER($1))
+                 AND school_id IS NULL`,
+              [identifier]
+            );
+          }
           if (rows.length === 0) {
             res.statusCode = 401;
             return res.end(JSON.stringify({ error: 'Admin account not found' }));
@@ -1866,14 +1879,26 @@ export function createApiHandler() {
 
         // 2. Teacher login
         if (role === 'teacher') {
-          const rows = await dbQuery(
-            `SELECT * FROM teachers
-             WHERE (LOWER(email) = LOWER($1)
-                 OR LOWER(employee_id) = LOWER($1)
-                 OR LOWER(username) = LOWER($1))
-               AND status = 'active'`,
-            [identifier]
-          );
+          let rows;
+          if (schoolId) {
+            rows = await dbQuery(
+              `SELECT * FROM teachers
+               WHERE (LOWER(email) = LOWER($1)
+                   OR LOWER(employee_id) = LOWER($1)
+                   OR LOWER(username) = LOWER($1))
+                 AND school_id = $2 AND status = 'active'`,
+              [identifier, schoolId]
+            );
+          } else {
+            rows = await dbQuery(
+              `SELECT * FROM teachers
+               WHERE (LOWER(email) = LOWER($1)
+                   OR LOWER(employee_id) = LOWER($1)
+                   OR LOWER(username) = LOWER($1))
+                 AND school_id IS NULL AND status = 'active'`,
+              [identifier]
+            );
+          }
           if (rows.length === 0) {
             res.statusCode = 401;
             return res.end(JSON.stringify({ error: 'Teacher account not found or inactive' }));
@@ -1900,14 +1925,26 @@ export function createApiHandler() {
 
         // 3. Student login
         if (role === 'student') {
-          const rows = await dbQuery(
-            `SELECT * FROM students
-             WHERE (LOWER(user_email) = LOWER($1)
-                 OR LOWER(student_id) = LOWER($1)
-                 OR LOWER(username) = LOWER($1))
-               AND status = 'active'`,
-            [identifier]
-          );
+          let rows;
+          if (schoolId) {
+            rows = await dbQuery(
+              `SELECT * FROM students
+               WHERE (LOWER(user_email) = LOWER($1)
+                   OR LOWER(student_id) = LOWER($1)
+                   OR LOWER(username) = LOWER($1))
+                 AND school_id = $2 AND status = 'active'`,
+              [identifier, schoolId]
+            );
+          } else {
+            rows = await dbQuery(
+              `SELECT * FROM students
+               WHERE (LOWER(user_email) = LOWER($1)
+                   OR LOWER(student_id) = LOWER($1)
+                   OR LOWER(username) = LOWER($1))
+                 AND school_id IS NULL AND status = 'active'`,
+              [identifier]
+            );
+          }
           if (rows.length === 0) {
             res.statusCode = 401;
             return res.end(JSON.stringify({ error: 'Student account not found or inactive' }));
@@ -1934,10 +1971,22 @@ export function createApiHandler() {
 
         // 4. Parent login
         if (role === 'parent') {
-          const rows = await dbQuery(
-            'SELECT * FROM students WHERE parent_email = $1 AND status = \'active\'',
-            [identifier]
-          );
+          let rows;
+          if (schoolId) {
+            rows = await dbQuery(
+              `SELECT * FROM students
+               WHERE (LOWER(parent_email) = LOWER($1) OR LOWER(parent_name) = LOWER($1))
+                 AND school_id = $2 AND status = 'active'`,
+              [identifier, schoolId]
+            );
+          } else {
+            rows = await dbQuery(
+              `SELECT * FROM students
+               WHERE (LOWER(parent_email) = LOWER($1) OR LOWER(parent_name) = LOWER($1))
+                 AND school_id IS NULL AND status = 'active'`,
+              [identifier]
+            );
+          }
           if (rows.length === 0) {
             res.statusCode = 401;
             return res.end(JSON.stringify({ error: 'No student accounts found linked to this parent email' }));
@@ -1963,10 +2012,12 @@ export function createApiHandler() {
           }));
         }
 
-        // 5. Bus supervisor login (supervisors table)
+        // 5. Bus supervisor login
         if (role === 'bus') {
           const rows = await dbQuery(
-            'SELECT * FROM supervisors WHERE email = $1 AND status = \'active\'',
+            `SELECT * FROM supervisors
+             WHERE (LOWER(email) = LOWER($1) OR LOWER(username) = LOWER($1))
+               AND status = 'active'`,
             [identifier]
           );
           if (rows.length === 0) {
@@ -1995,14 +2046,26 @@ export function createApiHandler() {
 
         // 6. Staff members login (staff_members table)
         if (role === 'staff') {
-          const rows = await dbQuery(
-            `SELECT * FROM staff_members
-             WHERE (LOWER(email) = LOWER($1)
-                 OR LOWER(employee_id) = LOWER($1)
-                 OR LOWER(username) = LOWER($1))
-               AND status = 'active'`,
-            [identifier]
-          );
+          let rows;
+          if (schoolId) {
+            rows = await dbQuery(
+              `SELECT * FROM staff_members
+               WHERE (LOWER(email) = LOWER($1)
+                   OR LOWER(employee_id) = LOWER($1)
+                   OR LOWER(username) = LOWER($1))
+                 AND school_id = $2 AND status = 'active'`,
+              [identifier, schoolId]
+            );
+          } else {
+            rows = await dbQuery(
+              `SELECT * FROM staff_members
+               WHERE (LOWER(email) = LOWER($1)
+                   OR LOWER(employee_id) = LOWER($1)
+                   OR LOWER(username) = LOWER($1))
+                 AND school_id IS NULL AND status = 'active'`,
+              [identifier]
+            );
+          }
           if (rows.length === 0) {
             res.statusCode = 401;
             return res.end(JSON.stringify({ error: 'Staff account not found or inactive' }));
@@ -2015,7 +2078,7 @@ export function createApiHandler() {
           
           let staffRole = staff.role || 'staff';
           if (staffRole === 'store_keeper') staffRole = 'store';
-
+          
           const user = {
               id: staff.id,
               full_name: staff.full_name,
