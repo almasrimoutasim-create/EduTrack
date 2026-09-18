@@ -744,11 +744,13 @@ export default function LandingPage() {
       <Dialog open={studentLoginOpen} onOpenChange={setStudentLoginOpen}>
         <DialogContent className="max-w-sm rounded-[24px] p-0 overflow-hidden" dir="rtl">
           <div className="bg-gradient-to-br from-emerald-600 to-teal-600 p-6 text-white text-center">
-            <div className="h-14 w-14 rounded-2xl bg-white/20 flex items-center justify-center mx-auto mb-3">
-              <GraduationCap size={28} />
+            <div className="flex flex-col items-center">
+              <div className="h-14 w-14 rounded-2xl bg-white/20 flex items-center justify-center mb-3">
+                <GraduationCap size={28} />
+              </div>
+              <h3 className="text-lg font-black">دخول بوابة الطالب</h3>
+              <p className="text-white/80 text-xs mt-1">سجّل دخولك لعرض واجباتك ودرجاتك</p>
             </div>
-            <h3 className="text-lg font-black">دخول بوابة الطالب</h3>
-            <p className="text-white/80 text-xs mt-1">سجّل دخولك لعرض واجباتك ودرجاتك</p>
           </div>
           <form onSubmit={handleStudentLogin} className="p-6 space-y-4">
             <div className="space-y-1.5">

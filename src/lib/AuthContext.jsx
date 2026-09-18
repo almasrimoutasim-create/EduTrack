@@ -197,21 +197,21 @@ export const AuthProvider = ({ children }) => {
       if (data.token) {
         localStorage.setItem('portal_jwt_token', data.token);
         // عزل جلسات البوابات المستقلة عن بوابات المدارس لمنع الكتابة فوق بعضها عند الاختبار على نفس المتصفح
-        if (!loggedUser.school_id) {
-          if (loggedUser.role === 'teacher') {
-            localStorage.setItem('ind_teacher_id', loggedUser.id);
-            localStorage.setItem('ind_teacher_name', loggedUser.full_name);
-            localStorage.setItem('ind_teacher_email', loggedUser.email || '');
-            localStorage.setItem('ind_teacher_token', data.token);
-            localStorage.setItem('ind_teacher_user', JSON.stringify(loggedUser));
-          } else if (loggedUser.role === 'student') {
-            localStorage.setItem('ind_student_id', loggedUser.id);
-            localStorage.setItem('ind_student_name', loggedUser.full_name);
-            localStorage.setItem('ind_student_email', loggedUser.email || '');
-            localStorage.setItem('ind_student_token', data.token);
-            localStorage.setItem('ind_student_user', JSON.stringify(loggedUser));
-          }
-        }
+if (!loggedUser.school_id) {
+           if (loggedUser.role === 'teacher') {
+             localStorage.setItem('ind_teacher_id', loggedUser.independent_teacher_id || loggedUser.id);
+             localStorage.setItem('ind_teacher_name', loggedUser.full_name);
+             localStorage.setItem('ind_teacher_email', loggedUser.email || '');
+             localStorage.setItem('ind_teacher_token', data.token);
+             localStorage.setItem('ind_teacher_user', JSON.stringify(loggedUser));
+           } else if (loggedUser.role === 'student') {
+             localStorage.setItem('ind_student_id', loggedUser.independent_student_id || loggedUser.id);
+             localStorage.setItem('ind_student_name', loggedUser.full_name);
+             localStorage.setItem('ind_student_email', loggedUser.email || '');
+             localStorage.setItem('ind_student_token', data.token);
+             localStorage.setItem('ind_student_user', JSON.stringify(loggedUser));
+           }
+         }
       }
 
       return loggedUser;

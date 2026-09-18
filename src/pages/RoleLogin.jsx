@@ -103,6 +103,32 @@ export default function RoleLogin() {
         resolvedRole = "staff";
       }
 
+      // Security: when selecting admin, verify the account isn't a school-member / gateway account
+      if (resolvedRole === "admin") {
+        try {
+          const apiBase = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/$/, "");
+          const checkUrl = apiBase ? `${apiBase}/neon-db/check-account-type` : '/neon-db/check-account-type';
+          const chk = await fetch(checkUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ identifier: identifier.trim(), schoolId: schoolBrand?.id || null })
+          }).then(r => r.json()).catch(() => null);
+          if (chk && chk.type !== 'admin' && chk.type !== 'none') {
+            const typeLabels = {
+              gateway: isRTL ? "حساب أعضاء المدرسة" : "School member account",
+              teacher: isRTL ? "حساب معلم" : "Teacher account",
+              student: isRTL ? "حساب طالب" : "Student account",
+              staff: isRTL ? "حساب موظف" : "Staff account"
+            };
+            setErrorMsg(isRTL
+              ? `هذا الحساب من نوع "${typeLabels[chk.type] || chk.type}" — استخدم البوابة المناسبة.`
+              : `This is a "${typeLabels[chk.type] || chk.type}" — use the correct portal.`);
+            setLoading(false);
+            return;
+          }
+        } catch { /* allow login attempt if check fails */ }
+      }
+
       await login(resolvedRole, identifier.trim(), password, schoolBrand?.id || null);
       window.location.href = selectedRole.path || "/";
     } catch (err) {

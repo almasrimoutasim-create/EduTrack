@@ -138,14 +138,16 @@ export default function Settings() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      // Save to SystemSetting
+      // Resolve current school_id for multi-tenant isolation
+      const schoolId = localStorage.getItem('portal_school_id') || user?.school_id || null;
+      // Save to SystemSetting — include school_id for tenant isolation
+      const payload = { ...formData, school_id: schoolId };
       if (existingSettings?.id) {
-        await entities.SystemSetting.update(existingSettings.id, formData);
+        await entities.SystemSetting.update(existingSettings.id, payload);
       } else {
-        await entities.SystemSetting.create(formData);
+        await entities.SystemSetting.create(payload);
       }
       // Also update schools table branding (for Gateway page)
-      const schoolId = localStorage.getItem('portal_school_id') || user?.school_id;
       if (schoolId) {
         try {
           const apiBase = (import.meta.env.VITE_BACKEND_URL || '').replace(/\/$/, '');

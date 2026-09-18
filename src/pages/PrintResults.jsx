@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useLanguage } from "@/lib/LanguageContext";
+import { useAuth } from "@/lib/AuthContext";
 import PageHeader from "@/components/shared/PageHeader";
 import { toast } from "sonner";
 
@@ -660,6 +661,7 @@ export default function PrintResults() {
   const { language } = useLanguage();
   const isRTL = language === "ar";
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   // ─── State ─────────────────────────────────────────
   const [gradeFilter, setGradeFilter] = useState("all");
@@ -725,6 +727,7 @@ export default function PrintResults() {
   // Save Settings Mutation to Neon DB
   const saveSettingsMutation = useMutation({
     mutationFn: async () => {
+      const schoolId = localStorage.getItem('portal_school_id') || user?.school_id || null;
       const dataToSave = {
         school_name_ar: customSchoolName || null,
         school_logo: customLogo || null,
@@ -733,6 +736,7 @@ export default function PrintResults() {
         academic_year: academicYear || null,
         school_stage: schoolStage || null,
         school_phone: schoolPhone || null,
+        school_id: schoolId,
       };
       if (existingSettings?.id) {
         return await entities.SystemSetting.update(existingSettings.id, dataToSave);

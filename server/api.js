@@ -1344,12 +1344,22 @@ async function dbQuery(queryStr, params = []) {
 
 export function createApiHandler() {
   return async (req, res, next) => {
-    // Public settings (no auth) — للشعار والخلفية في Gateway/Landing + السايدبار المختصر
+    // Public settings (no auth required, but supports JWT fallback) — للشعار والخلفية في Gateway/Landing + السايدبار المختصر
     if ((req.url === '/neon-db/public-settings' || req.url.startsWith('/neon-db/public-settings?')) && req.method === 'GET') {
       res.setHeader('Content-Type', 'application/json');
       try {
         const urlObj = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-        const schoolIdParam = urlObj.searchParams.get('schoolId');
+        let schoolIdParam = urlObj.searchParams.get('schoolId');
+        // JWT fallback: extract school_id from token if no query param provided
+        if (!schoolIdParam) {
+          try {
+            const authHeader = req.headers.authorization;
+            if (authHeader && authHeader.startsWith('Bearer ')) {
+              const decoded = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
+              if (decoded?.school_id) schoolIdParam = decoded.school_id;
+            }
+          } catch { /* no valid JWT — continue without school_id */ }
+        }
         if (!sql) return res.end(JSON.stringify({ school_name_ar: 'مدارس عباد الرحمن التعليمية', school_name_en: 'Abad Al-Rahman Educational Schools', school_logo: '', school_background_image: 'https://images.unsplash.com/photo-1510519138101-570d1dcb3d8e?q=80&w=2000&auto=format&fit=crop', sidebar_logo: '', sidebar_short_name: '' }));
         let rows;
         if (schoolIdParam) {
@@ -1765,6 +1775,20 @@ export function createApiHandler() {
           admRows = await dbQuery("SELECT id, email, role FROM system_admins WHERE role = 'admin' AND (LOWER(email) = LOWER($2) OR LOWER(username) = LOWER($2) OR LOWER(portal_username) = LOWER($2)) LIMIT 1", [id]);
         }
         if (admRows.length > 0) return res.end(JSON.stringify({ type: 'admin', account_type: 'admin', email: admRows[0].email, role: admRows[0].role }));
+
+        // Also check teachers / students / staff so the frontend can warn correctly
+        const tRows = await dbQuery(
+          `SELECT id, email FROM teachers WHERE LOWER(email) = LOWER($1) OR LOWER(username) = LOWER($1) OR LOWER(employee_id) = LOWER($1) LIMIT 1`, [id]);
+        if (tRows.length > 0) return res.end(JSON.stringify({ type: 'teacher', account_type: 'teacher', email: tRows[0].email }));
+
+        const sRows = await dbQuery(
+          `SELECT id, user_email FROM students WHERE LOWER(user_email) = LOWER($1) OR LOWER(username) = LOWER($1) OR LOWER(student_id) = LOWER($1) LIMIT 1`, [id]);
+        if (sRows.length > 0) return res.end(JSON.stringify({ type: 'student', account_type: 'student', email: sRows[0].user_email }));
+
+        const stRows = await dbQuery(
+          `SELECT id, email FROM staff_members WHERE LOWER(email) = LOWER($1) OR LOWER(employee_id) = LOWER($1) LIMIT 1`, [id]);
+        if (stRows.length > 0) return res.end(JSON.stringify({ type: 'staff', account_type: 'staff', email: stRows[0].email }));
+
         return res.end(JSON.stringify({ type: 'none' }));
       } catch (e) {
         return res.end(JSON.stringify({ type: 'none' }));
@@ -1879,6 +1903,28 @@ export function createApiHandler() {
 
         // 1. Admin login
         if (role === 'admin') {
+          // ── Security: verify identifier does NOT belong to a school-member account ──
+          // Gateway / teacher / student / staff accounts must NEVER reach admin dashboard.
+          const gateCheck = await dbQuery(
+            `SELECT 'gw' AS src FROM gateway_accounts WHERE LOWER(username) = LOWER($1)
+             UNION ALL
+             SELECT 't'  AS src FROM teachers   WHERE LOWER(email) = LOWER($1) OR LOWER(username) = LOWER($1) OR LOWER(employee_id) = LOWER($1)
+             UNION ALL
+             SELECT 's'  AS src FROM students    WHERE LOWER(user_email) = LOWER($1) OR LOWER(username) = LOWER($1) OR LOWER(student_id) = LOWER($1)
+             UNION ALL
+             SELECT 'st' AS src FROM staff_members WHERE LOWER(email) = LOWER($1) OR LOWER(employee_id) = LOWER($1)
+             LIMIT 1`,
+            [identifier]
+          );
+          if (gateCheck.length > 0) {
+            res.statusCode = 403;
+            return res.end(JSON.stringify({
+              error: 'Access denied: this account belongs to a school member. Use the appropriate portal.',
+              error_ar: 'تم رفض الوصول: هذا الحساب تابع لأعضاء المدرسة. استخدم البوابة المناسبة.',
+              blocked_type: gateCheck[0].src
+            }));
+          }
+
           let rows;
           if (schoolId) {
             rows = await dbQuery(
@@ -1909,6 +1955,11 @@ export function createApiHandler() {
             res.statusCode = 401;
             return res.end(JSON.stringify({ error: 'Invalid admin credentials' }));
           }
+          // ── Security: bind session to school_id ──
+          if (schoolId && adminRow.school_id && String(adminRow.school_id) !== String(schoolId)) {
+            res.statusCode = 403;
+            return res.end(JSON.stringify({ error: 'Access denied: school mismatch.' }));
+          }
           const user = {
               id: adminRow.id,
               full_name: adminRow.full_name,
@@ -1925,28 +1976,28 @@ export function createApiHandler() {
         }
 
         // 2. Teacher login
-        if (role === 'teacher') {
-          let rows;
-          if (schoolId) {
-            rows = await dbQuery(
-              `SELECT * FROM teachers
-               WHERE (LOWER(email) = LOWER($1)
-                   OR LOWER(employee_id) = LOWER($1)
-                   OR LOWER(username) = LOWER($1))
-                 AND school_id = $2 AND status = 'active'`,
-              [identifier, schoolId]
-            );
-          } else {
-            rows = await dbQuery(
-              `SELECT * FROM teachers
-               WHERE (LOWER(email) = LOWER($1)
-                   OR LOWER(employee_id) = LOWER($1)
-                   OR LOWER(username) = LOWER($1))
-                 AND school_id IS NULL AND status = 'active'`,
-              [identifier]
-            );
-          }
-          if (rows.length === 0) {
+if (role === 'teacher') {
+           let rows;
+           if (schoolId) {
+             rows = await dbQuery(
+               `SELECT * FROM teachers
+                WHERE (LOWER(email) = LOWER($1)
+                    OR LOWER(employee_id) = LOWER($1)
+                    OR LOWER(username) = LOWER($1))
+                  AND school_id = $2 AND status = 'active'`,
+               [identifier, schoolId]
+             );
+           } else {
+             rows = await dbQuery(
+               `SELECT * FROM teachers
+                WHERE (LOWER(email) = LOWER($1)
+                    OR LOWER(employee_id) = LOWER($1)
+                    OR LOWER(username) = LOWER($1))
+                  AND school_id IS NULL AND status = 'active'`,
+               [identifier]
+);
+           }
+           if (rows.length === 0) {
             res.statusCode = 401;
             return res.end(JSON.stringify({ error: 'Teacher account not found or inactive' }));
           }
@@ -1955,43 +2006,44 @@ export function createApiHandler() {
             res.statusCode = 401;
             return res.end(JSON.stringify({ error: 'Invalid password' }));
           }
-          const user = {
-              id: teacher.id,
-              full_name: teacher.full_name,
-              email: teacher.email,
-              role: 'teacher',
-              school_id: teacher.school_id || null
-          };
-          const token = jwt.sign(user, JWT_SECRET, { expiresIn: '24h' });
-          return res.end(JSON.stringify({
-            success: true,
-            user,
-            token
-          }));
+const user = {
+               id: teacher.id,
+               full_name: teacher.full_name,
+               email: teacher.email,
+               role: 'teacher',
+               school_id: teacher.school_id || null,
+               independent_teacher_id: teacher.independent_teacher_id || null
+           };
+           const token = jwt.sign(user, JWT_SECRET, { expiresIn: '24h' });
+           return res.end(JSON.stringify({
+             success: true,
+             user,
+             token
+           }));
         }
 
         // 3. Student login
-        if (role === 'student') {
-          let rows;
-          if (schoolId) {
-            rows = await dbQuery(
-              `SELECT * FROM students
-               WHERE (LOWER(user_email) = LOWER($1)
-                   OR LOWER(student_id) = LOWER($1)
-                   OR LOWER(username) = LOWER($1))
-                 AND school_id = $2 AND status = 'active'`,
-              [identifier, schoolId]
-            );
-          } else {
-            rows = await dbQuery(
-              `SELECT * FROM students
-               WHERE (LOWER(user_email) = LOWER($1)
-                   OR LOWER(student_id) = LOWER($1)
-                   OR LOWER(username) = LOWER($1))
-                 AND school_id IS NULL AND status = 'active'`,
-              [identifier]
-            );
-          }
+if (role === 'student') {
+           let rows;
+           if (schoolId) {
+             rows = await dbQuery(
+               `SELECT * FROM students
+                WHERE (LOWER(user_email) = LOWER($1)
+                    OR LOWER(student_id) = LOWER($1)
+                    OR LOWER(username) = LOWER($1))
+                  AND school_id = $2 AND status = 'active'`,
+               [identifier, schoolId]
+             );
+           } else {
+             rows = await dbQuery(
+               `SELECT * FROM students
+                WHERE (LOWER(user_email) = LOWER($1)
+                    OR LOWER(student_id) = LOWER($1)
+                    OR LOWER(username) = LOWER($1))
+                  AND school_id IS NULL AND status = 'active'`,
+               [identifier]
+             );
+           }
           if (rows.length === 0) {
             res.statusCode = 401;
             return res.end(JSON.stringify({ error: 'Student account not found or inactive' }));
@@ -2001,20 +2053,21 @@ export function createApiHandler() {
             res.statusCode = 401;
             return res.end(JSON.stringify({ error: 'Invalid password' }));
           }
-          const user = {
-              id: student.id,
-              full_name: student.full_name,
-              email: student.user_email,
-              role: 'student',
-              school_id: student.school_id || null
-          };
-          const token = jwt.sign(user, JWT_SECRET, { expiresIn: '24h' });
-          return res.end(JSON.stringify({
-            success: true,
-            user,
-            token
-          }));
-        }
+const user = {
+               id: student.id,
+               full_name: student.full_name,
+               email: student.user_email,
+               role: 'student',
+               school_id: student.school_id || null,
+               independent_student_id: student.independent_student_id || null
+           };
+           const token = jwt.sign(user, JWT_SECRET, { expiresIn: '24h' });
+           return res.end(JSON.stringify({
+             success: true,
+             user,
+             token
+           }));
+         }
 
         // 4. Parent login
         if (role === 'parent') {
@@ -2061,12 +2114,12 @@ export function createApiHandler() {
 
         // 5. Bus supervisor login
         if (role === 'bus') {
-          const rows = await dbQuery(
-            `SELECT * FROM supervisors
-             WHERE (LOWER(email) = LOWER($1) OR LOWER(username) = LOWER($1))
-               AND status = 'active'`,
-            [identifier]
-          );
+const rows = await dbQuery(
+              `SELECT * FROM supervisors
+               WHERE LOWER(email) = LOWER($1)
+                 AND status = 'active'`,
+              [identifier]
+            );
           if (rows.length === 0) {
             res.statusCode = 401;
             return res.end(JSON.stringify({ error: 'Bus supervisor account not found or inactive' }));
@@ -2098,8 +2151,7 @@ export function createApiHandler() {
             rows = await dbQuery(
               `SELECT * FROM staff_members
                WHERE (LOWER(email) = LOWER($1)
-                   OR LOWER(employee_id) = LOWER($1)
-                   OR LOWER(username) = LOWER($1))
+                   OR LOWER(employee_id) = LOWER($1))
                  AND school_id = $2 AND status = 'active'`,
               [identifier, schoolId]
             );
@@ -2107,8 +2159,7 @@ export function createApiHandler() {
             rows = await dbQuery(
               `SELECT * FROM staff_members
                WHERE (LOWER(email) = LOWER($1)
-                   OR LOWER(employee_id) = LOWER($1)
-                   OR LOWER(username) = LOWER($1))
+                   OR LOWER(employee_id) = LOWER($1))
                  AND school_id IS NULL AND status = 'active'`,
               [identifier]
             );
@@ -2214,6 +2265,7 @@ export function createApiHandler() {
 
         const hashedPassword = hashPassword(password);
         const studentId = `STU-${Date.now().toString().slice(-6)}`;
+        const indStudentId = `IND-${Date.now().toString().slice(-6)}-${Math.random().toString(36).slice(2, 6)}`;
 
         // Founder approval is ALWAYS the independent flow: force school detachment + independent type
         // Check if student already exists with this user_email
@@ -2221,8 +2273,8 @@ export function createApiHandler() {
         if (existing.length > 0) {
           await dbQuery(
             `UPDATE students
-             SET full_name = $1, phone = $2, grade = $3, parent_name = $4, parent_phone = $5, parent_email = $6, school_name = $7, city = $8, portal_password = $9, portal_password_plain = $10, student_type = 'independent', status = 'active', school_id = NULL
-             WHERE user_email = $11`,
+             SET full_name = $1, phone = $2, grade = $3, parent_name = $4, parent_phone = $5, parent_email = $6, school_name = $7, city = $8, portal_password = $9, portal_password_plain = $10, student_type = 'independent', status = 'active', school_id = NULL, username = $11, independent_student_id = $12
+             WHERE user_email = $13`,
             [
               reg.full_name || 'طالب',
               reg.phone || null,
@@ -2234,13 +2286,15 @@ export function createApiHandler() {
               reg.country || null,
               hashedPassword,
               password,
+              username.trim().toLowerCase(),
+              indStudentId,
               username.trim().toLowerCase()
             ]
           );
         } else {
           await dbQuery(
-            `INSERT INTO students (full_name, user_email, student_id, phone, grade, parent_name, parent_phone, parent_email, school_name, city, status, portal_password, portal_password_plain, student_type, school_id)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'active', $11, $12, 'independent', NULL)`,
+            `INSERT INTO students (full_name, user_email, student_id, phone, grade, parent_name, parent_phone, parent_email, school_name, city, status, portal_password, portal_password_plain, student_type, school_id, username, independent_student_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'active', $11, $12, 'independent', NULL, $13, $14)`,
             [
               reg.full_name || 'طالب جديد',
               username.trim().toLowerCase(),
@@ -2253,7 +2307,9 @@ export function createApiHandler() {
               reg.school_name || null,
               reg.country || null,
               hashedPassword,
-              password
+              password,
+              username.trim().toLowerCase(),
+              indStudentId
             ]
           );
         }
@@ -2266,7 +2322,7 @@ export function createApiHandler() {
           [username.trim(), password, requestId]
         );
 
-        return res.end(JSON.stringify({ success: true, message: 'Student approved successfully', studentId }));
+        return res.end(JSON.stringify({ success: true, message: 'Student approved successfully', studentId, independentStudentId: indStudentId }));
       } catch (error) {
         console.error('[approve-student] error:', error);
         res.statusCode = 500;
@@ -2298,29 +2354,32 @@ export function createApiHandler() {
 
         const hashedPassword = hashPassword(password);
         const empId = `TCH-${Date.now().toString().slice(-6)}`;
+        const indTeacherId = `IND-${Date.now().toString().slice(-6)}-${Math.random().toString(36).slice(2, 6)}`;
 
         // Founder approval is ALWAYS the independent flow: force school detachment + independent type
         const existing = await dbQuery('SELECT id FROM teachers WHERE email = $1', [username.trim().toLowerCase()]);
         if (existing.length > 0) {
           await dbQuery(
             `UPDATE teachers
-             SET full_name = $1, phone = $2, subjects = $3, experience_years = $4, bio = $5, portal_password = $6, portal_password_plain = $7, teacher_type = 'independent', status = 'active', school_id = NULL
-             WHERE email = $8`,
-            [
-              reg.full_name || 'معلم',
-              reg.phone || null,
-              reg.subjects || null,
-              parseInt(reg.experience_years) || null,
-              reg.bio || null,
-              hashedPassword,
-              password,
-              username.trim().toLowerCase()
-            ]
-          );
+             SET full_name = $1, phone = $2, subjects = $3, experience_years = $4, bio = $5, portal_password = $6, portal_password_plain = $7, teacher_type = 'independent', status = 'active', school_id = NULL, username = $8, independent_teacher_id = $9
+WHERE email = $10`,
+             [
+               reg.full_name || 'معلم',
+               reg.phone || null,
+               reg.subjects || null,
+               parseInt(reg.experience_years) || null,
+               reg.bio || null,
+               hashedPassword,
+               password,
+               username.trim().toLowerCase(),
+               indTeacherId,
+               username.trim().toLowerCase()
+             ]
+           );
         } else {
           await dbQuery(
-            `INSERT INTO teachers (full_name, email, employee_id, phone, subjects, experience_years, bio, status, portal_password, portal_password_plain, teacher_type, school_id)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, 'active', $8, $9, 'independent', NULL)`,
+            `INSERT INTO teachers (full_name, email, employee_id, phone, subjects, experience_years, bio, status, portal_password, portal_password_plain, teacher_type, school_id, username, independent_teacher_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, 'active', $8, $9, 'independent', NULL, $10, $11)`,
             [
               reg.full_name || 'معلم جديد',
               username.trim().toLowerCase(),
@@ -2330,7 +2389,9 @@ export function createApiHandler() {
               parseInt(reg.experience_years) || null,
               reg.bio || null,
               hashedPassword,
-              password
+              password,
+              username.trim().toLowerCase(),
+              indTeacherId
             ]
           );
         }
@@ -2343,7 +2404,7 @@ export function createApiHandler() {
           [username.trim(), password, requestId]
         );
 
-        return res.end(JSON.stringify({ success: true, message: 'Teacher approved successfully', empId }));
+        return res.end(JSON.stringify({ success: true, message: 'Teacher approved successfully', empId, independentTeacherId }));
       } catch (error) {
         console.error('[approve-teacher] error:', error);
         res.statusCode = 500;
@@ -2551,7 +2612,8 @@ export function createApiHandler() {
         try {
           const me = getBearerUser(req);
           if (!me) { res.statusCode = 401; return res.end(JSON.stringify({ error: 'Auth required' })); }
-          const data = await dbQuery('SELECT id, full_name, email, bank_account, avatar_url FROM teachers WHERE id = $1', [me.id]);
+          const lookupId = me.independent_teacher_id || me.id;
+          const data = await dbQuery('SELECT id, full_name, email, bank_account, avatar_url, independent_teacher_id FROM teachers WHERE id = $1 OR independent_teacher_id = $1 LIMIT 1', [lookupId]);
           if (!data[0]) { res.statusCode = 404; return res.end(JSON.stringify({ error: 'Teacher not found' })); }
           return res.end(JSON.stringify({ success: true, ...data[0] }));
         } catch (error) {
@@ -2565,17 +2627,16 @@ export function createApiHandler() {
         try {
           const me = getBearerUser(req);
           if (!me) { res.statusCode = 401; return res.end(JSON.stringify({ error: 'Auth required' })); }
+          const meId = me.independent_teacher_id || me.id;
           const body = await parseBody(req);
           let { bank_account, avatar_url, avatarFile, avatarName } = body;
-          // handle base64 avatar upload - store as data URL for instant display (no file persistence needed on Render/Vercel)
           if (avatarFile) {
-            // try to also write file for backwards compat, but primary is data URL
             try {
               const fs = await import('fs');
               const pathMod = await import('path');
               const uploadDir = pathMod.join(process.cwd(), 'public', 'uploads');
               if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-              const safeName = `teacher_${me.id}_avatar_${Date.now()}.png`;
+              const safeName = `teacher_${meId}_avatar_${Date.now()}.png`;
               fs.writeFileSync(pathMod.join(uploadDir, safeName), Buffer.from(avatarFile, 'base64'));
             } catch {}
             const ext = (avatarName || '').toLowerCase().endsWith('.jpg') || (avatarName || '').toLowerCase().endsWith('.jpeg') ? 'jpeg' : 'png';
@@ -2588,12 +2649,11 @@ export function createApiHandler() {
           if (avatar_url !== undefined) { updates.push(`avatar_url = $${idx++}`); vals.push(avatar_url); }
           if (updates.length === 0) return res.end(JSON.stringify({ success: true }));
           updates.push(`updated_at = CURRENT_TIMESTAMP`);
-          vals.push(me.id);
-          // إذا حدّث المعلم حسابه، حدّث أيضاً الطلبات التي قُبلت بدون حساب (التي تظهر "غير محدد")
+          vals.push(meId);
           if (bank_account) {
-            await dbQuery(`UPDATE student_teacher_bonds SET teacher_bank_account = $1 WHERE teacher_id = $2 AND payment_status IN ('pending_payment','receipt_uploaded') AND (teacher_bank_account IS NULL OR teacher_bank_account = '')`, [bank_account, me.id]).catch(()=>{});
+            await dbQuery(`UPDATE student_teacher_bonds SET teacher_bank_account = $1 WHERE teacher_id = $2 AND payment_status IN ('pending_payment','receipt_uploaded') AND (teacher_bank_account IS NULL OR teacher_bank_account = '')`, [bank_account, meId]).catch(()=>{});
           }
-          await dbQuery(`UPDATE teachers SET ${updates.join(', ')} WHERE id = $${idx}`, vals);
+          await dbQuery(`UPDATE teachers SET ${updates.join(', ')} WHERE id = $1 OR independent_teacher_id = $1`, [...vals.slice(0, -1), vals[vals.length - 1], meId]);
           return res.end(JSON.stringify({ success: true, avatar_url }));
         } catch (error) {
           res.statusCode = 500;
@@ -2684,12 +2744,14 @@ export function createApiHandler() {
           return res.end(JSON.stringify({ error: 'teacherId or studentId query parameter is required' }));
         }
         // Ownership: callers may only read their own bonds (founder bypasses)
+        const teacherLookupId = me.independent_teacher_id || me.id;
+        const studentLookupId = me.independent_student_id || me.id;
         if (me.role !== 'founder') {
-          if (teacherId && (me.role !== 'teacher' || teacherId !== me.id)) {
+          if (teacherId && (me.role !== 'teacher' || (teacherId !== me.id && teacherId !== teacherLookupId))) {
             res.statusCode = 403;
             return res.end(JSON.stringify({ error: 'Forbidden' }));
           }
-          if (studentId && (me.role !== 'student' || studentId !== me.id)) {
+          if (studentId && (me.role !== 'student' || (studentId !== me.id && studentId !== studentLookupId))) {
             res.statusCode = 403;
             return res.end(JSON.stringify({ error: 'Forbidden' }));
           }
@@ -2698,15 +2760,15 @@ export function createApiHandler() {
         const bonds = teacherId
           ? await dbQuery(
               `SELECT b.* FROM student_teacher_bonds b
-               JOIN teachers t ON t.id = b.teacher_id
-               WHERE b.teacher_id = $1 AND b.school_id = t.school_id
+               JOIN teachers t ON t.id = b.teacher_id OR t.independent_teacher_id = b.teacher_id
+               WHERE (b.teacher_id = $1 OR t.independent_teacher_id = $1) AND (b.school_id = t.school_id OR t.school_id IS NULL)
                ORDER BY b.created_at DESC`,
               [teacherId]
             )
           : await dbQuery(
               `SELECT b.* FROM student_teacher_bonds b
-               JOIN students s ON s.id = b.student_id
-               WHERE b.student_id = $1 AND b.school_id = s.school_id
+               JOIN students s ON s.id = b.student_id OR s.independent_student_id = b.student_id
+               WHERE (b.student_id = $1 OR s.independent_student_id = $1) AND (b.school_id = s.school_id OR s.school_id IS NULL)
                ORDER BY b.created_at DESC`,
               [studentId]
             );
@@ -3255,91 +3317,96 @@ export function createApiHandler() {
       }
 
       // Multi-tenant helpers
-       const TENANT_TABLES_SET = new Set(['students','teachers','attendance','subjects','library_books','financial_records','activity_posts','activity_comments','activity_chats','audit_logs','bus_drivers','bus_driver_reports','card_top_ups','class_schedules','donations','friend_requests','store_items','purchases','study_rooms','study_groups','study_group_posts','study_materials','student_awards','student_grades','student_reports','supervisors','staff_members','teacher_ratings','teacher_tasks','portal_access_configs','portal_groups','portal_group_messages','portal_notifications','private_messages','room_messages','room_videos','book_reviews','message_read_receipts','typing_indicators','fines','parent_link_requests','virtual_sessions','session_participants','official_announcements','counseling_cases','case_assessments','intervention_plans','follow_ups','case_visibility_logs','fee_structures','student_fees','fee_payments','activity_fees','student_activity_fees','student_wallet','wallet_transactions','hall_rentals','other_revenue','expenses','salary_records','purchase_orders','visitors','system_admins','student_teacher_bonds','bond_payments','school_subscriptions']);
+       const TENANT_TABLES_SET = new Set(['students','teachers','attendance','subjects','library_books','financial_records','activity_posts','activity_comments','activity_chats','audit_logs','bus_drivers','bus_driver_reports','card_top_ups','class_schedules','donations','friend_requests','store_items','purchases','study_rooms','study_groups','study_group_posts','study_materials','student_awards','student_grades','student_reports','supervisors','staff_members','teacher_ratings','teacher_tasks','portal_access_configs','portal_groups','portal_group_messages','portal_notifications','private_messages','room_messages','room_videos','book_reviews','message_read_receipts','typing_indicators','fines','parent_link_requests','virtual_sessions','session_participants','official_announcements','counseling_cases','case_assessments','intervention_plans','follow_ups','case_visibility_logs','fee_structures','student_fees','fee_payments','activity_fees','student_activity_fees','student_wallet','wallet_transactions','hall_rentals','other_revenue','expenses','salary_records','purchase_orders','visitors','system_admins','system_settings','student_teacher_bonds','bond_payments','school_subscriptions']);
       const isTenantTable = TENANT_TABLES_SET.has(table);
       const tenantId = req.user?.school_id || null;
 
       // ===== Independent Teacher Portal Tables =====
-      sql`
-        CREATE TABLE IF NOT EXISTS teacher_own_students (
-          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          teacher_id UUID NOT NULL,
-          school_id UUID,
-          student_name TEXT NOT NULL,
-          student_email TEXT,
-          student_phone TEXT,
-          grade TEXT,
-          parent_name TEXT,
-          parent_phone TEXT,
-          parent_email TEXT,
-          status TEXT DEFAULT 'active',
-          joined_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-        )
+       sql`
+         CREATE TABLE IF NOT EXISTS teacher_own_students (
+           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+           teacher_id UUID NOT NULL,
+           independent_teacher_id VARCHAR(50),
+           school_id UUID,
+           student_name TEXT NOT NULL,
+           student_email TEXT,
+           student_phone TEXT,
+           grade TEXT,
+           parent_name TEXT,
+           parent_phone TEXT,
+           parent_email TEXT,
+           status TEXT DEFAULT 'active',
+           joined_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+           created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+         )
       `.then(() => console.log('[neon] teacher_own_students table verified'))
         .catch(err => console.error('[neon] teacher_own_students:', err.message));
 
-      sql`
-        CREATE TABLE IF NOT EXISTS teacher_assignments (
-          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          teacher_id UUID NOT NULL,
-          school_id UUID,
-          title TEXT NOT NULL,
-          description TEXT,
-          subject TEXT,
-          grade TEXT,
-          due_date TIMESTAMP WITH TIME ZONE,
-          total_points INTEGER DEFAULT 100,
-          attachment_url TEXT,
-          status TEXT DEFAULT 'active',
-          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-        )
-      `.then(() => console.log('[neon] teacher_assignments table verified'))
-        .catch(err => console.error('[neon] teacher_assignments:', err.message));
+       sql`
+         CREATE TABLE IF NOT EXISTS teacher_assignments (
+           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+           teacher_id UUID NOT NULL,
+           independent_teacher_id VARCHAR(50),
+           school_id UUID,
+           title TEXT NOT NULL,
+           description TEXT,
+           subject TEXT,
+           grade TEXT,
+           due_date TIMESTAMP WITH TIME ZONE,
+           total_points INTEGER DEFAULT 100,
+           attachment_url TEXT,
+           status TEXT DEFAULT 'active',
+           created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+         )
+       `.then(() => console.log('[neon] teacher_assignments table verified'))
+         .catch(err => console.error('[neon] teacher_assignments:', err.message));
 
-      sql`
-        CREATE TABLE IF NOT EXISTS teacher_exams (
-          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          teacher_id UUID NOT NULL,
-          school_id UUID,
+       sql`
+         CREATE TABLE IF NOT EXISTS teacher_exams (
+           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+           teacher_id UUID NOT NULL,
+           independent_teacher_id VARCHAR(50),
+           school_id UUID,
           title TEXT NOT NULL,
           description TEXT,
           subject TEXT,
           grade TEXT,
           duration_minutes INTEGER DEFAULT 60,
           total_points INTEGER DEFAULT 100,
-          questions JSONB DEFAULT '[]',
-          due_date TIMESTAMP WITH TIME ZONE,
-          status TEXT DEFAULT 'active',
-          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-        )
-      `.then(() => console.log('[neon] teacher_exams table verified'))
-        .catch(err => console.error('[neon] teacher_exams:', err.message));
+           questions JSONB DEFAULT '[]',
+           due_date TIMESTAMP WITH TIME ZONE,
+           status TEXT DEFAULT 'active',
+           created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+         )
+       `.then(() => console.log('[neon] teacher_exams table verified'))
+         .catch(err => console.error('[neon] teacher_exams:', err.message));
 
-      sql`
-        CREATE TABLE IF NOT EXISTS teacher_submissions (
-          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          teacher_id UUID NOT NULL,
-          assignment_id UUID,
-          exam_id UUID,
-          student_id UUID,
-          student_name TEXT,
-          school_id UUID,
-          answers JSONB DEFAULT '{}',
-          score NUMERIC,
-          feedback TEXT,
-          status TEXT DEFAULT 'submitted',
-          submitted_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-          graded_at TIMESTAMP WITH TIME ZONE
-        )
-      `.then(() => console.log('[neon] teacher_submissions table verified'))
-        .catch(err => console.error('[neon] teacher_submissions:', err.message));
+       sql`
+         CREATE TABLE IF NOT EXISTS teacher_submissions (
+           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+           teacher_id UUID NOT NULL,
+           independent_teacher_id VARCHAR(50),
+           assignment_id UUID,
+           exam_id UUID,
+           student_id UUID,
+           student_name TEXT,
+           school_id UUID,
+           answers JSONB DEFAULT '{}',
+           score NUMERIC,
+           feedback TEXT,
+           status TEXT DEFAULT 'submitted',
+           submitted_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+           graded_at TIMESTAMP WITH TIME ZONE
+         )
+       `.then(() => console.log('[neon] teacher_submissions table verified'))
+         .catch(err => console.error('[neon] teacher_submissions:', err.message));
 
-      sql`
-        CREATE TABLE IF NOT EXISTS teacher_live_classes (
-          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          teacher_id UUID NOT NULL,
-          school_id UUID,
+       sql`
+         CREATE TABLE IF NOT EXISTS teacher_live_classes (
+           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+           teacher_id UUID NOT NULL,
+           independent_teacher_id VARCHAR(50),
+           school_id UUID,
           title TEXT NOT NULL,
           description TEXT,
           subject TEXT,
@@ -3356,20 +3423,21 @@ export function createApiHandler() {
         .catch(err => console.error('[neon] teacher_live_classes:', err.message));
 
       sql`
-        CREATE TABLE IF NOT EXISTS class_participants (
-          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          class_id UUID NOT NULL,
-          student_id UUID,
-          student_name TEXT,
-          school_id UUID,
-          joined_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-          left_at TIMESTAMP WITH TIME ZONE
-        )
-      `.then(() => console.log('[neon] class_participants table verified'))
-        .catch(err => console.error('[neon] class_participants:', err.message));
+         CREATE TABLE IF NOT EXISTS class_participants (
+           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+           class_id UUID NOT NULL,
+           student_id UUID,
+           independent_student_id VARCHAR(50),
+           student_name TEXT,
+           school_id UUID,
+           joined_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+           left_at TIMESTAMP WITH TIME ZONE
+         )
+       `.then(() => console.log('[neon] class_participants table verified'))
+         .catch(err => console.error('[neon] class_participants:', err.message));
 
-      sql`
-        CREATE TABLE IF NOT EXISTS teacher_youtube_videos (
+       sql`
+         CREATE TABLE IF NOT EXISTS teacher_youtube_videos (
           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
           teacher_id UUID NOT NULL,
           school_id UUID,
@@ -3429,10 +3497,22 @@ export function createApiHandler() {
           school_id UUID,
           created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
         )
-      `.then(() => console.log('[neon] curriculum_books table verified'))
-        .catch(err => console.error('[neon] curriculum_books:', err.message));
+       `.then(() => console.log('[neon] curriculum_books table verified'))
+         .catch(err => console.error('[neon] curriculum_books:', err.message));
 
-      // ===== LIST =====
+       // Add independent_teacher_id/independent_student_id columns to entity tables for tenant isolation
+       const IND_COLS_SQL = `
+         DO $$ BEGIN
+           ALTER TABLE teacher_own_students ADD COLUMN IF NOT EXISTS independent_teacher_id VARCHAR(50);
+           ALTER TABLE teacher_assignments ADD COLUMN IF NOT EXISTS independent_teacher_id VARCHAR(50);
+           ALTER TABLE teacher_exams ADD COLUMN IF NOT EXISTS independent_teacher_id VARCHAR(50);
+           ALTER TABLE teacher_submissions ADD COLUMN IF NOT EXISTS independent_teacher_id VARCHAR(50);
+           ALTER TABLE teacher_live_classes ADD COLUMN IF NOT EXISTS independent_teacher_id VARCHAR(50);
+           ALTER TABLE class_participants ADD COLUMN IF NOT EXISTS independent_teacher_id VARCHAR(50);
+         EXCEPTION WHEN duplicate_column THEN END $$;`;
+       dbQuery(IND_COLS_SQL).catch(()=>{});
+
+       // ===== LIST =====
       if (req.method === 'GET' && !entityId) {
         let orderBy = searchParams.get('order') || '-created_at';
         const limit = parseInt(searchParams.get('limit')) || 200;
@@ -3453,6 +3533,28 @@ export function createApiHandler() {
             const filters = JSON.parse(filterStr);
             if (filters && typeof filters === 'object') {
               for (const [key, val] of Object.entries(filters)) {
+                // Resolve independent_teacher_id to database teacher_id
+                if (key === 'teacher_id' && typeof val === 'string' && val.startsWith('IND-')) {
+                  const resolved = await dbQuery(`SELECT id FROM teachers WHERE independent_teacher_id = $1 LIMIT 1`, [val]);
+                  if (resolved.length > 0) {
+                    const actualKey = sanitizeColumn('teacher_id');
+                    conditions.push(`${actualKey} = $${paramIdx}`);
+                    values.push(resolved[0].id);
+                    paramIdx++;
+                  }
+                  continue;
+                }
+                // Resolve independent_student_id to database student_id
+                if (key === 'student_id' && typeof val === 'string' && val.startsWith('IND-')) {
+                  const resolved = await dbQuery(`SELECT id FROM students WHERE independent_student_id = $1 LIMIT 1`, [val]);
+                  if (resolved.length > 0) {
+                    const actualKey = sanitizeColumn('student_id');
+                    conditions.push(`${actualKey} = $${paramIdx}`);
+                    values.push(resolved[0].id);
+                    paramIdx++;
+                  }
+                  continue;
+                }
                 let actualKey = key;
                 if (table === 'portal_notifications' && key === 'recipient_id') {
                   actualKey = 'user_id';
@@ -3535,6 +3637,22 @@ export function createApiHandler() {
       // ===== CREATE =====
       if (req.method === 'POST') {
         const body = await parseBody(req);
+        // Resolve independent IDs to database UUIDs for entity tables
+        const IND_PREFIX = 'IND-';
+        const teacherTables = new Set(['teacher_own_students', 'teacher_assignments', 'teacher_exams', 'teacher_submissions', 'teacher_live_classes', 'class_participants']);
+        const isTeacherTable = teacherTables.has(table);
+        const idCols = isTeacherTable ? ['teacher_id'] : ['student_id'];
+        for (const col of idCols) {
+          if (body[col] && typeof body[col] === 'string' && body[col].startsWith(IND_PREFIX)) {
+            const indCol = `independent_${col}`;
+            const indVal = body[col];
+            const resolved = await dbQuery(`SELECT id FROM ${isTeacherTable ? 'teachers' : 'students'} WHERE ${indCol} = $1 LIMIT 1`, [indVal]);
+            if (resolved.length > 0) {
+              body[col] = resolved[0].id;
+              body[indCol] = indVal;
+            }
+          }
+        }
         // Multi-tenant: حقن school_id تلقائياً (الأولوية لـ req.user school_id)
         const tenantIdFromUser = req.user?.school_id;
         if (isTenantTable && tenantIdFromUser && !body.school_id) {
