@@ -640,10 +640,11 @@ if (process.env.DATABASE_URL) {
     sql`ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS school_stage TEXT;`.catch(()=>{});
     sql`ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS school_phone TEXT;`.catch(()=>{});
     sql`ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS sidebar_logo TEXT;`.catch(()=>{});
-    sql`ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS sidebar_short_name TEXT;`.catch(()=>{});
-  }).catch(err => {
-    console.error('[neon] failed to verify/create system_settings table:', err.message);
-  });
+     sql`ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS sidebar_short_name TEXT;`.catch(()=>{});
+     sql`ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS school_id UUID;`.catch(()=>{});
+   }).catch(err => {
+     console.error('[neon] failed to verify/create system_settings table:', err.message);
+   });
 
   // Auto-create schools table (SaaS — لوحة المؤسس)
   sql`
@@ -1002,9 +1003,10 @@ if (process.env.DATABASE_URL) {
     await sql`ALTER TABLE teacher_subscription_requests ADD COLUMN IF NOT EXISTS trial_end_date TIMESTAMP WITH TIME ZONE`.catch(()=>{});
     await sql`ALTER TABLE teacher_subscription_requests ADD COLUMN IF NOT EXISTS approved_at TIMESTAMP WITH TIME ZONE`.catch(()=>{});
     await sql`ALTER TABLE teacher_subscription_requests ADD COLUMN IF NOT EXISTS activated_at TIMESTAMP WITH TIME ZONE`.catch(()=>{});
-    await sql`ALTER TABLE teacher_subscription_requests ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP WITH TIME ZONE`.catch(()=>{});
-    console.log('[neon] teacher_subscription_requests columns migrated');
-  }).catch(err => console.error('[neon] teacher_subscription_requests:', err.message));
+     await sql`ALTER TABLE teacher_subscription_requests ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP WITH TIME ZONE`.catch(()=>{});
+     await sql`ALTER TABLE teacher_subscription_requests ADD COLUMN IF NOT EXISTS school_id UUID`.catch(()=>{});
+     console.log('[neon] teacher_subscription_requests columns migrated');
+   }).catch(err => console.error('[neon] teacher_subscription_requests:', err.message));
 
   // Auto-create student_teacher_bonds table
   sql`
@@ -1065,10 +1067,11 @@ if (process.env.DATABASE_URL) {
        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
      )
-   `.then(() => console.log('[neon] bond_payments table verified/created'))
-    .catch(err => console.error('[neon] bond_payments:', err.message));
+    `.then(() => console.log('[neon] bond_payments table verified/created'))
+     .catch(err => console.error('[neon] bond_payments:', err.message));
+   sql`ALTER TABLE bond_payments ADD COLUMN IF NOT EXISTS school_id UUID`.catch(()=>{});
 
-  // Auto-create subscription_pricing table
+   // Auto-create subscription_pricing table
   sql`
     CREATE TABLE IF NOT EXISTS subscription_pricing (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1312,18 +1315,29 @@ export function createApiHandler() {
     if ((req.url === '/neon-db/public-settings' || req.url.startsWith('/neon-db/public-settings?')) && req.method === 'GET') {
       res.setHeader('Content-Type', 'application/json');
       try {
+        const urlObj = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+        const schoolIdParam = urlObj.searchParams.get('schoolId');
         if (!sql) return res.end(JSON.stringify({ school_name_ar: 'مدارس عباد الرحمن التعليمية', school_name_en: 'Abad Al-Rahman Educational Schools', school_logo: '', school_background_image: 'https://images.unsplash.com/photo-1510519138101-570d1dcb3d8e?q=80&w=2000&auto=format&fit=crop', sidebar_logo: '', sidebar_short_name: '' }));
-        const rows = await dbQuery('SELECT * FROM system_settings ORDER BY created_at DESC LIMIT 1');
+        let rows;
+        if (schoolIdParam) {
+          rows = await dbQuery('SELECT * FROM system_settings WHERE school_id = $1 ORDER BY created_at DESC LIMIT 1', [schoolIdParam]);
+        } else {
+          rows = await dbQuery('SELECT * FROM system_settings WHERE school_id IS NULL ORDER BY created_at DESC LIMIT 1');
+        }
         const s = rows[0] || {};
-        return res.end(JSON.stringify({
-          school_name_ar: s.school_name_ar || 'مدارس عباد الرحمن التعليمية',
-          school_name_en: s.school_name_en || 'Abad Al-Rahman Educational Schools',
-          school_logo: s.school_logo || '',
-          school_background_image: s.school_background_image || 'https://images.unsplash.com/photo-1510519138101-570d1dcb3d8e?q=80&w=2000&auto=format&fit=crop',
-          sidebar_logo: s.sidebar_logo || s.school_logo || '',
-          sidebar_short_name: s.sidebar_short_name || '',
-        }));
-      } catch (e) {
+        if (!s.school_name_ar) {
+          const fallback = await dbQuery('SELECT * FROM system_settings ORDER BY created_at DESC LIMIT 1');
+          const fs = fallback[0] || {};
+           return res.end(JSON.stringify({
+             school_name_ar: fs.school_name_ar || 'مدارس عباد الرحمن التعليمية',
+             school_name_en: fs.school_name_en || 'Abad Al-Rahman Educational Schools',
+             school_logo: fs.school_logo || '',
+             school_background_image: fs.school_background_image || 'https://images.unsplash.com/photo-1510519138101-570d1dcb3d8e?q=80&w=2000&auto=format&fit=crop',
+             sidebar_logo: fs.sidebar_logo || fs.school_logo || '',
+             sidebar_short_name: fs.sidebar_short_name || '',
+           }));
+         }
+       } catch (e) {
         return res.end(JSON.stringify({ school_name_ar: 'مدارس عباد الرحمن التعليمية', school_name_en: 'Abad Al-Rahman Educational Schools', school_logo: '', school_background_image: 'https://images.unsplash.com/photo-1510519138101-570d1dcb3d8e?q=80&w=2000&auto=format&fit=crop', sidebar_logo: '', sidebar_short_name: '' }));
       }
     }
@@ -2366,10 +2380,13 @@ export function createApiHandler() {
           receiptUrl = `/uploads/${safeName}`;
         }
 
-        const result = await dbQuery(
-          `INSERT INTO teacher_subscription_requests (teacher_name, teacher_email, teacher_phone, plan_type, amount, receipt_url)
-           VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-          [teacherName, teacherEmail, teacherPhone || null, planType || 'monthly', amount || 0, receiptUrl]
+         const teacherSchool = await dbQuery(`SELECT school_id FROM teachers WHERE email = $1 LIMIT 1`, [teacherEmail]);
+         const subSchoolId = teacherSchool.length > 0 ? teacherSchool[0].school_id : null;
+
+         const result = await dbQuery(
+           `INSERT INTO teacher_subscription_requests (teacher_name, teacher_email, teacher_phone, plan_type, amount, receipt_url, school_id)
+            VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+           [teacherName, teacherEmail, teacherPhone || null, planType || 'monthly', amount || 0, receiptUrl, subSchoolId]
         );
         return res.end(JSON.stringify({ success: true, id: result[0].id }));
       } catch (error) {
@@ -2403,10 +2420,13 @@ export function createApiHandler() {
           receiptUrl = `/uploads/${safeName}`;
         }
 
+        const teacherSchool = await dbQuery(`SELECT school_id FROM teachers WHERE id = $1 LIMIT 1`, [teacherId]);
+        const bondSchoolId = teacherSchool.length > 0 ? teacherSchool[0].school_id : null;
+
         const result = await dbQuery(
-          `INSERT INTO student_teacher_bonds (student_id, student_name, student_email, teacher_id, teacher_name, status, request_message, receipt_url)
-           VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7) RETURNING id`,
-          [studentId, studentName, studentEmail || null, teacherId, teacherName, requestMessage || null, receiptUrl]
+          `INSERT INTO student_teacher_bonds (student_id, student_name, student_email, teacher_id, teacher_name, status, request_message, receipt_url, school_id)
+           VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8) RETURNING id`,
+          [studentId, studentName, studentEmail || null, teacherId, teacherName, requestMessage || null, receiptUrl, bondSchoolId]
         );
         return res.end(JSON.stringify({ success: true, id: result[0].id }));
       } catch (error) {
@@ -2432,20 +2452,23 @@ export function createApiHandler() {
           return res.end(JSON.stringify({ error: 'bondId is required' }));
         }
         if (me.role !== 'founder') {
-          const own = await dbQuery('SELECT id FROM student_teacher_bonds WHERE id = $1 AND teacher_id = $2', [bondId, me.id]);
+          const own = await dbQuery(
+            `SELECT b.id FROM student_teacher_bonds b JOIN teachers t ON t.id = b.teacher_id WHERE b.id = $1 AND b.teacher_id = $2 AND b.school_id = t.school_id`,
+            [bondId, me.id]
+          );
           if (me.role !== 'teacher' || own.length === 0) {
             res.statusCode = 403;
             return res.end(JSON.stringify({ error: 'Forbidden' }));
           }
         }
 
-         const hashedPw = hashPassword(portalPassword);
-         const teacherAcc = await dbQuery('SELECT bank_account FROM teachers WHERE id = $1', [me.id]);
-         const bankAccount = teacherAcc[0]?.bank_account || null;
-         await dbQuery(
-           `UPDATE student_teacher_bonds SET status = 'approved', portal_username = $1, portal_password = $2, payment_status = 'pending_payment', teacher_bank_account = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4`,
-           [portalUsername || null, hashedPw, bankAccount, bondId]
-         );
+        const hashedPw = hashPassword(portalPassword);
+        const teacherAcc = await dbQuery('SELECT bank_account FROM teachers WHERE id = $1', [me.id]);
+        const bankAccount = teacherAcc[0]?.bank_account || null;
+        await dbQuery(
+          `UPDATE student_teacher_bonds SET status = 'approved', portal_username = $1, portal_password = $2, payment_status = 'pending_payment', teacher_bank_account = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4`,
+          [portalUsername || null, hashedPw, bankAccount, bondId]
+        );
          return res.end(JSON.stringify({ success: true, bankAccount }));
        } catch (error) {
          console.error('[teacher-bond-approve] error:', error);
@@ -2462,25 +2485,25 @@ export function createApiHandler() {
           if (!me) { res.statusCode = 401; return res.end(JSON.stringify({ error: 'Auth required' })); }
           const body = await parseBody(req);
           const { bondId, receiptFile, receiptName } = body;
-          const bond = await dbQuery('SELECT id, student_id FROM student_teacher_bonds WHERE id = $1', [bondId]);
-          if (!bond[0]) { res.statusCode = 404; return res.end(JSON.stringify({ error: 'Bond not found' })); }
-          if (bond[0].student_id !== me.id && me.role !== 'founder') { res.statusCode = 403; return res.end(JSON.stringify({ error: 'Forbidden' })); }
-          if (!receiptFile) { res.statusCode = 400; return res.end(JSON.stringify({ error: 'receiptFile required' })); }
-          const fs = await import('fs');
-          const pathMod = await import('path');
-          const uploadDir = pathMod.join(process.cwd(), 'public', 'uploads');
-          if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-          const safeName = `${bondId}_receipt_${Date.now()}.png`;
-          fs.writeFileSync(pathMod.join(uploadDir, safeName), Buffer.from(receiptFile, 'base64'));
-          await dbQuery(
-            `UPDATE student_teacher_bonds SET payment_receipt_url = $1, payment_status = 'receipt_uploaded', updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
-            [`/uploads/${safeName}`, bondId]
-          );
-          await dbQuery(
-            `INSERT INTO bond_payments (bond_id, student_id, teacher_id, receipt_url, status)
-             SELECT $1, student_id, teacher_id, $2, 'receipt_uploaded' FROM student_teacher_bonds WHERE id = $1`,
-            [bondId, `/uploads/${safeName}`]
-          );
+           const bond = await dbQuery('SELECT id, student_id, school_id FROM student_teacher_bonds WHERE id = $1', [bondId]);
+           if (!bond[0]) { res.statusCode = 404; return res.end(JSON.stringify({ error: 'Bond not found' })); }
+           if (bond[0].student_id !== me.id && me.role !== 'founder') { res.statusCode = 403; return res.end(JSON.stringify({ error: 'Forbidden' })); }
+           if (!receiptFile) { res.statusCode = 400; return res.end(JSON.stringify({ error: 'receiptFile required' })); }
+           const fs = await import('fs');
+           const pathMod = await import('path');
+           const uploadDir = pathMod.join(process.cwd(), 'public', 'uploads');
+           if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+           const safeName = `${bondId}_receipt_${Date.now()}.png`;
+           fs.writeFileSync(pathMod.join(uploadDir, safeName), Buffer.from(receiptFile, 'base64'));
+           await dbQuery(
+             `UPDATE student_teacher_bonds SET payment_receipt_url = $1, payment_status = 'receipt_uploaded', updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND school_id = $3`,
+             [`/uploads/${safeName}`, bondId, bond[0].school_id]
+           );
+           await dbQuery(
+             `INSERT INTO bond_payments (bond_id, student_id, teacher_id, receipt_url, status, school_id)
+              SELECT $1, student_id, teacher_id, $2, 'receipt_uploaded', school_id FROM student_teacher_bonds WHERE id = $1`,
+             [bondId, `/uploads/${safeName}`]
+           );
           return res.end(JSON.stringify({ success: true }));
         } catch (error) {
           console.error('[bond-upload-receipt] error:', error);
@@ -2554,16 +2577,19 @@ export function createApiHandler() {
          const body = await parseBody(req);
          const { bondId } = body;
          if (!bondId) { res.statusCode = 400; return res.end(JSON.stringify({ error: 'bondId required' })); }
-         const own = await dbQuery('SELECT id FROM student_teacher_bonds WHERE id = $1 AND teacher_id = $2', [bondId, me.id]);
-         if (own.length === 0) { res.statusCode = 403; return res.end(JSON.stringify({ error: 'Forbidden' })); }
-         await dbQuery(
-           `UPDATE student_teacher_bonds SET payment_status = 'confirmed', confirmed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
-           [bondId]
-         );
-         await dbQuery(
-           `UPDATE bond_payments SET status = 'confirmed', confirmed_at = CURRENT_TIMESTAMP, confirmed_by = $1 WHERE bond_id = $2`,
-           [me.id, bondId]
-         );
+           const own = await dbQuery(
+             `SELECT b.id, b.school_id FROM student_teacher_bonds b JOIN teachers t ON t.id = b.teacher_id WHERE b.id = $1 AND b.teacher_id = $2 AND b.school_id = t.school_id`,
+             [bondId, me.id]
+           );
+           if (own.length === 0) { res.statusCode = 403; return res.end(JSON.stringify({ error: 'Forbidden' })); }
+           await dbQuery(
+             `UPDATE student_teacher_bonds SET payment_status = 'confirmed', confirmed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+             [bondId]
+           );
+           await dbQuery(
+             `UPDATE bond_payments SET status = 'confirmed', confirmed_at = CURRENT_TIMESTAMP, confirmed_by = $1 WHERE bond_id = $2 AND school_id = $3`,
+             [me.id, bondId, own[0].school_id]
+           );
          return res.end(JSON.stringify({ success: true }));
        } catch (error) {
          console.error('[bond-confirm-payment] error:', error);
@@ -2586,7 +2612,10 @@ export function createApiHandler() {
           return res.end(JSON.stringify({ error: 'bondId is required' }));
         }
         if (me.role !== 'founder') {
-          const own = await dbQuery('SELECT id FROM student_teacher_bonds WHERE id = $1 AND teacher_id = $2', [bondId, me.id]);
+          const own = await dbQuery(
+            `SELECT b.id FROM student_teacher_bonds b JOIN teachers t ON t.id = b.teacher_id WHERE b.id = $1 AND b.teacher_id = $2 AND b.school_id = t.school_id`,
+            [bondId, me.id]
+          );
           if (me.role !== 'teacher' || own.length === 0) {
             res.statusCode = 403;
             return res.end(JSON.stringify({ error: 'Forbidden' }));
@@ -2635,11 +2664,17 @@ export function createApiHandler() {
 
         const bonds = teacherId
           ? await dbQuery(
-              `SELECT * FROM student_teacher_bonds WHERE teacher_id = $1 ORDER BY created_at DESC`,
+              `SELECT b.* FROM student_teacher_bonds b
+               JOIN teachers t ON t.id = b.teacher_id
+               WHERE b.teacher_id = $1 AND b.school_id = t.school_id
+               ORDER BY b.created_at DESC`,
               [teacherId]
             )
           : await dbQuery(
-              `SELECT * FROM student_teacher_bonds WHERE student_id = $1 ORDER BY created_at DESC`,
+              `SELECT b.* FROM student_teacher_bonds b
+               JOIN students s ON s.id = b.student_id
+               WHERE b.student_id = $1 AND b.school_id = s.school_id
+               ORDER BY b.created_at DESC`,
               [studentId]
             );
         return res.end(JSON.stringify(Array.isArray(bonds) ? bonds : []));
@@ -3187,7 +3222,7 @@ export function createApiHandler() {
       }
 
       // Multi-tenant helpers
-      const TENANT_TABLES_SET = new Set(['students','teachers','attendance','subjects','library_books','financial_records','activity_posts','activity_comments','activity_chats','audit_logs','bus_drivers','bus_driver_reports','card_top_ups','class_schedules','donations','friend_requests','store_items','purchases','study_rooms','study_groups','study_group_posts','study_materials','student_awards','student_grades','student_reports','supervisors','staff_members','teacher_ratings','teacher_tasks','portal_access_configs','portal_groups','portal_group_messages','portal_notifications','private_messages','room_messages','room_videos','book_reviews','message_read_receipts','typing_indicators','fines','parent_link_requests','virtual_sessions','session_participants','official_announcements','counseling_cases','case_assessments','intervention_plans','follow_ups','case_visibility_logs','fee_structures','student_fees','fee_payments','activity_fees','student_activity_fees','student_wallet','wallet_transactions','hall_rentals','other_revenue','expenses','salary_records','purchase_orders','visitors','system_settings','system_admins']);
+      const TENANT_TABLES_SET = new Set(['students','teachers','attendance','subjects','library_books','financial_records','activity_posts','activity_comments','activity_chats','audit_logs','bus_drivers','bus_driver_reports','card_top_ups','class_schedules','donations','friend_requests','store_items','purchases','study_rooms','study_groups','study_group_posts','study_materials','student_awards','student_grades','student_reports','supervisors','staff_members','teacher_ratings','teacher_tasks','portal_access_configs','portal_groups','portal_group_messages','portal_notifications','private_messages','room_messages','room_videos','book_reviews','message_read_receipts','typing_indicators','fines','parent_link_requests','virtual_sessions','session_participants','official_announcements','counseling_cases','case_assessments','intervention_plans','follow_ups','case_visibility_logs','fee_structures','student_fees','fee_payments','activity_fees','student_activity_fees','student_wallet','wallet_transactions','hall_rentals','other_revenue','expenses','salary_records','purchase_orders','visitors','system_admins','student_teacher_bonds','bond_payments']);
       const isTenantTable = TENANT_TABLES_SET.has(table);
       const tenantId = req.user?.school_id || null;
 
@@ -3546,7 +3581,7 @@ export function createApiHandler() {
           const feeId = body.student_fee_id;
           const payAmt = parseFloat(body.amount) || 0;
           if (feeId) {
-            const feeRows = await dbQuery('SELECT * FROM student_fees WHERE id = $1', [feeId]);
+            const feeRows = await dbQuery('SELECT * FROM student_fees WHERE id = $1 AND school_id = $2', [feeId, tenantId]);
             if (feeRows.length > 0) {
               const currentPaid = parseFloat(feeRows[0].amount_paid) || 0;
               const totalAmt = parseFloat(feeRows[0].amount) || 0;
@@ -3654,10 +3689,10 @@ export function createApiHandler() {
           if ((table === 'gateway_accounts' || isTenantTable) && tenantId) {
             await dbQuery(`DELETE FROM ${table} WHERE id = $1 AND school_id = $2`, [entityId, tenantId]);
           } else {
-          await dbQuery(`DELETE FROM ${table} WHERE id = $1`, [entityId]);
+            await dbQuery(`DELETE FROM ${table} WHERE id = $1`, [entityId]);
+          }
+          return res.end(JSON.stringify({ success: true }));
         }
-        return res.end(JSON.stringify({ success: true }));
-      }
 
       // ── POST /api/approve-teacher — الموافقة على تسجيل معلم + إنشاء حساب ──
       if (req.url === '/api/approve-teacher' && req.method === 'POST') {
@@ -3671,10 +3706,10 @@ export function createApiHandler() {
           }
 
           // Fetch the registration request
-          const reqRows = await dbQuery(
-            `SELECT * FROM registration_requests WHERE id = $1 AND role_requested = 'teacher' AND status = 'pending'`,
-            [requestId]
-          );
+           const reqRows = await dbQuery(
+             `SELECT * FROM registration_requests WHERE id = $1 AND role_requested = 'teacher' AND status = 'pending'`,
+             [requestId]
+           );
           if (reqRows.length === 0) {
             res.statusCode = 404;
             return res.end(JSON.stringify({ error: 'Registration request not found or already processed' }));
@@ -3696,11 +3731,11 @@ export function createApiHandler() {
           const hashedPassword = hashPassword(password);
           const subjects = Array.isArray(reg.subjects) ? reg.subjects.join(', ') : (reg.subjects || '');
 
-          await dbQuery(
-            `INSERT INTO teachers (id, full_name, email, employee_id, subjects, status, portal_password, school_id, created_at)
-             VALUES ($1, $2, $3, $4, $5, 'active', $6, NULL, NOW())`,
-            [teacherId, reg.full_name, reg.email, username, subjects, hashedPassword]
-          );
+           await dbQuery(
+             `INSERT INTO teachers (id, full_name, email, employee_id, subjects, status, portal_password, school_id, created_at)
+              VALUES ($1, $2, $3, $4, $5, 'active', $6, $7, NOW())`,
+             [teacherId, reg.full_name, reg.email, username, subjects, hashedPassword, reg.school_id || null]
+           );
 
           // Mark registration request as accepted
           await dbQuery(
@@ -3731,10 +3766,10 @@ export function createApiHandler() {
             return res.end(JSON.stringify({ error: 'requestId, username, and password are required' }));
           }
 
-          const reqRows = await dbQuery(
-            `SELECT * FROM registration_requests WHERE id = $1 AND role_requested = 'student' AND status = 'pending'`,
-            [requestId]
-          );
+           const reqRows = await dbQuery(
+             `SELECT * FROM registration_requests WHERE id = $1 AND role_requested = 'student' AND status = 'pending'`,
+             [requestId]
+           );
           if (reqRows.length === 0) {
             res.statusCode = 404;
             return res.end(JSON.stringify({ error: 'Registration request not found or already processed' }));
@@ -3753,11 +3788,11 @@ export function createApiHandler() {
           const studentId = crypto.randomUUID();
           const hashedPassword = hashPassword(password);
 
-          await dbQuery(
-            `INSERT INTO students (id, full_name, user_email, student_id, phone, grade, parent_name, parent_phone, parent_email, school_name, city, status, portal_password, school_id, created_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'active', $12, NULL, NOW())`,
-            [studentId, reg.full_name, reg.email, username, reg.phone, reg.grade || null, reg.director_name || null, null, reg.email, reg.school_name || null, reg.country || null, hashedPassword]
-          );
+           await dbQuery(
+             `INSERT INTO students (id, full_name, user_email, student_id, phone, grade, parent_name, parent_phone, parent_email, school_name, city, status, portal_password, school_id, created_at)
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'active', $12, $13, NOW())`,
+             [studentId, reg.full_name, reg.email, username, reg.phone, reg.grade || null, reg.director_name || null, null, reg.email, reg.school_name || null, reg.country || null, hashedPassword, reg.school_id || null]
+           );
 
           await dbQuery(
             `UPDATE registration_requests SET status = 'accepted', reviewed_at = NOW() WHERE id = $1`,
