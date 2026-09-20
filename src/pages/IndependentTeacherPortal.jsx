@@ -146,7 +146,7 @@ export default function IndependentTeacherPortal() {
     enabled: !!teacherId,
   });
 
-  const { data: allSubmissions = [], isLoading: loadingSubmissions } = useQuery({
+  const { data: allSubmissions = [], isLoading: loadingSubmissionsView } = useQuery({
     queryKey: ["teacher-submissions-view", teacherId],
     queryFn: () => entities.TeacherSubmission.list("-submitted_at", { teacher_id: teacherId }),
     enabled: !!teacherId,
