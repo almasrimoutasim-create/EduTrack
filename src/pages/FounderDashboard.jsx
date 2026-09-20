@@ -2555,7 +2555,7 @@ const FounderDashboard = () => {
           </SubscriptionErrorBoundary>
         )}
 
-        {/* ───── أسعار اشتراكات المعلمين (مدمجة داخل الاشتراكات والإيرادات) ─
+        {/* ───── أسعار اشتراكات المعلمين (مدمجة داخل الاشتراكات والإيرادات) ───── */}
         {section === "subscriptions" && (
           <SubscriptionErrorBoundary>
             <div className="space-y-6 mt-6">
@@ -2639,8 +2639,8 @@ const FounderDashboard = () => {
                 </div>
               </>);
             })()}
+            </div>
           </div>
-        </div>
         </SubscriptionErrorBoundary>
         )}
 
