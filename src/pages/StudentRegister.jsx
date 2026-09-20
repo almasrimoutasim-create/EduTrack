@@ -117,19 +117,19 @@ export default function StudentRegister() {
             <GraduationCap size={14} className="text-emerald-600"/> {isRTL ? "تسجيل طالب جديد مجاني" : "Free Student Registration"}
           </div>
           <h1 className="text-2xl font-black text-stone-900 mt-3">{isRTL ? "تسجيل طالب جديد في EduTrack" : "Register New Student"}</h1>
-          <p className="text-sm text-stone-500 mt-1">{isRTL ? "املأ البيانات أدناه — يحصل الطالب على وصول فوري لكتب المنهج السوداني، ويمكنه لاحقاً طلب الاشتراك مع معلم خاص" : "Fill details below — student gets instant access to Sudanese curriculum books, can later request private teacher subscription"}</p>
+          <p className="text-sm text-stone-500 mt-1">{isRTL ? "املأ البيانات أدناه — يحصل الطالب على وصول فوري لكتب المنهج ، ويمكنه لاحقاً طلب الاشتراك مع معلم خاص" : "Fill details below — student gets instant access to Sudanese curriculum books, can later request private teacher subscription"}</p>
         </div>
 
         <Card className="p-6 md:p-8 rounded-[28px] border-none shadow-lg bg-white">
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 text-sm text-emerald-800 flex gap-2">
-              <Shield size={16} className="shrink-0 mt-0.5"/> <span>{isRTL ? "التسجيل مجاني — يحصل الطالب على كتب المنهج السوداني، الواجبات، ومتابعة التقديرات. للاشتراك مع معلم خاص (دروس مباشرة، فيديوهات)، يرسل طلب من داخل البوابة." : "Free registration — student gets Sudanese curriculum books, assignments, grade tracking. For private teacher (live classes, videos), sends subscription request from portal."}</span>
+              <Shield size={16} className="shrink-0 mt-0.5"/> <span>{isRTL ? "التسجيل مجاني — يحصل الطالب على كتب المنهج، الواجبات، ومتابعة التقديرات. للاشتراك مع معلم خاص (دروس مباشرة، فيديوهات)، يرسل طلب من داخل البوابة." : "Free registration — student gets Sudanese curriculum books, assignments, grade tracking. For private teacher (live classes, videos), sends subscription request from portal."}</span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5 md:col-span-2">
                 <label className="text-xs font-bold text-stone-600 flex items-center gap-1"><User size={12}/> {isRTL ? "اسم الطالب الكامل *" : "Student full name *"}</label>
-                <Input value={form.student_name} onChange={e => update("student_name", e.target.value)} placeholder={isRTL ? "مثال: أحمد محمد علي" : "e.g. Ahmed Mohamed Ali"} className="h-11 rounded-xl" required />
+                <Input value={form.student_name} onChange={e => update("student_name", e.target.value)} placeholder={isRTL ? "مثال: معتصم علي فتاش" : "e.g. Ahmed Mohamed Ali"} className="h-11 rounded-xl" required />
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-stone-600 flex items-center gap-1"><User size={12}/> {isRTL ? "اسم ولي الأمر *" : "Parent name *"}</label>
@@ -158,7 +158,7 @@ export default function StudentRegister() {
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-stone-600 flex items-center gap-1"><Building2 size={12}/> {isRTL ? "اسم المدرسة الحالية (اختياري)" : "Current school name (optional)"}</label>
-                <Input value={form.school_name} onChange={e => update("school_name", e.target.value)} placeholder={isRTL ? "مثال: مدرسة النور الأهلية" : "e.g. Al-Noor School"} className="h-11 rounded-xl" />
+                <Input value={form.school_name} onChange={e => update("school_name", e.target.value)} placeholder={isRTL ? "مثال: مدارس إيديوتراك العالمية" : "e.g. Al-Noor School"} className="h-11 rounded-xl" />
               </div>
             </div>
 

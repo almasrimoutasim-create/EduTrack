@@ -167,6 +167,15 @@ export default function StudentPortal() {
     enabled: !!studentId,
   });
 
+  const { data: studentAssignments = [], isLoading: loadingStudentAssignments } = useQuery({
+    queryKey: ["student-assignments-view", studentId],
+    queryFn: () => {
+      if (!teacherIds.length) return Promise.resolve([]);
+      return Promise.all(teacherIds.map(tid => entities.TeacherAssignment.list("-due_date", { teacher_id: tid }))).then(r => r.flat());
+    },
+    enabled: teacherIds.length > 0,
+  });
+
   const studentGrade = useMemo(() => {
     try {
       const raw = localStorage.getItem("portal_student_grade");

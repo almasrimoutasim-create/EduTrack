@@ -146,6 +146,23 @@ export default function IndependentTeacherPortal() {
     enabled: !!teacherId,
   });
 
+  const { data: allSubmissions = [], isLoading: loadingSubmissions } = useQuery({
+    queryKey: ["teacher-submissions-view", teacherId],
+    queryFn: () => entities.TeacherSubmission.list("-submitted_at", { teacher_id: teacherId }),
+    enabled: !!teacherId,
+  });
+
+  // Build assignment -> submissions map for grading
+  const assignmentSubmissionsMap = useMemo(() => {
+    const map = {};
+    (allSubmissions || []).forEach(s => {
+      const aid = s.assignment_id || s.title || "unknown";
+      if (!map[aid]) map[aid] = [];
+      map[aid].push(s);
+    });
+    return map;
+  }, [allSubmissions]);
+
    const approveBondMutation = useMutation({
      mutationFn: ({ bondId, studentName }) => {
        if (!teacherProfile?.bank_account) {

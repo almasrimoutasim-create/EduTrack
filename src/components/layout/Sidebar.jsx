@@ -475,10 +475,10 @@ export default function Sidebar() {
             }
           }}>
 {sidebarLogoUrl && !sidebarLogoError ? (
- <img key={sidebarLogoUrl} src={sidebarLogoUrl} alt={schoolName} className={cn("rounded-xl object-contain bg-white border border-stone-100 shadow-sm", shortName ? "h-20 w-20 p-3" : "h-14 w-14 p-2")} onError={()=>setSidebarLogoError(true)} />
+ <img key={sidebarLogoUrl} src={sidebarLogoUrl} alt={schoolName} className={cn("rounded-xl object-contain bg-white border border-stone-100 shadow-sm", "h-24 w-24 p-4")} onError={()=>setSidebarLogoError(true)} />
 			) : (
-				<div className={cn("rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform duration-300", brand.color, shortName ? "h-20 w-20" : "h-14 w-14")}>
-					<brand.logoIcon size={shortName ? 36 : 32} />
+				<div className={cn("rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform duration-300", brand.color, "h-24 w-24")}>
+					<brand.logoIcon size={40} />
                </div>
              )}
             <div className={cn(shortName ? "text-center" : "flex flex-col items-start")}>
