@@ -7,9 +7,50 @@ import {
   LogOut, CheckCircle2, XCircle, Bell, School as SchoolIcon, TrendingUp,
   Users, CircleDollarSign, RefreshCw, Eye, Plus, Clock, AlertTriangle, AlertCircle, ImageIcon,
   BarChart3, MessageCircle, Save, Download, KeyRound, PauseCircle, Timer,
-  MapPin, Calendar, Phone, Mail, Crown, Zap, Shield, Copy, Printer, Send, UserPlus, Lock, Link2, ExternalLink, GraduationCap, Trash2, SlidersHorizontal, Search, X, CheckCircle
+  MapPin, Calendar, Phone, Mail, Crown, Zap, Shield, Copy, Printer, Send, UserPlus, Lock, Link2, ExternalLink, GraduationCap, Trash2, SlidersHorizontal, Search, X, CheckCircle, Loader2
 } from "lucide-react";
 import LandingContentEditor from "@/components/LandingContentEditor";
+import { useLanguage } from "@/lib/LanguageContext";
+
+class TierFeaturesErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { hasError: false, error: null }; }
+  static getDerivedStateFromError(error) { return { hasError: true, error }; }
+  componentDidCatch(error, info) { console.error("TierFeaturesErrorBoundary:", error, info); }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-6 text-center text-red-500">
+          <p className="text-lg font-bold">⚠️ خطأ في تحميل الميزات</p>
+          <p className="text-sm text-gray-500 mt-2">{this.state.error?.message || "حدث خطأ غير متوقع"}</p>
+          <button onClick={() => this.setState({ hasError: false, error: null })} className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+            إعادة المحاولة
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+class SubscriptionErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { hasError: false, error: null }; }
+  static getDerivedStateFromError(error) { return { hasError: true, error }; }
+  componentDidCatch(error, info) { console.error("SubscriptionErrorBoundary:", error, info); }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-6 text-center text-red-500">
+          <p className="text-lg font-bold">⚠️ خطأ في تحميل قسم الاشتراكات والإيرادات</p>
+          <p className="text-sm text-gray-500 mt-2">{this.state.error?.message || "حدث خطأ غير متوقع"}</p>
+          <button onClick={() => this.setState({ hasError: false, error: null })} className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+            إعادة المحاولة
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const PLANS_DEFAULT = [
   { id: "starter", name: "Starter", price: 49, color: "from-slate-500 to-slate-600", desc: "مدرسة صغيرة حتى 200 طالب" },
@@ -53,12 +94,15 @@ function PaymentReceiptsSection() {
   const { data: receipts = [], isLoading: loading, refetch } = useQuery({
     queryKey: ["founder-payment-receipts"],
     queryFn: async () => {
-      const token = localStorage.getItem("portal_jwt_token") || localStorage.getItem("jwt_token");
-      const apiBase = "https://edutrack-ey49.onrender.com";
-      const url = `${apiBase}/neon-db/payment-receipts`;
-      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-      const data = await res.json();
-      return data.receipts || [];
+      try {
+        const token = localStorage.getItem("portal_jwt_token") || localStorage.getItem("jwt_token");
+        const apiBase = "https://edutrack-ey49.onrender.com";
+        const url = `${apiBase}/neon-db/payment-receipts`;
+        const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        return data.receipts || [];
+      } catch (err) { console.error("[PaymentReceiptsSection] fetch failed:", err); return []; }
     },
   });
 
@@ -2413,7 +2457,8 @@ const FounderDashboard = () => {
 
         {/* ───── 6️⃣ الاشتراكات والإيرادات ───── */}
         {section === "subscriptions" && (
-          <div className="space-y-6">
+          <SubscriptionErrorBoundary>
+            <div className="space-y-6">
             {/* ── محرر أسعار اشتراكات المدارس والعملة ── */}
             <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
               <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2"><CreditCard size={18} className="text-blue-500"/> تعديل أسعار اشتراكات المدارس والعملة</h3>
@@ -2507,11 +2552,13 @@ const FounderDashboard = () => {
               )}
             </div>
           </div>
+          </SubscriptionErrorBoundary>
         )}
 
-        {/* ───── أسعار اشتراكات المعلمين (مدمجة داخل الاشتراكات والإيرادات) ───── */}
+        {/* ───── أسعار اشتراكات المعلمين (مدمجة داخل الاشتراكات والإيرادات) ─
         {section === "subscriptions" && (
-          <div className="space-y-6 mt-6">
+          <SubscriptionErrorBoundary>
+            <div className="space-y-6 mt-6">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-extrabold text-slate-900">إدارة أسعار اشتراكات المعلمين</h3>
               <button onClick={() => { setShowAddPlan(true); setEditingPlan(null); setNewPlan({ plan_name: "", plan_name_ar: "", plan_type: "teacher", price_monthly: 0, price_yearly: 0, currency: "EGP", trial_days: 30, features: [] }); }} className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-blue-700 transition-all">
@@ -2589,16 +2636,18 @@ const FounderDashboard = () => {
                     <div className="flex items-center gap-2 mb-3"><Crown size={20} /><h4 className="font-bold text-lg">الخطة السنوية</h4></div>
                     <p className="text-3xl font-extrabold mb-2">{yearlyPrice} <span className="text-sm font-normal opacity-80">{currency}/سنة</span></p>
                     <p className="text-xs opacity-90">اشتراك سنوي مع {trialDays} يوم تجربة مجانية وخصم كبير</p>
-                  </div>
-                </>);
-              })()}
-            </div>
+                </div>
+              </>);
+            })()}
           </div>
+        </div>
+        </SubscriptionErrorBoundary>
         )}
 
         {/* ───── طلبات اشتراكات المعلمين (مدمجة داخل الاشتراكات والإيرادات) ───── */}
         {section === "subscriptions" && (
-          <div className="space-y-6 mt-6">
+          <SubscriptionErrorBoundary>
+            <div className="space-y-6 mt-6">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-extrabold text-slate-900">طلبات اشتراكات المعلمين</h3>
               <div className="flex items-center gap-2">
@@ -2680,20 +2729,33 @@ const FounderDashboard = () => {
                       </tr>
                     ))}
                   </tbody>
-                </table>
-              )}
-            </div>
+              </table>
+            )}
           </div>
+        </div>
+        </SubscriptionErrorBoundary>
         )}
 
         {/* ───── إدارة طلبات ترقية اشتراكات المدارس ───── */}
-        {section === "subscriptions" && <SchoolSubscriptionRequests />}
+        {section === "subscriptions" && (
+          <SubscriptionErrorBoundary>
+            <SchoolSubscriptionRequests />
+          </SubscriptionErrorBoundary>
+        )}
 
         {/* ───── إيصالات الدفع البنتقالية ───── */}
-        {section === "subscriptions" && <PaymentReceiptsSection />}
+        {section === "subscriptions" && (
+          <SubscriptionErrorBoundary>
+            <PaymentReceiptsSection />
+          </SubscriptionErrorBoundary>
+        )}
 
         {/* ───── إدارة ميزات الخطط ───── */}
-        {section === "tier_features" && <TierFeaturesSection />}
+        {section === "tier_features" && (
+          <TierFeaturesErrorBoundary>
+            <TierFeaturesSection />
+          </TierFeaturesErrorBoundary>
+        )}
 
         {/* ───── 7️⃣ الدعم الفني ───── */}
         {section === "support" && (
@@ -2724,9 +2786,9 @@ const FounderDashboard = () => {
                       <div className="flex gap-2 mt-2">
                         <button onClick={()=>{ const txt=(replyMap[t.id]||"").trim(); if(!txt) return toast.error("اكتب الرد أولاً"); setTickets(ts=>ts.map(x=>x.id===t.id?{...x, reply:txt}:x)); setReplyMap({...replyMap,[t.id]:""}); setActiveTicket(null); toast.success("تم إرسال الرد");}} className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-blue-700">إرسال الرد</button>
                         <button onClick={()=>setActiveTicket(null)} className="px-4 py-2 rounded-xl border border-slate-200 text-sm font-bold">إلغاء</button>
-                      </div>
-                    </div>
-                  )}
+            </div>
+          </div>
+        )}
                 </div>
               ))
             )}
@@ -3403,7 +3465,7 @@ function SchoolSubscriptionRequests() {
 
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ['school-subscription-requests'],
-    queryFn: () => fetch('/api/school-subscription-requests').then(r => r.json())
+    queryFn: async () => { try { return await fetch('/api/school-subscription-requests').then(r => r.json()); } catch (err) { console.error("[SchoolSubscriptionRequests] fetch failed:", err); return []; } }
   });
 
   const approveMutation = useMutation({

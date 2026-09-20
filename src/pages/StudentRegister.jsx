@@ -154,7 +154,7 @@ export default function StudentRegister() {
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-stone-600 flex items-center gap-1"><Phone size={12}/> {isRTL ? "هاتف ولي الأمر *" : "Parent phone *"}</label>
-                <Input value={form.parent_phone} onChange={e => update("parent_phone", e.target.value)} placeholder={isRTL ? "مع رمز البلد (مثال: 2499xxxxxxx)" : "With country code"} className="h-11 rounded-xl" dir="ltr" required />
+                <Input value={form.parent_phone} onChange={e => update("parent_phone", e.target.value)} placeholder="رقم الهاتف مع المفتاح" className="h-11 rounded-xl" dir="ltr" required />
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-stone-600 flex items-center gap-1"><Building2 size={12}/> {isRTL ? "اسم المدرسة الحالية (اختياري)" : "Current school name (optional)"}</label>

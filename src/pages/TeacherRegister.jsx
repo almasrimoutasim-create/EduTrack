@@ -171,7 +171,7 @@ export default function TeacherRegister() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5 md:col-span-2">
                 <label className="text-xs font-bold text-stone-600 flex items-center gap-1"><User size={12}/> {isRTL ? "الاسم الكامل *" : "Full name *"}</label>
-                <Input value={form.full_name} onChange={e => update("full_name", e.target.value)} placeholder={isRTL ? "مثال: محمد أحمد عبدالله" : "e.g. Mohamed Ahmed Abdullah"} className="h-11 rounded-xl" required />
+                <Input value={form.full_name} onChange={e => update("full_name", e.target.value)} placeholder={isRTL ? "مثال: محمد أحمد عبدالله" : "e.g. Mohamed Ahmed Abdullah"} className="h-11 rounded-xl" dir="rtl" text-right required />
               </div>
               <div className="space-y-1.5 md:col-span-2">
                 <label className="text-xs font-bold text-stone-600 flex items-center gap-1"><Mail size={12}/> {isRTL ? "البريد الإلكتروني *" : "Email *"}</label>
@@ -183,11 +183,11 @@ export default function TeacherRegister() {
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-stone-600 flex items-center gap-1"><MapPin size={12}/> {isRTL ? "المدينة / المنطقة" : "City / Area"}</label>
-                <Input value={form.city} onChange={e => update("city", e.target.value)} placeholder={isRTL ? "مثال: الخرطوم، أم درمان" : "e.g. Khartoum, Omdurman"} className="h-11 rounded-xl" />
+                <Input value={form.city} onChange={e => update("city", e.target.value)} placeholder={isRTL ? "مثال: الخرطوم، أم درمان" : "e.g. Khartoum, Omdurman"} className="h-11 rounded-xl" dir="rtl" text-right />
               </div>
               <div className="space-y-1.5 md:col-span-2">
                 <label className="text-xs font-bold text-stone-600 flex items-center gap-1"><Building2 size={12}/> {isRTL ? "اسم المدرسة الحالية (اختياري)" : "Current school name (optional)"}</label>
-                <Input value={form.school_name} onChange={e => update("school_name", e.target.value)} placeholder={isRTL ? "مثال: مدرسة النور الأهلية" : "e.g. Al-Noor School"} className="h-11 rounded-xl" />
+                <Input value={form.school_name} onChange={e => update("school_name", e.target.value)} placeholder={isRTL ? "مثال: مدرسة النور الأهلية" : "e.g. Al-Noor School"} className="h-11 rounded-xl" dir="rtl" text-right />
               </div>
             </div>
 
@@ -210,12 +210,12 @@ export default function TeacherRegister() {
 
             <div className="space-y-1.5">
               <label htmlFor="field-teacherregister-bio" className="text-xs font-bold text-stone-600 flex items-center gap-1"><User size={12}/> {isRTL ? "نبذة عنك (اختياري)" : "About you (optional)"}</label>
-              <textarea id="field-teacherregister-bio" name="bio" aria-label="bio" value={form.bio} onChange={e => update("bio", e.target.value)} placeholder={isRTL ? "خبراتك، تخصصاتك، أسلوب التدريس..." : "Your experience, specializations, teaching style..."} rows={2} className="w-full rounded-xl border border-stone-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/10" />
+              <textarea id="field-teacherregister-bio" name="bio" aria-label="bio" value={form.bio} onChange={e => update("bio", e.target.value)} placeholder={isRTL ? "خبراتك، تخصصاتك، أسلوب التدريس..." : "Your experience, specializations, teaching style..."} rows={2} className="w-full rounded-xl border border-stone-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/10 text-right" dir="rtl" />
             </div>
 
             <div className="space-y-1.5">
               <label htmlFor="field-teacherregister-notes" className="text-xs font-bold text-stone-600 flex items-center gap-1"><AlertCircle size={12}/> {isRTL ? "ملاحظات إضافية" : "Additional notes"}</label>
-              <textarea id="field-teacherregister-notes" name="notes" aria-label="notes" value={form.notes} onChange={e => update("notes", e.target.value)} placeholder={isRTL ? "أي معلومات إضافية تود مشاركتها..." : "Any additional information you'd like to share..."} rows={2} className="w-full rounded-xl border border-stone-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/10" />
+              <textarea id="field-teacherregister-notes" name="notes" aria-label="notes" value={form.notes} onChange={e => update("notes", e.target.value)} placeholder={isRTL ? "أي معلومات إضافية تود مشاركتها..." : "Any additional information you'd like to share..."} rows={2} className="w-full rounded-xl border border-stone-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/10 text-right" dir="rtl" />
             </div>
 
             {/* Subscription Plan */}

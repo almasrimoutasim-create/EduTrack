@@ -108,11 +108,11 @@ export default function StudentPortal() {
   };
 
   // Queries
-  const { data: subscriptions = [], isLoading: loadingSubscriptions } = useQuery({
-    queryKey: ["student-subscriptions", studentId],
-    queryFn: () => entities.TeacherSubscription.list("-created_at", { student_id: studentId }),
-    enabled: !!studentId,
-  });
+   const { data: subscriptions = [], isLoading: loadingSubscriptions } = useQuery({
+     queryKey: ["student-subscriptions", studentId],
+     queryFn: () => entities.TeacherSubscription.list("-created_at", { student_id: studentId, status: ["pending", "approved"] }),
+     enabled: !!studentId,
+   });
 
   const approvedTeachers = subscriptions?.filter(s => s.status === "approved") || [];
   const pendingSubs = subscriptions?.filter(s => s.status === "pending") || [];

@@ -143,14 +143,15 @@ export default function Sidebar() {
   const shortName = s.sidebar_short_name?.trim();
   const schoolName = shortName || (isRTL ? (s.school_name_ar || brand.title.ar) : (s.school_name_en || brand.title.en));
   const getLogoUrl = (url) => {
-    if (!url) return "";
-    if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) return url;
+    const trimmed = String(url || '').trim();
+    if (!trimmed) return "";
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('data:')) return trimmed;
     const apiBase = import.meta.env.VITE_BACKEND_URL || '';
-    return `${apiBase.replace(/\/$/, '')}${url.startsWith('/') ? '' : '/'}${url}`;
+    return `${apiBase.replace(/\/$/, '')}${trimmed.startsWith('/') ? '' : '/'}${trimmed}`;
   };
   const sidebarLogoUrl = getLogoUrl(s.sidebar_logo || s.school_logo);
   const [sidebarLogoError, setSidebarLogoError] = useState(false);
-  useEffect(() => { setSidebarLogoError(false); }, [sidebarLogoUrl]);
+  useEffect(() => { setSidebarLogoError(false); }, [sidebarLogoUrl, JSON.stringify(s)]);
 
   const getNavGroups = () => {
     switch (portalRole) {
@@ -473,13 +474,13 @@ export default function Sidebar() {
               window.location.href = slug ? `/gateway/${slug}` : "/gateway";
             }
           }}>
-            {sidebarLogoUrl && !sidebarLogoError ? (
-              <img src={sidebarLogoUrl} alt={schoolName} className={cn("rounded-xl object-contain bg-white border border-stone-100 shadow-sm", shortName ? "h-14 w-14 p-1.5" : "h-10 w-10 p-1")} onError={()=>setSidebarLogoError(true)} />
-            ) : (
-              <div className={cn("rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform duration-300", brand.color, shortName ? "h-14 w-14" : "h-10 w-10")}>
-                <brand.logoIcon size={shortName ? 28 : 24} />
-              </div>
-            )}
+{sidebarLogoUrl && !sidebarLogoError ? (
+ <img key={sidebarLogoUrl} src={sidebarLogoUrl} alt={schoolName} className={cn("rounded-xl object-contain bg-white border border-stone-100 shadow-sm", shortName ? "h-20 w-20 p-3" : "h-14 w-14 p-2")} onError={()=>setSidebarLogoError(true)} />
+			) : (
+				<div className={cn("rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform duration-300", brand.color, shortName ? "h-20 w-20" : "h-14 w-14")}>
+					<brand.logoIcon size={shortName ? 36 : 32} />
+               </div>
+             )}
             <div className={cn(shortName ? "text-center" : "flex flex-col items-start")}>
               <h1 className={cn("font-serif font-black text-stone-900 leading-none tracking-tight", shortName ? "text-xl" : "text-lg")}>
                 {schoolName}

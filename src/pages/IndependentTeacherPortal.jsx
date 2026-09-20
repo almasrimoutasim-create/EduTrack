@@ -123,11 +123,11 @@ export default function IndependentTeacherPortal() {
     enabled: !!teacherId,
   });
 
-  const { data: subscriptions = [], isLoading: loadingSubs } = useQuery({
-    queryKey: ["teacher-subscriptions", teacherId],
-    queryFn: () => entities.TeacherSubscription.list("-created_at", { teacher_id: teacherId }),
-    enabled: !!teacherId,
-  });
+   const { data: subscriptions = [], isLoading: loadingSubs } = useQuery({
+     queryKey: ["teacher-subscriptions", teacherId],
+     queryFn: () => entities.TeacherSubscription.list("-created_at", { teacher_id: teacherId, status: ["pending", "approved"] }),
+     enabled: !!teacherId,
+   });
 
   const { data: submissions = [], isLoading: loadingSubmissions } = useQuery({
     queryKey: ["teacher-submissions", teacherId],
