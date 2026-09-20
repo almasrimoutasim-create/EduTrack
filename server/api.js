@@ -1871,7 +1871,7 @@ export function createApiHandler() {
           return res.end(JSON.stringify({ error: 'username, password and role (teacher|student) are required' }));
         }
         const table = role === 'teacher' ? 'teachers' : 'students';
-        const idMatch = role === 'teacher' ? '(email = $1 OR employee_id = $1)' : '(user_email = $1 OR student_id = $1)';
+        const idMatch = role === 'teacher' ? '(email = $1 OR employee_id = $1 OR username = $1)' : '(user_email = $1 OR student_id = $1)';
         const rows = await dbQuery(`SELECT * FROM ${table} WHERE ${idMatch} AND status = 'active'`, [identifier]);
         if (rows.length === 0) {
           res.statusCode = 401;
@@ -1882,13 +1882,15 @@ export function createApiHandler() {
           res.statusCode = 401;
           return res.end(JSON.stringify({ error: 'Invalid password' }));
         }
-        const user = {
-          id: account.id,
-          full_name: account.full_name,
-          email: role === 'teacher' ? account.email : account.user_email,
-          role,
-          school_id: account.school_id || null
-        };
+const user = {
+        id: account.id,
+        full_name: account.full_name,
+        email: role === 'teacher' ? account.email : account.user_email,
+        role,
+        school_id: account.school_id || null,
+        independent_teacher_id: account.independent_teacher_id || null,
+        independent_student_id: account.independent_student_id || null
+      };
         const token = jwt.sign(user, JWT_SECRET, { expiresIn: '24h' });
         return res.end(JSON.stringify({ success: true, user, token }));
       } catch (error) {
@@ -2556,7 +2558,7 @@ WHERE email = $10`,
         }
         if (me.role !== 'founder') {
           const own = await dbQuery(
-            `SELECT b.id FROM student_teacher_bonds b JOIN teachers t ON t.id = b.teacher_id WHERE b.id = $1 AND b.teacher_id = $2 AND b.school_id = t.school_id`,
+            `SELECT b.id FROM student_teacher_bonds b JOIN teachers t ON t.id = b.teacher_id WHERE b.id = $1 AND b.teacher_id = $2 AND (b.school_id = t.school_id OR t.school_id IS NULL)`,
             [bondId, me.id]
           );
           if (me.role !== 'teacher' || own.length === 0) {

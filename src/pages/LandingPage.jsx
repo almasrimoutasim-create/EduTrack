@@ -87,7 +87,7 @@ const DEFAULTS = {
   school_cta_ar: "طلب نسخة تجريبية", school_cta_en: "Request Demo",
   school_wa_ar: "استفسار عبر الواتساب", school_wa_en: "WhatsApp Inquiry",
   teacher_badge_ar: "بوابة المعلم المستقل", teacher_badge_en: "Independent Teacher Portal",
-  teacher_title_ar: "ادَرْ فصلك بذكاء — وواجبات، امتحانات، وبث مباشر", teacher_title_en: "Manage your class smartly — assignments, exams & live classes",
+  teacher_title_ar: "أدر فصلك بذكاء — واجبات، امتحانات، وبث مباشر", teacher_title_en: "Manage your class smartly — assignments, exams & live classes",
   teacher_desc_ar: "أي معلم يمكنه التسجيل لإدارة طلابه وواجباتهم وامتحاناتهم بشكل مستقل. أنشئ حصص مباشرة، ارفع فيديوهات يوتيوب التعليمية، وتابع تقدم كل طالب. مجاني للمعلمين الأفراد.", teacher_desc_en: "Any teacher can register to manage students, assignments, and exams independently. Create live classes, upload YouTube teaching videos, and track each student's progress. Free for individual teachers.",
    teacher_login_ar: "دخول بوابة المعلم", teacher_login_en: "Teacher Login",
    teacher_login_desc_ar: "سجّل دخولك لإدارة طلابك وواجباتهم", teacher_login_desc_en: "Log in to manage your students and assignments",

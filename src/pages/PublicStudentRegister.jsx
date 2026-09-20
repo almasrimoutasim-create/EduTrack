@@ -291,7 +291,7 @@ export default function PublicStudentRegister() {
                     value={form.full_name} 
                     onChange={e => update("full_name", e.target.value)} 
                     className={`rounded-xl border-stone-200 h-11 focus-visible:ring-primary/20 ${isRTL ? 'pr-10' : 'pl-10'}`} 
-                    placeholder={isRTL ? "الاسم الثلاثي للطالب" : "Student full name"} 
+                    placeholder={isRTL ? "الإسم الرباعي للطالب" : "Student full name"} 
                     required
                   />
                 </div>
@@ -519,7 +519,7 @@ export default function PublicStudentRegister() {
                       value={form.phone} 
                       onChange={e => update("phone", e.target.value)} 
                       className={`rounded-xl border-stone-200 h-11 focus-visible:ring-primary/20 num-en ${isRTL ? 'pr-10' : 'pl-10'}`} 
-                      placeholder="05xxxxxxxx" 
+                      placeholder="رقم الهاتف مع مفتاح الدولة" 
                     />
                   </div>
                 </div>

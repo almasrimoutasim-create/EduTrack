@@ -169,7 +169,7 @@ export default function PublicTeacherRegister() {
           <form onSubmit={handleSubmit} className="space-y-3">
             <div>
               <label htmlFor="field-publicteacherregister-full-name" className="text-xs font-bold text-stone-600 mb-1 block">{isRTL ? "الاسم الكامل *" : "Full Name *"}</label>
-              <input id="field-publicteacherregister-full-name" name="full_name" aria-label="full name" value={form.full_name} onChange={e => update("full_name", e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-stone-200 text-sm focus:ring-2 focus:ring-purple-500 text-left" placeholder={isRTL ? "أدخل اسمك الكامل" : "Enter your full name"} />
+              <input id="field-publicteacherregister-full-name" name="full_name" aria-label="full name" value={form.full_name} onChange={e => update("full_name", e.target.value)} className={`w-full px-3 py-2.5 rounded-xl border border-stone-200 text-sm focus:ring-2 focus:ring-purple-500 ${isRTL ? 'text-right' : 'text-left'}`} placeholder={isRTL ? "أدخل اسمك الكامل" : "Enter your full name"} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>

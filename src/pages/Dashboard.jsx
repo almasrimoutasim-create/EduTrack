@@ -26,6 +26,7 @@ import {
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useLanguage } from "@/lib/LanguageContext";
+import { useAuth } from "@/lib/AuthContext";
 import { t } from "@/lib/translations";
 import StatCard from "@/components/shared/StatCard";
 import { Card } from "@/components/ui/card";
@@ -45,6 +46,7 @@ import AnnouncementsWidget from "@/components/dashboard/AnnouncementsWidget";
 
 export default function Dashboard() {
   const { language } = useLanguage();
+  const { appPublicSettings } = useAuth();
   const isRTL = language === "ar";
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("overview");
@@ -158,7 +160,7 @@ export default function Dashboard() {
             <div className="flex items-center gap-2 mb-2">
               <Sparkles className="h-5 w-5 animate-pulse text-yellow-300" />
               <span className="text-xs font-bold uppercase tracking-widest text-white/70">
-                {isRTL ? "مدارس إيديوتراك العالمية" : "EduTrack International Schools"}
+                {appPublicSettings?.public_settings?.school_name_ar || (isRTL ? "مدارس إيديوتراك العالمية" : "EduTrack International Schools")}
               </span>
             </div>
             <h1 className="text-2xl md:text-3xl font-black mb-1">
