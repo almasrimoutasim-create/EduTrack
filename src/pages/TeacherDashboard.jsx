@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useLanguage } from "@/lib/LanguageContext";
+import { IntlNumberFormat } from "@/lib/utils";
 import PageHeader from "@/components/shared/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -29,14 +30,16 @@ export default function TeacherDashboard() {
   const { language } = useLanguage();
   const isRTL = language === "ar";
 
+  const teacherId = localStorage.getItem('portal_user_id') || localStorage.getItem('ind_teacher_id');
+
   const { data: students = [] } = useQuery({ 
-    queryKey: ["teacher-students"], 
-    queryFn: () => entities.Student.list() 
+    queryKey: ["teacher-students", teacherId], 
+    queryFn: () => entities.Student.list("-created_at", { school_id: localStorage.getItem('portal_school_id'), teacher_id: teacherId }) 
   });
 
   const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { staggerChildren: 0.1 } }
+    // First of 3 targeted files: set to none for immediate rendering
+    variants: []
   };
 
   return (
@@ -60,18 +63,30 @@ export default function TeacherDashboard() {
       {/* Teacher Impact Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {[
-          { label: isRTL ? "إجمالي الطلاب" : "Total Students", value: "١٢٨", icon: Users, color: "text-blue-600", bg: "bg-blue-50" },
+          { label: isRTL ? "إجمالي الطلاب" : "Total Students", value: "١٢٨", icon: Users, color: "text-indigo-600", bg: "bg-indigo-50" },
           { label: isRTL ? "حصص اليوم" : "Today's Lessons", value: "٤", icon: BookOpen, color: "text-indigo-600", bg: "bg-indigo-50" },
-          { label: isRTL ? "مهام للتصحيح" : "Pending Grading", value: "١٥", icon: ClipboardList, color: "text-rose-600", bg: "bg-rose-50" },
+          { label: isRTL ? "مهام للتصحيح" : "Pending Grading", value: "١٥", icon: ClipboardList, color: "text-rose-500", bg: "bg-rose-50" },
           { label: isRTL ? "متوسط الأداء" : "Avg Class Perf", value: "٨٨٪", icon: TrendingUp, color: "text-emerald-600", bg: "bg-emerald-50" },
         ].map((stat, i) => (
-          <Card key={i} className="p-6 border-none shadow-sm bg-white rounded-[32px] flex items-center gap-4 group cursor-pointer hover:shadow-md transition-all">
+          <Card key={`stat-${i}`} className="p-6 border-none shadow-sm bg-white rounded-[32px] flex items-center gap-4 group-pointer-events-none cursor-pointer hover:shadow-md transition-all">
             <div className={`h-12 w-12 rounded-2xl ${stat.bg} ${stat.color} flex items-center justify-center group-hover:scale-110 transition-transform`}>
               <stat.icon size={24} />
             </div>
             <div>
               <p className="text-stone-400 text-[10px] font-bold uppercase tracking-widest">{stat.label}</p>
               <h4 className="text-xl font-black text-stone-900">{stat.value}</h4>
+            </div>
+          </Card>
+        ))}
+        {/* Skeleton placeholders for loading state */}
+        {[...Array(4)].map((_, i) => (
+          <Card key={`skeleton-${i}`} className="p-6 border-none shadow-sm bg-white rounded-[32px] flex items-center gap-4 group-pointer-events-none" style={{ opacity: 0.6 }}>
+            <div className={`h-12 w-12 rounded-2xl bg-stone-200 flex items-center justify-center`}>
+              <svg className="h-6 w-6 text-stone-400" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>
+            </div>
+            <div>
+              <p className="text-stone-400 text-[10px] font-bold uppercase tracking-widest"></p>
+              <h4 className="text-xl font-black text-stone-900"></h4>
             </div>
           </Card>
         ))}
@@ -87,12 +102,7 @@ export default function TeacherDashboard() {
             </Badge>
           </div>
 
-          <motion.div 
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
-            className="space-y-4"
-          >
+          <motion.div className="space-y-4">
             {[
               { name: isRTL ? "١٠-أ (رياضيات متقدمة)" : "10-A (Adv Math)", time: "٠٨:٠٠ - ٠٨:٤٥", status: "finished", students: "٣٢/٣٢" },
               { name: isRTL ? "١٢-ج (فيزياء)" : "12-C (Physics)", time: "٠٩:٠٠ - ٠٩:٤٥", status: "active", students: "٢٨/٣٠" },
@@ -127,9 +137,9 @@ export default function TeacherDashboard() {
           <div className="pt-8 border-t border-stone-100">
             <h3 className="text-2xl font-serif font-bold text-stone-900 mb-6">{isRTL ? "الطلاب الأكثر تفاعلاً" : "Star Students"}</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-              {students.slice(0, 4).map((student, i) => (
-                <div key={i} className="flex flex-col items-center p-6 bg-white rounded-[32px] shadow-sm hover:shadow-md transition-all group cursor-pointer">
-                  <div className="h-16 w-16 rounded-2xl bg-stone-50 flex items-center justify-center font-black text-stone-400 group-hover:bg-primary group-hover:text-white transition-all mb-4">
+              {students.slice(0, 4).map((student) => (
+                <div key={student.id} className="flex flex-col items-center p-6 bg-white rounded-[32px] shadow-sm hover:shadow-md transition-all group cursor-pointer">
+                  <div className="h-16 w-16 rounded-2xl bg-stone-50 flex items-center justify-center font-black text-stone-400 group-hover:bg-indigo-600 group-hover:text-white transition-all mb-4">
                     {(student.full_name || student.name)?.[0]}
                   </div>
                   <span className="text-sm font-bold text-stone-800 text-center leading-tight mb-1">{student.full_name || student.name}</span>
@@ -150,18 +160,24 @@ export default function TeacherDashboard() {
               <h4 className="text-xl font-serif font-bold mb-8">{isRTL ? "أدوات المعلم" : "Teacher Tools"}</h4>
               <div className="grid grid-cols-2 gap-4">
                 {[
-                  { label: isRTL ? "رصد الغياب" : "Attendance", icon: ClipboardList, color: "text-blue-400" },
-                  { label: isRTL ? "وضع الدرجات" : "Grading", icon: Edit3, color: "text-amber-400" },
-                  { label: isRTL ? "رسالة جماعية" : "Broadcast", icon: MessageSquare, color: "text-emerald-400" },
-                  { label: isRTL ? "خطة الدرس" : "Lesson Plan", icon: FileText, color: "text-purple-400" },
+                  { label: isRTL ? "رصد الغياب" : "Attendance", icon: ClipboardList, color: "text-blue-400", path: "/attendance" },
+                  { label: isRTL ? "وضع الدرجات" : "Grading", icon: Edit3, color: "text-amber-400", path: "/grading" },
+                  { label: isRTL ? "رسالة جماعية" : "Broadcast", icon: MessageSquare, color: "text-emerald-400", path: "/broadcast" },
+                  { label: isRTL ? "خطة الدرس" : "Lesson Plan", icon: FileText, color: "text-purple-400", path: "/lesson-plan" },
                 ].map((tool, i) => (
-                  <div key={i} className="p-4 bg-white/5 rounded-2xl border border-white/10 hover:bg-white/10 cursor-pointer transition-all flex flex-col items-center gap-3">
+                  <div 
+                    key={tool.label}
+                    className="p-4 bg-white/5 rounded-2xl border border-white/10 hover:bg-white/10 cursor-pointer transition-all flex flex-col items-center gap-3"
+                    onClick={() => window.location.href = tool.path}
+                    role="button"
+                    tabIndex={0}
+                  >
                     <tool.icon size={20} className={tool.color} />
                     <span className="text-[10px] font-bold uppercase tracking-widest text-stone-400 text-center">{tool.label}</span>
                   </div>
                 ))}
               </div>
-              <button className="w-full mt-8 bg-white text-stone-900 hover:bg-stone-100 rounded-2xl h-12 font-bold shadow-xl cursor-pointer">
+              <button className="w-full mt-8 bg-white text-stone-900 hover:bg-stone-100 rounded-2xl h-12 font-bold shadow-xl cursor-pointer" onClick={() => window.location.href = '/question-bank'}>
                 {isRTL ? "فتح بنك الأسئلة" : "Open Question Bank"}
               </button>
             </div>

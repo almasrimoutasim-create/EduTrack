@@ -189,10 +189,8 @@ export default function TeacherPortal() {
     return teacherAnnouncements.filter(a => a.priority === "high");
   }, [teacherAnnouncements]);
 
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { staggerChildren: 0.1 } }
-  };
+  // Third of 3 targeted files: set to none for immediate rendering
+  const containerVariants = { variants: [] };
 
   // Dynamic calculations for stats & headers
   const todayDayEN = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][new Date().getDay()];

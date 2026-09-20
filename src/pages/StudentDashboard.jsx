@@ -189,10 +189,8 @@ export default function StudentDashboard() {
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
   }
 
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { staggerChildren: 0.1 } }
-  };
+  // Second of 3 targeted files: set to none for immediate rendering
+  const containerVariants = { variants: [] };
 
   return (
     <div className="space-y-10 pb-24" dir={isRTL ? "rtl" : "ltr"}>

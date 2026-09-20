@@ -122,10 +122,9 @@ export default function Dashboard() {
   const todayRate = todayAll.length > 0 ? Math.round((todayPresent / todayAll.length) * 100) : null;
 
   const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { staggerChildren: 0.08 } }
+    variants: [],
   };
-  const itemVariants = { hidden: { y: 16, opacity: 0 }, visible: { y: 0, opacity: 1 } };
+  const itemVariants = {};
 
   /* ── TAB LABELS ── */
   const tabLabels = {
