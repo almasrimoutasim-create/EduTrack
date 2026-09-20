@@ -1361,25 +1361,33 @@ export function createApiHandler() {
           } catch { /* no valid JWT — continue without school_id */ }
         }
         if (!sql) return res.end(JSON.stringify({ school_name_ar: 'مدارس عباد الرحمن التعليمية', school_name_en: 'Abad Al-Rahman Educational Schools', school_logo: '', school_background_image: 'https://images.unsplash.com/photo-1510519138101-570d1dcb3d8e?q=80&w=2000&auto=format&fit=crop', sidebar_logo: '', sidebar_short_name: '' }));
-        let rows;
+        // If schoolId is provided (from query param or JWT), fetch settings for that specific school
         if (schoolIdParam) {
-          rows = await dbQuery('SELECT * FROM system_settings WHERE school_id = $1 ORDER BY created_at DESC LIMIT 1', [schoolIdParam]);
-        } else {
-          rows = await dbQuery('SELECT * FROM system_settings WHERE school_id IS NULL ORDER BY created_at DESC LIMIT 1');
-        }
-        const s = rows[0] || {};
-        // If school has settings, return them directly (no cross-school fallback)
-        if (s.school_name_ar || s.school_logo || s.sidebar_logo || s.sidebar_short_name) {
+          const rows = await dbQuery('SELECT * FROM system_settings WHERE school_id = $1 ORDER BY created_at DESC LIMIT 1', [schoolIdParam]);
+          const s = rows[0] || {};
+          // If school has settings, return them directly (no cross-school fallback)
+          if (s.school_name_ar || s.school_logo || s.sidebar_logo || s.sidebar_short_name) {
+            return res.end(JSON.stringify({
+              school_name_ar: s.school_name_ar || 'مدارس عباد الرحمن التعليمية',
+              school_name_en: s.school_name_en || 'Abad Al-Rahman Educational Schools',
+              school_logo: s.school_logo || '',
+              school_background_image: s.school_background_image || 'https://images.unsplash.com/photo-1510519138101-570d1dcb3d8e?q=80&w=2000&auto=format&fit=crop',
+              sidebar_logo: s.sidebar_logo || '',
+              sidebar_short_name: s.sidebar_short_name || '',
+            }));
+          }
+          // School has no custom settings — return defaults for this specific school, not another school's data
           return res.end(JSON.stringify({
-            school_name_ar: s.school_name_ar || 'مدارس عباد الرحمن التعليمية',
-            school_name_en: s.school_name_en || 'Abad Al-Rahman Educational Schools',
-            school_logo: s.school_logo || '',
-            school_background_image: s.school_background_image || 'https://images.unsplash.com/photo-1510519138101-570d1dcb3d8e?q=80&w=2000&auto=format&fit=crop',
-            sidebar_logo: s.sidebar_logo || s.school_logo || '',
-            sidebar_short_name: s.sidebar_short_name || '',
+            school_name_ar: 'مدارس عباد الرحمن التعليمية',
+            school_name_en: 'Abad Al-Rahman Educational Schools',
+            school_logo: '',
+            school_background_image: 'https://images.unsplash.com/photo-1510519138101-570d1dcb3d8e?q=80&w=2000&auto=format&fit=crop',
+            sidebar_logo: '',
+            sidebar_short_name: '',
           }));
         }
-        // If no school_id provided and no record found, return defaults (not another school's data)
+        // If NO schoolId provided — return ONLY default settings, NOT another school's data (school_id IS NULL)
+        // This prevents data leakage: without a school context, we cannot return per-school settings
         return res.end(JSON.stringify({
           school_name_ar: 'مدارس عباد الرحمن التعليمية',
           school_name_en: 'Abad Al-Rahman Educational Schools',
