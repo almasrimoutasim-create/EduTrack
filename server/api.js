@@ -2525,13 +2525,25 @@ WHERE email = $10`,
           receiptUrl = `/uploads/${safeName}`;
         }
 
-        const teacherSchool = await dbQuery(`SELECT school_id FROM teachers WHERE id = $1 LIMIT 1`, [teacherId]);
+        let resolvedTeacherId = teacherId;
+        if (typeof teacherId === 'string' && teacherId.startsWith('IND-')) {
+          const resolved = await dbQuery(`SELECT id FROM teachers WHERE independent_teacher_id = $1 LIMIT 1`, [teacherId]);
+          if (resolved.length > 0) resolvedTeacherId = resolved[0].id;
+        }
+
+        let resolvedStudentId = studentId;
+        if (typeof studentId === 'string' && studentId.startsWith('STU-')) {
+          const resolved = await dbQuery(`SELECT id FROM students WHERE independent_student_id = $1 LIMIT 1`, [studentId]);
+          if (resolved.length > 0) resolvedStudentId = resolved[0].id;
+        }
+
+        const teacherSchool = await dbQuery(`SELECT school_id FROM teachers WHERE id = $1 LIMIT 1`, [resolvedTeacherId]);
         const bondSchoolId = teacherSchool.length > 0 ? teacherSchool[0].school_id : null;
 
         const result = await dbQuery(
           `INSERT INTO student_teacher_bonds (student_id, student_name, student_email, teacher_id, teacher_name, status, request_message, receipt_url, school_id)
            VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8) RETURNING id`,
-          [studentId, studentName, studentEmail || null, teacherId, teacherName, requestMessage || null, receiptUrl, bondSchoolId]
+          [resolvedStudentId, studentName, studentEmail || null, resolvedTeacherId, teacherName, requestMessage || null, receiptUrl, bondSchoolId]
         );
         return res.end(JSON.stringify({ success: true, id: result[0].id }));
       } catch (error) {
@@ -2682,9 +2694,9 @@ WHERE email = $10`,
          const { bondId } = body;
          if (!bondId) { res.statusCode = 400; return res.end(JSON.stringify({ error: 'bondId required' })); }
            const own = await dbQuery(
-             `SELECT b.id, b.school_id FROM student_teacher_bonds b JOIN teachers t ON t.id = b.teacher_id WHERE b.id = $1 AND b.teacher_id = $2 AND b.school_id = t.school_id`,
-             [bondId, me.id]
-           );
+              `SELECT b.id, b.school_id FROM student_teacher_bonds b JOIN teachers t ON t.id = b.teacher_id WHERE b.id = $1 AND b.teacher_id = $2 AND (b.school_id = t.school_id OR t.school_id IS NULL)`,
+              [bondId, me.id]
+            );
            if (own.length === 0) { res.statusCode = 403; return res.end(JSON.stringify({ error: 'Forbidden' })); }
            await dbQuery(
              `UPDATE student_teacher_bonds SET payment_status = 'confirmed', confirmed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
@@ -2716,8 +2728,8 @@ WHERE email = $10`,
           return res.end(JSON.stringify({ error: 'bondId is required' }));
         }
         if (me.role !== 'founder') {
-          const own = await dbQuery(
-            `SELECT b.id FROM student_teacher_bonds b JOIN teachers t ON t.id = b.teacher_id WHERE b.id = $1 AND b.teacher_id = $2 AND b.school_id = t.school_id`,
+           const own = await dbQuery(
+            `SELECT b.id FROM student_teacher_bonds b JOIN teachers t ON t.id = b.teacher_id WHERE b.id = $1 AND b.teacher_id = $2 AND (b.school_id = t.school_id OR t.school_id IS NULL)`,
             [bondId, me.id]
           );
           if (me.role !== 'teacher' || own.length === 0) {
@@ -2809,11 +2821,17 @@ WHERE email = $10`,
 
         // If a specific teacher is queried, verify the student has an approved subscription or bond
         if (teacherId) {
+          let resolvedTeacherId = teacherId;
+          if (typeof teacherId === 'string' && teacherId.startsWith('IND-')) {
+            const resolved = await dbQuery(`SELECT id FROM teachers WHERE independent_teacher_id = $1 LIMIT 1`, [teacherId]);
+            if (resolved.length > 0) resolvedTeacherId = resolved[0].id;
+          }
+
           const approvedRel = await dbQuery(
             `SELECT 1 FROM teacher_subscriptions WHERE teacher_id = $1 AND student_id = $2 AND status = 'approved'
              UNION
              SELECT 1 FROM student_teacher_bonds WHERE teacher_id = $1 AND student_id = $2 AND status = 'approved'`,
-            [teacherId, actualStudentId]
+            [resolvedTeacherId, actualStudentId]
           );
 
           if (!approvedRel || approvedRel.length === 0) {
@@ -2833,7 +2851,7 @@ WHERE email = $10`,
                AND (v.is_hidden IS FALSE OR v.is_hidden IS NULL)
                AND (v.target_student_id IS NULL OR v.target_student_id = $2 OR v.target_type = 'all')
              ORDER BY v.order_index ASC, v.created_at DESC`,
-            [teacherId, actualStudentId]
+            [resolvedTeacherId, actualStudentId]
           );
 
           return res.end(JSON.stringify({ success: true, authorized: true, videos: Array.isArray(videos) ? videos : [] }));
@@ -2881,7 +2899,7 @@ WHERE email = $10`,
       res.setHeader('Content-Type', 'application/json');
       try {
         const rows = await dbQuery(
-          `SELECT id, full_name, employee_id, subjects, experience_years, bio, city, avatar_url, phone, email, created_at
+          `SELECT id, full_name, employee_id, independent_teacher_id, subjects, experience_years, bio, city, avatar_url, phone, email, created_at
            FROM teachers WHERE status = 'active' ORDER BY created_at DESC`
         );
         return res.end(JSON.stringify(Array.isArray(rows) ? rows : []));
@@ -3556,7 +3574,7 @@ WHERE email = $10`,
                   continue;
                 }
                 // Resolve independent_student_id to database student_id
-                if (key === 'student_id' && typeof val === 'string' && val.startsWith('IND-')) {
+                if (key === 'student_id' && typeof val === 'string' && val.startsWith('STU-')) {
                   const resolved = await dbQuery(`SELECT id FROM students WHERE independent_student_id = $1 LIMIT 1`, [val]);
                   if (resolved.length > 0) {
                     const actualKey = sanitizeColumn('student_id');
@@ -3578,6 +3596,11 @@ WHERE email = $10`,
                   conditions.push(`${col} IN (${ph.join(', ')})`);
                   values.push(...val.$in);
                   paramIdx += val.$in.length;
+                } else if (Array.isArray(val)) {
+                  const ph = val.map((_, i) => `$${paramIdx + i}`);
+                  conditions.push(`${col} IN (${ph.join(', ')})`);
+                  values.push(...val);
+                  paramIdx += val.length;
                 } else if (typeof val === 'object' && val.$ne) {
                   conditions.push(`${col} != $${paramIdx}`);
                   values.push(val.$ne); paramIdx++;
@@ -3650,14 +3673,25 @@ WHERE email = $10`,
         const body = await parseBody(req);
         // Resolve independent IDs to database UUIDs for entity tables
         const IND_PREFIX = 'IND-';
-        const teacherTables = new Set(['teacher_own_students', 'teacher_assignments', 'teacher_exams', 'teacher_submissions', 'teacher_live_classes', 'class_participants']);
+        const STU_PREFIX = 'STU-';
+        const teacherTables = new Set(['teacher_own_students', 'teacher_assignments', 'teacher_exams', 'teacher_submissions', 'teacher_live_classes', 'class_participants', 'teacher_subscriptions', 'teacher_subscription_requests']);
+        const bothIdTables = new Set(['teacher_subscriptions', 'teacher_subscription_requests']);
         const isTeacherTable = teacherTables.has(table);
         const idCols = isTeacherTable ? ['teacher_id'] : ['student_id'];
-        for (const col of idCols) {
+        const resolveCols = bothIdTables.has(table) ? ['teacher_id', 'student_id'] : idCols;
+        for (const col of resolveCols) {
           if (body[col] && typeof body[col] === 'string' && body[col].startsWith(IND_PREFIX)) {
             const indCol = `independent_${col}`;
             const indVal = body[col];
-            const resolved = await dbQuery(`SELECT id FROM ${isTeacherTable ? 'teachers' : 'students'} WHERE ${indCol} = $1 LIMIT 1`, [indVal]);
+            const resolved = await dbQuery(`SELECT id FROM teachers WHERE independent_teacher_id = $1 LIMIT 1`, [indVal]);
+            if (resolved.length > 0) {
+              body[col] = resolved[0].id;
+              body[indCol] = indVal;
+            }
+          } else if (body[col] && typeof body[col] === 'string' && body[col].startsWith(STU_PREFIX)) {
+            const indCol = `independent_${col}`;
+            const indVal = body[col];
+            const resolved = await dbQuery(`SELECT id FROM students WHERE independent_student_id = $1 LIMIT 1`, [indVal]);
             if (resolved.length > 0) {
               body[col] = resolved[0].id;
               body[indCol] = indVal;

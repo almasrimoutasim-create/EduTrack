@@ -205,7 +205,7 @@ export default function TeacherRegister() {
 
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-stone-600 flex items-center gap-1"><Star size={12}/> {isRTL ? "سنوات الخبرة" : "Years of experience"}</label>
-              <Input type="number" min="0" max="50" value={form.experience_years} onChange={e => update("experience_years", e.target.value)} placeholder={isRTL ? "مثال: 5" : "e.g. 5"} className="h-11 rounded-xl" />
+              <Input type="number" min="0" max="50" value={form.experience_years} onChange={e => update("experience_years", e.target.value)} placeholder={isRTL ? "مثال: 5" : "e.g. 5"} className="h-11 rounded-xl text-right" dir="rtl" />
             </div>
 
             <div className="space-y-1.5">
