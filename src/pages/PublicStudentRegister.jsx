@@ -29,6 +29,9 @@ import {
 } from "lucide-react";
 
 const GRADE_OPTIONS = [
+  { id: "KG", name: "KG", nameEn: "KG" },
+  { id: "level1", name: "المستوى الأول", nameEn: "Level 1" },
+  { id: "level2", name: "المستوى الثاني", nameEn: "Level 2" },
   { id: "1", name: "الصف الأول", nameEn: "Grade 1" },
   { id: "2", name: "الصف الثاني", nameEn: "Grade 2" },
   { id: "3", name: "الصف الثالث", nameEn: "Grade 3" },
@@ -44,11 +47,8 @@ const GRADE_OPTIONS = [
 ];
 
 const CLASS_SECTIONS = [
-  { id: "أبو بكر", name: "أبو بكر", nameEn: "Abu Bakr" },
-  { id: "عمر", name: "عمر", nameEn: "Omar" },
-  { id: "عثمان", name: "عثمان", nameEn: "Othman" },
-  { id: "علي", name: "علي", nameEn: "Ali" },
-  { id: "حمزة", name: "حمزة", nameEn: "Hamza" },
+  { id: "sudanese", name: "المنهج السوداني", nameEn: "Sudanese Curriculum" },
+  { id: "british", name: "المنهج البريطاني", nameEn: "British Curriculum" },
 ];
 
 export default function PublicStudentRegister() {
@@ -320,7 +320,7 @@ export default function PublicStudentRegister() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-bold text-stone-700">{isRTL ? "الفصل" : "Class / Section"}</Label>
+                  <Label className="text-xs font-bold text-stone-700">{isRTL ? "القسم" : "Class / Section"}</Label>
                   <div className="relative">
                     <Building2 size={15} className={`absolute top-1/2 -translate-y-1/2 ${isRTL ? 'right-3.5' : 'left-3.5'} text-stone-400 pointer-events-none`} />
                     <select 
@@ -328,7 +328,7 @@ export default function PublicStudentRegister() {
                       onChange={e => update("section", e.target.value)} 
                       className={`w-full ${isRTL ? 'pr-10 pl-3' : 'pl-10 pr-3'} h-11 rounded-xl border border-stone-200 text-sm font-medium focus:ring-2 focus:ring-primary/20 bg-white outline-none`}
                     >
-                      <option value="">{isRTL ? "اختر الفصل (اختياري)..." : "Select Class (optional)..."}</option>
+                      <option value="">{isRTL ? "اختر القسم (اختياري)..." : "Select Section (optional)..."}</option>
                       {CLASS_SECTIONS.map(s => (
                         <option key={s.id} value={s.id}>
                           {isRTL ? s.name : s.nameEn}
