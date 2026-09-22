@@ -1,0 +1,48 @@
+﻿C:\MFA\src\App.jsx:96: const IndependentTeacherPortal = lazy(() => import('./pages/IndependentTeacherPortal'));
+C:\MFA\src\App.jsx:200: <Route path="/teacher-panel" element={<IndependentTeacherPortal />} />
+C:\MFA\src\components\LandingContentEditor.jsx:10: { key: "teacher_cta", label: "دعوة المعلم المستقل", icon: Type },
+C:\MFA\src\components\LandingContentEditor.jsx:11: { key: "student_cta", label: "دعوة الطالب المستقل", icon: Type },
+C:\MFA\src\components\LandingContentEditor.jsx:296: <p className="text-xs text-amber-700 font-bold text-right">هذه الأسعار تظهر في قسم "بوابة المعلم المستقل" في الصفحة الرئيسية</p>
+C:\MFA\src\components\RoleGate.jsx:41: const isIndependent = !schoolId;
+C:\MFA\src\components\RoleGate.jsx:42: if (isIndependent) return path.startsWith('/teacher-panel');
+C:\MFA\src\components\RoleGate.jsx:46: const isIndependent = !schoolId;
+C:\MFA\src\components\RoleGate.jsx:47: if (isIndependent) return path.startsWith('/student-panel') || path.startsWith('/store');
+C:\MFA\src\lib\AuthContext.jsx:120: // Independent portal fallback (teacher/student/staff portals store their own keys)
+C:\MFA\src\lib\AuthContext.jsx:217: // عزل جلسات البوابات المستقلة عن بوابات المدارس لمنع الكتابة فوق بعضها عند الاختبار على نفس المتصفح
+C:\MFA\src\lib\AuthContext.jsx:220: localStorage.setItem('ind_teacher_id', loggedUser.independent_teacher_id || loggedUser.id);
+C:\MFA\src\lib\AuthContext.jsx:226: localStorage.setItem('ind_student_id', loggedUser.independent_student_id || loggedUser.id);
+C:\MFA\src\pages\EnhancedStudentPortal.jsx:498: // Fetch all independent teachers
+C:\MFA\src\pages\EnhancedStudentPortal.jsx:499: const { data: independentTeachers = [], isLoading: loadingTeachers } = useQuery({
+C:\MFA\src\pages\EnhancedStudentPortal.jsx:500: queryKey: ["independent-teachers"],
+C:\MFA\src\pages\EnhancedStudentPortal.jsx:501: queryFn: () => fetch("/api/independent-teachers").then(r => r.json()).catch(() => []),
+C:\MFA\src\pages\EnhancedStudentPortal.jsx:688: {/* Browse Independent Teachers */}
+C:\MFA\src\pages\EnhancedStudentPortal.jsx:692: {isRTL ? "المعلمون المستقلون" : "Independent Teachers"}
+C:\MFA\src\pages\EnhancedStudentPortal.jsx:693: <span className="text-xs font-normal text-stone-400">({independentTeachers.length})</span>
+C:\MFA\src\pages\EnhancedStudentPortal.jsx:697: ) : independentTeachers.length > 0 ? (
+C:\MFA\src\pages\EnhancedStudentPortal.jsx:699: {independentTeachers.map(t => {
+C:\MFA\src\pages\EnhancedStudentPortal.jsx:719: {/* 2 - اسم المعلم - سطر مستقل تحت الصورة بمسافة واضحة */}
+C:\MFA\src\pages\EnhancedStudentPortal.jsx:724: {/* 3 - المادة الدراسية - سطر مستقل تحت الاسم مباشرة */}
+C:\MFA\src\pages\EnhancedStudentPortal.jsx:803: <div className="text-xs font-bold text-stone-500">{isRTL ? "لا يوجد معلمون مستقلون بعد" : "No independent teachers yet"}</div>
+C:\MFA\src\pages\EnhancedStudentPortal.jsx:808: {approvedTeachers.length === 0 && pendingSubs.length === 0 && bonds.length === 0 && independentTeachers.length === 0 && (
+C:\MFA\src\pages\FounderDashboard.jsx:548: // Independent vs school separation (TDZ safety: declared before pre-computed filters below)
+C:\MFA\src\pages\FounderDashboard.jsx:549: const [teacherTypeFilter, setTeacherTypeFilter] = useState("school"); // school | independent
+C:\MFA\src\pages\FounderDashboard.jsx:550: const [studentTypeFilter, setStudentTypeFilter] = useState("school"); // school | independent
+C:\MFA\src\pages\FounderDashboard.jsx:2017: {isStudent && <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">طالب مستقل</span>}
+C:\MFA\src\pages\FounderDashboard.jsx:2018: {isTeacher && <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-100 text-indigo-800">معلم مستقل</span>}
+C:\MFA\src\pages\FounderDashboard.jsx:2154: <button onClick={()=>setTeacherTypeFilter("independent")} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${teacherTypeFilter==="independent" ? "bg-indigo-600 text-white shadow" : "text-slate-600 hover:bg-slate-200"}`}>معلمون مستقلون</button>
+C:\MFA\src\pages\FounderDashboard.jsx:2305: <button onClick={()=>setStudentTypeFilter("independent")} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${studentTypeFilter==="independent" ? "bg-emerald-600 text-white shadow" : "text-slate-600 hover:bg-slate-200"}`}>طلاب مستقلون</button>
+C:\MFA\src\pages\FounderDashboard.jsx:3013: {viewRequestDetail.role_requested === "student" || viewRequestDetail.plan === "student_free" ? "طالب مستقل 🎓" :
+C:\MFA\src\pages\FounderDashboard.jsx:3014: viewRequestDetail.role_requested === "teacher" || viewRequestDetail.plan === "teacher_free" ? "معلم مستقل 👨‍🏫" :
+C:\MFA\src\pages\IndependentTeacherPortal.jsx:40: export default function IndependentTeacherPortal() {
+C:\MFA\src\pages\IndependentTeacherPortal.jsx:240: <label htmlFor="field-independentteacherportal-input-13" className="block text-sm font-bold text-stone-700 mb-1.5">
+C:\MFA\src\pages\IndependentTeacherPortal.jsx:243: <input id="field-independentteacherportal-input-13" name="input_13" aria-label="input 13"
+C:\MFA\src\pages\IndependentTeacherPortal.jsx:254: <label htmlFor="field-independentteacherportal-input-12" className="block text-sm font-bold text-stone-700 mb-1.5">
+C:\MFA\src\pages\IndependentTeacherPortal.jsx:258: <input id="field-independentteacherportal-input-12" name="input_12" aria-label="input 12"
+C:\MFA\src\pages\IndependentTeacherPortal.jsx:1789: // also refresh independent-teachers cache for student view (student has separate QueryClient, but clear local)
+C:\MFA\src\pages\IndependentTeacherPortal.jsx:1790: queryClient.invalidateQueries({ queryKey: ["independent-teachers"] });
+C:\MFA\src\pages\LandingPage.jsx:89: teacher_badge_ar: "بوابة المعلم المستقل", teacher_badge_en: "Independent Teacher Portal",
+C:\MFA\src\pages\LandingPage.jsx:91: teacher_desc_ar: "أي معلم يمكنه التسجيل لإدارة طلابه وواجباتهم وامتحاناتهم بشكل مستقل. أنشئ حصص مباشرة، ارفع فيديوهات يوتيوب التعليمية، وتابع تقدم كل طالب. مجاني للمعلمين الأفراد.", teacher_desc_en: "Any teacher can register to manage students, assignments, and exams independently. Create live classes, upload YouTube teaching videos, and track each student's progress. Free for individual teachers.",
+C:\MFA\src\pages\LandingPage.jsx:96: student_badge_ar: "بوابة الطالب المستقل", student_badge_en: "Independent Student Portal",
+C:\MFA\src\pages\LandingPage.jsx:495: { icon: ShieldCheck, label: isRTL ? "مستقل وخالص" : "Fully Independent" },
+C:\MFA\src\pages\TeacherRegister.jsx:161: <h1 className="text-2xl font-black text-stone-900 mt-3">{isRTL ? "سجّل كمعلم مستقل على EduTrack" : "Register as Independent Teacher on EduTrack"}</h1>
+C:\MFA\src\pages\TeacherRegister.jsx:168: <Shield size={16} className="shrink-0 mt-0.5"/> <span>{isRTL ? "بوابتك المستقلة لإدارة طلابك: واجبات، امتحانات، حصص مباشرة، فيديوهات يوتيوب. عند الموافقة، تحصل على اسم مستخدم وكلمة مرور للدخول من زر 'دخول' في قسم بوابة المعلم." : "Your independent portal to manage students: assignments, exams, live classes, YouTube videos. On approval, you get username/password to login via the 'Enter' button in the Teacher Portal section."}</span>

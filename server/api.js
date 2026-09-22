@@ -229,18 +229,6 @@ if (process.env.DATABASE_URL) {
         ['school_cta_desc', 'لوحة تحكم شاملة للمديرين: إدارة الطلاب والمعلمين، النتائج والشهادات السودانية، الرسوم المالية، الحضور والغياب، والتقارير الذكية. كل ما تحتاجه لإدارة مدرستك في مكان واحد.', 'Comprehensive admin dashboard: manage students & teachers, Sudanese results & certificates, financial fees, attendance, and smart reports. Everything you need in one place.', 'text'],
         ['school_cta_cta', 'طلب نسخة تجريبية', 'Request Demo', 'text'],
         ['school_cta_whatsapp', 'استفسار عبر الواتساب', 'WhatsApp Inquiry', 'text'],
-        ['teacher_cta_badge', 'بوابة المعلم المستقل', 'Independent Teacher Portal', 'text'],
-        ['teacher_cta_title', 'ادَرْ فصلك بذكاء — وواجبات، امتحانات، وبث مباشر', 'Manage your class smartly — assignments, exams & live classes', 'text'],
-        ['teacher_cta_desc', 'أي معلم يمكنه التسجيل لإدارة طلابه وواجباتهم وامتحاناتهم بشكل مستقل. أنشئ حصص مباشرة، ارفع فيديوهات يوتيوب التعليمية، وتابع تقدم كل طالب. مجاني للمعلمين الأفراد.', 'Any teacher can register to manage students, assignments, and exams independently. Create live classes, upload YouTube teaching videos, and track each student\'s progress. Free for individual teachers.', 'text'],
-        ['teacher_cta_login', 'دخول بوابة المعلم', 'Teacher Login', 'text'],
-        ['teacher_cta_register', 'تسجيل جديد كمعلم', 'Register as Teacher', 'text'],
-        ['teacher_cta_whatsapp', 'استفسار عبر الواتساب', 'WhatsApp', 'text'],
-        ['student_cta_badge', 'بوابة الطالب المستقل', 'Independent Student Portal', 'text'],
-        ['student_cta_title', 'سجل طالبك الآن — وصول فوري للمنهج السوداني', 'Register your student — Instant access to Sudanese curriculum', 'text'],
-        ['student_cta_desc', 'أي طالب يمكنه التسجيل مجاناً للوصول إلى كتب المنهج السوداني المعتمدة، وحل الواجبات، ومتابعة الدروس. للاشتراك مع معلم خاص والدروس المباشرة، يرسل طلب اشتراك من داخل البوابة.', 'Any student can register free for Sudanese curriculum books, assignments, and lessons. To join a private teacher for live classes, send a subscription request from within the portal.', 'text'],
-        ['student_cta_login', 'دخول بوابة الطالب', 'Student Login', 'text'],
-        ['student_cta_register', 'تسجيل طالب جديد (مجاني)', 'Register Student (Free)', 'text'],
-        ['student_cta_whatsapp', 'استفسار عبر الواتساب', 'WhatsApp', 'text'],
         ['whatsapp_title', 'تواصل سريع عبر واتساب', 'Quick WhatsApp Contact', 'text'],
         ['whatsapp_desc', 'رد فوري من فريق EduTrack على الرقم الموحد', 'Instant reply from EduTrack team', 'text'],
         ['whatsapp_cta', 'فتح واتساب', 'Open WhatsApp', 'text'],
@@ -4971,3 +4959,4 @@ async function queueNotification(schoolId, type, payload) {
 
 notificationTimer = setInterval(checkAndSendExpiryNotifications, 6 * 60 * 60 * 1000);
 setTimeout(checkAndSendExpiryNotifications, 5000);
+

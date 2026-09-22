@@ -7,8 +7,6 @@ const SECTIONS = [
   { key: "hero", label: "القسم الرئيسي (Hero)", icon: Globe },
   { key: "features", label: "المميزات", icon: Hash },
   { key: "school_cta", label: "دعوة المدرسة", icon: Type },
-  { key: "teacher_cta", label: "دعوة المعلم المستقل", icon: Type },
-  { key: "student_cta", label: "دعوة الطالب المستقل", icon: Type },
   { key: "whatsapp", label: "قسم واتساب", icon: Type },
   { key: "footer", label: "التذييل", icon: Type },
   { key: "pricing", label: "الأسعار والباقات", icon: CreditCard },
@@ -239,26 +237,6 @@ export default function LandingContentEditor() {
         {renderField("school_cta_whatsapp", "نص زر واتساب")}
       </>)}
 
-      {/* Teacher CTA */}
-      {renderSection("teacher_cta", <>
-        {renderField("teacher_cta_badge", "الشارة")}
-        {renderField("teacher_cta_title", "العنوان")}
-        {renderField("teacher_cta_desc", "الوصف")}
-        {renderField("teacher_cta_login", "نص زر الدخول")}
-        {renderField("teacher_cta_register", "نص زر التسجيل")}
-        {renderField("teacher_cta_whatsapp", "نص زر واتساب")}
-      </>)}
-
-      {/* Student CTA */}
-      {renderSection("student_cta", <>
-        {renderField("student_cta_badge", "الشارة")}
-        {renderField("student_cta_title", "العنوان")}
-        {renderField("student_cta_desc", "الوصف")}
-        {renderField("student_cta_login", "نص زر الدخول")}
-        {renderField("student_cta_register", "نص زر التسجيل")}
-        {renderField("student_cta_whatsapp", "نص زر واتساب")}
-      </>)}
-
       {/* WhatsApp */}
       {renderSection("whatsapp", <>
         {renderField("whatsapp_title", "العنوان")}
@@ -292,9 +270,7 @@ export default function LandingContentEditor() {
 
       {/* Pricing */}
       {renderSection("pricing", <>
-        <div className="bg-amber-50 rounded-xl p-3 border border-amber-200 mb-2">
-          <p className="text-xs text-amber-700 font-bold text-right">هذه الأسعار تظهر في قسم "بوابة المعلم المستقل" في الصفحة الرئيسية</p>
-        </div>
+        
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1">
             <label htmlFor="field-pricing_monthly_price" className="text-xs font-bold text-slate-500 block text-right">السعر الشهري (رقم فقط)</label>
@@ -380,3 +356,5 @@ export default function LandingContentEditor() {
     </div>
   );
 }
+
+

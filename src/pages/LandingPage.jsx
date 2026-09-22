@@ -86,19 +86,13 @@ const DEFAULTS = {
   school_desc_ar: "لوحة تحكم شاملة للمديرين: إدارة الطلاب والمعلمين، النتائج والشهادات، الرسوم المالية، الحضور والغياب، والتقارير الذكية. كل ما تحتاجه لإدارة مدرستك في مكان واحد.", school_desc_en: "Comprehensive admin dashboard: manage students & teachers, Sudanese results & certificates, financial fees, attendance, and smart reports. Everything you need in one place.",
   school_cta_ar: "طلب نسخة تجريبية", school_cta_en: "Request Demo",
   school_wa_ar: "استفسار عبر الواتساب", school_wa_en: "WhatsApp Inquiry",
-  teacher_badge_ar: "بوابة المعلم المستقل", teacher_badge_en: "Independent Teacher Portal",
+  teacher_badge_ar: "بوابة المعلم", teacher_badge_en: "Teacher Portal",
   teacher_title_ar: "أدر فصلك بذكاء — واجبات، امتحانات، وبث مباشر", teacher_title_en: "Manage your class smartly — assignments, exams & live classes",
-  teacher_desc_ar: "أي معلم يمكنه التسجيل لإدارة طلابه وواجباتهم وامتحاناتهم بشكل مستقل. أنشئ حصص مباشرة، ارفع فيديوهات يوتيوب التعليمية، وتابع تقدم كل طالب. مجاني للمعلمين الأفراد.", teacher_desc_en: "Any teacher can register to manage students, assignments, and exams independently. Create live classes, upload YouTube teaching videos, and track each student's progress. Free for individual teachers.",
+  teacher_desc_ar: "أي معلم يمكنه التسجيل لإدارة طلابه وواجباتهم وامتحاناته. أنشئ حصص مباشرة، ارفع فيديوهات يوتيوب التعليمية، وتابع تقدم كل طالب. مجاني للمعلمين الأفراد.", teacher_desc_en: "Any teacher can register to manage students, assignments, and exams. Create live classes, upload YouTube teaching videos, and track each student's progress. Free for individual teachers.",
    teacher_login_ar: "دخول بوابة المعلم", teacher_login_en: "Teacher Login",
    teacher_login_desc_ar: "سجّل دخولك لإدارة طلابك وواجباتهم", teacher_login_desc_en: "Log in to manage your students and assignments",
    teacher_register_ar: "تسجيل جديد كمعلم", teacher_register_en: "Register as Teacher",
   teacher_wa_ar: "استفسار عبر الواتساب", teacher_wa_en: "WhatsApp",
-  student_badge_ar: "بوابة الطالب المستقل", student_badge_en: "Independent Student Portal",
-  student_title_ar: "سجل طالبك الآن — وصول فوري للمنهج السوداني", student_title_en: "Register your student — Instant access to Sudanese curriculum",
-  student_desc_ar: "أي طالب يمكنه التسجيل مجاناً للوصول إلى كتب المنهج السوداني المعتمدة، وحل الواجبات، ومتابعة الدروس. للاشتراك مع معلم خاص والدروس المباشرة، يرسل طلب اشتراك من داخل البوابة.", student_desc_en: "Any student can register free for Sudanese curriculum books, assignments, and lessons. To join a private teacher for live classes, send a subscription request from within the portal.",
-  student_login_ar: "دخول بوابة الطالب", student_login_en: "Student Login",
-  student_register_ar: "تسجيل طالب جديد (مجاني)", student_register_en: "Register Student (Free)",
-  student_wa_ar: "استفسار عبر الواتساب", student_wa_en: "WhatsApp",
   whatsapp_title_ar: "تواصل سريع عبر واتساب", whatsapp_title_en: "Quick WhatsApp Contact",
   whatsapp_desc_ar: "رد فوري من فريق EduTrack على الرقم الموحد", whatsapp_desc_en: "Instant reply from EduTrack team",
   whatsapp_cta_ar: "فتح واتساب", whatsapp_cta_en: "Open WhatsApp",
@@ -130,14 +124,6 @@ export default function LandingPage() {
 
   const [contentItems, setContentItems] = useState([]);
   const [selectedFeature, setSelectedFeature] = useState(null);
-  const [teacherLoginOpen, setTeacherLoginOpen] = useState(false);
-  const [studentLoginOpen, setStudentLoginOpen] = useState(false);
-  const [teacherLoginForm, setTeacherLoginForm] = useState({ username: "", password: "" });
-  const [studentLoginForm, setStudentLoginForm] = useState({ email: "", password: "" });
-  const [showTeacherPass, setShowTeacherPass] = useState(false);
-  const [showStudentPass, setShowStudentPass] = useState(false);
-  const [teacherLoginLoading, setTeacherLoginLoading] = useState(false);
-  const [studentLoginLoading, setStudentLoginLoading] = useState(false);
   const navigate = useNavigate();
 
   /* ─── fetch editable content from API ─── */
@@ -167,43 +153,7 @@ export default function LandingPage() {
   /* get image URL (no lang suffix) */
   const img = (key) => apiVal[key] || DEFAULTS[key] || "";
 
-  const handleTeacherLogin = async (e) => {
-    e.preventDefault();
-    if (!teacherLoginForm.username.trim() || !teacherLoginForm.password.trim()) {
-      toast.error(isRTL ? "يرجى ملء جميع الحقول" : "Please fill all fields");
-      return;
-    }
-    setTeacherLoginLoading(true);
-    try {
-      await login("teacher", teacherLoginForm.username.trim(), teacherLoginForm.password);
-      toast.success(isRTL ? "تم تسجيل الدخول بنجاح" : "Login successful");
-      setTeacherLoginOpen(false);
-      window.location.href = "/teacher-panel";
-    } catch (err) {
-      toast.error(err.message || (isRTL ? "فشل تسجيل الدخول" : "Login failed"));
-    } finally {
-      setTeacherLoginLoading(false);
-    }
-  };
 
-  const handleStudentLogin = async (e) => {
-    e.preventDefault();
-    if (!studentLoginForm.email.trim() || !studentLoginForm.password.trim()) {
-      toast.error(isRTL ? "يرجى ملء جميع الحقول" : "Please fill all fields");
-      return;
-    }
-    setStudentLoginLoading(true);
-    try {
-      await login("student", studentLoginForm.email.trim(), studentLoginForm.password);
-      toast.success(isRTL ? "تم تسجيل الدخول بنجاح" : "Login successful");
-      setStudentLoginOpen(false);
-      window.location.href = "/student-panel";
-    } catch (err) {
-      toast.error(err.message || (isRTL ? "فشل تسجيل الدخول" : "Login failed"));
-    } finally {
-      setStudentLoginLoading(false);
-    }
-  };
 
   const features = [
     {
@@ -457,144 +407,7 @@ export default function LandingPage() {
         </motion.div>
       </section>
 
-      {/* Teacher Registration CTA */}
-      <section className="max-w-7xl mx-auto px-4 md:px-6 py-6">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 rounded-[28px] p-6 md:p-8 text-white shadow-xl">
-          <div className="grid md:grid-cols-2 gap-8 items-center">
-             <div className="text-right">
-               <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur rounded-full px-4 py-2 text-sm font-bold mx-auto">
-                 <GraduationCap size={16} /> {t("teacher_badge")}
-              </div>
-              <h3 className="mt-3 text-2xl md:text-3xl font-black leading-tight">
-                {t("teacher_title")}
-              </h3>
-              <p className="mt-2 text-white/90 leading-relaxed">
-                {t("teacher_desc")}
-              </p>
-              <div className="mt-5 flex flex-wrap gap-3 justify-center">
-                <button onClick={() => setTeacherLoginOpen(true)} className="h-11 px-6 rounded-xl bg-white text-indigo-700 font-black text-sm hover:bg-white/90 inline-flex items-center gap-2 shadow-lg">
-                  <LogIn size={16} /> {t("teacher_login")}
-                </button>
-                <Link to="/teacher-register" className="h-11 px-6 rounded-xl bg-white/20 border border-white/30 text-white font-black text-sm hover:bg-white/30 inline-flex items-center gap-2">
-                  <UserPlus size={16} /> {t("teacher_register")}
-                </Link>
-                <a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("مرحباً، أريد التسجيل كمعلم في منصة EduTrack.")}`} target="_blank" rel="noopener noreferrer" className="h-11 px-6 rounded-xl bg-white/20 border border-white/30 text-white font-black text-sm hover:bg-white/30 inline-flex items-center gap-2">
-                  <MessageCircle size={16} /> {t("teacher_wa")}
-                </a>
-              </div>
-            </div>
-            <div className="relative">
-              <div className="bg-white/10 backdrop-blur rounded-[24px] p-2 border border-white/20">
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { icon: Users, label: isRTL ? "إدارة طلابي" : "My Students" },
-                    { icon: ClipboardCheck, label: isRTL ? "واجبات ذكية" : "Smart Assignments" },
-                    { icon: BarChart3, label: isRTL ? "امتحانات وتقييم" : "Exams & Grading" },
-                    { icon: Video, label: isRTL ? "حصص مباشرة" : "Live Classes" },
-                    { icon: Star, label: isRTL ? "فيديوهات يوتيوب" : "YouTube Videos" },
-                    { icon: ShieldCheck, label: isRTL ? "مستقل وخالص" : "Fully Independent" },
-                  ].map((item, i) => (
-                    <div
-                      key={i}
-                      className="bg-white/5 rounded-xl px-2 pt-4 pb-3 flex flex-col items-center justify-start text-center hover:bg-white/10 transition-colors min-h-[104px]"
-                    >
-                      <div className="h-9 w-9 rounded-xl bg-indigo-500 text-white flex items-center justify-center mb-2 shrink-0 shadow-sm">
-                        <item.icon size={18} />
-                      </div>
-                      <span className="text-xs font-bold text-white/90 text-center leading-snug w-full block">
-                        {item.label}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="mt-4 grid grid-cols-3 gap-2">
-                <div className="bg-white/20 backdrop-blur rounded-xl p-3 flex flex-col items-center justify-center text-center border border-white/30">
-                  <Gift size={16} className="mx-auto mb-1 text-white shrink-0" />
-                  <div className="text-xs font-black text-white text-center w-full">{t("pricing_trial_badge")}</div>
-                  <div className="text-[10px] text-white/70 text-center w-full mt-0.5">{isRTL ? "تجربة بدون دفع" : "No payment"}</div>
-                </div>
-                <div className="bg-white/20 backdrop-blur rounded-xl p-3 flex flex-col items-center justify-center text-center border border-white/30">
-                  <CreditCard size={16} className="mx-auto mb-1 text-white shrink-0" />
-                  <div className="text-xs font-black text-white text-center w-full">{t("pricing_monthly_price")} {t("pricing_currency")}</div>
-                  <div className="text-[10px] text-white/70 text-center w-full mt-0.5">{isRTL ? "شهرياً" : "Monthly"}</div>
-                </div>
-                <div className="bg-white/20 backdrop-blur rounded-xl p-3 flex flex-col items-center justify-center text-center border border-white/30 relative">
-                  <span className="absolute -top-2 -right-2 bg-amber-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full shadow">{t("pricing_discount_badge")}</span>
-                  <Award size={16} className="mx-auto mb-1 text-white shrink-0" />
-                  <div className="text-xs font-black text-white text-center w-full">{t("pricing_yearly_price")} {t("pricing_currency")}</div>
-                  <div className="text-[10px] text-white/70 text-center w-full mt-0.5">{isRTL ? "سنوياً" : "Yearly"}</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </motion.div>
-      </section>
-
-      {/* Student Registration CTA */}
-      <section className="max-w-7xl mx-auto px-4 md:px-6 py-6">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-gradient-to-r from-emerald-600 via-teal-600 to-sky-600 rounded-[28px] p-6 md:p-8 text-white shadow-xl">
-          <div className="grid md:grid-cols-2 gap-8 items-center">
-             <div className="text-right">
-               <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur rounded-full px-4 py-2 text-sm font-bold mx-auto">
-                 <UserPlus size={16} /> {t("student_badge")}
-              </div>
-              <h3 className="mt-3 text-2xl md:text-3xl font-black leading-tight">
-                {t("student_title")}
-              </h3>
-              <p className="mt-2 text-white/90 leading-relaxed">
-                {t("student_desc")}
-              </p>
-              <div className="mt-5 flex flex-wrap gap-3 justify-center">
-                <button onClick={() => setStudentLoginOpen(true)} className="h-11 px-6 rounded-xl bg-white text-emerald-700 font-black text-sm hover:bg-white/90 inline-flex items-center gap-2 shadow-lg">
-                  <LogIn size={16} /> {t("student_login")}
-                </button>
-                <Link to="/student-register" className="h-11 px-6 rounded-xl bg-white/20 border border-white/30 text-white font-black text-sm hover:bg-white/30 inline-flex items-center gap-2">
-                  <UserPlus size={16} /> {t("student_register")}
-                </Link>
-                <a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("مرحباً، أريد تسجيل طالب في منصة EduTrack. كيف أبدأ؟")}`} target="_blank" rel="noopener noreferrer" className="h-11 px-6 rounded-xl bg-white/20 border border-white/30 text-white font-black text-sm hover:bg-white/30 inline-flex items-center gap-2">
-                  <MessageCircle size={16} /> {t("student_wa")}
-                </a>
-              </div>
-            </div>
-            <div className="relative">
-              <div className="bg-white/10 backdrop-blur rounded-[24px] p-2 border border-white/20">
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { icon: BookOpen, label: isRTL ? "كتب المنهج" : "Curriculum Books" },
-                    { icon: ClipboardCheck, label: isRTL ? "واجبات وامتحانات" : "Assignments & Exams" },
-                    { icon: Star, label: isRTL ? "شهادات معتمدة" : "Certified Certificates" },
-                    { icon: Users, label: isRTL ? "تواصل مع معلمين" : "Connect Teachers" },
-                    { icon: Award, label: isRTL ? "متابعة تقديرات" : "Track Grades" },
-                    { icon: ShieldCheck, label: isRTL ? "آمن ومحمي" : "Secure & Safe" },
-                  ].map((item, i) => (
-                    <div
-                      key={i}
-                      className="bg-white/5 rounded-xl px-2 pt-4 pb-3 flex flex-col items-center justify-start text-center hover:bg-white/10 transition-colors min-h-[104px]"
-                    >
-                      <div className="h-9 w-9 rounded-xl bg-emerald-500 text-white flex items-center justify-center mb-2 shrink-0 shadow-sm">
-                        <item.icon size={18} />
-                      </div>
-                      <span className="text-xs font-bold text-white/90 text-center leading-snug w-full block">
-                        {item.label}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="mt-4 bg-white/20 backdrop-blur rounded-xl p-4 flex flex-col items-center justify-center text-center border border-white/30">
-                <div className="flex items-center justify-center gap-2 mb-1 text-center w-full">
-                  <Gift size={18} className="text-white shrink-0" />
-                  <span className="text-sm font-black text-white">{isRTL ? "التسجيل مجاني بالكامل" : "Registration is 100% Free"}</span>
-                </div>
-                <p className="text-xs text-white/70 text-center w-full leading-relaxed">{isRTL ? "وصول فوري لكتب المنهج السوداني المعتمدة وحلول الواجبات" : "Instant access to Sudanese curriculum books and homework solutions"}</p>
-              </div>
-            </div>
-          </div>
-        </motion.div>
-      </section>
-
-      {/* WhatsApp CTA */}
+{/* WhatsApp CTA */}
       <section className="max-w-7xl mx-auto px-4 md:px-6 pb-10">
         <div className="bg-stone-900 rounded-[28px] p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-4 text-white text-center md:text-left">
           <div className="w-full md:w-auto">
@@ -739,61 +552,12 @@ export default function LandingPage() {
           </form>
         </DialogContent>
       </Dialog>
-
-      {/* Student Login Modal */}
-      <Dialog open={studentLoginOpen} onOpenChange={setStudentLoginOpen}>
-        <DialogContent className="max-w-sm rounded-[24px] p-0 overflow-hidden" dir="rtl">
-          <div className="bg-gradient-to-br from-emerald-600 to-teal-600 p-6 text-white text-center">
-            <div className="flex flex-col items-center">
-              <div className="h-14 w-14 rounded-2xl bg-white/20 flex items-center justify-center mb-3">
-                <GraduationCap size={28} />
-              </div>
-              <h3 className="text-lg font-black">دخول بوابة الطالب</h3>
-              <p className="text-white/80 text-xs mt-1">سجّل دخولك لعرض واجباتك ودرجاتك</p>
-            </div>
-          </div>
-          <form onSubmit={handleStudentLogin} className="p-6 space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-stone-600 flex items-center gap-1"><UserCheck size={12} /> البريد الإلكتروني أو اسم المستخدم</label>
-              <div className="relative">
-                <Input
-                  type="text"
-                  value={studentLoginForm.email}
-                  onChange={e => setStudentLoginForm(p => ({ ...p, email: e.target.value }))}
-                  placeholder="student@email.com أو اسم المستخدم"
-                  className="h-11 rounded-xl pr-10"
-                  dir="ltr"
-                />
-                <UserCheck size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400" />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-stone-600 flex items-center gap-1"><KeyRound size={12} /> كلمة المرور</label>
-              <div className="relative">
-                <Input
-                  type={showStudentPass ? "text" : "password"}
-                  value={studentLoginForm.password}
-                  onChange={e => setStudentLoginForm(p => ({ ...p, password: e.target.value }))}
-                  placeholder="أدخل كلمة المرور"
-                  className="h-11 rounded-xl pr-10 pl-10"
-                  dir="ltr"
-                />
-                <KeyRound size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400" />
-                <button type="button" onClick={() => setShowStudentPass(!showStudentPass)} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600">
-                  {showStudentPass ? <EyeOff size={14} /> : <Eye size={14} />}
-                </button>
-              </div>
-            </div>
-            <button type="submit" disabled={studentLoginLoading} className="w-full h-11 rounded-xl bg-emerald-600 text-white font-black text-sm hover:bg-emerald-700 disabled:opacity-60 flex items-center justify-center gap-2">
-              {studentLoginLoading ? "جاري الدخول..." : <><LogIn size={16} /> تسجيل الدخول</>}
-            </button>
-            <div className="text-center text-xs text-stone-500">
-              ليس لديك حساب؟{" "}
-              <Link to="/student-register" onClick={() => setStudentLoginOpen(false)} className="text-emerald-600 font-bold hover:underline">سجّل الآن مجاناً</Link>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
+
+
+
+
+
+

@@ -15,8 +15,6 @@ import FounderGuard from './components/founder/FounderGuard';
 import PlanAccessGuard from './components/PlanAccessGuard';
 import RoleLogin from './pages/RoleLogin';
 import Gateway from './pages/Gateway';
-import TeacherLogin from './pages/TeacherLogin';
-import StudentLogin from './pages/StudentLogin';
 import FounderLogin from './pages/FounderLogin';
 import FounderDashboard from './pages/FounderDashboard';
 
@@ -43,8 +41,7 @@ const Schedules = lazy(() => import('./pages/Schedules'));
 const Store = lazy(() => import('./pages/Store'));
 const StudentCard = lazy(() => import('./pages/StudentCard'));
 const StudyRooms = lazy(() => import('./pages/StudyRooms'));
-const StudentPortal = lazy(() => import('./pages/StudentPortal'));
-const TeacherPortal = lazy(() => import('./pages/TeacherPortal'));
+
 const ParentPortal = lazy(() => import('./pages/ParentPortal'));
 const BusSupervisorPortal = lazy(() => import('./pages/BusSupervisorPortal'));
 const BusRouteManagement = lazy(() => import('./pages/BusRouteManagement'));
@@ -87,14 +84,10 @@ const AcademicFiles = lazy(() => import('./pages/AcademicFiles'));
 const StudentArchive = lazy(() => import('./pages/StudentArchive'));
 const PrintResults = lazy(() => import('./pages/PrintResults'));
 const PublicRegistration = lazy(() => import('./pages/PublicRegistration'));
-const StudentRegister = lazy(() => import('./pages/StudentRegister'));
-const TeacherRegister = lazy(() => import('./pages/TeacherRegister'));
 const PublicStudentRegister = lazy(() => import('./pages/PublicStudentRegister'));
 const PublicTeacherRegister = lazy(() => import('./pages/PublicTeacherRegister'));
 const PublicStaffRegister = lazy(() => import('./pages/PublicStaffRegister'));
 const RenewSubscription = lazy(() => import('./pages/RenewSubscription'));
-const IndependentTeacherPortal = lazy(() => import('./pages/IndependentTeacherPortal'));
-const EnhancedStudentPortal = lazy(() => import('./pages/EnhancedStudentPortal'));
 const LandingPage = lazy(() => import('./pages/LandingPage'));
 
 const AuthenticatedApp = () => {
@@ -122,16 +115,12 @@ const AuthenticatedApp = () => {
         <Route path="/" element={<LandingPage />} />
         <Route path="/gateway" element={<Gateway />} />
         <Route path="/gateway/:schoolSlug" element={<Gateway />} />
-        <Route path="/teacher-login" element={<TeacherLogin />} />
-        <Route path="/student-login" element={<StudentLogin />} />
         <Route path="/login" element={<RoleLogin />} />
         <Route path="/register" element={<PublicRegistration />} />
         <Route path="/register/student/:slug" element={<PublicStudentRegister />} />
         <Route path="/register/teacher/:slug" element={<PublicTeacherRegister />} />
         <Route path="/register/staff/:slug" element={<PublicStaffRegister />} />
         <Route path="/school-register" element={<PublicRegistration />} />
-        <Route path="/student-register" element={<StudentRegister />} />
-        <Route path="/teacher-register" element={<TeacherRegister />} />
 
         <Route element={<AppLayout />}>
           <Route path="/dashboard" element={<Dashboard />} />
@@ -193,11 +182,7 @@ const AuthenticatedApp = () => {
            <Route path="/counseling/:id" element={<PlanAccessGuard><CounselingCaseDetail /></PlanAccessGuard>} />
            <Route path="/renew-subscription" element={<RenewSubscription />} />
         </Route>
-
-        <Route path="/student-portal" element={<StudentPortal />} />
-        <Route path="/student-panel" element={<EnhancedStudentPortal />} />
-        <Route path="/teacher-portal" element={<TeacherPortal />} />
-        <Route path="/teacher-panel" element={<IndependentTeacherPortal />} />
+        
         <Route path="/parent-portal" element={<ParentPortal />} />
         <Route path="/bus-supervisor" element={<BusSupervisorPortal />} />
         <Route path="/staff-portal" element={<StaffPortal />} />
@@ -244,3 +229,4 @@ function App() {
 }
 
 export default App;
+
