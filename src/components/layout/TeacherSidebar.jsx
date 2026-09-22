@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Users, BookOpen, ClipboardCheck,
   FileText, Menu, X, Calendar, MessageCircle, Star, LogOut, Video, Bell, Award
 } from "lucide-react";
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
@@ -17,7 +17,20 @@ export default function TeacherSidebar() {
   const [open, setOpen] = useState(false);
   const { language } = useLanguage();
   const isRTL = language === "ar";
-  const { logout } = useAuth();
+  const { logout, appPublicSettings } = useAuth();
+  const s = appPublicSettings?.public_settings || {};
+  const shortName = s.sidebar_short_name?.trim();
+  const schoolName = shortName || (isRTL ? (s.school_name_ar || "إديوتراك") : (s.school_name_en || "EduTrack"));
+  const getLogoUrl = (url) => {
+    const trimmed = String(url || '').trim();
+    if (!trimmed) return "";
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('data:')) return trimmed;
+    const apiBase = import.meta.env.VITE_BACKEND_URL || '';
+    return `${apiBase.replace(/\/$/, '')}${trimmed.startsWith('/') ? '' : '/'}${trimmed}`;
+  };
+  const sidebarLogoUrl = getLogoUrl(s.sidebar_logo || s.school_logo);
+  const [sidebarLogoError, setSidebarLogoError] = useState(false);
+  useEffect(() => { setSidebarLogoError(false); }, [sidebarLogoUrl, JSON.stringify(s)]);
 
   const teacherId = localStorage.getItem("portal_user_id") || "T-202";
 
@@ -111,15 +124,28 @@ export default function TeacherSidebar() {
         "lg:translate-x-0",
         open ? "translate-x-0" : (isRTL ? "translate-x-full" : "-translate-x-full")
       )}>
-        {/* Logo Section */}
+        {/* Logo Section — يطابق السايدبار العام: يعرض شعار واسم المدرسة المرفوع من صفحة الإعدادات */}
         <div className="p-8 pb-6">
-          <div className="flex items-center gap-3 group cursor-pointer">
-            <div className="h-10 w-10 rounded-xl bg-amber-500 flex items-center justify-center text-white shadow-lg shadow-amber-500/30 group-hover:scale-110 transition-transform">
-              <BookOpen size={24} />
-            </div>
-            <div>
-              <h1 className="font-serif text-xl font-bold text-stone-900 leading-none">إديوتراك</h1>
-              <p className="text-[10px] text-stone-400 font-bold uppercase tracking-widest mt-1">Teacher Portal</p>
+          <div className={cn("group cursor-pointer", shortName ? "flex flex-col items-center gap-2 text-center" : "flex items-center gap-3")} onClick={() => {
+            const slug = localStorage.getItem("portal_school_slug");
+            window.location.href = slug ? `/gateway/${slug}` : "/gateway";
+          }}>
+            {sidebarLogoUrl && !sidebarLogoError ? (
+              <img key={sidebarLogoUrl} src={sidebarLogoUrl} alt={schoolName} className={cn("rounded-xl object-contain bg-white border border-stone-100 shadow-sm", "h-24 w-24 p-2")} onError={()=>setSidebarLogoError(true)} />
+            ) : (
+              <div className={cn("rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform duration-300", "bg-amber-500 shadow-amber-500/30", "h-24 w-24")}>
+                <BookOpen size={40} />
+              </div>
+            )}
+            <div className={cn(shortName ? "text-center" : "flex flex-col items-start")}>
+              <h1 className={cn("font-serif font-black text-stone-900 leading-none tracking-tight", shortName ? "text-xl" : "text-lg")}>
+                {schoolName}
+              </h1>
+              {!shortName && (
+                <p className="text-[10px] text-stone-400 font-bold uppercase tracking-widest mt-1">
+                  {isRTL ? "بوابة المعلم" : "Teacher Portal"}
+                </p>
+              )}
             </div>
           </div>
         </div>
