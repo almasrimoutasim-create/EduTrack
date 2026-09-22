@@ -130,9 +130,8 @@ export default function VirtualClassroom() {
   });
 
   const { data: teacherSubjects = [] } = useQuery({
-    queryKey: ["teacher-subjects", userId],
-    queryFn: () =>
-      isTeacher ? entities.Subject.filter({ teacher_id: userId }) : entities.Subject.list(),
+    queryKey: ["teacher-subjects-all"],
+    queryFn: () => entities.Subject.list("-created_at"),
     enabled: isDemo,
   });
 
@@ -802,22 +801,37 @@ export default function VirtualClassroom() {
                     <Input placeholder={isRTL ? "مثال: مراجعة الجبر" : "e.g. Algebra Review"} value={newSession.title} onChange={(e) => setNewSession({ ...newSession, title: e.target.value })} className="!bg-stone-850 !text-white border-white/5 text-xs rounded-xl" style={{ backgroundColor: "#1c1917", color: "#ffffff" }} />
                   </div>
                   <div>
-                    <label htmlFor="field-virtualclassroom-subject-id" className="text-[10px] font-bold text-stone-200 uppercase block mb-1.5">{isRTL ? "المادة الدراسية" : "Subject"}</label>
-                    <select id="field-virtualclassroom-subject-id" name="subject_id" aria-label="subject id" value={newSession.subject_id} onChange={(e) => setNewSession({ ...newSession, subject_id: e.target.value })} className="w-full border border-white/5 text-xs text-white rounded-xl p-2.5 focus:outline-none" style={{ backgroundColor: "#1c1917", color: "#ffffff" }}>
+                    <label htmlFor="field-virtualclassroom-instant-subject-id" className="text-[10px] font-bold text-stone-200 uppercase block mb-1.5">{isRTL ? "المادة الدراسية" : "Subject"}</label>
+                    <select id="field-virtualclassroom-instant-subject-id" name="subject_id" aria-label="instant subject id" value={newSession.subject_id} onChange={(e) => setNewSession({ ...newSession, subject_id: e.target.value })} className="w-full border border-white/5 text-xs text-white rounded-xl p-2.5 focus:outline-none" style={{ backgroundColor: "#1c1917", color: "#ffffff" }}>
                       <option value="">{isRTL ? "اختر المادة..." : "Select Subject..."}</option>
-                      {teacherSubjects.map((sub) => <option key={sub.id} value={sub.id} style={{ backgroundColor: "#1c1917" }}>{sub.name} ({sub.grade || "عام"})</option>)}
+                      {teacherSubjects.length === 0 && <option value="" disabled>{isRTL ? "جارٍ التحميل..." : "Loading..."}</option>}
+                      {teacherSubjects.map((sub) => <option key={sub.id} value={sub.id} style={{ backgroundColor: "#1c1917" }}>{sub.name}{sub.grade ? ` (${sub.grade})` : ""}</option>)}
                     </select>
                   </div>
                   <button
                     onClick={async () => {
-                      if (!newSession.title || !newSession.subject_id) { toast.error(isRTL ? "أدخل العنوان واختر المادة" : "Enter title and select subject"); return; }
+                      if (!newSession.title) { toast.error(isRTL ? "أدخل عنوان الحصة" : "Enter session title"); return; }
+                      if (!newSession.subject_id) { toast.error(isRTL ? "اختر المادة الدراسية" : "Select a subject"); return; }
                       const selectedSub = teacherSubjects.find((s) => s.id === newSession.subject_id);
                       const roomName = `room-${Math.random().toString(36).substr(2, 9)}`;
                       try {
-                        const res = await entities.VirtualSession.create({ title: newSession.title, teacher_id: userId, teacher_name: userName, subject_id: newSession.subject_id, subject_name: selectedSub?.name || "", room_name: roomName, scheduled_at: new Date().toISOString(), started_at: new Date().toISOString(), status: "active" });
-                        toast.success(isRTL ? "تم بدء الحصة!" : "Session started!");
-                        navigate(`/virtual-classroom/${res.id}`);
-                      } catch { toast.error(isRTL ? "فشل البدء" : "Failed to start"); }
+                        const res = await entities.VirtualSession.create({
+                          title: newSession.title,
+                          teacher_id: userId,
+                          teacher_name: userName,
+                          subject_id: newSession.subject_id,
+                          subject_name: selectedSub?.name || "",
+                          room_name: roomName,
+                          scheduled_at: new Date().toISOString(),
+                          started_at: new Date().toISOString(),
+                          status: "active"
+                        });
+                        toast.success(isRTL ? "تم بدء الحصة! جارٍ الانتقال للبث المباشر..." : "Session started! Redirecting to live stream...");
+                        setTimeout(() => navigate(`/virtual-classroom/${res.id}`), 800);
+                      } catch (err) {
+                        console.error("Failed to start session:", err);
+                        toast.error(isRTL ? "فشل بدء الحصة. تحقق من الاتصال." : "Failed to start session. Check your connection.");
+                      }
                     }}
                     className="w-full h-11 bg-teal-500 hover:bg-teal-400 text-stone-950 font-black rounded-xl text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
                   >
@@ -840,10 +854,11 @@ export default function VirtualClassroom() {
                     <Input placeholder={isRTL ? "مثال: مقدمة في الخوارزميات" : "e.g. Intro to Algorithms"} value={newSession.title} onChange={(e) => setNewSession({ ...newSession, title: e.target.value })} className="!bg-stone-850 !text-white border-white/5 text-xs rounded-xl" style={{ backgroundColor: "#1c1917", color: "#ffffff" }} />
                   </div>
                   <div>
-                    <label htmlFor="field-virtualclassroom-subject-id" className="text-[10px] font-bold text-stone-200 uppercase block mb-1.5">{isRTL ? "المادة الدراسية" : "Subject"}</label>
-                    <select id="field-virtualclassroom-subject-id" name="subject_id" aria-label="subject id" value={newSession.subject_id} onChange={(e) => setNewSession({ ...newSession, subject_id: e.target.value })} className="w-full border border-white/5 text-xs text-white rounded-xl p-2.5 focus:outline-none" style={{ backgroundColor: "#1c1917", color: "#ffffff" }}>
+                    <label htmlFor="field-virtualclassroom-schedule-subject-id" className="text-[10px] font-bold text-stone-200 uppercase block mb-1.5">{isRTL ? "المادة الدراسية" : "Subject"}</label>
+                    <select id="field-virtualclassroom-schedule-subject-id" name="subject_id" aria-label="schedule subject id" value={newSession.subject_id} onChange={(e) => setNewSession({ ...newSession, subject_id: e.target.value })} className="w-full border border-white/5 text-xs text-white rounded-xl p-2.5 focus:outline-none" style={{ backgroundColor: "#1c1917", color: "#ffffff" }}>
                       <option value="">{isRTL ? "اختر المادة..." : "Select Subject..."}</option>
-                      {teacherSubjects.map((sub) => <option key={sub.id} value={sub.id} style={{ backgroundColor: "#1c1917" }}>{sub.name} ({sub.grade || "عام"})</option>)}
+                      {teacherSubjects.length === 0 && <option value="" disabled>{isRTL ? "جارٍ التحميل..." : "Loading..."}</option>}
+                      {teacherSubjects.map((sub) => <option key={sub.id} value={sub.id} style={{ backgroundColor: "#1c1917" }}>{sub.name}{sub.grade ? ` (${sub.grade})` : ""}</option>)}
                     </select>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
