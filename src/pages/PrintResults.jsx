@@ -1262,6 +1262,8 @@ export default function PrintResults() {
       ? `@page { size: A4 portrait; margin: 0; }`
       : `@page { size: A4 landscape; margin: 0; }`;
 
+    // إصلاح ترتيب @import: يجب أن يكون @import في السطر الأول تماماً قبل @page وأي قواعد أخرى
+    // الترتيب الصحيح: @import (السطر 1) -> @page -> باقي القواعد
     const printWindow = window.open("", "_blank");
     printWindow.document.write(`<!DOCTYPE html>
 <html dir="rtl" lang="ar">
@@ -1269,6 +1271,7 @@ export default function PrintResults() {
 <meta charset="UTF-8"/>
 <title>شهادات النتائج المدرسية الرسمية - ${sName}</title>
 <style>
+${PRINT_FONTS_IMPORT}
 ${pageSizeCss}
 ${PRO_CERTIFICATE_PRINT_CSS}
 </style>
@@ -1833,11 +1836,11 @@ ${certificatesHTML}
 
 // ═══════════════════════════════════════════════════════════════
 //  HIGH PRECISION SUDANESE CERTIFICATE PRINT CSS
+//  ملاحظة: @import يجب أن يكون في السطر الأول تماماً قبل أي قاعدة أخرى
+//  لذلك تم فصل استيراد الخطوط في ثابت منفصل PRINT_FONTS_IMPORT ليُحقن أولاً قبل @page
 // ═══════════════════════════════════════════════════════════════
-const PRO_CERTIFICATE_PRINT_CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400;1,700&family=Noto+Naskh+Arabic:wght@400;500;600;700;800&display=swap');
-
-* { margin: 0; padding: 0; box-sizing: border-box; }
+const PRINT_FONTS_IMPORT = `@import url('https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400;1,700&family=Noto+Naskh+Arabic:wght@400;500;600;700;800&display=swap');`;
+const PRO_CERTIFICATE_PRINT_CSS = `* { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
   font-family: 'Noto Naskh Arabic', 'Amiri', 'Traditional Arabic', serif;

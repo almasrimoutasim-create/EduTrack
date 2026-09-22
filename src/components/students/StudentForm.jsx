@@ -790,8 +790,8 @@ export default function StudentForm({ student, onClose }) {
                     value={form.parent_phone || ""} 
                     onChange={e => update("parent_phone", e.target.value)} 
                     className={`rounded-xl border-stone-200 h-11 focus-visible:ring-primary/20 num-en ${isRTL ? 'pr-10' : 'pl-10'}`}
-                    placeholder="+971 50 000 0000" 
-                  />
+placeholder="رقم الهاتف مع مفتاح الدولة" 
+                   />
                 </div>
               </div>
             </div>

@@ -488,8 +488,8 @@ export default function PublicStudentRegister() {
                       value={form.parent_phone} 
                       onChange={e => update("parent_phone", e.target.value)} 
                       className={`rounded-xl border-stone-200 h-11 focus-visible:ring-primary/20 num-en ${isRTL ? 'pr-10' : 'pl-10'}`} 
-                      placeholder="+971 50 000 0000" 
-                      required
+placeholder="رقم الهاتف مع مفتاح الدولة" 
+                       required
                     />
                   </div>
                 </div>

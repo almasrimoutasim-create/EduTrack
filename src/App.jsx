@@ -42,6 +42,7 @@ const Store = lazy(() => import('./pages/Store'));
 const StudentCard = lazy(() => import('./pages/StudentCard'));
 const StudyRooms = lazy(() => import('./pages/StudyRooms'));
 
+const TeacherPortal = lazy(() => import('./pages/TeacherPortal'));
 const ParentPortal = lazy(() => import('./pages/ParentPortal'));
 const BusSupervisorPortal = lazy(() => import('./pages/BusSupervisorPortal'));
 const BusRouteManagement = lazy(() => import('./pages/BusRouteManagement'));
@@ -183,6 +184,7 @@ const AuthenticatedApp = () => {
            <Route path="/renew-subscription" element={<RenewSubscription />} />
         </Route>
         
+        <Route path="/teacher-portal" element={<TeacherPortal />} />
         <Route path="/parent-portal" element={<ParentPortal />} />
         <Route path="/bus-supervisor" element={<BusSupervisorPortal />} />
         <Route path="/staff-portal" element={<StaffPortal />} />

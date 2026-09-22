@@ -1332,6 +1332,50 @@ async function dbQuery(queryStr, params = []) {
 
 export function createApiHandler() {
   return async (req, res, next) => {
+    // ── Tier Features GET - معالجة مبكرة قبل فحص الكيانات لتجنب 0/0 وفشل التحميل (يجب قبل guard) ──
+    if (req.url === '/api/tier-features' && req.method === 'GET') {
+      res.setHeader('Content-Type', 'application/json');
+      try {
+        const features = await dbQuery('SELECT * FROM feature_flags ORDER BY category, feature_key');
+        const tiers = await dbQuery('SELECT tier, feature_key, enabled FROM tier_features');
+        const tierMap = {};
+        tiers.forEach(t => { if (!tierMap[t.tier]) tierMap[t.tier] = {}; tierMap[t.tier][t.feature_key] = t.enabled; });
+        const result = features.map(f => ({ ...f, tiers: { starter: !!tierMap.starter?.[f.feature_key], professional: !!tierMap.professional?.[f.feature_key], enterprise: !!tierMap.enterprise?.[f.feature_key] } }));
+        return res.end(JSON.stringify(result));
+      } catch (error) {
+        console.error('[tier-features] GET early error:', error);
+        res.statusCode = 500;
+        return res.end(JSON.stringify({ error: error.message }));
+      }
+    }
+    if (req.url?.startsWith('/api/tier-features/') && req.method === 'GET' && !req.url.includes('/all')) {
+      const tier = req.url.split('/api/tier-features/')[1].split('?')[0].split('/')[0];
+      if (['starter','professional','enterprise'].includes(tier)) {
+        res.setHeader('Content-Type', 'application/json');
+        try {
+          const rows = await dbQuery(`SELECT f.feature_key, f.name_ar, f.name_en, f.category, COALESCE(tf.enabled, false) as enabled FROM feature_flags f LEFT JOIN tier_features tf ON f.feature_key = tf.feature_key AND tf.tier = $1 ORDER BY f.category, f.feature_key`, [tier]);
+          return res.end(JSON.stringify(rows));
+        } catch (error) {
+          console.error('[tier-features/:tier] GET early error:', error);
+          res.statusCode = 500;
+          return res.end(JSON.stringify({ error: error.message }));
+        }
+      }
+    }
+    if (req.url?.startsWith('/api/school-features/') && req.method === 'GET') {
+      res.setHeader('Content-Type', 'application/json');
+      try {
+        const schoolId = req.url.split('/api/school-features/')[1].split('?')[0].split('/')[0];
+        const schools = await dbQuery('SELECT plan FROM schools WHERE id = $1', [schoolId]);
+        const plan = schools[0]?.plan || 'professional';
+        const rows = await dbQuery(`SELECT f.feature_key, f.name_ar, f.name_en, f.category FROM feature_flags f JOIN tier_features tf ON f.feature_key = tf.feature_key WHERE tf.tier = $1 AND tf.enabled = true ORDER BY f.category`, [plan]);
+        return res.end(JSON.stringify({ plan, features: rows }));
+      } catch (error) {
+        console.error('[school-features] GET early error:', error);
+        res.statusCode = 500;
+        return res.end(JSON.stringify({ error: error.message }));
+      }
+    }
     // Public settings (no auth required, but supports JWT fallback) — للشعار والخلفية في Gateway/Landing + السايدبار المختصر
     if ((req.url === '/neon-db/public-settings' || req.url.startsWith('/neon-db/public-settings?')) && req.method === 'GET') {
       res.setHeader('Content-Type', 'application/json');
@@ -3126,7 +3170,8 @@ WHERE email = $10`,
       }
     }
 
-    if (!req.url.startsWith('/neon-db/entities/') && !req.url.startsWith('/neon-db/public-register/')) return next();
+    // السماح لمسارات الباقات والميزات بالمرور قبل فحص الكيانات — إصلاح 0/0 وفشل التحميل
+    if (!req.url.startsWith('/neon-db/entities/') && !req.url.startsWith('/neon-db/public-register/') && !req.url.startsWith('/api/tier-features') && !req.url.startsWith('/api/subscription-pricing') && !req.url.startsWith('/api/school-features')) return next();
 
     // DEBUG: Log all RegistrationRequest traffic to trace browser submissions
     if (req.url.includes('RegistrationRequest')) {

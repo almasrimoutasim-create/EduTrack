@@ -197,7 +197,7 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-[#f8fafc] text-stone-900" dir={isRTL ? "rtl" : "ltr"} style={{ fontFamily: "'Cairo', sans-serif" }}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap');`}</style>
+      {/* تمت إزالة @import المكرر — الخطوط محملة عالمياً عبر index.html <link> و src/index.css @import في السطر الأول */}
 
       {/* Navbar */}
       <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-stone-100">

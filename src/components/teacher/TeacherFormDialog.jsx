@@ -12,7 +12,7 @@ export default function TeacherFormDialog({ open, onClose, teacher }) {
   const qc = useQueryClient();
   const [saving, setSaving] = useState(false);
 
-  const { data: subjects = [] } = useQuery({
+  const { data: subjects = [], isLoading: subjectsLoading } = useQuery({
     queryKey: ["subjects"],
     queryFn: () => entities.Subject.list()
   });
@@ -79,8 +79,10 @@ export default function TeacherFormDialog({ open, onClose, teacher }) {
     setSaving(false);
   };
 
-  // Filter only active subjects for selection
-  const activeSubjects = subjects.filter(s => s.status !== "inactive");
+  // Filter only active subjects for selection (يجب أن تعرض فقط المواد التي أضافها مدير النظام)
+  const activeSubjects = subjects
+    .filter(s => s.status !== "inactive")
+    .sort((a, b) => (a.name || "").localeCompare(b.name || "", "ar"));
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -114,17 +116,24 @@ export default function TeacherFormDialog({ open, onClose, teacher }) {
               <Label>المادة الأساسية / Primary Subject</Label>
               <Select value={form.subject || "none"} onValueChange={v => update("subject", v === "none" ? "" : v)}>
                 <SelectTrigger className="w-full text-right" dir="rtl">
-                  <SelectValue placeholder="اختر المادة الأساسية" />
+                  <SelectValue placeholder={subjectsLoading ? "جاري التحميل..." : activeSubjects.length === 0 ? "لا توجد مواد — أضف مادة أولاً" : "اختر المادة الأساسية"} />
                 </SelectTrigger>
                 <SelectContent className="text-right" dir="rtl">
                   <SelectItem value="none">بدون مادة أساسية</SelectItem>
                   {activeSubjects.map(s => (
                     <SelectItem key={s.id} value={s.name}>
-                      {s.name} ({s.code})
+                      {s.name}{s.code ? ` (${s.code})` : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              {subjectsLoading ? (
+                <p className="text-[11px] text-stone-400 mt-1">جاري تحميل المواد...</p>
+              ) : activeSubjects.length === 0 ? (
+                <p className="text-[11px] text-amber-600 mt-1">لا توجد مواد نشطة. يرجى إضافة المواد من صفحة <a href="/subjects" className="underline font-bold">المواد الدراسية</a> أولاً.</p>
+              ) : (
+                <p className="text-[11px] text-stone-400 mt-1">{activeSubjects.length} مادة متاحة من إدارة النظام</p>
+              )}
             </div>
             <div>
               <Label>كلمة مرور البوابة / Portal Password</Label>
@@ -141,23 +150,29 @@ export default function TeacherFormDialog({ open, onClose, teacher }) {
           <div>
             <Label className="block mb-2">المواد التي يدرسها المعلم / Subjects Taught</Label>
             <div className="border border-stone-200 rounded-xl p-3 bg-stone-50 max-h-40 overflow-y-auto space-y-2">
-              {activeSubjects.length === 0 ? (
-                <p className="text-xs text-stone-400 text-center">لا توجد مواد نشطة متاحة حالياً</p>
+              {subjectsLoading ? (
+                <p className="text-xs text-stone-400 text-center">جاري تحميل المواد...</p>
+              ) : activeSubjects.length === 0 ? (
+                <div className="text-center py-2">
+                  <p className="text-xs text-amber-600 font-medium">لا توجد مواد نشطة متاحة حالياً</p>
+                  <p className="text-[11px] text-stone-400 mt-1">قم بإضافة المواد من <a href="/subjects" className="text-primary underline font-bold">إدارة المواد الدراسية</a> وسيظهر هنا تلقائياً</p>
+                </div>
               ) : (
                 activeSubjects.map(s => {
                   const currentSubjects = form.subjects 
                     ? form.subjects.split(",").map(item => item.trim()).filter(Boolean) 
                     : [];
                   const isChecked = currentSubjects.includes(s.name);
+                  const cbId = `teacher-subject-${s.id}`;
                   return (
-                    <label htmlFor="field-teacherformdialog-input-1" key={s.id} className="flex items-center gap-2 cursor-pointer text-sm font-medium text-stone-700">
-                      <input id="field-teacherformdialog-input-1" name="input_1" aria-label="input 1" 
+                    <label htmlFor={cbId} key={s.id} className="flex items-center gap-2 cursor-pointer text-sm font-medium text-stone-700">
+                      <input id={cbId} name={cbId} aria-label={s.name} 
                         type="checkbox" 
                         checked={isChecked} 
                         onChange={e => handleSubjectCheckboxChange(s.name, e.target.checked)}
                         className="rounded border-stone-300 text-primary focus:ring-primary h-4 w-4"
                       />
-                      <span>{s.name} ({s.code})</span>
+                      <span>{s.name}{s.code ? ` (${s.code})` : ""}</span>
                     </label>
                   );
                 })

@@ -276,11 +276,20 @@ function TierFeaturesSection() {
   const fetchFeatures = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem("portal_jwt_token") || localStorage.getItem("jwt_token");
-      const res = await fetch("/api/tier-features", {
-        headers: { Authorization: `Bearer ${token}` },
+      const token = localStorage.getItem("founder_token") || localStorage.getItem("portal_jwt_token") || localStorage.getItem("jwt_token") || "";
+      const apiBase = import.meta.env.VITE_BACKEND_URL || "";
+      const url = apiBase ? `${apiBase.replace(/\/$/, "")}/api/tier-features` : "/api/tier-features";
+      const res = await fetch(url, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
+      if (!res.ok) {
+        const errText = await res.text();
+        let errJson; try { errJson = JSON.parse(errText); } catch {}
+        throw new Error(errJson?.error || `HTTP ${res.status}: ${errText.slice(0,120)}`);
+      }
       const data = await res.json();
+      if (!Array.isArray(data)) throw new Error(data.error || "استجابة غير متوقعة من الخادم");
+      if (data.length === 0) console.warn("[tier-features] empty array - check feature_flags seeding");
       setFeatures(data);
       const map = {};
       data.forEach(f => {
@@ -289,7 +298,7 @@ function TierFeaturesSection() {
       setLocalTiers(map);
     } catch (e) {
       console.error("Failed to load tier features", e);
-      toast.error("فشل تحميل ميزات الخطط");
+      toast.error(`فشل تحميل ميزات الخطط: ${e.message}`);
     }
     setLoading(false);
   };
@@ -302,13 +311,17 @@ function TierFeaturesSection() {
     }));
     setSaveIndicators(prev => ({ ...prev, [`${featureKey}-${tier}`]: 'saving' }));
     try {
-      const token = localStorage.getItem("portal_jwt_token") || localStorage.getItem("jwt_token");
-      const res = await fetch(`/api/tier-features/${tier}/${featureKey}`, {
+      const token = localStorage.getItem("founder_token") || localStorage.getItem("portal_jwt_token") || localStorage.getItem("jwt_token") || "";
+      const apiBase = import.meta.env.VITE_BACKEND_URL || "";
+      const url = apiBase ? `${apiBase.replace(/\/$/, "")}/api/tier-features/${tier}/${featureKey}` : `/api/tier-features/${tier}/${featureKey}`;
+      const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ enabled: newValue }),
       });
-      if (!res.ok) throw new Error("Failed");
+      if (!res.ok) {
+        const t = await res.text(); let j; try{ j=JSON.parse(t);}catch{}; throw new Error(j?.error || t.slice(0,100) || "Failed");
+      }
       setSaveIndicators(prev => ({ ...prev, [`${featureKey}-${tier}`]: 'saved' }));
       toast.success("تم الحفظ");
     } catch (e) {
@@ -317,7 +330,7 @@ function TierFeaturesSection() {
         [featureKey]: { ...prev[featureKey], [tier]: !newValue }
       }));
       setSaveIndicators(prev => ({ ...prev, [`${featureKey}-${tier}`]: 'error' }));
-      toast.error("فشل الحفظ");
+      toast.error(`فشل الحفظ: ${e.message}`);
     }
     setTimeout(() => setSaveIndicators(prev => { const n = { ...prev }; delete n[`${featureKey}-${tier}`]; return n; }), 1500);
   };
@@ -337,18 +350,22 @@ function TierFeaturesSection() {
   const handleBulkSave = async (tier, enabled) => {
     setSaving(true);
     try {
-      const token = localStorage.getItem("portal_jwt_token") || localStorage.getItem("jwt_token");
+      const token = localStorage.getItem("founder_token") || localStorage.getItem("portal_jwt_token") || localStorage.getItem("jwt_token") || "";
+      const apiBase = import.meta.env.VITE_BACKEND_URL || "";
+      const url = apiBase ? `${apiBase.replace(/\/$/, "")}/api/tier-features/${tier}/bulk` : `/api/tier-features/${tier}/bulk`;
       const toggles = {};
       features.forEach(f => { toggles[f.feature_key] = enabled; });
-      const res = await fetch(`/api/tier-features/${tier}/bulk`, {
+      const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ features: toggles }),
       });
-      if (!res.ok) throw new Error("Failed");
+      if (!res.ok) {
+        const t = await res.text(); let j; try{ j=JSON.parse(t);}catch{}; throw new Error(j?.error || t.slice(0,100) || "Failed");
+      }
       toast.success(`تم ${enabled ? 'تفعيل' : 'تعطيل'} جميع الميزات لـ ${tier}`);
     } catch (e) {
-      toast.error("فشل الحفظ الجماعي");
+      toast.error(`فشل الحفظ الجماعي: ${e.message}`);
     }
     setSaving(false);
   };
@@ -424,20 +441,29 @@ function TierFeaturesSection() {
         </div>
       </div>
 
-      {/* Search Bar + Tier Toggles */}
+      {/* Dropdown Filter + Tier Toggles */}
       <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex flex-wrap items-center gap-4">
-        <div className="relative flex-1 min-w-[240px] max-w-md">
-          <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
+        <div className="relative flex-1 min-w-[260px] max-w-md">
+          <select
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            placeholder={isRTL ? "بحث عن صفحة أو ميزة..." : "Search pages or features..."}
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
+            className="w-full pl-4 pr-10 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white cursor-pointer appearance-none"
+          >
+            <option value="">{isRTL ? `جميع الميزات (${features.length})` : `All features (${features.length})`}</option>
+            {[...new Set(features.map(f => f.category))].map(cat => (
+              <optgroup key={cat} label={categoryLabels[cat] || cat}>
+                {features.filter(f => f.category === cat).map(f => (
+                  <option key={f.feature_key} value={f.feature_key}>{f.name_ar} — {f.name_en}</option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+          <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m6 9 6 6 6-6"/></svg>
+          </div>
           {searchQuery && (
-            <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-              <X size={16} />
+            <button onClick={() => setSearchQuery('')} className="absolute right-8 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 bg-white rounded-full p-0.5">
+              <X size={14} />
             </button>
           )}
         </div>

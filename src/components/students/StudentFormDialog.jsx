@@ -179,8 +179,8 @@ export default function StudentFormDialog({ open, onClose, student }) {
                 value={form.parent_phone} 
                 onChange={e => update("parent_phone", e.target.value)} 
                 className="mt-1 rounded-lg border-stone-200 num-en"
-                placeholder="+971 50 000 0000" 
-              />
+placeholder="رقم الهاتف مع مفتاح الدولة" 
+               />
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
