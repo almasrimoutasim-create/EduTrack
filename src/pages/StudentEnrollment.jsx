@@ -161,17 +161,18 @@ export default function StudentEnrollment() {
                 </div>
                 <div className="space-y-2">
                   <label htmlFor="field-studentenrollment-grade-level" className="text-sm font-bold text-stone-700">{isRTL ? "الصف الدراسي المتقدم له" : "Target Grade Level"}</label>
-                  <select id="field-studentenrollment-grade-level" name="grade_level" aria-label="grade level" 
+<select id="field-studentenrollment-grade-level" name="grade_level" aria-label="grade level" 
                     value={formData.grade_level} 
                     onChange={(e) => setFormData({...formData, grade_level: e.target.value})}
                     className="w-full h-12 px-4 rounded-xl border border-stone-200 bg-white"
                   >
+                    <option value="المستوى الأول">المستوى الأول</option>
+                    <option value="المستوى الثاني">المستوى الثاني</option>
                     <option value="KG">KG</option>
                     <option value="الصف الأول">الصف الأول</option>
                     <option value="الصف الثاني">الصف الثاني</option>
                     <option value="الصف الثالث">الصف الثالث</option>
                   </select>
-                </div>
               </div>
             </motion.div>
           )}
