@@ -36,7 +36,7 @@ import {
   Loader2
 } from "lucide-react";
 
-const grades = ["1","2","3","4","5","6","7","8","9","10","11","12"];
+const grades = ["المستوى الأول","المستوى الثاني","KG","1","2","3","4","5","6","7","8","9","10","11","12"];
 
 // Predefined modern high-fidelity student avatar presets (using public, high-quality, lightweight SVG designs)
 const AVATAR_PRESETS = [
@@ -265,7 +265,10 @@ export default function StudentForm({ student, onClose }) {
     fullName: isRTL ? "الاسم الكامل *" : "Full Name *",
     studentId: isRTL ? "الرقم المدرسي *" : "School Number *",
     grade: isRTL ? "الصف الدراسي *" : "Grade Level *",
-    gradeItem: (g) => isRTL ? `الصف ${g}` : `Grade ${g}`,
+    gradeItem: (g) => {
+      if (g === "المستوى الأول" || g === "المستوى الثاني" || g === "KG") return g;
+      return isRTL ? `الصف ${g}` : `Grade ${g}`;
+    },
     section: isRTL ? "القسم" : "Section",
     dob: isRTL ? "تاريخ الميلاد" : "Date of Birth",
     parentName: isRTL ? "اسم ولي الأمر" : "Parent Name",
