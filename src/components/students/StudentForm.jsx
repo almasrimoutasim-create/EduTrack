@@ -266,7 +266,7 @@ export default function StudentForm({ student, onClose }) {
     studentId: isRTL ? "الرقم المدرسي *" : "School Number *",
     grade: isRTL ? "الصف الدراسي *" : "Grade Level *",
     gradeItem: (g) => isRTL ? `الصف ${g}` : `Grade ${g}`,
-    section: isRTL ? "الفصل" : "Class",
+    section: isRTL ? "القسم" : "Section",
     dob: isRTL ? "تاريخ الميلاد" : "Date of Birth",
     parentName: isRTL ? "اسم ولي الأمر" : "Parent Name",
     parentPhone: isRTL ? "رقم هاتف ولي الأمر" : "Parent Phone",
@@ -519,14 +519,11 @@ export default function StudentForm({ student, onClose }) {
                 <Label className="text-stone-700 font-bold text-xs">{t.section}</Label>
                 <Select value={form.section || ""} onValueChange={v => update("section", v)}>
                   <SelectTrigger className="rounded-xl border-stone-200 h-11 focus:ring-primary/20 font-semibold bg-white">
-                    <SelectValue placeholder={isRTL ? "اختر الفصل..." : "Select Class..."} />
+                    <SelectValue placeholder={isRTL ? "اختر القسم..." : "Select Section..."} />
                   </SelectTrigger>
                   <SelectContent className="rounded-xl">
-                    <SelectItem value="أبو بكر" className="font-semibold">{isRTL ? "أبو بكر" : "Abu Bakr"}</SelectItem>
-                    <SelectItem value="عمر" className="font-semibold">{isRTL ? "عمر" : "Omar"}</SelectItem>
-                    <SelectItem value="عثمان" className="font-semibold">{isRTL ? "عثمان" : "Othman"}</SelectItem>
-                    <SelectItem value="علي" className="font-semibold">{isRTL ? "علي" : "Ali"}</SelectItem>
-                    <SelectItem value="حمزة" className="font-semibold">{isRTL ? "حمزة" : "Hamza"}</SelectItem>
+                    <SelectItem value="المنهج السوداني" className="font-semibold">{isRTL ? "المنهج السوداني" : "Sudanese Curriculum"}</SelectItem>
+                    <SelectItem value="المنهج البريطاني" className="font-semibold">{isRTL ? "المنهج البريطاني" : "British Curriculum"}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

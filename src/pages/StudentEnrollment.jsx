@@ -173,6 +173,7 @@ export default function StudentEnrollment() {
                     <option value="الصف الثاني">الصف الثاني</option>
                     <option value="الصف الثالث">الصف الثالث</option>
                   </select>
+                </div>
               </div>
             </motion.div>
           )}
