@@ -168,7 +168,6 @@ export default function StudentEnrollment() {
                   >
                     <option value="المستوى الأول">المستوى الأول</option>
                     <option value="المستوى الثاني">المستوى الثاني</option>
-                    <option value="KG">KG</option>
                     <option value="الصف الأول">الصف الأول</option>
                     <option value="الصف الثاني">الصف الثاني</option>
                     <option value="الصف الثالث">الصف الثالث</option>

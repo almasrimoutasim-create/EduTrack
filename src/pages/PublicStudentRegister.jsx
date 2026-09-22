@@ -29,7 +29,6 @@ import {
 } from "lucide-react";
 
 const GRADE_OPTIONS = [
-  { id: "KG", name: "KG", nameEn: "KG" },
   { id: "level1", name: "المستوى الأول", nameEn: "Level 1" },
   { id: "level2", name: "المستوى الثاني", nameEn: "Level 2" },
   { id: "1", name: "الصف الأول", nameEn: "Grade 1" },
