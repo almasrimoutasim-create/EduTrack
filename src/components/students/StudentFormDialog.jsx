@@ -116,7 +116,7 @@ export default function StudentFormDialog({ open, onClose, student }) {
                 value={form.full_name} 
                 onChange={e => update("full_name", e.target.value)} 
                 className="mt-1 rounded-lg border-stone-200"
-                placeholder={isRTL ? "الاسم الثلاثي أو الكامل" : "e.g. Khalid Omar"} 
+                placeholder={isRTL ? "الاسم الرباعي للطالب" : "e.g. Khalid Omar"} 
               />
             </div>
             <div>

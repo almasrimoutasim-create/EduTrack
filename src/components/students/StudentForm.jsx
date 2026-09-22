@@ -490,7 +490,7 @@ export default function StudentForm({ student, onClose }) {
                   value={form.full_name} 
                   onChange={e => update("full_name", e.target.value)} 
                   className="rounded-xl border-stone-200 h-11 focus-visible:ring-primary/20"
-                  placeholder={isRTL ? "الاسم الثلاثي للطالب" : "e.g. Khalid Omar"} 
+                  placeholder={isRTL ? "الاسم الرباعي للطالب" : "e.g. Khalid Omar"} 
                 />
               </div>
               <div className="space-y-1.5">
