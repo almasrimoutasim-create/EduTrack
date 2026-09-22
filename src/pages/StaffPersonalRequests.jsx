@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/lib/LanguageContext";
+import { useAuth } from "@/lib/AuthContext";
 import PageHeader from "@/components/shared/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -29,6 +30,7 @@ export default function StaffPersonalRequests() {
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [isNewRequestOpen, setIsNewRequestOpen] = useState(false);
+  const { user } = useAuth();
 
   // جلب اسم الموظف المسجل حالياً من الجلسة
   const myName = useMemo(() => {
@@ -43,8 +45,8 @@ export default function StaffPersonalRequests() {
   }, []);
 
   const myRole = useMemo(() => {
-    return localStorage.getItem("portal_role") || "staff";
-  }, []);
+    return user?.role || "staff";
+  }, [user?.role]);
 
   // تحميل وقراءة الطلبات الكلية
   const [requests, setRequests] = useState(() => {

@@ -17,7 +17,7 @@ export default function StaffSidebar() {
   const isRTL = language === "ar";
   const { user, logout } = useAuth();
 
-  const portalRole = localStorage.getItem("portal_role") || "staff";
+  const portalRole = user?.role || "staff";
 
   const handleLogout = () => {
     localStorage.removeItem("portal_role");

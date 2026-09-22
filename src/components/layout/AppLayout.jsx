@@ -16,7 +16,7 @@ export default function AppLayout() {
   const { user } = useAuth();
   const isRTL = language === "ar";
 
-  const portalRole = localStorage.getItem("portal_role") || user?.role || "admin";
+  const portalRole = user?.role || "admin";
 
   const PORTAL_HOMES = {
     admin: "/login", teacher: "/teacher-portal", student: "/student-portal", parent: "/parent-portal",

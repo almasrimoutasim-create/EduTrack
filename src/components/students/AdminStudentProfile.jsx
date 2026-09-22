@@ -37,8 +37,8 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
   const { language } = useLanguage();
   const isRTL = language === "ar";
   const _qc = useQueryClient();
-  const { appPublicSettings } = useAuth();
-  const portalRole = localStorage.getItem("portal_role") || "admin";
+  const { appPublicSettings, user } = useAuth();
+  const portalRole = user?.role || "admin";
   
   const schoolNameAr = appPublicSettings?.public_settings?.school_name_ar || "مدارس إديوتراك النموذجية الخاصة";
   const schoolNameEn = appPublicSettings?.public_settings?.school_name_en || "EduTrack Model School";

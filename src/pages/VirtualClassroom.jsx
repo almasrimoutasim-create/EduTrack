@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/lib/LanguageContext";
+import { useAuth } from "@/lib/AuthContext";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -28,12 +29,13 @@ export default function VirtualClassroom() {
   const { language } = useLanguage();
   const isRTL = language === "ar";
   const qc = useQueryClient();
+  const { user } = useAuth();
 
   // ── Auth ──────────────────────────────────────────────────────────────────
   const fallbackId = useRef(`temp-${Math.random().toString(36).substr(2, 9)}`).current;
-  const role = localStorage.getItem("portal_role") || "student";
-  const userId = localStorage.getItem("portal_user_id") || fallbackId;
-  const userName = localStorage.getItem("portal_user_name") || (role === "teacher" ? "أ. أحمد" : "طالب زائر");
+  const role = user?.role || "student";
+  const userId = user?.id || fallbackId;
+  const userName = user?.full_name || (role === "teacher" ? "أ. أحمد" : "طالب زائر");
   const isTeacher = role === "teacher";
   const isAdmin = role === "admin";
 

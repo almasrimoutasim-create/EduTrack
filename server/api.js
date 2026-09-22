@@ -47,7 +47,7 @@ async function schoolHasFeature(schoolId, featureKey) {
 // ── Feature gate middleware: returns 403 if school lacks the feature ──
 function requireFeature(featureKey) {
   return async (req, res, next) => {
-    const schoolId = req.headers["x-school-id"] || req.query?.school_id;
+    const schoolId = req.user?.school_id || req.headers["x-school-id"] || req.query?.school_id;
     if (!schoolId) {
       res.statusCode = 400;
       res.setHeader("Content-Type", "application/json");
@@ -1398,11 +1398,20 @@ export function createApiHandler() {
           res.statusCode = 500;
           return res.end(JSON.stringify({ error: 'Database not configured' }));
         }
+        const brandingUser = getBearerUser(req);
+        if (!brandingUser) { res.statusCode = 401; return res.end(JSON.stringify({ error: 'Auth required' })); }
+        if (brandingUser.role !== 'admin' && brandingUser.role !== 'founder') {
+          res.statusCode = 403; return res.end(JSON.stringify({ error: 'Admin or founder role required' }));
+        }
         const body = await parseBody(req);
         const { school_id, logo_url, background_image } = body;
         if (!school_id) {
           res.statusCode = 400;
           return res.end(JSON.stringify({ error: 'school_id is required' }));
+        }
+        if (brandingUser.school_id && brandingUser.school_id !== school_id && brandingUser.role !== 'founder') {
+          res.statusCode = 403;
+          return res.end(JSON.stringify({ error: 'Cannot update another school\'s branding' }));
         }
         await sql`UPDATE schools SET logo_url = ${logo_url || ''}, background_image = ${background_image || ''} WHERE id = ${school_id}`;
         return res.end(JSON.stringify({ success: true }));
@@ -2632,7 +2641,7 @@ WHERE email = $10`,
           const me = getBearerUser(req);
           if (!me) { res.statusCode = 401; return res.end(JSON.stringify({ error: 'Auth required' })); }
           const lookupId = me.independent_teacher_id || me.id;
-          const data = await dbQuery('SELECT id, full_name, email, bank_account, avatar_url, independent_teacher_id FROM teachers WHERE id = $1 OR independent_teacher_id = $1 LIMIT 1', [lookupId]);
+          const data = await dbQuery('SELECT id, full_name, email, bank_account, avatar_url, independent_teacher_id FROM teachers WHERE (id = $1 OR independent_teacher_id = $1) AND (school_id = $2 OR school_id IS NULL) LIMIT 1', [lookupId, me.school_id]);
           if (!data[0]) { res.statusCode = 404; return res.end(JSON.stringify({ error: 'Teacher not found' })); }
           return res.end(JSON.stringify({ success: true, ...data[0] }));
         } catch (error) {
@@ -2672,7 +2681,7 @@ WHERE email = $10`,
           if (bank_account) {
             await dbQuery(`UPDATE student_teacher_bonds SET teacher_bank_account = $1 WHERE teacher_id = $2 AND payment_status IN ('pending_payment','receipt_uploaded') AND (teacher_bank_account IS NULL OR teacher_bank_account = '')`, [bank_account, meId]).catch(()=>{});
           }
-          await dbQuery(`UPDATE teachers SET ${updates.join(', ')} WHERE id = $1 OR independent_teacher_id = $1`, [...vals.slice(0, -1), vals[vals.length - 1], meId]);
+          await dbQuery(`UPDATE teachers SET ${updates.join(', ')} WHERE (id = $1 OR independent_teacher_id = $1) AND (school_id = $2 OR school_id IS NULL)`, [...vals.slice(0, -1), vals[vals.length - 1], meId, me.school_id]);
           return res.end(JSON.stringify({ success: true, avatar_url }));
         } catch (error) {
           res.statusCode = 500;
@@ -2896,7 +2905,7 @@ WHERE email = $10`,
       try {
         const rows = await dbQuery(
           `SELECT id, full_name, employee_id, independent_teacher_id, subjects, experience_years, bio, city, avatar_url, phone, email, created_at
-           FROM teachers WHERE status = 'active' ORDER BY created_at DESC`
+           FROM teachers WHERE status = 'active' AND school_id IS NULL ORDER BY created_at DESC`
         );
         return res.end(JSON.stringify(Array.isArray(rows) ? rows : []));
       } catch (error) {
@@ -3343,8 +3352,14 @@ WHERE email = $10`,
 
       // Multi-tenant helpers
        const TENANT_TABLES_SET = new Set(['students','teachers','attendance','subjects','library_books','financial_records','activity_posts','activity_comments','activity_chats','audit_logs','bus_drivers','bus_driver_reports','card_top_ups','class_schedules','donations','friend_requests','store_items','purchases','study_rooms','study_groups','study_group_posts','study_materials','student_awards','student_grades','student_reports','supervisors','staff_members','teacher_ratings','teacher_tasks','portal_access_configs','portal_groups','portal_group_messages','portal_notifications','private_messages','room_messages','room_videos','book_reviews','message_read_receipts','typing_indicators','fines','parent_link_requests','virtual_sessions','session_participants','official_announcements','counseling_cases','case_assessments','intervention_plans','follow_ups','case_visibility_logs','fee_structures','student_fees','fee_payments','activity_fees','student_activity_fees','student_wallet','wallet_transactions','hall_rentals','other_revenue','expenses','salary_records','purchase_orders','visitors','system_admins','system_settings','student_teacher_bonds','bond_payments','school_subscriptions']);
-      const isTenantTable = TENANT_TABLES_SET.has(table);
+       const isTenantTable = TENANT_TABLES_SET.has(table);
       const tenantId = req.user?.school_id || null;
+
+      // CRIT-2: Reject requests for tenant tables when JWT has no school_id (prevents cross-tenant data leak)
+      if (isTenantTable && !tenantId && req.user && req.user.role !== 'founder') {
+        res.statusCode = 403;
+        return res.end(JSON.stringify({ error: 'school_id is required in your account to access this resource' }));
+      }
 
       // ===== Independent Teacher Portal Tables =====
        sql`
@@ -3895,6 +3910,11 @@ WHERE email = $10`,
       if (req.url === '/api/approve-teacher' && req.method === 'POST') {
         res.setHeader('Content-Type', 'application/json');
         try {
+          const approver = getBearerUser(req);
+          if (!approver) { res.statusCode = 401; return res.end(JSON.stringify({ error: 'Auth required' })); }
+          if (approver.role !== 'admin' && approver.role !== 'founder') {
+            res.statusCode = 403; return res.end(JSON.stringify({ error: 'Admin or founder role required' }));
+          }
           const body = await parseBody(req);
           const { requestId, username, password } = body;
           if (!requestId || !username || !password) {
@@ -3912,6 +3932,12 @@ WHERE email = $10`,
             return res.end(JSON.stringify({ error: 'Registration request not found or already processed' }));
           }
           const reg = reqRows[0];
+
+          // Verify the approver belongs to the same school as the registration request
+          if (approver.school_id && reg.school_id && approver.school_id !== reg.school_id && approver.role !== 'founder') {
+            res.statusCode = 403;
+            return res.end(JSON.stringify({ error: 'Cannot approve teacher for another school' }));
+          }
 
           // Check username uniqueness
           const existingTeacher = await dbQuery(
@@ -3956,6 +3982,11 @@ WHERE email = $10`,
       if (req.url === '/api/approve-student' && req.method === 'POST') {
         res.setHeader('Content-Type', 'application/json');
         try {
+          const approver = getBearerUser(req);
+          if (!approver) { res.statusCode = 401; return res.end(JSON.stringify({ error: 'Auth required' })); }
+          if (approver.role !== 'admin' && approver.role !== 'founder') {
+            res.statusCode = 403; return res.end(JSON.stringify({ error: 'Admin or founder role required' }));
+          }
           const body = await parseBody(req);
           const { requestId, username, password } = body;
           if (!requestId || !username || !password) {
@@ -3972,6 +4003,12 @@ WHERE email = $10`,
             return res.end(JSON.stringify({ error: 'Registration request not found or already processed' }));
           }
           const reg = reqRows[0];
+
+          // Verify the approver belongs to the same school as the registration request
+          if (approver.school_id && reg.school_id && approver.school_id !== reg.school_id && approver.role !== 'founder') {
+            res.statusCode = 403;
+            return res.end(JSON.stringify({ error: 'Cannot approve student for another school' }));
+          }
 
           const existingStudent = await dbQuery(
             `SELECT id FROM students WHERE user_email = $1 OR student_id = $1`,

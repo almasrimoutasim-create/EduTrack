@@ -109,10 +109,10 @@ export default function Sidebar() {
   const [open, setOpen] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState({});
   const { language } = useLanguage();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const isRTL = language === "ar";
   const [enabledFeatures, setEnabledFeatures] = useState(null);
-  const portalRoleSidebar = localStorage.getItem("portal_role") || "admin";
+  const portalRoleSidebar = user?.role || "admin";
 
   useEffect(() => {
     if (portalRoleSidebar !== 'admin') { setEnabledFeatures(new Set(['all'])); return; }
@@ -136,7 +136,7 @@ export default function Sidebar() {
     }));
   };
 
-  const portalRole = localStorage.getItem("portal_role") || "admin";
+  const portalRole = user?.role || "admin";
   const brand = BRAND_CONFIGS[portalRole] || BRAND_CONFIGS.admin;
   const { appPublicSettings: sidebarSettings } = useAuth();
   const s = sidebarSettings?.public_settings || {};

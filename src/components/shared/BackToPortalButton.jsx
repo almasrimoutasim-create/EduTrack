@@ -1,5 +1,6 @@
 import { ArrowLeft } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
+import { useAuth } from "@/lib/AuthContext";
 
 const PORTAL_HOMES = {
   admin: "/", teacher: "/teacher-portal", student: "/student-portal", parent: "/parent-portal",
@@ -21,8 +22,9 @@ const DASHBOARDS = {
 
 export default function BackToPortalButton({ className = "" }) {
   const { language } = useLanguage();
+  const { user } = useAuth();
   const isRTL = language === "ar";
-  const portalRole = (typeof window !== "undefined" ? localStorage.getItem("portal_role") : null) || "admin";
+  const portalRole = user?.role || "admin";
   const portalHome = PORTAL_HOMES[portalRole] || "/";
   const currentPath = typeof window !== "undefined" ? window.location.pathname : "/";
 
