@@ -498,63 +498,10 @@ export default function LandingPage() {
       <a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${WHATSAPP_MSG}`} target="_blank" rel="noopener noreferrer" className="fixed bottom-4 left-4 z-50 h-12 w-12 rounded-full bg-emerald-500 text-white shadow-xl flex items-center justify-center hover:bg-emerald-600">
         <MessageCircle size={20} />
       </a>
-
-      {/* Teacher Login Modal */}
-      <Dialog open={teacherLoginOpen} onOpenChange={setTeacherLoginOpen}>
-        <DialogContent className="max-w-sm rounded-[24px] p-0 overflow-hidden" dir="rtl">
-          <div className="bg-gradient-to-br from-indigo-600 to-violet-600 p-6 text-white text-center">
-            <div className="flex flex-col items-center justify-end min-h-[120px]">
-              <div className="h-14 w-14 rounded-2xl bg-white/20 flex items-center justify-center mx-auto mb-3">
-                <GraduationCap size={28} />
-              </div>
-              <h3 className="text-lg font-black">{t("teacher_login")}</h3>
-              <p className="text-white/80 text-xs mt-1">{t("teacher_login_desc")}</p>
-            </div>
-          </div>
-          <form onSubmit={handleTeacherLogin} className="p-6 space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-stone-600 flex items-center gap-1"><UserCheck size={12} /> اسم المستخدم</label>
-              <div className="relative">
-                <Input
-                  value={teacherLoginForm.username}
-                  onChange={e => setTeacherLoginForm(p => ({ ...p, username: e.target.value }))}
-                  placeholder="أدخل اسم المستخدم"
-                  className="h-11 rounded-xl pr-10"
-                  dir="ltr"
-                />
-                <UserCheck size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400" />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-stone-600 flex items-center gap-1"><KeyRound size={12} /> كلمة المرور</label>
-              <div className="relative">
-                <Input
-                  type={showTeacherPass ? "text" : "password"}
-                  value={teacherLoginForm.password}
-                  onChange={e => setTeacherLoginForm(p => ({ ...p, password: e.target.value }))}
-                  placeholder="أدخل كلمة المرور"
-                  className="h-11 rounded-xl pr-10 pl-10"
-                  dir="ltr"
-                />
-                <KeyRound size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400" />
-                <button type="button" onClick={() => setShowTeacherPass(!showTeacherPass)} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600">
-                  {showTeacherPass ? <EyeOff size={14} /> : <Eye size={14} />}
-                </button>
-              </div>
-            </div>
-            <button type="submit" disabled={teacherLoginLoading} className="w-full h-11 rounded-xl bg-indigo-600 text-white font-black text-sm hover:bg-indigo-700 disabled:opacity-60 flex items-center justify-center gap-2">
-              {teacherLoginLoading ? "جاري الدخول..." : <><LogIn size={16} /> تسجيل الدخول</>}
-            </button>
-            <div className="text-center text-xs text-stone-500">
-              ليس لديك حساب؟{" "}
-              <Link to="/teacher-register" onClick={() => setTeacherLoginOpen(false)} className="text-indigo-600 font-bold hover:underline">سجّل الآن</Link>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
-    </div>
+</div>
   );
 }
+
 
 
 

@@ -545,9 +545,6 @@ const FounderDashboard = () => {
   const [studentSearch, setStudentSearch] = useState("");
   const [studentStatusFilter, setStudentStatusFilter] = useState("all");
   const [teacherSubFilter, setTeacherSubFilter] = useState("all"); // all, pending, trial_active, active, rejected
-  // Independent vs school separation (TDZ safety: declared before pre-computed filters below)
-  const [teacherTypeFilter, setTeacherTypeFilter] = useState("school"); // school | independent
-  const [studentTypeFilter, setStudentTypeFilter] = useState("school"); // school | independent
   const [viewRequestDetail, setViewRequestDetail] = useState(null);
   const queryClient = useQueryClient();
   // ── Session health: if the founder JWT is rejected (401) the lists come back
@@ -950,16 +947,14 @@ const FounderDashboard = () => {
   const filteredTeachers = allTeachers.filter(t => {
     const matchSearch = !teacherSearch || t.full_name?.toLowerCase().includes(teacherSearch.toLowerCase()) || t.email?.toLowerCase().includes(teacherSearch.toLowerCase()) || t.employee_id?.toLowerCase().includes(teacherSearch.toLowerCase());
     const matchStatus = teacherStatusFilter === "all" || t.status === teacherStatusFilter;
-    const matchType = (t.teacher_type || "school") === teacherTypeFilter;
-    return matchSearch && matchStatus && matchType;
+    return matchSearch && matchStatus;
   });
   const activeTeachers = allTeachers.filter(t => t.status === "active").length;
 
   const filteredStudents = allStudents.filter(s => {
     const matchSearch = !studentSearch || s.full_name?.toLowerCase().includes(studentSearch.toLowerCase()) || s.user_email?.toLowerCase().includes(studentSearch.toLowerCase()) || s.student_id?.toLowerCase().includes(studentSearch.toLowerCase()) || s.phone?.includes(studentSearch);
     const matchStatus = studentStatusFilter === "all" || s.status === studentStatusFilter;
-    const matchType = (s.student_type || "school") === studentTypeFilter;
-    return matchSearch && matchStatus && matchType;
+    return matchSearch && matchStatus;
   });
   const activeStudents = allStudents.filter(s => s.status === "active").length;
 
@@ -1949,18 +1944,6 @@ const FounderDashboard = () => {
                 >
                   <Building2 size={13}/> طلبات المدارس ({pendingBase.filter(r => r.role_requested !== 'student' && r.role_requested !== 'teacher' && r.plan !== 'student_free' && r.plan !== 'teacher_free').length})
                 </button>
-                <button
-                  onClick={() => setReqFilter("students")}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1 ${reqFilter === "students" ? "bg-emerald-600 text-white shadow" : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"}`}
-                >
-                  <Users size={13}/> طلبات الطلاب ({pendingBase.filter(r => r.role_requested === 'student' || r.plan === 'student_free').length})
-                </button>
-                <button
-                  onClick={() => setReqFilter("teachers")}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1 ${reqFilter === "teachers" ? "bg-indigo-600 text-white shadow" : "bg-indigo-50 text-indigo-700 hover:bg-indigo-100"}`}
-                >
-                  <GraduationCap size={13}/> طلبات المعلمين ({pendingBase.filter(r => r.role_requested === 'teacher' || r.plan === 'teacher_free').length})
-                </button>
               </div>
               <button
                 onClick={() => {
@@ -2149,10 +2132,6 @@ const FounderDashboard = () => {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
               <div className="flex items-center gap-3 flex-wrap">
                 <p className="text-sm text-slate-500">إجمالي {filteredTeachers.length} معلم — <span className="font-bold text-emerald-600">{filteredTeachers.filter(t=>t.status==="active").length} نشط</span></p>
-                <div className="flex items-center gap-1 bg-slate-100 rounded-xl p-1">
-                  <button onClick={()=>setTeacherTypeFilter("school")} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${teacherTypeFilter==="school" ? "bg-slate-900 text-white shadow" : "text-slate-600 hover:bg-slate-200"}`}>معلمو المدارس</button>
-                  <button onClick={()=>setTeacherTypeFilter("independent")} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${teacherTypeFilter==="independent" ? "bg-indigo-600 text-white shadow" : "text-slate-600 hover:bg-slate-200"}`}>معلمون مستقلون</button>
-                </div>
                 <select id="field-founderdashboard-select-36" name="select_36" aria-label="select 36" value={teacherStatusFilter} onChange={(e)=>setTeacherStatusFilter(e.target.value)} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold">
                   <option value="all">الكل</option>
                   <option value="active">نشط</option>
@@ -2300,10 +2279,6 @@ const FounderDashboard = () => {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
               <div className="flex items-center gap-3 flex-wrap">
                 <p className="text-sm text-slate-500">إجمالي {filteredStudents.length} طالب — <span className="font-bold text-emerald-600">{filteredStudents.filter(s=>s.status==="active").length} نشط</span></p>
-                <div className="flex items-center gap-1 bg-slate-100 rounded-xl p-1">
-                  <button onClick={()=>setStudentTypeFilter("school")} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${studentTypeFilter==="school" ? "bg-slate-900 text-white shadow" : "text-slate-600 hover:bg-slate-200"}`}>طلاب المدارس</button>
-                  <button onClick={()=>setStudentTypeFilter("independent")} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${studentTypeFilter==="independent" ? "bg-emerald-600 text-white shadow" : "text-slate-600 hover:bg-slate-200"}`}>طلاب مستقلون</button>
-                </div>
                 <select id="field-founderdashboard-select-33" name="select_33" aria-label="select 33" value={studentStatusFilter} onChange={(e)=>setStudentStatusFilter(e.target.value)} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold">
                   <option value="all">الكل</option>
                   <option value="active">نشط</option>
@@ -3583,5 +3558,7 @@ const Toggle = ({ label, desc, checked, onChange }) => (
 );
 
 export default FounderDashboard;
+
+
 
 

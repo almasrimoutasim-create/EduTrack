@@ -181,7 +181,7 @@ export default function Settings() {
     saveMutation.mutate();
   };
 
-  const BRANDING_FIELDS = ['school_logo', 'school_background_image'];
+  const BRANDING_FIELDS = ['school_logo', 'school_background_image', 'sidebar_logo'];
 
   const handleFileUpload = async (e, field) => {
     const file = e.target.files[0];
@@ -201,7 +201,7 @@ export default function Settings() {
       if (BRANDING_FIELDS.includes(field)) {
         try {
           const toastId = toast.loading(isRTL ? 'جاري ضغط الصورة...' : 'Compressing image...');
-          const compressed = await compressImage(fullDataUri, field === 'school_background_image' ? 1200 : 600);
+          const compressed = await compressImage(fullDataUri, field === 'school_background_image' ? 1200 : field === 'sidebar_logo' ? 400 : 600);
           setFormData(prev => ({ ...prev, [field]: compressed }));
           toast.success(isRTL ? 'تم حفظ الصورة بنجاح' : 'Image saved', { id: toastId });
         } catch (err) {
