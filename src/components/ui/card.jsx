@@ -8,7 +8,9 @@ import { cn } from "@/lib/utils"
 // ╚══════════════════════════════════════════════════════════════╝
 
 /** @type {any} */
-const Card = React.forwardRef(({ className, ...props }, ref) => (
+const Card = React.forwardRef(
+  /** @param {any} props */
+  ({ className, ...props }, ref) => (
   <div
     ref={ref}
     // ─── تنسيق الكارت الأساسي ───────────────────────────────────
@@ -24,7 +26,9 @@ const Card = React.forwardRef(({ className, ...props }, ref) => (
 Card.displayName = "Card"
 
 /** @type {any} */
-const CardHeader = React.forwardRef(({ className, ...props }, ref) => (
+const CardHeader = React.forwardRef(
+  /** @param {any} props */
+  ({ className, ...props }, ref) => (
   <div
     ref={ref}
     // ─── رأس الكارت ─────────────────────────────────────────────
@@ -37,7 +41,9 @@ const CardHeader = React.forwardRef(({ className, ...props }, ref) => (
 CardHeader.displayName = "CardHeader"
 
 /** @type {any} */
-const CardTitle = React.forwardRef(({ className, ...props }, ref) => (
+const CardTitle = React.forwardRef(
+  /** @param {any} props */
+  ({ className, ...props }, ref) => (
   <div
     ref={ref}
     // ─── عنوان الكارت ───────────────────────────────────────────
@@ -51,7 +57,9 @@ const CardTitle = React.forwardRef(({ className, ...props }, ref) => (
 CardTitle.displayName = "CardTitle"
 
 /** @type {any} */
-const CardDescription = React.forwardRef(({ className, ...props }, ref) => (
+const CardDescription = React.forwardRef(
+  /** @param {any} props */
+  ({ className, ...props }, ref) => (
   <div
     ref={ref}
     // ─── وصف / نص ثانوي في الكارت ──────────────────────────────
@@ -65,7 +73,9 @@ const CardDescription = React.forwardRef(({ className, ...props }, ref) => (
 CardDescription.displayName = "CardDescription"
 
 /** @type {any} */
-const CardContent = React.forwardRef(({ className, ...props }, ref) => (
+const CardContent = React.forwardRef(
+  /** @param {any} props */
+  ({ className, ...props }, ref) => (
   <div
     ref={ref}
     // ─── محتوى الكارت ───────────────────────────────────────────
@@ -76,7 +86,9 @@ const CardContent = React.forwardRef(({ className, ...props }, ref) => (
 CardContent.displayName = "CardContent"
 
 /** @type {any} */
-const CardFooter = React.forwardRef(({ className, ...props }, ref) => (
+const CardFooter = React.forwardRef(
+  /** @param {any} props */
+  ({ className, ...props }, ref) => (
   <div
     ref={ref}
     // ─── ذيل / تذييل الكارت ─────────────────────────────────────

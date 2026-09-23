@@ -44,7 +44,7 @@ export default function AnnouncementsWidget({ announcements = [] }) {
     const pa = pOrder[a.priority] ?? 2;
     const pb = pOrder[b.priority] ?? 2;
     if (pa !== pb) return pa - pb;
-    return new Date(b.created_at || b.date || 0) - new Date(a.created_at || a.date || 0);
+    return new Date(b.created_at || b.date || 0).getTime() - new Date(a.created_at || a.date || 0).getTime();
   });
 
   const displayed = sorted.slice(0, 4);

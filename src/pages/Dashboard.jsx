@@ -121,21 +121,15 @@ export default function Dashboard() {
   const todayPresent = todayAll.filter(a => a.status === "present").length;
   const todayRate = todayAll.length > 0 ? Math.round((todayPresent / todayAll.length) * 100) : null;
 
-  const containerVariants = {
-    variants: [],
-  };
-  const itemVariants = {};
-
   /* ── TAB LABELS ── */
   const tabLabels = {
-    overview: { ar: "نظرة عامة", en: "Overview", icon: LayoutDashboard },
-    academic: { ar: "الأكاديمي والحضور", en: "Academic & Attendance", icon: GraduationCap },
-    finance: { ar: "المالية والصحة", en: "Financial & Medical", icon: HeartPulse }
+    overview: { ar: "نظرة عامة", en: "Overview", icon: LayoutDashboard, path: "/" },
+    academic: { ar: "الأكاديمي والحضور", en: "Academic & Attendance", icon: GraduationCap, path: "/academic" },
+    finance: { ar: "المالية والصحة", en: "Financial & Medical", icon: HeartPulse, path: "/finance" }
   };
 
   return (
     <motion.div
-      variants={containerVariants}
       initial="hidden"
       animate="visible"
       className="space-y-6 pb-8"
@@ -145,7 +139,7 @@ export default function Dashboard() {
           WELCOME BANNER
       ══════════════════════════════════════ */}
       <motion.div
-        variants={itemVariants}
+        
         className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary via-primary/90 to-indigo-600 p-8 text-white shadow-xl"
       >
         {/* Decorative circles */}
@@ -200,7 +194,7 @@ export default function Dashboard() {
           STAT CARDS ROW
       ══════════════════════════════════════ */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        <motion.div variants={itemVariants} className="group">
+        <motion.div  className="group">
           <StatCard
             title={t("dashboard.activeStudents", language)}
             value={activeStudents}
@@ -210,7 +204,7 @@ export default function Dashboard() {
             className="border-none shadow-sm hover:shadow-xl hover:bg-blue-50/50 transition-all duration-500"
           />
         </motion.div>
-        <motion.div variants={itemVariants} className="group">
+        <motion.div  className="group">
           <StatCard
             title={t("dashboard.teachers", language)}
             value={activeTeachers}
@@ -220,7 +214,7 @@ export default function Dashboard() {
             className="border-none shadow-sm hover:shadow-xl hover:bg-indigo-50/50 transition-all duration-500"
           />
         </motion.div>
-        <motion.div variants={itemVariants} className="group">
+        <motion.div  className="group">
           <StatCard
             title={isRTL ? "الموظفين" : "Staff"}
             value={activeStaff}
@@ -230,7 +224,7 @@ export default function Dashboard() {
             className="border-none shadow-sm hover:shadow-xl hover:bg-purple-50/50 transition-all duration-500"
           />
         </motion.div>
-        <motion.div variants={itemVariants} className="group">
+        <motion.div  className="group">
           <StatCard
             title={t("dashboard.materials", language)}
             value={materials.length}
@@ -239,7 +233,7 @@ export default function Dashboard() {
             className="border-none shadow-sm hover:shadow-xl hover:bg-green-50/50 transition-all duration-500"
           />
         </motion.div>
-        <motion.div variants={itemVariants} className="group">
+        <motion.div  className="group">
           <StatCard
             title={t("common.awards", language)}
             value={awards.length}
@@ -254,7 +248,7 @@ export default function Dashboard() {
       {/* ══════════════════════════════════════
           TABS
       ══════════════════════════════════════ */}
-      <motion.div variants={itemVariants}>
+      <motion.div >
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           {/* Tab Nav */}
           <TabsList className="w-full bg-white/60 backdrop-blur-xl border border-stone-100 shadow-sm rounded-2xl h-auto p-1.5 gap-1 flex-wrap sm:flex-nowrap">
@@ -274,9 +268,6 @@ export default function Dashboard() {
             })}
           </TabsList>
 
-          {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-              TAB 1: OVERVIEW
-          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
           <TabsContent value="overview" className="mt-6 space-y-6 outline-none">
 
             {/* Quick Actions */}

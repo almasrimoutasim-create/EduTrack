@@ -197,7 +197,7 @@ export default function FinancialRecordFormDialog({ open, onClose, record, prefi
             </div>
             <div className="space-y-1.5">
               <Label className="text-stone-600 dark:text-stone-400 font-bold text-xs block mb-1.5">{t.month}</Label>
-              <MonthPicker 
+              <MonthPicker disabled={false} 
                 value={form.month || ""} 
                 onChange={val => update("month", val)} 
                 className="border-stone-200"

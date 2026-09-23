@@ -6,6 +6,7 @@ import { DollarSign, TrendingUp, ArrowUpRight, CheckCircle2, AlertCircle, Clock 
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useLanguage } from "@/lib/LanguageContext";
+import { cn } from "@/lib/utils";
 
 function formatAmount(val, isRTL) {
   const num = parseFloat(val || 0);
@@ -48,14 +49,16 @@ export default function FinancialOverviewCard({ studentFees = [], feePayments = 
   const rateBarColor = collectionRate >= 80 ? "bg-emerald-500" : collectionRate >= 50 ? "bg-amber-500" : "bg-red-500";
 
   return (
-    <Card className="p-6 border-none shadow-sm hover:shadow-md transition-all duration-300 bg-white/70 backdrop-blur-xl overflow-hidden relative">
+    <Card className="p-6 border-none shadow-lg hover:shadow-xl transition-all duration-300 bg-white/80 backdrop-blur-xl overflow-hidden relative group">
       {/* Background accent */}
-      <div className="absolute bottom-0 left-0 w-36 h-36 bg-emerald-500/5 rounded-full -translate-x-10 translate-y-10 pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-32 h-32 bg-primary/5 rounded-full -translate-x-8 translate-y-8 pointer-events-none group-hover:translate-x-0 group-hover:translate-y-0 transition-transform">
+
+      </div>
 
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-2xl bg-emerald-500/10 flex items-center justify-center">
-            <DollarSign className="h-5 w-5 text-emerald-600" />
+          <div className="h-10 w-10 rounded-2xl bg-primary/10 flex items-center justify-center">
+            <DollarSign className="h-5 w-5 text-primary" />
           </div>
           <div>
             <h3 className="font-bold text-base text-stone-900">
@@ -69,7 +72,7 @@ export default function FinancialOverviewCard({ studentFees = [], feePayments = 
         <Button
           variant="ghost"
           size="sm"
-          className="text-xs font-bold text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+          className="text-xs font-bold text-primary hover:text-primary-600 hover:bg-primary-50"
           onClick={() => navigate("/finance")}
         >
           {isRTL ? "المالية" : "Finance"} <ArrowUpRight size={12} className="ms-1" />
@@ -107,17 +110,17 @@ export default function FinancialOverviewCard({ studentFees = [], feePayments = 
 
           {/* Stats row */}
           <div className="grid grid-cols-3 gap-2 mb-5">
-            <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-100 text-center">
+            <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-100 text-center hover:bg-emerald-100 hover:shadow-sm transition-all">
               <CheckCircle2 className="h-4 w-4 text-emerald-500 mx-auto mb-0.5" />
               <p className="text-lg font-black text-emerald-700">{paidCount}</p>
               <p className="text-[10px] font-semibold text-emerald-500">{isRTL ? "مدفوع" : "Paid"}</p>
             </div>
-            <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-100 text-center">
+            <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-100 text-center hover:bg-amber-100 hover:shadow-sm transition-all">
               <Clock className="h-4 w-4 text-amber-500 mx-auto mb-0.5" />
               <p className="text-lg font-black text-amber-700">{pendingCount}</p>
               <p className="text-[10px] font-semibold text-amber-500">{isRTL ? "معلق" : "Pending"}</p>
             </div>
-            <div className="p-2.5 rounded-xl bg-red-50 border border-red-100 text-center">
+            <div className="p-2.5 rounded-xl bg-red-50 border border-red-100 text-center hover:bg-red-100 hover:shadow-sm transition-all">
               <AlertCircle className="h-4 w-4 text-red-500 mx-auto mb-0.5" />
               <p className="text-lg font-black text-red-700">{overdueCount}</p>
               <p className="text-[10px] font-semibold text-red-500">{isRTL ? "متأخر" : "Overdue"}</p>
@@ -126,7 +129,7 @@ export default function FinancialOverviewCard({ studentFees = [], feePayments = 
 
           {/* Pending amount */}
           {pending > 0 && (
-            <div className="flex items-center justify-between p-3 rounded-xl bg-stone-50 border border-stone-100 mb-4">
+            <div className="flex items-center justify-between p-3 rounded-xl bg-stone-50 border border-stone-100 hover:bg-stone-100 hover:shadow-sm transition-all mb-4">
               <span className="text-xs font-bold text-stone-600">
                 {isRTL ? "المبالغ المتبقية" : "Outstanding Amount"}
               </span>
