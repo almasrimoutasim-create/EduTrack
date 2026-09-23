@@ -939,26 +939,37 @@ export default function Finance() {
       </div>
 
       {/* Tabs list */}
-      <div className="flex flex-wrap border border-stone-200 bg-stone-100/80 p-1.5 rounded-2xl gap-2 w-fit">
-        {[
-          { id: "dashboard", label: "لوحة التحكم" },
-          { id: "tuition", label: "الرسوم الدراسية" },
-          { id: "structures", label: "تسعيرة الصفوف" },
-          { id: "activities", label: "رسوم الأنشطة" },
-          { id: "other-revenue", label: "إيرادات أخرى" },
-          { id: "expenses", label: "المصروفات العامة" },
-          { id: "purchase-orders", label: "طلبات المشتريات" },
-          { id: "store", label: "مبيعات المتجر" },
-          { id: "reports", label: "التقارير المالية" },
-        ].map(t => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={`inline-flex items-center justify-center gap-2 rounded-xl text-xs font-bold transition-all cursor-pointer text-center w-full px-5 py-2.5 ${activeTab === t.id ? "bg-white text-stone-900 shadow-sm font-extrabold" : "text-stone-500 hover:text-stone-900"}`}
-          >
-            {t.label}
-          </button>
-        ))}
+      <div className="w-full overflow-x-auto pb-1 scrollbar-none">
+        <div className="inline-flex items-center gap-1.5 p-1.5 bg-stone-100/90 backdrop-blur-sm border border-stone-200/80 rounded-2xl min-w-max shadow-xs">
+          {[
+            { id: "dashboard", label: "لوحة التحكم", icon: LayoutDashboard },
+            { id: "tuition", label: "الرسوم الدراسية", icon: GraduationCap },
+            { id: "structures", label: "تسعيرة الصفوف", icon: DollarSign },
+            { id: "activities", label: "رسوم الأنشطة", icon: Calendar },
+            { id: "other-revenue", label: "إيرادات أخرى", icon: TrendingUp },
+            { id: "expenses", label: "المصروفات العامة", icon: TrendingDown },
+            { id: "purchase-orders", label: "طلبات المشتريات", icon: ShoppingCart },
+            { id: "store", label: "مبيعات المتجر", icon: ShoppingBag },
+            { id: "reports", label: "التقارير المالية", icon: FileSpreadsheet },
+          ].map(t => {
+            const Icon = t.icon;
+            const isActive = activeTab === t.id;
+            return (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className={`inline-flex items-center justify-center gap-2 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 cursor-pointer whitespace-nowrap px-4 py-2.5 ${
+                  isActive
+                    ? "bg-white text-stone-900 shadow-xs border border-stone-200/80 font-black"
+                    : "text-stone-600 hover:text-stone-900 hover:bg-white/60"
+                }`}
+              >
+                <Icon className={`w-4 h-4 transition-colors ${isActive ? "text-emerald-600" : "text-stone-400"}`} />
+                <span>{t.label}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* ────────────────── Tab 1: Dashboard ────────────────── */}
