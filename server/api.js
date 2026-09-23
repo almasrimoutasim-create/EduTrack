@@ -1830,6 +1830,7 @@ export function createApiHandler() {
           `SELECT * FROM schools WHERE (slug = $1 OR domain_subdomain = $1 OR id::text = $1) LIMIT 1`,
           [slug.trim()]
         );
+        let branchInfo = null;
         if (schoolRows.length === 0) {
           res.statusCode = 404;
           const bRows = await dbQuery(

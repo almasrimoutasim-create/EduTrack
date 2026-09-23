@@ -1965,21 +1965,12 @@ const FounderDashboard = () => {
         {/* ───── 1️⃣ الرئيسية ───── */}
         {section === "overview" && (
           <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
-                <StatCard icon={Building2} label="إجمالي المدارس المشتركة" value={schools.length} tint="bg-blue-500" sub={`${activeSchools} نشطة • ${pendingSchools} معلقة • ${expiredSchools} منتهية`} />
-                <StatCard icon={Users} label="المدارس حسب الحالة" value={`${activeSchools} / ${pendingSchools} / ${expiredSchools}`} tint="bg-emerald-500" sub="نشطة / معلقة / منتهية" />
-                <StatCard icon={FileText} label="طلبات جديدة غير معالجة" value={pendingRequests} tint="bg-violet-500" sub={`من أصل ${requests.length} طلب`} />
-                <StatCard icon={Users} label="طلبات معلمين/طلاب" value={pendingTeacherStudentReqs} tint="bg-emerald-500" sub={`من أصل ${teacherStudentRequests.length} طلب`} />
-                <StatCard icon={CircleDollarSign} label="الإيراد الشهري المتوقع" value={`$${monthlyRevenue}`} tint="bg-amber-500" sub={`السنوي $${annualRevenue}`} />
-              </div>
-              <button
-                onClick={() => setShowSchoolWizard(true)}
-                className="inline-flex items-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white px-5 py-3 rounded-xl text-sm font-bold hover:from-green-700 hover:to-emerald-700 shadow-lg shadow-green-200 transition-all"
-              >
-                <Plus size={18} />
-                إنشاء مدرسة + فرع + مدير
-              </button>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
+              <StatCard icon={Building2} label="إجمالي المدارس المشتركة" value={schools.length} tint="bg-blue-500" sub={`${activeSchools} نشطة • ${pendingSchools} معلقة • ${expiredSchools} منتهية`} />
+              <StatCard icon={Users} label="المدارس حسب الحالة" value={`${activeSchools} / ${pendingSchools} / ${expiredSchools}`} tint="bg-emerald-500" sub="نشطة / معلقة / منتهية" />
+              <StatCard icon={FileText} label="طلبات جديدة غير معالجة" value={pendingRequests} tint="bg-violet-500" sub={`من أصل ${requests.length} طلب`} />
+              <StatCard icon={Users} label="طلبات معلمين/طلاب" value={pendingTeacherStudentReqs} tint="bg-emerald-500" sub={`من أصل ${teacherStudentRequests.length} طلب`} />
+              <StatCard icon={CircleDollarSign} label="الإيراد الشهري المتوقع" value={`$${monthlyRevenue}`} tint="bg-amber-500" sub={`السنوي $${annualRevenue}`} />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -2048,7 +2039,10 @@ const FounderDashboard = () => {
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <p className="text-sm text-slate-500">إجمالي {schools.length} مدرسة</p>
-              <button onClick={()=>setShowAdd(true)} className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-200"><Plus size={16}/> إضافة مدرسة يدوياً</button>
+              <div className="flex gap-2">
+                <button onClick={()=>setShowSchoolWizard(true)} className="inline-flex items-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:from-green-700 hover:to-emerald-700 shadow-lg shadow-green-200 transition-all"><Plus size={16}/> إنشاء مدرسة + فرع + مدير</button>
+                <button onClick={()=>setShowAdd(true)} className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-200"><Plus size={16}/> إضافة مدرسة يدوياً</button>
+              </div>
             </div>
             {schoolsLoading ? <p className="p-6 text-slate-500 text-center">جاري التحميل...</p> : schools.length === 0 ? (
               <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
