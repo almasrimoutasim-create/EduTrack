@@ -12,6 +12,7 @@ const Tabs = TabsPrimitive.Root
  */
 /** @type {any} */
 const TabsList = React.forwardRef(
+  /** @param {any} props */
   /**
    * @param {{ className?: string, children?: React.ReactNode }} props
    * @param {React.ForwardedRef<any>} ref
@@ -38,6 +39,7 @@ TabsList.displayName = TabsPrimitive.List.displayName
  */
 /** @type {any} */
 const TabsTrigger = React.forwardRef(
+  /** @param {any} props */
   /**
    * @param {{ className?: string, value: string, children?: React.ReactNode }} props
    * @param {React.ForwardedRef<any>} ref
@@ -64,6 +66,7 @@ TabsTrigger.displayName = TabsPrimitive.Trigger.displayName
  */
 /** @type {any} */
 const TabsContent = React.forwardRef(
+  /** @param {any} props */
   /**
    * @param {{ className?: string, value: string, children?: React.ReactNode }} props
    * @param {React.ForwardedRef<any>} ref

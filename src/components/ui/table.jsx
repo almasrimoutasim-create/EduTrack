@@ -3,7 +3,9 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 
 /** @type {any} */
-const Table = React.forwardRef(({ className, ...props }, ref) => (
+const Table = React.forwardRef(
+  /** @param {any} props */
+  ({ className, ...props }, ref) => (
   <div className="relative w-full overflow-auto">
     <table
       ref={ref}
@@ -14,13 +16,17 @@ const Table = React.forwardRef(({ className, ...props }, ref) => (
 Table.displayName = "Table"
 
 /** @type {any} */
-const TableHeader = React.forwardRef(({ className, ...props }, ref) => (
+const TableHeader = React.forwardRef(
+  /** @param {any} props */
+  ({ className, ...props }, ref) => (
   <thead ref={ref} className={cn("[&_tr]:border-b", className)} {...props} />
 ))
 TableHeader.displayName = "TableHeader"
 
 /** @type {any} */
-const TableBody = React.forwardRef(({ className, ...props }, ref) => (
+const TableBody = React.forwardRef(
+  /** @param {any} props */
+  ({ className, ...props }, ref) => (
   <tbody
     ref={ref}
     className={cn("[&_tr:last-child]:border-0", className)}
@@ -29,7 +35,9 @@ const TableBody = React.forwardRef(({ className, ...props }, ref) => (
 TableBody.displayName = "TableBody"
 
 /** @type {any} */
-const TableFooter = React.forwardRef(({ className, ...props }, ref) => (
+const TableFooter = React.forwardRef(
+  /** @param {any} props */
+  ({ className, ...props }, ref) => (
   <tfoot
     ref={ref}
     className={cn("border-t bg-muted/50 font-medium [&>tr]:last:border-b-0", className)}
@@ -38,7 +46,9 @@ const TableFooter = React.forwardRef(({ className, ...props }, ref) => (
 TableFooter.displayName = "TableFooter"
 
 /** @type {any} */
-const TableRow = React.forwardRef(({ className, ...props }, ref) => (
+const TableRow = React.forwardRef(
+  /** @param {any} props */
+  ({ className, ...props }, ref) => (
   <tr
     ref={ref}
     className={cn(
@@ -50,7 +60,9 @@ const TableRow = React.forwardRef(({ className, ...props }, ref) => (
 TableRow.displayName = "TableRow"
 
 /** @type {any} */
-const TableHead = React.forwardRef(({ className, ...props }, ref) => (
+const TableHead = React.forwardRef(
+  /** @param {any} props */
+  ({ className, ...props }, ref) => (
   <th
     ref={ref}
     className={cn(
@@ -62,7 +74,9 @@ const TableHead = React.forwardRef(({ className, ...props }, ref) => (
 TableHead.displayName = "TableHead"
 
 /** @type {any} */
-const TableCell = React.forwardRef(({ className, ...props }, ref) => (
+const TableCell = React.forwardRef(
+  /** @param {any} props */
+  ({ className, ...props }, ref) => (
   <td
     ref={ref}
     className={cn(
@@ -74,7 +88,9 @@ const TableCell = React.forwardRef(({ className, ...props }, ref) => (
 TableCell.displayName = "TableCell"
 
 /** @type {any} */
-const TableCaption = React.forwardRef(({ className, ...props }, ref) => (
+const TableCaption = React.forwardRef(
+  /** @param {any} props */
+  ({ className, ...props }, ref) => (
   <caption
     ref={ref}
     className={cn("mt-4 text-sm text-muted-foreground", className)}

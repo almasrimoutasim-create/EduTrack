@@ -15,7 +15,9 @@ const SheetClose = SheetPrimitive.Close
 const SheetPortal = SheetPrimitive.Portal
 
 /** @type {any} */
-const SheetOverlay = React.forwardRef(({ className, ...props }, ref) => (
+const SheetOverlay = React.forwardRef(
+  /** @param {any} props */
+  ({ className, ...props }, ref) => (
   <SheetPrimitive.Overlay
     className={cn(
       "fixed inset-0 z-50 bg-black/80  data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
@@ -46,7 +48,9 @@ const sheetVariants = cva(
 )
 
 /** @type {any} */
-const SheetContent = React.forwardRef(({ side = "right", className, children, ...props }, ref) => (
+const SheetContent = React.forwardRef(
+  /** @param {any} props */
+  ({ side = "right", className, children, ...props }, ref) => (
   <SheetPortal>
     <SheetOverlay />
     <SheetPrimitive.Content ref={ref} className={cn(sheetVariants({ side }), className)} {...props}>
@@ -82,7 +86,9 @@ const SheetFooter = ({
 SheetFooter.displayName = "SheetFooter"
 
 /** @type {any} */
-const SheetTitle = React.forwardRef(({ className, ...props }, ref) => (
+const SheetTitle = React.forwardRef(
+  /** @param {any} props */
+  ({ className, ...props }, ref) => (
   <SheetPrimitive.Title
     ref={ref}
     className={cn("text-lg font-semibold text-foreground", className)}
@@ -91,7 +97,9 @@ const SheetTitle = React.forwardRef(({ className, ...props }, ref) => (
 SheetTitle.displayName = SheetPrimitive.Title.displayName
 
 /** @type {any} */
-const SheetDescription = React.forwardRef(({ className, ...props }, ref) => (
+const SheetDescription = React.forwardRef(
+  /** @param {any} props */
+  ({ className, ...props }, ref) => (
   <SheetPrimitive.Description
     ref={ref}
     className={cn("text-sm text-muted-foreground", className)}

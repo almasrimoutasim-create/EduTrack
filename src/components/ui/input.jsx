@@ -3,6 +3,7 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 
 /** @type {any} */
+/** @type {any} */
 const Input = React.forwardRef(
   /** @param {any} props */
   ({ className, type, ...props }, ref) => {
