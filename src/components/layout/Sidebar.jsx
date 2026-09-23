@@ -4,7 +4,7 @@ import {
   FileText, ShoppingCart, Menu, X, Newspaper, Trophy, DollarSign, Shield, BarChart3, LogOut,
   Calendar, FileSpreadsheet, Award, History, Layers, Clock, FolderArchive, HelpCircle, Settings,
   Briefcase, CreditCard, Search, Percent, AlertTriangle, PlusCircle, UserCheck, ArrowLeft, MessageSquare,
-  Megaphone, Video, ChevronDown, Bus, ShoppingBag, LifeBuoy, Printer
+  Megaphone, Video, ChevronDown, Bus, ShoppingBag, LifeBuoy, Printer, Building2
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
@@ -411,6 +411,7 @@ export default function Sidebar() {
           {
             label: isRTL ? "إعدادات النظام" : "System Settings",
             items: [
+              { label: isRTL ? "إدارة الفروع" : "Branches Management", path: "/branches", icon: Building2 },
               { label: isRTL ? "الإعدادات العامة" : "General Settings", path: "/settings", icon: Settings }
             ]
           }

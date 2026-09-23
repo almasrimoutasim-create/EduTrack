@@ -45,7 +45,15 @@ export default function RoleLogin() {
     const apiBase = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/$/, "");
     fetch(`${apiBase}/neon-db/public-school/${encodeURIComponent(slug)}`)
       .then(r => r.json().catch(() => ({})))
-      .then(d => { if (alive && d?.school) setSchoolBrand(d.school); })
+      .then(d => {
+        if (alive && d?.school) {
+          setSchoolBrand(d.school);
+          if (d.school.branch_id) {
+            localStorage.setItem("portal_branch_id", d.school.branch_id);
+            localStorage.setItem("portal_branch_name", d.school.branch_name || d.school.name);
+          }
+        }
+      })
       .catch(() => {});
     return () => { alive = false; };
   }, []);

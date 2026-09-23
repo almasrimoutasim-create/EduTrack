@@ -15,6 +15,7 @@ import FounderGuard from './components/founder/FounderGuard';
 import PlanAccessGuard from './components/PlanAccessGuard';
 import RoleLogin from './pages/RoleLogin';
 import Gateway from './pages/Gateway';
+import { BranchProvider } from './lib/BranchContext';
 import FounderLogin from './pages/FounderLogin';
 import FounderDashboard from './pages/FounderDashboard';
 
@@ -90,6 +91,7 @@ const PublicTeacherRegister = lazy(() => import('./pages/PublicTeacherRegister')
 const PublicStaffRegister = lazy(() => import('./pages/PublicStaffRegister'));
 const RenewSubscription = lazy(() => import('./pages/RenewSubscription'));
 const LandingPage = lazy(() => import('./pages/LandingPage'));
+const BranchManagement = lazy(() => import('./pages/BranchManagement'));
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -126,6 +128,7 @@ const AuthenticatedApp = () => {
         <Route element={<AppLayout />}>
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/admin-dashboard" element={<Dashboard />} />
+          <Route path="/branches" element={<BranchManagement />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/portal-access" element={<PortalAccessAdmin />} />
           <Route path="/students" element={<Students />} />
@@ -214,9 +217,11 @@ function App() {
                 path="/*"
                 element={
                   <AuthProvider>
-                    <RoleGate>
+                    <BranchProvider>
+                      <RoleGate>
                       <AuthenticatedApp />
                     </RoleGate>
+                  </BranchProvider>
                   </AuthProvider>
                 }
               />

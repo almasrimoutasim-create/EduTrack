@@ -7,7 +7,8 @@ import {
   LogOut, CheckCircle2, XCircle, Bell, School as SchoolIcon, TrendingUp,
   Users, CircleDollarSign, RefreshCw, Eye, Plus, Clock, AlertTriangle, AlertCircle, ImageIcon,
   BarChart3, MessageCircle, Save, Download, KeyRound, PauseCircle, Timer,
-  MapPin, Calendar, Phone, Mail, Crown, Zap, Shield, Copy, Printer, Send, UserPlus, Lock, Link2, ExternalLink, GraduationCap, Trash2, SlidersHorizontal, Search, X, CheckCircle, Loader2
+  MapPin, Calendar, Phone, Mail, Crown, Zap, Shield, Copy, Printer, Send, UserPlus, Lock, Link2, ExternalLink, GraduationCap, Trash2, SlidersHorizontal, Search, X, CheckCircle, Loader2,
+  Sparkles, ArrowRight, Globe, Building, ShieldCheck
 } from "lucide-react";
 import LandingContentEditor from "@/components/LandingContentEditor";
 import { useLanguage } from "@/lib/LanguageContext";
@@ -562,9 +563,401 @@ function TierFeaturesSection() {
   );
 }
 
+// ── School Creation Wizard: إنشاء مدرسة + فرع أول + مدير نظام ──
+function SchoolCreationWizard({ onClose, onSchoolCreated }) {
+  const { language } = useLanguage();
+  const isRTL = language === "ar";
+  const queryClient = useQueryClient();
+
+  const [step, setStep] = useState(1); // 1: school info, 2: branch info, 3: admin credentials
+  const [loading, setLoading] = useState(false);
+
+  // Step 1: School info
+  const [schoolName, setSchoolName] = useState("");
+  const [schoolNameEn, setSchoolNameEn] = useState("");
+  const [schoolEmail, setSchoolEmail] = useState("");
+  const [schoolPhone, setSchoolPhone] = useState("");
+  const [schoolPlan, setSchoolPlan] = useState("professional");
+
+  // Step 2: Branch info
+  const [branchName, setBranchName] = useState("");
+  const [branchCity, setBranchCity] = useState("");
+  const [branchAddress, setBranchAddress] = useState("");
+  const [branchPhone, setBranchPhone] = useState("");
+  const [branchEmail, setBranchEmail] = useState("");
+
+  // Step 3: Admin credentials
+  const [adminName, setAdminName] = useState("");
+  const [adminEmail, setAdminEmail] = useState("");
+  const [adminUsername, setAdminUsername] = useState("");
+  const [adminPassword, setAdminPassword] = useState("");
+
+  const generateSlug = (name) => {
+    if (!name) return `school-${Date.now().toString().slice(-6)}`;
+    return name
+      .toLowerCase()
+      .replace(/[^\u0621-\u064Aa-z0-9\s-]/g, '')
+      .trim()
+      .replace(/\s+/g, '-');
+  };
+
+  const handleCreateSchool = async () => {
+    if (!schoolName.trim() || !branchName.trim() || !branchCity.trim()) {
+      toast.error("الرجاء ملء جميع الحقول المطلوبة");
+      return;
+    }
+    if (!adminName.trim() || !adminEmail.trim() || !adminUsername.trim() || !adminPassword.trim()) {
+      toast.error("الرجاء ملء بيانات مدير النظام");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const token = localStorage.getItem("founder_token") || localStorage.getItem("portal_jwt_token");
+      const apiBase = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/$/, "");
+
+      // Step 1: Create school
+      const schoolRes = await fetch(`${apiBase}/neon-db/entities/School`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          name_ar: schoolName,
+          name_en: schoolNameEn || schoolName,
+          email: schoolEmail,
+          phone: schoolPhone,
+          plan: schoolPlan,
+          subscription_status: "active",
+          billing_cycle: "monthly",
+        }),
+      });
+      const schoolData = await schoolRes.json();
+      const school = schoolData.school || schoolData;
+
+      // Step 2: Create first branch
+      const branchSlug = `${generateSlug(branchName)}-${generateSlug(branchCity)}`;
+      const branchRes = await fetch(`${apiBase}/neon-db/entities/SchoolBranch`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          school_id: school.id,
+          name: branchName,
+          name_en: branchName,
+          city: branchCity,
+          address: branchAddress,
+          phone: branchPhone,
+          email: branchEmail,
+          slug: branchSlug,
+          is_main: true,
+          status: "active",
+          director_name: adminName,
+        }),
+      });
+      const branchData = await branchRes.json();
+      const branch = branchData.schoolBranch || branchData;
+
+      // Step 3: Create system admin for this branch
+      const hashedPass = await fetch(`${apiBase}/neon-db/hash-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ password: adminPassword }),
+      }).then(r => r.json()).then(d => d.hash || d);
+
+      const adminRes = await fetch(`${apiBase}/neon-db/entities/SystemAdmin`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          full_name: adminName,
+          email: adminEmail,
+          username: adminUsername,
+          password: hashedPass,
+          portal_password: adminPassword,
+          role: "admin",
+          school_id: school.id,
+          branch_id: branch.id,
+          status: "active",
+        }),
+      });
+      await adminRes.json();
+
+      toast.success("تم إنشاء المدرسة والفرع ومدير النظام بنجاح!");
+
+      // Invalidate queries
+      await queryClient.invalidateQueries({ queryKey: ["schools"] });
+      await queryClient.invalidateQueries({ queryKey: ["school-branches"] });
+
+      // Generate gateway link
+      const gatewayLink = `${window.location.origin}/gateway/${schoolSlug}`;
+
+      if (onSchoolCreated) {
+        onSchoolCreated({ school, branch, gatewayLink, adminCredentials: { username: adminUsername, password: adminPassword } });
+      }
+      onClose();
+    } catch (err) {
+      console.error("[SchoolCreationWizard] Error:", err);
+      toast.error("حدث خطأ أثناء إنشاء المدرسة: " + (err.message || "غير معروف"));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const canProceed = () => {
+    if (step === 1) return schoolName.trim() && schoolEmail.trim();
+    if (step === 2) return branchName.trim() && branchCity.trim();
+    if (step === 3) return adminName.trim() && adminEmail.trim() && adminUsername.trim() && adminPassword.trim();
+    return false;
+  };
+
+  const inputClass = "mt-1 w-full p-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent";
+  const labelClass = "block text-sm font-bold text-slate-700 mb-1";
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" dir={isRTL ? "rtl" : "ltr"} onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-slate-900">🏫 إنشاء مدرسة جديدة</h2>
+            <p className="text-sm text-slate-500 mt-1">قم بإنشاء مدرسة جديدة مع فرعها الأول ومدير النظام</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center">
+            <X className="w-5 h-5 text-slate-500" />
+          </button>
+        </div>
+
+        {/* Step Indicators */}
+        <div className="flex items-center gap-2 mb-6">
+          {[1, 2, 3].map((s) => (
+            <React.Fragment key={s}>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
+                step >= s ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+              }`}>
+                {s}
+              </div>
+              {s < 3 && <div className={`flex-1 h-1 rounded ${step > s ? "bg-primary" : "bg-muted"}`} />}
+            </React.Fragment>
+          ))}
+        </div>
+
+        {/* Step Content */}
+        <div className="space-y-4">
+          {/* Step 1: School Information */}
+          {step === 1 && (
+            <div className="space-y-4">
+              <h3 className="font-semibold text-lg flex items-center gap-2">
+                <SchoolIcon className="w-5 h-5" /> معلومات المدرسة
+              </h3>
+              <div>
+                <label>اسم المدرسة *</label>
+                <input
+                  value={schoolName}
+                  onChange={(e) => setSchoolName(e.target.value)}
+                  placeholder="مثال: مدارس إيديوتراك العالمية"
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label>اسم المدرسة بالإنجليزية</label>
+                <input
+                  value={schoolNameEn}
+                  onChange={(e) => setSchoolNameEn(e.target.value)}
+                  placeholder="Optional English name"
+                  className={inputClass}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label>البريد الإلكتروني *</label>
+                  <input
+                    type="email"
+                    value={schoolEmail}
+                    onChange={(e) => setSchoolEmail(e.target.value)}
+                    placeholder="school@example.com"
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label>الهاتف</label>
+                  <input
+                    value={schoolPhone}
+                    onChange={(e) => setSchoolPhone(e.target.value)}
+                    placeholder="05xxxxxxxx"
+                    className={inputClass}
+                  />
+                </div>
+              </div>
+              <div>
+                <label>الخطة الاشتراكية</label>
+                <select
+                  value={schoolPlan}
+                  onChange={(e) => setSchoolPlan(e.target.value)}
+                  className={inputClass}
+                >
+                  <option value="starter">Starter - مجاني</option>
+                  <option value="professional">Professional - 99/شهر</option>
+                  <option value="enterprise">Enterprise - مخصص</option>
+                </select>
+              </div>
+            </div>
+          )}
+
+          {/* Step 2: Branch Information */}
+          {step === 2 && (
+            <div className="space-y-4">
+              <h3 className="font-semibold text-lg flex items-center gap-2">
+                <Building2 className="w-5 h-5" /> معلومات الفرع الأول
+              </h3>
+              <div>
+                <label>اسم الفرع *</label>
+                <input
+                  value={branchName}
+                  onChange={(e) => setBranchName(e.target.value)}
+                  placeholder="مثال: فرع الرياض"
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label>المدينة *</label>
+                <input
+                  value={branchCity}
+                  onChange={(e) => setBranchCity(e.target.value)}
+                  placeholder="مثال: الرياض"
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label>العنوان</label>
+                <input
+                  value={branchAddress}
+                  onChange={(e) => setBranchAddress(e.target.value)}
+                  placeholder="العنوان الكامل"
+                  className={inputClass}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label>هاتف الفرع</label>
+                  <input
+                    value={branchPhone}
+                    onChange={(e) => setBranchPhone(e.target.value)}
+                    placeholder="05xxxxxxxx"
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label>بريد الفرع الإلكتروني</label>
+                  <input
+                    type="email"
+                    value={branchEmail}
+                    onChange={(e) => setBranchEmail(e.target.value)}
+                    placeholder="branch@example.com"
+                    className={inputClass}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Step 3: Admin Credentials */}
+          {step === 3 && (
+            <div className="space-y-4">
+              <h3 className="font-semibold text-lg flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5" /> بيانات مدير النظام
+              </h3>
+              <div>
+                <label>الاسم الكامل *</label>
+                <input
+                  value={adminName}
+                  onChange={(e) => setAdminName(e.target.value)}
+                  placeholder="مثال: أحمد محمد العلي"
+                  className={inputClass}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label>البريد الإلكتروني *</label>
+                  <input
+                    type="email"
+                    value={adminEmail}
+                    onChange={(e) => setAdminEmail(e.target.value)}
+                    placeholder="admin@school.com"
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label>اسم المستخدم *</label>
+                  <input
+                    value={adminUsername}
+                    onChange={(e) => setAdminUsername(e.target.value)}
+                    placeholder="admin"
+                    className={inputClass}
+                  />
+                </div>
+              </div>
+              <div>
+                <label>كلمة المرور *</label>
+                <input
+                  type="password"
+                  value={adminPassword}
+                  onChange={(e) => setAdminPassword(e.target.value)}
+                  placeholder="كلمة مرور قوية"
+                  className={inputClass}
+                />
+              </div>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-sm text-blue-800">
+                  💡 سيتم إنشاء حساب مدير نظام مستقل لهذا الفرع مع رابط بوابة خاص.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Navigation Buttons */}
+        <div className="p-6 border-t border-slate-100 flex justify-between items-center">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm text-slate-500 hover:text-slate-700 transition"
+          >
+            إلغاء
+          </button>
+          <div className="flex gap-2">
+            {step > 1 && (
+              <button
+                onClick={() => setStep(step - 1)}
+                className="px-4 py-2 text-sm border border-slate-200 rounded-lg hover:bg-slate-50 transition"
+              >
+                الرجوع
+              </button>
+            )}
+            {step < 3 ? (
+              <button
+                onClick={() => setStep(step + 1)}
+                disabled={!canProceed()}
+                className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+              >
+                التالي
+              </button>
+            ) : (
+              <button
+                onClick={handleCreateSchool}
+                disabled={loading || !canProceed()}
+                className="px-6 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-2"
+              >
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                {loading ? "جاري الإنشاء..." : "إنشاء المدرسة"}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const FounderDashboard = () => {
   const [section, setSection] = useState("overview");
   const [reqFilter, setReqFilter] = useState("all"); // "all" | "schools" | "students" | "teachers"
+  const [showSchoolWizard, setShowSchoolWizard] = useState(false);
   // ── Filter states (declared early: used by pre-computed .filter() blocks below ── TDZ safety) ──
   const [teacherSearch, setTeacherSearch] = useState("");
   const [teacherStatusFilter, setTeacherStatusFilter] = useState("all");
@@ -1572,12 +1965,21 @@ const FounderDashboard = () => {
         {/* ───── 1️⃣ الرئيسية ───── */}
         {section === "overview" && (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <StatCard icon={Building2} label="إجمالي المدارس المشتركة" value={schools.length} tint="bg-blue-500" sub={`${activeSchools} نشطة • ${pendingSchools} معلقة • ${expiredSchools} منتهية`} />
-              <StatCard icon={Users} label="المدارس حسب الحالة" value={`${activeSchools} / ${pendingSchools} / ${expiredSchools}`} tint="bg-emerald-500" sub="نشطة / معلقة / منتهية" />
-              <StatCard icon={FileText} label="طلبات جديدة غير معالجة" value={pendingRequests} tint="bg-violet-500" sub={`من أصل ${requests.length} طلب`} />
-              <StatCard icon={Users} label="طلبات معلمين/طلاب" value={pendingTeacherStudentReqs} tint="bg-emerald-500" sub={`من أصل ${teacherStudentRequests.length} طلب`} />
-              <StatCard icon={CircleDollarSign} label="الإيراد الشهري المتوقع" value={`$${monthlyRevenue}`} tint="bg-amber-500" sub={`السنوي $${annualRevenue}`} />
+            <div className="flex justify-between items-center">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
+                <StatCard icon={Building2} label="إجمالي المدارس المشتركة" value={schools.length} tint="bg-blue-500" sub={`${activeSchools} نشطة • ${pendingSchools} معلقة • ${expiredSchools} منتهية`} />
+                <StatCard icon={Users} label="المدارس حسب الحالة" value={`${activeSchools} / ${pendingSchools} / ${expiredSchools}`} tint="bg-emerald-500" sub="نشطة / معلقة / منتهية" />
+                <StatCard icon={FileText} label="طلبات جديدة غير معالجة" value={pendingRequests} tint="bg-violet-500" sub={`من أصل ${requests.length} طلب`} />
+                <StatCard icon={Users} label="طلبات معلمين/طلاب" value={pendingTeacherStudentReqs} tint="bg-emerald-500" sub={`من أصل ${teacherStudentRequests.length} طلب`} />
+                <StatCard icon={CircleDollarSign} label="الإيراد الشهري المتوقع" value={`$${monthlyRevenue}`} tint="bg-amber-500" sub={`السنوي $${annualRevenue}`} />
+              </div>
+              <button
+                onClick={() => setShowSchoolWizard(true)}
+                className="inline-flex items-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white px-5 py-3 rounded-xl text-sm font-bold hover:from-green-700 hover:to-emerald-700 shadow-lg shadow-green-200 transition-all"
+              >
+                <Plus size={18} />
+                إنشاء مدرسة + فرع + مدير
+              </button>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -3448,6 +3850,17 @@ const FounderDashboard = () => {
               <p className="text-[11px] text-center text-slate-400 mt-3">اسم المستخدم هو الذي سيستخدمه الطالب للدخول من صفحة الهبوط.</p>
             </div>
           </div>
+        )}
+
+        {/* School Creation Wizard */}
+        {showSchoolWizard && (
+          <SchoolCreationWizard
+            onClose={() => setShowSchoolWizard(false)}
+            onSchoolCreated={(data) => {
+              toast.success(`تم إنشاء المدرسة "${data.branch.name}" في مدينة "${data.branch.city}"`);
+              setShowSchoolWizard(false);
+            }}
+          />
         )}
       </main>
     </div>

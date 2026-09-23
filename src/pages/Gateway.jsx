@@ -2,8 +2,9 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useLanguage } from "@/lib/LanguageContext";
 import { motion, AnimatePresence } from "framer-motion";
-import { Eye, EyeOff, AlertCircle, Building2, ArrowRight, ArrowLeft, Sparkles, CheckCircle2, Search, Shield, Users } from "lucide-react";
+import { Eye, EyeOff, AlertCircle, Building2, ArrowRight, ArrowLeft, Sparkles, CheckCircle2, Search, Shield, Users, MapPin } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { entities } from "@/api/dbClient";
 
 const DEFAULT_SCHOOL_SLUG = "مدارس-إيديوتراك-العالمية";
 
@@ -15,17 +16,51 @@ export default function Gateway() {
 
   // Check URL query param fallback (?school=...)
   const querySlug = new URLSearchParams(window.location.search).get("school");
-  const schoolSlug = (routeSlug || querySlug || "").trim();
+  const slug = (routeSlug || querySlug || "").trim();
+
+  // Determine if this is a branch slug or school slug
+  const [isBranchSlug, setIsBranchSlug] = useState(false);
+  const [branchData, setBranchData] = useState(null);
 
   // Redirect /gateway (no slug) → /gateway/{DEFAULT_SCHOOL_SLUG}
   useEffect(() => {
-    if (!schoolSlug) {
+    if (!slug) {
       navigate(`/gateway/${DEFAULT_SCHOOL_SLUG}`, { replace: true });
     }
-  }, [schoolSlug, navigate]);
+  }, [slug, navigate]);
+
+  // Check if slug is a branch slug
+  useEffect(() => {
+    if (!slug) return;
+    const checkBranch = async () => {
+      try {
+        const branches = await entities.SchoolBranch.list("-created_at", 100);
+        const branch = (Array.isArray(branches) ? branches : []).find((b) => b.slug === slug);
+        if (branch) {
+          setIsBranchSlug(true);
+          setBranchData(branch);
+          localStorage.setItem("active_branch_id", branch.id);
+          localStorage.setItem("portal_branch_id", branch.id);
+          localStorage.setItem("portal_branch_name", branch.name);
+          if (!branch.is_main) {
+            navigate(`/gateway/${branch.slug}`, { replace: true });
+          }
+        } else {
+          setIsBranchSlug(false);
+          setBranchData(null);
+        }
+      } catch (err) {
+        console.warn("[Gateway] Branch lookup failed:", err);
+        setIsBranchSlug(false);
+      }
+    };
+    checkBranch();
+  }, [slug, navigate]);
+
+  const schoolSlug = isBranchSlug && branchData?.school_id ? branchData.slug : slug;
 
   const [schoolData, setSchoolData] = useState(null);
-  const [loadingSchool, setLoadingSchool] = useState(Boolean(schoolSlug));
+  const [loadingSchool, setLoadingSchool] = useState(Boolean(slug));
   const [schoolError, setSchoolError] = useState(null);
 
   const [username, setUsername] = useState("");
@@ -83,7 +118,12 @@ export default function Gateway() {
       const response = await fetch(`${apiBase}/neon-db/auth/gateway`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: memberUser.trim(), password: memberPass, schoolId: schoolData.id }),
+        body: JSON.stringify({
+          username: memberUser.trim(),
+          password: memberPass,
+          schoolId: schoolData.id,
+          branch_id: branchData?.id || localStorage.getItem("portal_branch_id") || null,
+        }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
@@ -112,50 +152,75 @@ export default function Gateway() {
 
   const FALLBACK_BG = "https://images.unsplash.com/photo-1510519138101-570d1dcb3d8e?q=80&w=2000&auto=format&fit=crop";
 
-  // Fetch school details by slug
+  // Fetch school details by slug or branch
   useEffect(() => {
-    if (!schoolSlug) {
-      setSchoolData(null);
-      setLoadingSchool(false);
-      return;
-    }
-
     let isMounted = true;
     setLoadingSchool(true);
     setSchoolError(null);
 
     const apiBase = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/$/, "");
-    const url = `${apiBase}/neon-db/public-school/${encodeURIComponent(schoolSlug)}`;
 
-    fetch(url)
-      .then(async (res) => {
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          throw new Error(data.error || (isRTL ? "المدرسة غير مسجلة أو الرابط غير صالح" : "School not found"));
-        }
-        return data;
-      })
-      .then((data) => {
-        if (isMounted) {
-          if (data.school) {
+    // If branch slug, use branch data to load school
+    if (isBranchSlug && branchData?.school_id) {
+      const schoolUrl = `${apiBase}/neon-db/public-school/${encodeURIComponent(branchData.slug)}`;
+      fetch(schoolUrl)
+        .then(async (res) => {
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(data.error || "School not found");
+          return data;
+        })
+        .then((data) => {
+          if (isMounted && data.school) {
             setSchoolData(data.school);
+            localStorage.setItem("portal_branch_id", branchData.id);
+            localStorage.setItem("portal_branch_name", branchData.name);
+            localStorage.setItem("active_branch_id", branchData.id);
+          }
+          setLoadingSchool(false);
+        })
+        .catch((err) => {
+          if (isMounted) {
+            setSchoolError(err.message);
+            setLoadingSchool(false);
+          }
+        });
+    } else if (schoolSlug) {
+      const schoolUrl = `${apiBase}/neon-db/public-school/${encodeURIComponent(schoolSlug)}`;
+      fetch(schoolUrl)
+        .then(async (res) => {
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            throw new Error(data.error || (isRTL ? "المدرسة غير مسجلة أو الرابط غير صالح" : "School not found"));
+          }
+          return data;
+        })
+        .then((data) => {
+          if (isMounted && data.school) {
+            setSchoolData(data.school);
+            if (data.school.branch_id) {
+              localStorage.setItem("portal_branch_id", data.school.branch_id);
+              localStorage.setItem("portal_branch_name", data.school.branch_name || data.school.name);
+            } else {
+              localStorage.removeItem("portal_branch_id");
+              localStorage.removeItem("portal_branch_name");
+            }
           } else {
             throw new Error(isRTL ? "تعذر العثور على بيانات المدرسة" : "School data not found");
           }
           setLoadingSchool(false);
-        }
-      })
-      .catch((err) => {
-        if (isMounted) {
-          setSchoolError(err.message || (isRTL ? "تعذر جلب بيانات المدرسة" : "Failed to load school"));
-          setLoadingSchool(false);
-        }
-      });
+        })
+        .catch((err) => {
+          if (isMounted) {
+            setSchoolError(err.message || (isRTL ? "تعذر جلب بيانات المدرسة" : "Failed to load school"));
+            setLoadingSchool(false);
+          }
+        });
+    } else {
+      setLoadingSchool(false);
+    }
 
-    return () => {
-      isMounted = false;
-    };
-  }, [schoolSlug, isRTL]);
+    return () => { isMounted = false; };
+  }, [schoolSlug, isBranchSlug, branchData, isRTL]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -181,6 +246,7 @@ export default function Gateway() {
           slug: schoolSlug,
           username: username.trim(),
           password: password,
+          branch_id: branchData?.id || localStorage.getItem("portal_branch_id") || null,
         }),
       });
 
@@ -209,6 +275,10 @@ export default function Gateway() {
       if (data.school?.id) {
         localStorage.setItem("portal_school_id", data.school.id);
       }
+      if (branchData?.id) {
+        localStorage.setItem("portal_branch_id", branchData.id);
+        localStorage.setItem("portal_branch_name", branchData.name);
+      }
       if (data.token) {
         localStorage.setItem("portal_jwt_token", data.token);
       }
@@ -229,10 +299,12 @@ export default function Gateway() {
     navigate(`/gateway/${clean}`);
   };
 
-  const backgroundUrl = schoolData?.background_image || FALLBACK_BG;
+  const backgroundUrl = branchData?.logo_url || schoolData?.background_image || FALLBACK_BG;
   const schoolName = isRTL
-    ? (schoolData?.name_ar || schoolData?.name || "بوابة إدارة المدرسة")
-    : (schoolData?.name_en || schoolData?.name || "School Management Gateway");
+    ? (branchData?.name || schoolData?.name_ar || schoolData?.name || "بوابة إدارة المدرسة")
+    : (branchData?.name_en || schoolData?.name_en || schoolData?.name || "School Management Gateway");
+  const branchCity = branchData?.city || schoolData?.city || null;
+  const branchLogo = branchData?.logo_url || schoolData?.school_logo || null;
 
   // State 1: No School Slug Provided (/gateway directly)
   if (!schoolSlug) {
@@ -406,9 +478,20 @@ export default function Gateway() {
               </div>
             )}
 
+            {schoolData.branch_name && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200/80 text-emerald-800 text-[10px] font-black mb-1.5 shadow-xs">
+                <span>{schoolData.branch_name}</span>
+                {schoolData.city && <span className="text-emerald-600 font-semibold">• {schoolData.city}</span>}
+              </span>
+            )}
             <h1 className="text-xl font-extrabold text-stone-900 mb-1 leading-tight tracking-tight">
               {schoolName}
             </h1>
+            {schoolData.parent_school_name && schoolData.parent_school_name !== schoolName && (
+              <p className="text-stone-500 text-xs font-bold mb-1">
+                {schoolData.parent_school_name}
+              </p>
+            )}
             <p className="text-stone-400 text-[11px] font-medium">
               {gwTab === "admin"
                 ? (isRTL ? "لوحة الإدارة والتحكم" : "Management Portal")

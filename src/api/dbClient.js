@@ -28,7 +28,11 @@ class EntityClient {
     } else if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
-    if (this.entityName === 'SystemSetting' || this.entityName === 'RegistrationRequest' || this.entityName === 'School') {
+    const activeBranchId = typeof window !== 'undefined' ? localStorage.getItem('active_branch_id') : null;
+    if (activeBranchId && activeBranchId !== 'all') {
+      headers['x-branch-id'] = activeBranchId;
+    }
+    if (this.entityName === 'SystemSetting' || this.entityName === 'RegistrationRequest' || this.entityName === 'School' || this.entityName === 'SchoolBranch') {
       headers['Content-Type'] = 'application/json';
     }
     return headers;
@@ -167,7 +171,7 @@ const entityNames = [
   'Expense', 'SalaryRecord', 'PurchaseOrder', 'Visitor',
   'StaffLeave', 'StaffContract', 'StaffEvaluation', 'StaffRequest',
   'Department', 'CareerLadder', 'StoreCategory', 'SalesOrder', 'SystemSetting', 'GatewayAccount', 'SystemAdmin', 'RegistrationRequest',
-  'School',
+  'School', 'SchoolBranch',
   'TeacherOwnStudent', 'TeacherAssignment', 'TeacherExam',
   'TeacherSubmission', 'TeacherLiveClass', 'ClassParticipant',
   'TeacherYoutubeVideo', 'TeacherSubscription', 'CurriculumBook'

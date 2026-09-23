@@ -9,6 +9,7 @@ import { useLanguage } from "@/lib/LanguageContext";
 import { useAuth } from "@/lib/AuthContext";
 import { cn } from "@/lib/utils";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import BranchSelector from "./BranchSelector";
 import { User, ArrowLeft } from "lucide-react";
 
 export default function AppLayout() {
@@ -84,6 +85,11 @@ export default function AppLayout() {
               {isRTL ? `مرحباً، ` : `Welcome, `}
               <span className="text-stone-900 font-extrabold">{user?.full_name || (isRTL ? 'مستخدم إديوتراك' : 'EduTrack User')}</span>
             </span>
+            {portalRole === "admin" && (
+              <div className="mr-2 border-r border-stone-200 pr-3 hidden sm:block">
+                <BranchSelector />
+              </div>
+            )}
           </div>
 
           {/* الجانب الأيسر (RTL) / الأيمن (LTR) - زر رجوع في اليسار + اللغة */}

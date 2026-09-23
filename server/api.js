@@ -867,6 +867,73 @@ if (process.env.DATABASE_URL) {
       }
     } catch (e) { console.error('[neon] tenant backfill error:', e.message); }
   })();
+  // ── Multi-Branch Management (إدارة الفروع المتعددة للمدارس) ──
+  (async () => {
+    try {
+      await sql.query(`
+        CREATE TABLE IF NOT EXISTS school_branches (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          school_id UUID NOT NULL,
+          name TEXT NOT NULL,
+          name_en TEXT,
+          city TEXT NOT NULL,
+          address TEXT,
+          phone TEXT,
+          email TEXT,
+          slug TEXT UNIQUE NOT NULL,
+          logo_url TEXT,
+          background_image TEXT,
+          is_main BOOLEAN DEFAULT FALSE,
+          status TEXT DEFAULT 'active',
+          director_name TEXT,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        )
+      `).catch(err => console.error('[neon] create school_branches table:', err.message));
+
+      await sql.query(`CREATE INDEX IF NOT EXISTS idx_school_branches_school ON school_branches(school_id)`).catch(()=>{});
+      await sql.query(`CREATE INDEX IF NOT EXISTS idx_school_branches_slug ON school_branches(slug)`).catch(()=>{});
+
+      // Operational tables: add branch_id for branch-level isolation and consolidated view
+      const BRANCH_TABLES = [
+        'students', 'teachers', 'subjects', 'study_rooms', 'class_schedules',
+        'expenses', 'fee_payments', 'student_fees', 'system_admins', 'system_settings'
+      ];
+      for (const tbl of BRANCH_TABLES) {
+        await sql.query(`ALTER TABLE ${tbl} ADD COLUMN IF NOT EXISTS branch_id UUID`).catch(()=>{});
+        await sql.query(`CREATE INDEX IF NOT EXISTS idx_${tbl}_branch_id ON ${tbl}(branch_id)`).catch(()=>{});
+      }
+
+      // Auto-create default main branch for existing schools if they lack branches
+      const allSchools = await sql.query(`SELECT id, name, name_ar, name_en, slug, director_name, phone, email, logo_url, background_image FROM schools`).catch(()=>[]);
+      for (const sc of allSchools) {
+        const branchCheck = await sql.query(`SELECT id FROM school_branches WHERE school_id = $1 LIMIT 1`, [sc.id]).catch(()=>[]);
+        if (branchCheck.length === 0) {
+          const baseSlug = sc.slug || `school-${String(sc.id).slice(0, 8)}`;
+          const branchSlug = `${baseSlug}-main`;
+          const branchName = (sc.name_ar || sc.name) + ' - الفرع الرئيسي';
+          const insertedBranch = await sql.query(
+            `INSERT INTO school_branches (school_id, name, name_en, city, slug, is_main, director_name, phone, email, logo_url, background_image, status)
+             VALUES ($1, $2, $3, 'المركز الرئيسي', $4, true, $5, $6, $7, $8, $9, 'active')
+             ON CONFLICT (slug) DO NOTHING
+             RETURNING id`,
+            [sc.id, branchName, sc.name_en || sc.name, branchSlug, sc.director_name, sc.phone, sc.email, sc.logo_url, sc.background_image]
+          ).catch(()=>{});
+
+          // Associate existing records for this school to this main branch if branch_id is null
+          const bId = insertedBranch?.[0]?.id;
+          if (bId) {
+            for (const tbl of BRANCH_TABLES) {
+              await sql.query(`UPDATE ${tbl} SET branch_id = $1 WHERE school_id = $2 AND branch_id IS NULL`, [bId, sc.id]).catch(()=>{});
+            }
+          }
+        }
+      }
+      console.log('[neon] school_branches verified and backfilled with branch_id');
+    } catch (e) {
+      console.error('[neon] school_branches setup error:', e.message);
+    }
+  })();
   // RLS سيُفعّل في مرحلة ثانية بعد تثبيت حقن school_id على مستوى التطبيق — حالياً نعتمد على فلترة التطبيق
 
   // ── Independent vs school separation: discriminator + repair (idempotent, runs every boot) ──
@@ -1291,6 +1358,7 @@ const ENTITY_TABLE_MAP = {
   CareerLadder: 'career_ladders',
   StoreCategory: 'store_categories',
   SalesOrder: 'sales_orders',
+  SchoolBranch: 'school_branches',
 };
 
 const ALLOWED_TABLES = new Set(Object.values(ENTITY_TABLE_MAP));
@@ -1671,7 +1739,57 @@ export function createApiHandler() {
 
         if (rows.length === 0) {
           res.statusCode = 404;
-          return res.end(JSON.stringify({ error: 'المدرسة غير مسجلة أو الرابط غير صحيح' }));
+          const branchRows = await dbQuery(
+            `SELECT b.*, s.name as school_main_name, s.name_ar as school_main_ar, s.name_en as school_main_en,
+                    s.country, s.plan, s.subscription_status, s.expires_at,
+                    s.logo_url as school_logo, s.background_image as school_bg
+             FROM school_branches b
+             JOIN schools s ON s.id = b.school_id
+             WHERE (b.slug = $1 OR b.id::text = $1)
+             LIMIT 1`,
+            [slug]
+          );
+
+          if (branchRows.length > 0) {
+            const b = branchRows[0];
+            return res.end(JSON.stringify({
+              success: true,
+              is_branch: true,
+              branch: {
+                id: b.id,
+                school_id: b.school_id,
+                name: b.name,
+                name_en: b.name_en,
+                slug: b.slug,
+                city: b.city,
+                address: b.address,
+                phone: b.phone,
+                email: b.email,
+                director_name: b.director_name,
+                logo_url: b.logo_url || b.school_logo || '',
+                background_image: b.background_image || b.school_bg || ''
+              },
+              school: {
+                id: b.school_id,
+                name: b.name,
+                name_ar: b.name,
+                name_en: b.name_en || b.name,
+                parent_school_name: b.school_main_ar || b.school_main_name,
+                branch_id: b.id,
+                branch_name: b.name,
+                city: b.city,
+                slug: b.slug,
+                logo_url: b.logo_url || b.school_logo || '',
+                background_image: b.background_image || b.school_bg || '',
+                country: b.country || 'السودان',
+                subscription_status: b.subscription_status || 'active',
+                plan: b.plan || 'professional',
+                expires_at: b.expires_at
+              }
+            }));
+          }
+
+          return res.end(JSON.stringify({ error: 'المدرسة أو الفرع غير مسجل أو الرابط غير صحيح' }));
         }
 
         const s = rows[0];
@@ -1708,13 +1826,25 @@ export function createApiHandler() {
           return res.end(JSON.stringify({ error: 'المدرسة واسم المستخدم وكلمة المرور مطلوبة' }));
         }
 
-        const schoolRows = await dbQuery(
+        let schoolRows = await dbQuery(
           `SELECT * FROM schools WHERE (slug = $1 OR domain_subdomain = $1 OR id::text = $1) LIMIT 1`,
           [slug.trim()]
         );
         if (schoolRows.length === 0) {
           res.statusCode = 404;
-          return res.end(JSON.stringify({ error: 'المدرسة غير موجودة أو الرابط غير صالح' }));
+          const bRows = await dbQuery(
+            `SELECT b.id as branch_uuid, b.name as branch_name, s.* 
+             FROM school_branches b
+             JOIN schools s ON s.id = b.school_id
+             WHERE (b.slug = $1 OR b.id::text = $1) LIMIT 1`,
+            [slug.trim()]
+          );
+          if (bRows.length > 0) {
+            schoolRows = [bRows[0]];
+            branchInfo = { id: bRows[0].branch_uuid, name: bRows[0].branch_name };
+          } else {
+            return res.end(JSON.stringify({ error: 'المدرسة أو الفرع غير موجود أو الرابط غير صالح' }));
+          }
         }
         const school = schoolRows[0];
 
@@ -1782,7 +1912,10 @@ export function createApiHandler() {
           email: authenticatedAdmin.email || school.email,
           role: 'admin',
           school_id: school.id,
-          school_name: school.name_ar || school.name
+          school_name: school.name_ar || school.name,
+          branch_id: branchInfo?.id || authenticatedAdmin.branch_id || null,
+          branch_name: branchInfo?.name || null,
+          is_primary_admin: !(branchInfo?.id || authenticatedAdmin.branch_id)
         };
 
         const token = jwt.sign(user, JWT_SECRET, { expiresIn: '24h' });
@@ -3396,7 +3529,7 @@ WHERE email = $10`,
       }
 
       // Multi-tenant helpers
-       const TENANT_TABLES_SET = new Set(['students','teachers','attendance','subjects','library_books','financial_records','activity_posts','activity_comments','activity_chats','audit_logs','bus_drivers','bus_driver_reports','card_top_ups','class_schedules','donations','friend_requests','store_items','purchases','study_rooms','study_groups','study_group_posts','study_materials','student_awards','student_grades','student_reports','supervisors','staff_members','teacher_ratings','teacher_tasks','portal_access_configs','portal_groups','portal_group_messages','portal_notifications','private_messages','room_messages','room_videos','book_reviews','message_read_receipts','typing_indicators','fines','parent_link_requests','virtual_sessions','session_participants','official_announcements','counseling_cases','case_assessments','intervention_plans','follow_ups','case_visibility_logs','fee_structures','student_fees','fee_payments','activity_fees','student_activity_fees','student_wallet','wallet_transactions','hall_rentals','other_revenue','expenses','salary_records','purchase_orders','visitors','system_admins','system_settings','student_teacher_bonds','bond_payments','school_subscriptions']);
+       const TENANT_TABLES_SET = new Set(['students','teachers','attendance','subjects','library_books','financial_records','activity_posts','activity_comments','activity_chats','audit_logs','bus_drivers','bus_driver_reports','card_top_ups','class_schedules','donations','friend_requests','store_items','purchases','study_rooms','study_groups','study_group_posts','study_materials','student_awards','student_grades','student_reports','supervisors','staff_members','teacher_ratings','teacher_tasks','portal_access_configs','portal_groups','portal_group_messages','portal_notifications','private_messages','room_messages','room_videos','book_reviews','message_read_receipts','typing_indicators','fines','parent_link_requests','virtual_sessions','session_participants','official_announcements','counseling_cases','case_assessments','intervention_plans','follow_ups','case_visibility_logs','fee_structures','student_fees','fee_payments','activity_fees','student_activity_fees','student_wallet','wallet_transactions','hall_rentals','other_revenue','expenses','salary_records','purchase_orders','visitors','system_admins','system_settings','student_teacher_bonds','bond_payments','school_subscriptions','school_branches']);
        const isTenantTable = TENANT_TABLES_SET.has(table);
       const tenantId = req.user?.school_id || null;
 
@@ -3684,6 +3817,20 @@ WHERE email = $10`,
           paramIdx++;
         }
         // Gateway lock accounts: each school admin sees only their school's accounts
+        // Multi-branch: فلترة السجلات حسب الفرع إذا تم اختياره (وليس 'all')
+        const branchHeader = req.headers['x-branch-id'];
+        const branchParam = searchParams.get('branch_id');
+        const activeBranchFilter = (branchHeader && branchHeader !== 'all') ? branchHeader : (branchParam && branchParam !== 'all' ? branchParam : null);
+        const BRANCH_SCOPED_TABLES = new Set([
+          'students', 'teachers', 'subjects', 'study_rooms', 'class_schedules',
+          'expenses', 'fee_payments', 'student_fees', 'system_admins', 'system_settings'
+        ]);
+        if (BRANCH_SCOPED_TABLES.has(table) && activeBranchFilter) {
+          conditions.push(`branch_id = $${paramIdx}`);
+          values.push(activeBranchFilter);
+          paramIdx++;
+        }
+
         if (table === 'gateway_accounts' && tenantId) {
           conditions.push(`school_id = $${paramIdx}`);
           values.push(tenantId);
@@ -3761,6 +3908,18 @@ WHERE email = $10`,
           body.school_id = tenantIdFromUser;
         }
         // Gateway lock accounts: scope to the admin's school automatically (Option A shared credential)
+        // Multi-branch: حقن branch_id إن وُجد في الطلب أو الترويسة
+        const branchHeaderPost = req.headers['x-branch-id'];
+        const branchFromUser = req.user?.branch_id;
+        const targetBranchId = body.branch_id || (branchHeaderPost && branchHeaderPost !== 'all' ? branchHeaderPost : null) || branchFromUser || null;
+        const BRANCH_SCOPED_TABLES_POST = new Set([
+          'students', 'teachers', 'subjects', 'study_rooms', 'class_schedules',
+          'expenses', 'fee_payments', 'student_fees', 'system_admins', 'system_settings'
+        ]);
+        if (BRANCH_SCOPED_TABLES_POST.has(table) && targetBranchId) {
+          body.branch_id = targetBranchId;
+        }
+
         if (table === 'gateway_accounts' && tenantIdFromUser) {
           body.school_id = tenantIdFromUser;
         }
