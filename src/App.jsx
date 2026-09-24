@@ -161,7 +161,9 @@ const AuthenticatedApp = () => {
            <Route path="/staff/contracts" element={<PlanAccessGuard><StaffContracts /></PlanAccessGuard>} />
            <Route path="/staff/payroll" element={<PlanAccessGuard><StaffPayroll /></PlanAccessGuard>} />
            <Route path="/staff/leaves" element={<PlanAccessGuard><StaffLeaves /></PlanAccessGuard>} />
+            <Route path="/staff/personal-requests" element={<PlanAccessGuard><StaffPersonalRequests /></PlanAccessGuard>} />
            <Route path="/staff/evaluations" element={<PlanAccessGuard><StaffEvaluations /></PlanAccessGuard>} />
+            <Route path="/staff/attendance" element={<PlanAccessGuard><StaffAttendance /></PlanAccessGuard>} />
            <Route path="/staff/reports" element={<PlanAccessGuard><HRReports /></PlanAccessGuard>} />
            <Route path="/staff/departments" element={<PlanAccessGuard><Departments /></PlanAccessGuard>} />
            <Route path="/staff/career" element={<PlanAccessGuard><CareerLadder /></PlanAccessGuard>} />

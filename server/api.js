@@ -830,8 +830,10 @@ if (process.env.DATABASE_URL) {
       await sql.query(`ALTER TABLE schools ADD COLUMN IF NOT EXISTS gateway_password TEXT`).catch(()=>{});
       await sql.query(`CREATE INDEX IF NOT EXISTS idx_schools_slug ON schools(slug)`).catch(()=>{});
       // ترحيل الـ slug للمدارس الموجودة
-      await sql.query(`UPDATE schools SET slug = 'main-school' WHERE (slug IS NULL OR slug = '') AND (name LIKE '%عباد الرحمن%' OR name_ar LIKE '%عباد الرحمن%')`).catch(()=>{});
+      await sql.query(`UPDATE schools SET slug = 'مدارس-إيديوتراك-العالمية' WHERE (slug IS NULL OR slug = '') AND (name LIKE '%عباد الرحمن%' OR name_ar LIKE '%عباد الرحمن%')`).catch(()=>{});
       await sql.query(`UPDATE schools SET slug = 'school-' || SUBSTRING(id::text, 1, 8) WHERE slug IS NULL OR slug = ''`).catch(()=>{});
+       // Migrate legacy main-school slug to the new canonical slug
+       await sql.query(`UPDATE schools SET slug = 'مدارس-إيديوتراك-العالمية' WHERE slug = 'main-school'`).catch(()=>{});
       // تشخيص أعمدة schools
       try {
         const cols = await sql.query(`SELECT column_name FROM information_schema.columns WHERE table_name='schools'`);
@@ -843,7 +845,7 @@ if (process.env.DATABASE_URL) {
         try {
           const { randomUUID } = await import('crypto');
           const newId = randomUUID();
-          const rows = await sql.query(`INSERT INTO schools (id, name, name_ar, name_en, country, plan, subscription_status, director_name) VALUES ($1, 'مدارس عباد الرحمن التعليمية', 'مدارس عباد الرحمن التعليمية', 'Abad Al-Rahman Educational Schools', 'السودان', 'enterprise', 'active', 'الإدارة') RETURNING id`, [newId]);
+          const rows = await sql.query(`INSERT INTO schools (id, name, name_ar, name_en, country, plan, subscription_status, director_name, slug) VALUES ($1, 'مدارس عباد الرحمن التعليمية', 'مدارس عباد الرحمن التعليمية', 'Abad Al-Rahman Educational Schools', 'السودان', 'enterprise', 'active', 'الإدارة', 'مدارس-إيديوتراك-العالمية') RETURNING id`, [newId]);
           defaultSchoolId = rows[0]?.id || newId;
           console.log('[neon] created default tenant school:', defaultSchoolId);
         } catch (e) {

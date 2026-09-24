@@ -6,8 +6,6 @@ import { Eye, EyeOff, AlertCircle, Building2, ArrowRight, ArrowLeft, Sparkles, C
 import { Card } from "@/components/ui/card";
 import { entities } from "@/api/dbClient";
 
-const DEFAULT_SCHOOL_SLUG = "مدارس-إيديوتراك-العالمية";
-
 export default function Gateway() {
   const { schoolSlug: routeSlug } = useParams();
   const navigate = useNavigate();
@@ -21,13 +19,6 @@ export default function Gateway() {
   // Determine if this is a branch slug or school slug
   const [isBranchSlug, setIsBranchSlug] = useState(false);
   const [branchData, setBranchData] = useState(null);
-
-  // Redirect /gateway (no slug) → /gateway/{DEFAULT_SCHOOL_SLUG}
-  useEffect(() => {
-    if (!slug) {
-      navigate(`/gateway/${DEFAULT_SCHOOL_SLUG}`, { replace: true });
-    }
-  }, [slug, navigate]);
 
   // Check if slug is a branch slug
   useEffect(() => {

@@ -82,22 +82,22 @@ export default function BranchSelector() {
       {isOpen && (
         <div
           className={cn(
-            "absolute mt-2 w-72 sm:w-80 rounded-2xl bg-white border border-stone-200 shadow-xl z-50 overflow-hidden py-1.5 animate-in fade-in zoom-in-95 duration-150",
+            "absolute mt-2 w-72 sm:w-80 rounded-2xl bg-white border border-stone-200/80 shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150",
             isRTL ? "right-0" : "left-0"
           )}
         >
           {/* Header */}
-          <div className="px-3.5 py-2 border-b border-stone-100 bg-stone-50/60 flex items-center justify-between">
-            <div className="flex items-center gap-1.5 text-stone-700 font-black text-xs">
+          <div className="px-4 py-2.5 border-b border-stone-100 bg-stone-50/40 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-stone-800 font-black text-sm">
               <Building className="w-4 h-4 text-emerald-600" />
               <span>{isRTL ? "فروع المؤسسة التعليمية" : "School Branches"}</span>
             </div>
-            <span className="text-[11px] font-bold text-stone-400 bg-stone-200/60 px-2 py-0.5 rounded-full">
-              {branches.length} {isRTL ? "فروع" : "branches"}
+            <span className="text-[11px] font-medium text-stone-500 bg-stone-100 px-2 py-0.5 rounded-full">
+              {branches.length} {isRTL ? "فرع" : "branch"}
             </span>
           </div>
 
-          <div className="p-1 space-y-1 max-h-72 overflow-y-auto">
+          <div className="p-2 space-y-1.5 max-h-72 overflow-y-auto">
             {/* Consolidated View Option */}
             <button
               type="button"
@@ -106,10 +106,10 @@ export default function BranchSelector() {
                 setIsOpen(false);
               }}
               className={cn(
-                "w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all text-right cursor-pointer",
+                "w-full flex items-center justify-between px-3 py-3 rounded-xl text-xs font-bold transition-all text-right cursor-pointer",
                 isConsolidated
                   ? "bg-stone-900 text-white shadow-xs"
-                  : "text-stone-700 hover:bg-stone-100/80"
+                  : "text-stone-600 hover:bg-stone-50"
               )}
             >
               <div className="flex items-center gap-2.5">
@@ -127,13 +127,13 @@ export default function BranchSelector() {
                   </span>
                   <span
                     className={cn(
-                      "text-[10px]",
-                      isConsolidated ? "text-stone-300" : "text-stone-400"
+                      "text-[10px] leading-tight mt-0.5",
+                      isConsolidated ? "text-stone-400" : "text-stone-400"
                     )}
                   >
                     {isRTL
-                      ? "عرض موحد لكافة طلاب ومعلمي وماليات الفروع"
-                      : "Combined overview of all branches"}
+                      ? "عرض موحد لكافة الطلاب والمعلمين والماليات"
+                      : "Combined overview of all students, teachers, and finances"}
                   </span>
                 </div>
               </div>
@@ -152,40 +152,42 @@ export default function BranchSelector() {
                     setIsOpen(false);
                   }}
                   className={cn(
-                    "w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all text-right cursor-pointer",
+                    "w-full flex items-center justify-between px-3 py-3 rounded-xl text-xs font-bold transition-all text-right cursor-pointer",
                     isSelected
                       ? "bg-emerald-600 text-white shadow-xs"
-                      : "text-stone-700 hover:bg-stone-100/80"
+                      : "text-stone-700 hover:bg-stone-50"
                   )}
                 >
-                  <div className="flex items-center gap-2.5 truncate">
+                  <div className="flex items-center gap-2.5 flex-1 min-w-0">
                     <div
                       className={cn(
-                        "w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-xs font-black",
+                        "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-sm font-black",
                         isSelected
-                          ? "bg-white/25 text-white"
+                          ? "bg-white/25 text-white shadow-sm"
                           : "bg-emerald-50 text-emerald-700 border border-emerald-200/50"
                       )}
                     >
                       {branch.name.charAt(0)}
                     </div>
-                    <div className="flex flex-col text-right truncate">
+                    <div className="flex flex-col text-right flex-1 min-w-0">
+                      {/* Branch Name Line - clear and prominent */}
                       <div className="flex items-center gap-1.5">
-                        <span className="font-extrabold truncate text-xs">{branch.name}</span>
+                        <span className="font-extrabold text-sm truncate">{branch.name}</span>
                         {branch.is_main && (
                           <span
                             className={cn(
-                              "text-[9px] font-black px-1.5 py-0.2 rounded-md shrink-0",
+                              "text-[9px] font-semibold px-1.5 py-0.5 rounded-md shrink-0 leading-tight",
                               isSelected
-                                ? "bg-white/30 text-white"
-                                : "bg-amber-100 text-amber-800"
+                                ? "bg-white/25 text-white"
+                                : "bg-amber-100 text-amber-700 border border-amber-200/50"
                             )}
                           >
                             {isRTL ? "الرئيسي" : "Main"}
                           </span>
                         )}
                       </div>
-                      <div className="flex items-center gap-1 text-[10px] text-stone-400">
+                      {/* Sub-details Line - clearly separated with proper spacing */}
+                      <div className="flex items-center gap-1 text-[10px] text-stone-400 mt-0.5">
                         {branch.city && (
                           <span className="flex items-center gap-0.5">
                             <MapPin className="w-2.5 h-2.5" />
@@ -193,25 +195,33 @@ export default function BranchSelector() {
                           </span>
                         )}
                         {branch.director_name && (
-                          <span>• {branch.director_name}</span>
+                          <span className="text-stone-300">•</span>
+                        )}
+                        {branch.director_name && (
+                          <span>{branch.director_name}</span>
                         )}
                       </div>
                     </div>
                   </div>
-                  {isSelected && <Check className="w-4 h-4 text-white shrink-0" />}
+                  {isSelected && (
+                    <Check className="w-4 h-4 text-white shrink-0 ml-2" />
+                  )}
                 </button>
               );
             })}
           </div>
 
-          {/* Footer Action */}
-          <div className="p-1.5 border-t border-stone-100 bg-stone-50/50">
+          {/* Separator */}
+          <div className="h-px bg-stone-100 mx-4" />
+
+          {/* Footer Action - visually separated as a distinct action */}
+          <div className="p-2 bg-stone-50/70">
             <Link
               to="/branches"
               onClick={() => setIsOpen(false)}
-              className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-extrabold text-stone-700 hover:text-stone-950 hover:bg-stone-100 transition-colors"
+              className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-900 border border-emerald-200/50 transition-all"
             >
-              <Plus className="w-3.5 h-3.5 text-emerald-600" />
+              <Plus className="w-3.5 h-3.5" />
               <span>{isRTL ? "إدارة الفروع وإضافة فرع جديد" : "Manage & Add Branches"}</span>
             </Link>
           </div>

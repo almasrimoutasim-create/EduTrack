@@ -17,7 +17,6 @@ import {
   AlertCircle,
   FileText,
   Star,
-  LogOut,
   Video,
   Megaphone,
   Bell,
@@ -31,7 +30,6 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { useAuth } from "@/lib/AuthContext";
 import TeacherSidebar from "@/components/layout/TeacherSidebar";
 import VisualSchedule from "@/components/schedule/VisualSchedule";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -49,7 +47,6 @@ const btnPrimary = "inline-flex items-center justify-center gap-2 whitespace-now
 export default function TeacherPortal() {
   const { language } = useLanguage();
   const isRTL = language === "ar";
-  const { logout } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get("tab") || "classes";
   const view = searchParams.get("view");
@@ -67,14 +64,6 @@ export default function TeacherPortal() {
   const teacherId = localStorage.getItem("portal_user_id") || "T-202";
   const portalUserStr = localStorage.getItem("portal_user");
   const portalUser = portalUserStr ? JSON.parse(portalUserStr) : null;
-
-  const handleLogout = () => {
-    localStorage.removeItem("portal_role");
-    localStorage.removeItem("portal_user_id");
-    localStorage.removeItem("portal_user_name");
-    logout(false);
-    window.location.href = "/";
-  };
 
   const { data: classesQuery = [] } = useQuery({ 
     queryKey: ["teacher-classes", teacherId], 
@@ -457,10 +446,7 @@ export default function TeacherPortal() {
             <Plus size={18} />
             {isRTL ? "إضافة محتوى" : "Add Content"}
           </button>
-          <button onClick={handleLogout} className={`${btnOutline} rounded-full h-12 px-6 border-rose-100 text-rose-600 bg-rose-50 hover:bg-rose-100 hover:text-rose-700`}>
-            <LogOut size={18} />
-            <span className="hidden sm:inline">{isRTL ? "تسجيل الخروج" : "Log out"}</span>
-          </button>
+          
         </div>
       </header>
 

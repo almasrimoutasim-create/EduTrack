@@ -345,7 +345,15 @@ export default function Settings() {
       setNewGatewayUser({ username: '', password: '' });
       toast.success(isRTL ? 'تم إضافة حساب البوابة بنجاح' : 'Gateway account added');
     },
-    onError: () => toast.error(isRTL ? 'فشل إضافة الحساب' : 'Failed to add account')
+    onError: (err) => {
+      console.error("Gateway create error:", err);
+      const msg = err.message?.includes('duplicate') || err.message?.includes('unique')
+        ? (isRTL ? "اسم المستخدم موجود بالفعل. استخدم اسم مستخدم مختلف." : "Username already exists. Use a different username.")
+        : err.message?.includes('Unauthorized')
+        ? (isRTL ? "انتهت جلسة تسجيل الدخول. يرجى تسجيل الدخول مجدداً." : "Session expired. Please log in again.")
+        : (isRTL ? `فشل إضافة الحساب: ${err.message}` : `Failed to add account: ${err.message}`);
+      toast.error(msg);
+    }
   });
 
   const updateGatewayMutation = useMutation({
@@ -377,7 +385,15 @@ export default function Settings() {
       setNewAdmin({ email: '', password: '', full_name: '' });
       toast.success(isRTL ? 'تم إضافة مدير النظام بنجاح' : 'Admin account added');
     },
-    onError: () => toast.error(isRTL ? 'فشل إضافة المدير' : 'Failed to add admin')
+    onError: (err) => {
+      console.error("Admin create error:", err);
+      const msg = err.message?.includes('duplicate') || err.message?.includes('unique')
+        ? (isRTL ? "هذا البريد الإلكتروني مسجل بالفعل." : "This email is already registered.")
+        : err.message?.includes('Unauthorized')
+        ? (isRTL ? "انتهت جلسة تسجيل الدخول. يرجى تسجيل الدخول مجدداً." : "Session expired. Please log in again.")
+        : (isRTL ? `فشل إضافة المدير: ${err.message}` : `Failed to add admin: ${err.message}`);
+      toast.error(msg);
+    }
   });
 
   const updateAdminMutation = useMutation({

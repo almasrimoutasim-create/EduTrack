@@ -38,9 +38,10 @@ export default function RoleLogin() {
 
   // School branding (Option A: members arriving via /gateway/:slug see their school)
   const [schoolBrand, setSchoolBrand] = useState(null);
+  const [brandLoading, setBrandLoading] = useState(true);
   useEffect(() => {
     const slug = (localStorage.getItem("portal_school_slug") || "").trim();
-    if (!slug) return;
+    if (!slug) { setBrandLoading(false); return; }
     let alive = true;
     const apiBase = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/$/, "");
     fetch(`${apiBase}/neon-db/public-school/${encodeURIComponent(slug)}`)
@@ -54,7 +55,8 @@ export default function RoleLogin() {
           }
         }
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => { if (alive) setBrandLoading(false); });
     return () => { alive = false; };
   }, []);
 
@@ -104,7 +106,6 @@ export default function RoleLogin() {
 
     try {
       let resolvedRole = selectedRole.id;
-      // Admin uses the admin role directly
       if (resolvedRole === "admin") {
         resolvedRole = "admin";
       } else if (resolvedRole === "support") {
@@ -134,16 +135,26 @@ export default function RoleLogin() {
             setLoading(false);
             return;
           }
-        } catch { /* allow login attempt if check fails */ }
+          // If check returns 'none' and we have a school brand, the account may be school-bound
+          // but not found without schoolId — warn the user
+          if (chk && chk.type === 'none' && schoolBrand?.id) {
+            // Don't block, but the login will use schoolBrand.id which should work
+          }
+        } catch {
+          // If check fails, log but still proceed with login
+          console.warn('check-account-type failed, proceeding with login...');
+        }
       }
 
       await login(resolvedRole, identifier.trim(), password, schoolBrand?.id || null);
       window.location.href = selectedRole.path || "/";
     } catch (err) {
       console.error("Login failed:", err);
-      let message = err.message;
+      let message = err.message || 'فشل تسجيل الدخول';
       if (err.message.includes("Failed to fetch")) {
         message = isRTL ? "عذراً، تعذر الاتصال بالخادم. يرجى التحقق من الشبكة." : "Connection failed. Please check your network.";
+      } else if (err.message.includes("Admin account not found") || err.message.includes("account not found")) {
+        message = isRTL ? "لم يتم العثور على حسابك كمدير نظام. تأكد من أنك تستخدم البريد الصحيح أو حاول من تبويب «أعضاء المدرسة»." : "Admin account not found. Make sure you're using the correct email or try from the 'School Members' tab.";
       } else if (err.message.toLowerCase().includes("invalid password") || err.message.toLowerCase().includes("credentials")) {
         message = isRTL ? "كلمة المرور غير صحيحة، يرجى المحاولة مرة أخرى." : "Incorrect password. Please try again.";
       } else if (err.message.toLowerCase().includes("not found")) {
@@ -186,12 +197,18 @@ export default function RoleLogin() {
     try {
       const apiBase = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/$/, "");
       const checkUrl = apiBase ? `${apiBase}/neon-db/check-account-type` : '/neon-db/check-account-type';
-      const chk = await fetch(checkUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ identifier: adminId.trim(), schoolId: schoolBrand?.id || null }) }).then(r=>r.json()).catch(()=>null);
+      const chk = await fetch(checkUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ identifier: adminId.trim(), schoolId: schoolBrand?.id || null }) }).then(r=>r.json()).catch(() => null);
       if (chk?.type === 'gateway') {
         setAdminError(isRTL ? "هذا حساب أعضاء المدرسة (Gateway) — استخدم تبويب «أعضاء المدرسة» (الأخضر) للدخول." : "This is a Gateway account — use the 'School Members' tab.");
         return;
       }
-    } catch {}
+      if (chk?.type === 'none' && schoolBrand?.id) {
+        setAdminError(isRTL ? "لم يتم العثور على حسابك كمدير نظام لهذه المدرسة. تأكد من صحة البريد الإلكتروني." : "Admin account not found for this school. Check your email.");
+        return;
+      }
+    } catch (err) {
+      console.warn('check-account-type failed, proceeding:', err);
+    }
     setAdminLoading(true);
     try {
       await login("admin", adminId.trim(), adminPass, schoolBrand?.id || null);
@@ -202,6 +219,8 @@ export default function RoleLogin() {
       let message = err.message;
       if (message?.includes("Failed to fetch")) {
         message = isRTL ? "تعذر الاتصال بالخادم. تحقق من الشبكة." : "Connection failed. Check your network.";
+      } else if (message?.includes("Admin account not found") || message?.includes("account not found")) {
+        message = isRTL ? "لم يتم العثور على حساب مدير النظام. تأكد من أنك مسجل كمدير في هذه المدرسة." : "Admin account not found. Make sure you're registered as admin for this school.";
       } else if (message?.toLowerCase().includes("invalid password") || message?.toLowerCase().includes("credentials")) {
         message = isRTL ? "بيانات الدخول غير صحيحة." : "Invalid credentials.";
       } else if (message?.toLowerCase().includes("not found")) {
@@ -229,7 +248,13 @@ export default function RoleLogin() {
         setMemberError(isRTL ? "هذا حساب مدير نظام — استخدم تبويب «مدير النظام» (الأسود) للدخول." : "This is an admin account — use the 'System Admin' tab.");
         return;
       }
-    } catch {}
+      if (chk?.type === 'none' && schoolBrand?.id) {
+        setMemberError(isRTL ? "لم يتم العثور على حساب لأعضاء هذه المدرسة. تأكد من استخدام بيانات البوابة المشتركة." : "School member account not found for this school.");
+        return;
+      }
+    } catch (err) {
+      console.warn('check-account-type failed, proceeding:', err);
+    }
     setMemberLoading(true);
     try {
       await gatewayLogin(memberUser.trim(), memberPass, schoolBrand?.id || null);
@@ -239,7 +264,13 @@ export default function RoleLogin() {
       localStorage.removeItem('portal_is_auth');
       setLockPassed(true);
     } catch (err) {
-      setMemberError(err.message || (isRTL ? "بيانات الدخول غير صحيحة." : "Invalid credentials."));
+      let message = err.message || (isRTL ? "بيانات الدخول غير صحيحة." : "Invalid credentials.");
+      if (message?.includes("Failed to fetch")) {
+        message = isRTL ? "تعذر الاتصال بالخادم. تحقق من الشبكة." : "Connection failed. Check your network.";
+      } else if (message?.toLowerCase().includes("not found")) {
+        message = isRTL ? "الحساب غير مسجل أو غير نشط." : "Account not found or inactive.";
+      }
+      setMemberError(message);
     } finally {
       setMemberLoading(false);
     }
@@ -367,13 +398,13 @@ export default function RoleLogin() {
 
                   <button
                     type="submit"
-                    disabled={isAdmin ? adminLoading : memberLoading}
+                    disabled={isAdmin ? adminLoading : memberLoading || brandLoading}
                     className={`w-full h-12 rounded-xl text-white font-black text-sm tracking-wide hover:scale-[1.01] active:scale-[0.99] disabled:opacity-70 transition-all cursor-pointer flex items-center justify-center gap-2 shadow-lg ${isAdmin ? "bg-stone-900 hover:bg-black shadow-stone-900/25" : "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/25"}`}
                   >
-                    {(isAdmin ? adminLoading : memberLoading) ? (
+                    {(isAdmin ? adminLoading : memberLoading || brandLoading) ? (
                       <>
                         <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        <span>{isRTL ? "جاري التحقق..." : "Verifying..."}</span>
+                        <span>{brandLoading ? (isRTL ? "جاري تحميل بيانات المدرسة..." : "Loading school data...") : (isRTL ? "جاري التحقق..." : "Verifying...")}</span>
                       </>
                     ) : (
                       <span>{isAdmin ? (isRTL ? "دخول مدير النظام" : "System Admin Login") : (isRTL ? "دخول أعضاء المدرسة" : "School Members Login")}</span>
