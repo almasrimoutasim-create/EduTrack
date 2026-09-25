@@ -1976,7 +1976,18 @@ export function createApiHandler() {
         if (tRows.length > 0) return res.end(JSON.stringify({ type: 'teacher', account_type: 'teacher', email: tRows[0].email }));
 
         const sRows = await dbQuery(
-          `SELECT id, user_email FROM students WHERE LOWER(user_email) = LOWER($1) OR LOWER(username) = LOWER($1) OR LOWER(student_id) = LOWER($1) LIMIT 1`, [id]);
+          sid
+            ? `SELECT id, user_email FROM students 
+               WHERE (LOWER(user_email) = LOWER($1)
+                   OR LOWER(username) = LOWER($1)
+                   OR LOWER(student_id) = LOWER($1))
+                 AND school_id = $2 AND status = 'active' LIMIT 1`
+            : `SELECT id, user_email FROM students 
+               WHERE (LOWER(user_email) = LOWER($1)
+                   OR LOWER(username) = LOWER($1)
+                   OR LOWER(student_id) = LOWER($1))
+                 AND school_id IS NULL AND status = 'active' LIMIT 1`,
+          sid ? [id, sid] : [id]);
         if (sRows.length > 0) return res.end(JSON.stringify({ type: 'student', account_type: 'student', email: sRows[0].user_email }));
 
         const stRows = await dbQuery(
