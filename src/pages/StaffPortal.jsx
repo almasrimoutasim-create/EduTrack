@@ -43,7 +43,7 @@ export default function StaffPortal() {
   const isRTL = language === "ar";
   const { user } = useAuth();
   
-  const currentRole = user?.role || "staff";
+  const currentRole = localStorage.getItem("portal_role") || user?.role || "staff";
   const currentUserStr = localStorage.getItem("portal_user");
   const currentUser = currentUserStr ? JSON.parse(currentUserStr) : null;
 
