@@ -217,7 +217,7 @@ export default function Sidebar() {
             label: isRTL ? "الإدارة الوظيفية" : "Job Management",
             items: [
               { label: isRTL ? "الإجازات" : "Leaves & Vacations", path: "/staff/leaves", icon: Calendar },
-              { label: isRTL ? "الطلبات" : "Employee Requests", path: "/staff/requests", icon: FileText },
+              { label: isRTL ? "الطلبات" : "Employee Requests", path: "/staff/personal-requests", icon: FileText },
               { label: isRTL ? "التقييمات" : "Evaluations", path: "/staff/evaluations", icon: Award }
             ]
           },

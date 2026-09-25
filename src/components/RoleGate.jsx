@@ -49,7 +49,7 @@ const isPathAllowed = (user, path) => {
   }
   if (role === 'parent') return path.startsWith('/parent-portal') || path.startsWith('/store');
   if (role === 'bus' || role === 'bus_supervisor') {
-    return path.startsWith('/staff-portal') || path.startsWith('/bus-supervisor');
+    return path.startsWith('/staff-portal') || path.startsWith('/bus-supervisor') || path.startsWith('/staff/personal-requests');
   }
   
   if (role === 'staff') return path.startsWith('/staff-portal') || path.startsWith('/staff/personal-requests');

@@ -46,7 +46,7 @@ export default function RenewSubscription() {
   const [bankName, setBankName] = useState("");
 
   useEffect(() => {
-    if (!schoolId) { window.location.href = "/role-login"; return; }
+    if (!schoolId) { window.location.href = "/login"; return; }
     loadSchool();
     fetchTierFeatures();
   }, [schoolId]);

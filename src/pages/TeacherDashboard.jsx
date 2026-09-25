@@ -177,7 +177,7 @@ export default function TeacherDashboard() {
                   </div>
                 ))}
               </div>
-              <button className="w-full mt-8 bg-white text-stone-900 hover:bg-stone-100 rounded-2xl h-12 font-bold shadow-xl cursor-pointer" onClick={() => window.location.href = '/question-bank'}>
+              <button className="w-full mt-8 bg-white text-stone-900 hover:bg-stone-100 rounded-2xl h-12 font-bold shadow-xl cursor-pointer" onClick={() => window.location.href = '/'}>
                 {isRTL ? "فتح بنك الأسئلة" : "Open Question Bank"}
               </button>
             </div>

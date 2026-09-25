@@ -3,12 +3,12 @@ import { Document, Page } from 'react-pdf';
 import { GlobalWorkerOptions } from 'pdfjs-dist';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, Download, X, ZoomIn, ZoomOut } from 'lucide-react';
-import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
-import 'react-pdf/dist/esm/Page/TextLayer.css';
+import 'react-pdf/dist/Page/AnnotationLayer.css';
+import 'react-pdf/dist/Page/TextLayer.css';
 
 GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/5.4.296/pdf.worker.min.mjs`;
 
-export default function PDFViewer({ file_url, title, onClose }) {
+export default function PDFViewer({ file_url, title, onClose, onError }) {
   const [numPages, setNumPages] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [scale, setScale] = useState(1);
@@ -92,7 +92,7 @@ export default function PDFViewer({ file_url, title, onClose }) {
         <Document 
           file={file_url} 
           onLoadSuccess={onDocumentLoadSuccess}
-          onLoadError={(error) => console.error('PDF load error:', error)}
+          onLoadError={(error) => { console.error('PDF load error:', error); onError?.(error); }}
           loading={<div className="text-white">Loading PDF...</div>}
         >
           <Page 

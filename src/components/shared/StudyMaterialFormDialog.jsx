@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { toast } from "sonner";
 import { entities } from "@/api/dbClient";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -48,13 +49,16 @@ export default function StudyMaterialFormDialog({ open, onClose, material }) {
     try {
       if (isEdit) {
         await entities.StudyMaterial.update(material.id, form);
+        toast.success("Material updated");
       } else {
         await entities.StudyMaterial.create(form);
+        toast.success("Material uploaded");
       }
       qc.invalidateQueries({ queryKey: ["materials"] });
       onClose();
     } catch (err) {
       console.error("Failed to save material:", err);
+      toast.error(err?.message || "Failed to save material");
     }
     setSaving(false);
   };
