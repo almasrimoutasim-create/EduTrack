@@ -3307,7 +3307,28 @@ WHERE email = $10`,
     }
 
     // السماح لمسارات الباقات والميزات بالمرور قبل فحص الكيانات — إصلاح 0/0 وفشل التحميل
-    if (!req.url.startsWith('/neon-db/entities/') && !req.url.startsWith('/neon-db/public-register/') && !req.url.startsWith('/api/tier-features') && !req.url.startsWith('/api/subscription-pricing') && !req.url.startsWith('/api/school-features')) return next();
+    if (!req.url.startsWith('/neon-db/entities/') && !req.url.startsWith('/neon-db/public-register/') && !req.url.startsWith('/api/tier-features') && !req.url.startsWith('/api/subscription-pricing') && !req.url.startsWith('/api/school-features') && !req.url.startsWith('/api/vitals')) return next();
+
+    // Web Vitals endpoint — public (sendBeacon has no auth header), handled BEFORE JWT guard
+    if (req.url === '/api/vitals' && req.method === 'POST') {
+      res.setHeader('Content-Type', 'application/json');
+      try {
+        const body = await parseBody(req);
+        console.log('[Web Vitals]', JSON.stringify({
+          metric: body.name,
+          value: body.value,
+          rating: body.rating,
+          page: body.page,
+          timestamp: body.timestamp ? new Date(body.timestamp).toISOString() : new Date().toISOString()
+        }));
+        // Optional: persist to DB for dashboards
+        // await dbQuery('INSERT INTO web_vitals (metric_name, value, rating, page, user_agent, created_at) VALUES ($1,$2,$3,$4,$5,NOW())',
+        //   [body.name, body.value, body.rating, body.page, body.userAgent]);
+      } catch (e) {
+        console.error('[vitals] error:', e.message);
+      }
+      return res.end(JSON.stringify({ success: true })); // Always succeed — never block the beacon
+    }
 
     // DEBUG: Log all RegistrationRequest traffic to trace browser submissions
     if (req.url.includes('RegistrationRequest')) {

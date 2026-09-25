@@ -6,13 +6,162 @@
     <link rel="icon" type="image/svg+xml" href="https://base44.com/logo_v2.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="manifest" href="/manifest.json" />
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#0d9488" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)">
+    <meta name="description" content="منصة إدارة تعليمية متكاملة - EduTrack">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="EduTrack">
+    <link rel="apple-touch-icon" href="/pwa-192x192.png">
+    
+    <!-- Preconnect for critical third-party origins -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@200..1000&family=Amiri:ital,wght@0,400;0,700;1,400;1,700&family=Noto+Naskh+Arabic:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://cdn.cloudflare.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+    
+    <!-- Preload critical assets (injected by Vite at build time) -->
+    <!-- These will be replaced with actual hashed filenames during build -->
+    
+    <!-- Fonts -->
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Cairo:wght@200..1000&family=Amiri:ital,wght@0,400;0,700;1,400;1,700&family=Noto+Naskh+Arabic:wght@400;500;600;700;800&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@200..1000&family=Amiri:ital,wght@0,400;0,700;1,400;1,700&family=Noto+Naskh+Arabic:wght@400;500;600;700;800&display=swap" media="print" onload="this.media='all'">
+    
     <title>EduTrack | نظام إدارة التعليم</title>
+    
+    <!-- Web Vitals - Performance Monitoring -->
+    <script>
+      // Simple Web Vitals collector (lightweight, no external deps)
+      (function() {
+        'use strict';
+        
+        function sendToAnalytics(metric) {
+          const body = JSON.stringify({
+            name: metric.name,
+            value: metric.value,
+            rating: metric.rating,
+            delta: metric.delta,
+            id: metric.id,
+            page: window.location.pathname,
+            timestamp: Date.now(),
+            userAgent: navigator.userAgent
+          });
+          
+          // Use sendBeacon for reliability (non-blocking)
+          if (navigator.sendBeacon) {
+            navigator.sendBeacon('/api/vitals', body);
+          } else {
+            fetch('/api/vitals', { method: 'POST', body, keepalive: true }).catch(() => {});
+          }
+        }
+        
+        // Performance Observer for LCP, FID, CLS
+        if ('PerformanceObserver' in window) {
+          try {
+            // LCP
+            new PerformanceObserver((entryList) => {
+              const entries = entryList.getEntries();
+              const lastEntry = entries[entries.length - 1];
+              sendToAnalytics({
+                name: 'LCP',
+                value: lastEntry.startTime,
+                rating: lastEntry.startTime <= 2500 ? 'good' : lastEntry.startTime <= 4000 ? 'needs-improvement' : 'poor',
+                id: 'lcp-' + Date.now()
+              });
+            }).observe({ type: 'largest-contentful-paint', buffered: true });
+            
+            // FID (First Input Delay)
+            new PerformanceObserver((entryList) => {
+              const entries = entryList.getEntries();
+              entries.forEach((entry) => {
+                sendToAnalytics({
+                  name: 'FID',
+                  value: entry.processingStart - entry.startTime,
+                  rating: (entry.processingStart - entry.startTime) <= 100 ? 'good' : (entry.processingStart - entry.startTime) <= 300 ? 'needs-improvement' : 'poor',
+                  id: 'fid-' + Date.now()
+                });
+              });
+            }).observe({ type: 'first-input', buffered: true });
+            
+            // CLS (Cumulative Layout Shift)
+            let clsValue = 0;
+            let clsEntries = [];
+            new PerformanceObserver((entryList) => {
+              const entries = entryList.getEntries();
+              entries.forEach((entry) => {
+                if (!entry.hadRecentInput) {
+                  clsValue += entry.value;
+                  clsEntries.push(entry);
+                }
+              });
+              sendToAnalytics({
+                name: 'CLS',
+                value: clsValue,
+                rating: clsValue <= 0.1 ? 'good' : clsValue <= 0.25 ? 'needs-improvement' : 'poor',
+                id: 'cls-' + Date.now()
+              });
+            }).observe({ type: 'layout-shift', buffered: true });
+            
+            // TTFB
+            new PerformanceObserver((entryList) => {
+              const entries = entryList.getEntries();
+              entries.forEach((entry) => {
+                sendToAnalytics({
+                  name: 'TTFB',
+                  value: entry.responseStart,
+                  rating: entry.responseStart <= 800 ? 'good' : entry.responseStart <= 1800 ? 'needs-improvement' : 'poor',
+                  id: 'ttfb-' + Date.now()
+                });
+              });
+            }).observe({ type: 'navigation', buffered: true });
+          } catch (e) {
+            console.warn('PerformanceObserver not fully supported:', e);
+          }
+        }
+        
+        // FCP (First Contentful Paint)
+        window.addEventListener('load', () => {
+          setTimeout(() => {
+            const paintEntries = performance.getEntriesByType('paint');
+            const fcpEntry = paintEntries.find(e => e.name === 'first-contentful-paint');
+            if (fcpEntry) {
+              sendToAnalytics({
+                name: 'FCP',
+                value: fcpEntry.startTime,
+                rating: fcpEntry.startTime <= 1800 ? 'good' : fcpEntry.startTime <= 3000 ? 'needs-improvement' : 'poor',
+                id: 'fcp-' + Date.now()
+              });
+            }
+          }, 0);
+        });
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    
+    <!-- Service Worker Registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then((registration) => {
+              console.log('SW registered: ', registration);
+              
+              // Check for updates periodically
+              setInterval(() => {
+                registration.update().catch(() => {});
+              }, 60 * 60 * 1000); // Every hour
+            })
+            .catch((registrationError) => {
+              console.log('SW registration failed: ', registrationError);
+            });
+        });
+      }
+    </script>
   </body>
 </html>
