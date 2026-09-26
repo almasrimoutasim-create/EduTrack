@@ -11,6 +11,7 @@ const PORTAL_HOMES = {
 };
 
 // البوابات التي محورها هو /staff-portal (الأقسام الإدارية والمساندة)
+const STAFF_PORTAL_HUB = "/staff-portal";
 const STAFF_HUB_ROLES = ["registrar", "bus", "bus_supervisor", "store", "store_keeper", "security", "hr", "accountant", "counselor", "counseling", "staff", "support"];
 const DASHBOARDS = {
   registrar: "/student-directory",
@@ -30,18 +31,31 @@ export default function BackToPortalButton({ className = "" }) {
   const currentPath = typeof window !== "undefined" ? window.location.pathname : "/";
 
   const handleBack = () => {
-    // إذا كان من بوابات الأقسام الإدارية وهو في لوحة تحكمه الخاصة، الرجوع يكون للمحور /staff-portal
-    if (STAFF_HUB_ROLES.includes(portalRole) && DASHBOARDS[portalRole] && currentPath === DASHBOARDS[portalRole]) {
-      window.location.href = "/staff-portal";
+    const ownDashboard = DASHBOARDS[portalRole];
+
+    // داخل لوحة تحكم القسم (وليس على المحور نفسه) => الرجوع للمحور /staff-portal.
+    // مهم: بعض الأدوار لوحتها هي المحور نفسه (staff / support / security)، لذلك
+    // لا بد من استثناء الحالة التي يكون فيها المسار الحالي = المحور، وإلا أعاد الزر
+    // توجيه المستخدم إلى الصفحة التي هو عليها فيبدو معطلاً (لا يحدث شيء عند الضغط).
+    const isInsideOwnDashboard =
+      STAFF_HUB_ROLES.includes(portalRole) &&
+      Boolean(ownDashboard) &&
+      currentPath === ownDashboard &&
+      ownDashboard !== STAFF_PORTAL_HUB;
+
+    if (isInsideOwnDashboard) {
+      window.location.href = STAFF_PORTAL_HUB;
       return;
     }
-    // إذا كان في الصفحة الرئيسية للبوابة، يرجع لصفحة بوابات المدرسة نفسها
+
+    // إذا كان في الصفحة الرئيسية للبوابة (المحور نفسه)، يرجع لصفحة بوابات المدرسة
     if (currentPath === portalHome) {
       goToSchoolPortals();
-    } else {
-      // يرجع خطوة للخلف (صفحة البوابة الحالية)
-      window.location.href = portalHome;
+      return;
     }
+
+    // غير ذلك: يرجع لمركز البوابة الخاص به
+    window.location.href = portalHome;
   };
 
   return (
