@@ -59,8 +59,6 @@ const PLANS_DEFAULT = [
   { id: "enterprise", name: "Enterprise", price: 199, color: "from-violet-500 to-violet-600", desc: "شبكة مدارس وميزات غير محدودة" },
 ];
 
-const SUPPORT_SEED = [];
-
 const SETTINGS_DEFAULT = {
   maintenance_mode: false,
   allow_registrations: true,
@@ -1287,14 +1285,82 @@ const FounderDashboard = () => {
     setUpgradeReviewing(false);
   };
 
-  // ── Support tickets (localStorage) ──
-  const [tickets, setTickets] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("founder_support_tickets")) || SUPPORT_SEED; }
-    catch { return SUPPORT_SEED; }
-  });
-  useEffect(() => { localStorage.setItem("founder_support_tickets", JSON.stringify(tickets)); }, [tickets]);
+  // ── Support tickets (live API) ──
+  const [tickets, setTickets] = useState([]);
+  const [ticketStats, setTicketStats] = useState({});
+  const [ticketsLoading, setTicketsLoading] = useState(false);
+  const [ticketStatusFilter, setTicketStatusFilter] = useState("all");
   const [replyMap, setReplyMap] = useState({});
   const [activeTicket, setActiveTicket] = useState(null);
+
+  const supportBase = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/$/, "");
+  const supportAuth = () => {
+    const token =
+      localStorage.getItem("founder_token") ||
+      localStorage.getItem("portal_jwt_token") ||
+      localStorage.getItem("jwt_token") ||
+      "";
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
+
+  const loadTickets = async (status) => {
+    setTicketsLoading(true);
+    try {
+      const qs = new URLSearchParams();
+      if (status && status !== "all") qs.set("status", status);
+      qs.set("limit", "500");
+      const res = await fetch(`${supportBase}/api/support-tickets?${qs.toString()}`, {
+        headers: supportAuth(),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "load failed");
+      setTickets(Array.isArray(data.tickets) ? data.tickets : []);
+      // Backend returns stats as [{ status, count }] — normalize to a lookup map.
+      const counts = {};
+      if (Array.isArray(data.stats)) {
+        for (const row of data.stats) counts[row.status] = Number(row.count) || 0;
+      }
+      setTicketStats(counts);
+    } catch (e) {
+      toast.error(e.message && e.message !== "load failed" ? e.message : "تعذر تحميل تذاكر الدعم");
+    } finally {
+      setTicketsLoading(false);
+    }
+  };
+
+  // Loads on mount (keeps the open-ticket badge in the header accurate) and
+  // again whenever the founder navigates into the support view.
+  useEffect(() => { loadTickets(ticketStatusFilter); }, [section, ticketStatusFilter]);
+
+  const patchTicket = async (id, payload, okMsg) => {
+    try {
+      const res = await fetch(`${supportBase}/api/support-tickets/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...supportAuth() },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "update failed");
+      toast.success(okMsg);
+      setReplyMap((m) => ({ ...m, [id]: "" }));
+      setActiveTicket(null);
+      await loadTickets(ticketStatusFilter);
+    } catch (e) {
+      toast.error(e.message && e.message !== "update failed" ? e.message : "تعذر تحديث التذكرة");
+    }
+  };
+
+  const TICKET_STATUS_META = {
+    new: { label: "جديدة", chip: "bg-rose-100 text-rose-700", dot: "bg-rose-500" },
+    in_progress: { label: "قيد المعالجة", chip: "bg-amber-100 text-amber-700", dot: "bg-amber-500" },
+    resolved: { label: "تم الحل", chip: "bg-emerald-100 text-emerald-700", dot: "bg-emerald-500" },
+  };
+  const ticketMeta = (s) => TICKET_STATUS_META[s] || TICKET_STATUS_META.new;
+  const USER_TYPE_LABELS = {
+    student: "طالب", teacher: "معلم", parent: "ولي أمر", staff: "موظف",
+    supervisor: "مشرف", manager: "مدير", admin: "مدير", support: "دعم فني", user: "مستخدم",
+  };
+  const userTypeLabel = (t) => USER_TYPE_LABELS[t] || t || "—";
 
   // ── Platform settings (localStorage) ──
   const [settings, setSettings] = useState(() => {
@@ -2028,7 +2094,7 @@ const FounderDashboard = () => {
             </div>
 
             <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm text-slate-600"><Bell size={16} className="text-amber-500"/> تذاكر دعم مفتوحة: <b className="text-slate-900">{tickets.filter(t=>t.status==="open").length}</b> • طلبات معلقة: <b className="text-slate-900">{pendingRequests}</b></div>
+              <div className="flex items-center gap-2 text-sm text-slate-600"><Bell size={16} className="text-amber-500"/> تذاكر دعم غير مغلقة: <b className="text-slate-900">{tickets.filter(t=>t.status!=="resolved").length}</b> • طلبات معلقة: <b className="text-slate-900">{pendingRequests}</b></div>
               <button onClick={()=>setSection("requests")} className="text-xs font-bold text-blue-600 hover:underline">عرض الطلبات →</button>
             </div>
           </div>
@@ -2975,39 +3041,174 @@ const FounderDashboard = () => {
 
         {/* ───── 7️⃣ الدعم الفني ───── */}
         {section === "support" && (
-          <div className="space-y-4">
-            {tickets.length === 0 ? <p className="text-slate-500">لا توجد تذاكر دعم.</p> : (
-              tickets.map((t) => (
-                <div key={t.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                  <div className="p-5 flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${t.priority === "high" ? "bg-rose-100 text-rose-700" : t.priority === "medium" ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-600"}`}>{t.priority === "high" ? "عاجل" : t.priority === "medium" ? "متوسط" : "منخفض"}</span>
-                        <span className={`text-xs font-semibold ${t.status === "open" ? "text-amber-600" : "text-emerald-600"}`}>{t.status === "open" ? "مفتوحة" : "مغلقة"}</span>
-                        <span className="text-xs text-slate-400">{t.date}</span>
-                      </div>
-                      <p className="font-bold text-slate-900 mt-2">{t.subject}</p>
-                      <p className="text-sm text-slate-600 mt-1 bg-slate-50 rounded-xl p-3">{t.details || t.subject} — <span className="text-slate-500">{t.school}</span></p>
-                      {t.reply && <div className="mt-3 bg-blue-50 border border-blue-100 rounded-xl p-3"><p className="text-xs font-bold text-blue-700 mb-1">ردك:</p><p className="text-sm text-slate-700">{t.reply}</p></div>}
-                    </div>
-                    <div className="flex flex-col gap-2 shrink-0">
-                      {t.status === "open" && <button onClick={()=>setActiveTicket(activeTicket===t.id?null:t.id)} className="flex items-center gap-1 text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded-lg text-xs font-semibold"><MessageCircle size={14}/> رد</button>}
-                      {t.status === "open" && <button onClick={() => setTickets((ts) => ts.map((x) => x.id === t.id ? { ...x, status: "closed" } : x))} className="flex items-center gap-1 text-emerald-600 hover:bg-emerald-50 px-3 py-1.5 rounded-lg text-xs font-semibold"><CheckCircle2 size={14}/> إغلاق</button>}
-                      {t.status === "closed" && <span className="text-xs text-emerald-600 font-bold flex items-center gap-1"><CheckCircle2 size={14}/> تم الحل</span>}
-                    </div>
-                  </div>
-                  {activeTicket===t.id && t.status==="open" && (
-                    <div className="px-5 pb-4 border-t border-slate-100 pt-4 bg-slate-50/50">
-                      <textarea id="field-founderdashboard-textarea-26" name="textarea_26" aria-label="textarea 26" value={replyMap[t.id]||""} onChange={e=>setReplyMap({...replyMap,[t.id]:e.target.value})} placeholder="اكتب ردك للمدرسة..." rows={3} className="w-full rounded-xl border border-slate-300 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"/>
-                      <div className="flex gap-2 mt-2">
-                        <button onClick={()=>{ const txt=(replyMap[t.id]||"").trim(); if(!txt) return toast.error("اكتب الرد أولاً"); setTickets(ts=>ts.map(x=>x.id===t.id?{...x, reply:txt}:x)); setReplyMap({...replyMap,[t.id]:""}); setActiveTicket(null); toast.success("تم إرسال الرد");}} className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-blue-700">إرسال الرد</button>
-                        <button onClick={()=>setActiveTicket(null)} className="px-4 py-2 rounded-xl border border-slate-200 text-sm font-bold">إلغاء</button>
+          <div dir="rtl" className="space-y-5">
+            {/* بطاقات الملخص — تعمل كفلتر للحالة */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              {[
+                { key: "all", label: "كل التذاكر", value: Object.values(ticketStats).reduce((sum, n) => sum + (Number(n) || 0), 0) },
+                { key: "new", label: "جديدة", value: ticketStats.new || 0 },
+                { key: "in_progress", label: "قيد المعالجة", value: ticketStats.in_progress || 0 },
+                { key: "resolved", label: "تم الحل", value: ticketStats.resolved || 0 },
+              ].map((card) => (
+                <button
+                  key={card.key}
+                  type="button"
+                  onClick={() => setTicketStatusFilter(card.key)}
+                  aria-pressed={ticketStatusFilter === card.key}
+                  className={`text-right bg-white rounded-2xl border p-4 shadow-sm transition ${
+                    ticketStatusFilter === card.key
+                      ? "border-blue-500 ring-2 ring-blue-100"
+                      : "border-slate-200 hover:border-slate-300"
+                  }`}
+                >
+                  <p className="text-xs font-semibold text-slate-500">{card.label}</p>
+                  <p className="text-2xl font-black text-slate-900 mt-1">{card.value}</p>
+                </button>
+              ))}
             </div>
-          </div>
-        )}
+
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm text-slate-500">
+                {ticketsLoading ? "جارٍ التحميل..." : `عرض ${tickets.length} تذكرة`}
+              </p>
+              <button
+                type="button"
+                onClick={() => loadTickets(ticketStatusFilter)}
+                disabled={ticketsLoading}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 text-slate-600 text-sm font-bold hover:bg-slate-50 disabled:opacity-50"
+              >
+                <RefreshCw size={14} className={ticketsLoading ? "animate-spin" : ""} />
+                تحديث
+              </button>
+            </div>
+
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+              {tickets.length === 0 ? (
+                <p className="p-10 text-center text-slate-500 text-sm">
+                  {ticketsLoading ? "جارٍ تحميل التذاكر..." : "لا توجد تذاكر دعم في هذه الفئة."}
+                </p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-slate-50 text-slate-500 text-xs">
+                      <tr>
+                        <th className="p-3 text-right font-bold">المدرسة</th>
+                        <th className="p-3 text-right font-bold">نوع المستخدم</th>
+                        <th className="p-3 text-right font-bold">صاحب التذكرة</th>
+                        <th className="p-3 text-right font-bold">الموضوع</th>
+                        <th className="p-3 text-right font-bold">الحالة</th>
+                        <th className="p-3 text-right font-bold">التاريخ</th>
+                        <th className="p-3 text-right font-bold">إجراءات</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {tickets.map((t) => {
+                        const meta = ticketMeta(t.status);
+                        return (
+                          <React.Fragment key={t.id}>
+                            <tr className="border-t border-slate-100 hover:bg-slate-50/60 align-top">
+                              <td className="p-3">
+                                <p className="font-bold text-slate-800">{t.school_name || "—"}</p>
+                                {t.category && <p className="text-[11px] text-slate-400 mt-0.5">{t.category}</p>}
+                              </td>
+                              <td className="p-3 text-slate-600 whitespace-nowrap">{userTypeLabel(t.user_type)}</td>
+                              <td className="p-3">
+                                <p className="font-semibold text-slate-800">{t.user_name || "—"}</p>
+                                {t.user_email && <p className="text-[11px] text-slate-400">{t.user_email}</p>}
+                              </td>
+                              <td className="p-3">
+                                <p className="font-bold text-slate-900">{t.subject}</p>
+                                <p className="text-xs text-slate-500 mt-1 whitespace-pre-wrap break-words max-w-md">{t.message}</p>
+                                {t.founder_reply && (
+                                  <p className="text-xs text-blue-700 bg-blue-50 border border-blue-100 rounded-lg p-2 mt-2">
+                                    <b>ردّك:</b> {t.founder_reply}
+                                  </p>
+                                )}
+                              </td>
+                              <td className="p-3">
+                                <span className={`inline-block px-2.5 py-1 rounded-full text-[11px] font-bold whitespace-nowrap ${meta.chip}`}>
+                                  {meta.label}
+                                </span>
+                              </td>
+                              <td className="p-3 text-slate-500 text-xs whitespace-nowrap">
+                                {t.created_at ? new Date(t.created_at).toLocaleDateString("ar-EG") : "—"}
+                              </td>
+                              <td className="p-3">
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  {Object.keys(TICKET_STATUS_META).map((st) => (
+                                    <button
+                                      key={st}
+                                      type="button"
+                                      disabled={t.status === st}
+                                      onClick={() => patchTicket(t.id, { status: st }, `تم تحديث الحالة إلى "${TICKET_STATUS_META[st].label}"`)}
+                                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap transition ${
+                                        t.status === st
+                                          ? `${TICKET_STATUS_META[st].chip} cursor-default`
+                                          : "text-slate-500 border border-slate-200 hover:bg-slate-50"
+                                      }`}
+                                    >
+                                      {TICKET_STATUS_META[st].label}
+                                    </button>
+                                  ))}
+                                  <button
+                                    type="button"
+                                    onClick={() => setActiveTicket(activeTicket === t.id ? null : t.id)}
+                                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold text-blue-600 hover:bg-blue-50 whitespace-nowrap"
+                                  >
+                                    <MessageCircle size={12} />
+                                    {t.founder_reply ? "تعديل الرد" : "رد"}
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+
+                            {activeTicket === t.id && (
+                              <tr className="border-t border-slate-100 bg-slate-50/60">
+                                <td colSpan={7} className="p-4">
+                                  <p className="text-xs font-bold text-slate-600 mb-2">
+                                    الرد على "{t.subject}" — سيظهر لصاحب التذكرة في زر "طلباتي"
+                                  </p>
+                                  <textarea
+                                    id={`field-founderdashboard-support-reply-${t.id}`}
+                                    name={`support_reply_${t.id}`}
+                                    aria-label={`رد على التذكرة ${t.subject}`}
+                                    value={replyMap[t.id] ?? t.founder_reply ?? ""}
+                                    onChange={(e) => setReplyMap({ ...replyMap, [t.id]: e.target.value })}
+                                    placeholder="اكتب ردك…"
+                                    rows={3}
+                                    className="w-full rounded-xl border border-slate-300 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  />
+                                  <div className="flex gap-2 mt-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const txt = (replyMap[t.id] ?? t.founder_reply ?? "").trim();
+                                        if (!txt) return toast.error("اكتب الرد أولاً");
+                                        patchTicket(t.id, { founder_reply: txt }, "تم إرسال الرد");
+                                      }}
+                                      className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-blue-700"
+                                    >
+                                      إرسال الرد
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => { setActiveTicket(null); setReplyMap((m) => ({ ...m, [t.id]: "" })); }}
+                                      className="px-4 py-2 rounded-xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50"
+                                    >
+                                      إلغاء
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
-              ))
-            )}
+              )}
+            </div>
           </div>
         )}
 
@@ -3076,7 +3277,8 @@ const FounderDashboard = () => {
               <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2"><Download size={18} className="text-slate-600"/> إدارة النسخ والتحديثات</h3>
               <div className="flex flex-wrap gap-3">
                 <button onClick={()=>{
-                  const data = { schools, requests, tickets, settings, exported_at: new Date().toISOString() };
+                  // ملاحظة: تذاكر الدعم الفني محفوظة في قاعدة البيانات، لذا لا تُدرَج في نسخة المنصة.
+                  const data = { schools, requests, settings, exported_at: new Date().toISOString() };
                   const blob = new Blob([JSON.stringify(data,null,2)], {type:"application/json"});
                   const url = URL.createObjectURL(blob);
                   const a = document.createElement("a"); a.href=url; a.download=`edutrack-backup-${new Date().toISOString().slice(0,10)}.json`; a.click(); URL.revokeObjectURL(url);

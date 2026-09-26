@@ -35,6 +35,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import ParentSidebar from "@/components/layout/ParentSidebar";
+import SupportWidget from "@/components/shared/SupportWidget";
 import { useSearchParams } from "react-router-dom";
 import ParentFinanceTab from "@/components/portal/ParentFinanceTab";
 import ParentTeacherChat from "@/components/portal/ParentTeacherChat";
@@ -590,6 +591,7 @@ export default function ParentPortal() {
   return (
     <div className={`min-h-screen bg-stone-50 text-stone-900 ${isRTL ? 'font-cairo' : 'font-sans'}`} dir={isRTL ? "rtl" : "ltr"}>
       <ParentSidebar />
+      <SupportWidget />
       <main className={`transition-all duration-300 min-h-screen pt-16 lg:pt-0 ${isRTL ? "lg:mr-64" : "lg:ml-64"}`}>
         <div className="space-y-10 pb-24 p-6 md:p-10 lg:p-12 max-w-7xl mx-auto">
           <PageHeader 

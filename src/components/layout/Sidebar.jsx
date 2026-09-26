@@ -370,6 +370,7 @@ export default function Sidebar() {
                 icon: Shield,
                 onClick: () => {
                   localStorage.setItem("portal_role", "security");
+                  window.location.href = "/staff-portal";
                 }
               },
               { 
@@ -378,6 +379,7 @@ export default function Sidebar() {
                 icon: LifeBuoy,
                 onClick: () => {
                   localStorage.setItem("portal_role", "support");
+                  window.location.href = "/staff-portal";
                 }
               },
               { 

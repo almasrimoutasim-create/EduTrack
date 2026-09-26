@@ -31,6 +31,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import TeacherSidebar from "@/components/layout/TeacherSidebar";
+import SupportWidget from "@/components/shared/SupportWidget";
 import VisualSchedule from "@/components/schedule/VisualSchedule";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import PageHeader from "@/components/shared/PageHeader";
@@ -289,6 +290,7 @@ export default function TeacherPortal() {
   return (
     <div className={`min-h-screen bg-stone-50 text-stone-900 ${isRTL ? 'font-cairo' : 'font-sans'}`} dir={isRTL ? "rtl" : "ltr"}>
       <TeacherSidebar />
+      <SupportWidget />
       <main className={`transition-all duration-300 min-h-screen pt-16 lg:pt-0 ${isRTL ? "lg:mr-64" : "lg:ml-64"}`}>
         <div className="p-6 md:p-10 lg:p-12 max-w-7xl mx-auto space-y-10 pb-24">
           {view === "schedule" ? (

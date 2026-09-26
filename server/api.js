@@ -128,6 +128,35 @@ if (process.env.DATABASE_URL) {
     console.error('[neon] failed to verify/create virtual_sessions table:', err.message);
   });
 
+  // Auto-create support_tickets table (الدعم الفني — تذاكر الدعم الموحدة)
+  sql`
+    CREATE TABLE IF NOT EXISTS support_tickets (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      school_id TEXT,
+      user_type TEXT,
+      user_id TEXT,
+      user_name TEXT,
+      user_email TEXT,
+      subject TEXT NOT NULL,
+      category TEXT,
+      message TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'new',
+      founder_reply TEXT,
+      replied_at TIMESTAMP WITH TIME ZONE,
+      resolved_at TIMESTAMP WITH TIME ZONE,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `.then(() => {
+      console.log('[neon] support_tickets table verified/created');
+      sql`CREATE INDEX IF NOT EXISTS idx_support_tickets_school ON support_tickets (school_id);`.catch(()=>{});
+      sql`CREATE INDEX IF NOT EXISTS idx_support_tickets_status ON support_tickets (status);`.catch(()=>{});
+      sql`CREATE INDEX IF NOT EXISTS idx_support_tickets_user ON support_tickets (user_id);`.catch(()=>{});
+      sql`CREATE INDEX IF NOT EXISTS idx_support_tickets_created ON support_tickets (created_at DESC);`.catch(()=>{});
+    }).catch(err => {
+      console.error('[neon] failed to verify/create support_tickets table:', err.message);
+    });
+
   // Auto-create session_participants table
   sql`
     CREATE TABLE IF NOT EXISTS session_participants (
@@ -4982,6 +5011,208 @@ WHERE email = $10`,
         console.error('[public-register] staff error:', e.message);
         res.statusCode = 500;
         return res.end(JSON.stringify({ error: 'خطأ داخلي أثناء التسجيل' }));
+      }
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // الدعم Tickets — الدعم الفني (unified across all portals)
+    // ══════════════════════════════════════════════════════════════
+
+    // POST /api/support-tickets — إنشاء تذكرة دعم فني
+    if (req.url === '/api/support-tickets' && req.method === 'POST') {
+      res.setHeader('Content-Type', 'application/json');
+      try {
+        const body = await parseBody(req);
+        const bearer = getBearerUser(req);
+
+        const subject = String(body.subject || '').trim();
+        const message = String(body.message || '').trim();
+        const category = String(body.category || '').trim() || null;
+
+        if (!subject) {
+          res.statusCode = 400;
+          return res.end(JSON.stringify({ error: 'عنوان التذكرة مطلوب' }));
+        }
+        if (!message) {
+          res.statusCode = 400;
+          return res.end(JSON.stringify({ error: 'نص التذكرة مطلوب' }));
+        }
+        if (subject.length > 200) {
+          res.statusCode = 400;
+          return res.end(JSON.stringify({ error: 'عنوان التذكرة طويل جداً' }));
+        }
+        if (message.length > 5000) {
+          res.statusCode = 400;
+          return res.end(JSON.stringify({ error: 'نص التذكرة طويل جداً' }));
+        }
+
+        // school_id resolution order: JWT → header → body
+        const schoolId =
+          bearer?.school_id ||
+          req.headers['x-school-id'] ||
+          body.school_id ||
+          null;
+
+        const userType = String(body.user_type || bearer?.role || 'user').trim();
+        const userId = String(body.user_id || bearer?.id || bearer?.user_id || '').trim() || null;
+        const userName = String(body.user_name || bearer?.name || bearer?.full_name || '').trim() || null;
+        const userEmail = String(body.user_email || bearer?.email || '').trim() || null;
+
+        const rows = await dbQuery(
+          `INSERT INTO support_tickets
+             (school_id, user_type, user_id, user_name, user_email, subject, category, message, status)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'new')
+           RETURNING id, subject, category, message, status, created_at`,
+          [schoolId, userType, userId, userName, userEmail, subject, category, message]
+        );
+
+        return res.end(JSON.stringify({ success: true, ticket: rows[0] || null }));
+      } catch (e) {
+        console.error('[support-tickets] POST error:', e.message);
+        res.statusCode = 500;
+        return res.end(JSON.stringify({ error: 'تعذر إرسال التذكرة' }));
+      }
+    }
+
+    // GET /api/support-tickets/mine — تذاكر المستخدم الحالي
+    if (req.url.startsWith('/api/support-tickets/mine') && req.method === 'GET') {
+      res.setHeader('Content-Type', 'application/json');
+      try {
+        const bearer = getBearerUser(req);
+        const q = req.query || {};
+        const userId = String(q.user_id || bearer?.id || bearer?.user_id || '').trim();
+        const userEmail = String(q.user_email || bearer?.email || '').trim();
+
+        // Identify the requester: by id when available, otherwise by email.
+        if (!userId && !userEmail) {
+          return res.end(JSON.stringify({ tickets: [] }));
+        }
+
+        const rows = await dbQuery(
+          userId
+            ? `SELECT id, subject, category, message, status, founder_reply, replied_at, created_at, updated_at
+               FROM support_tickets
+               WHERE user_id = $1
+               ORDER BY created_at DESC
+               LIMIT 100`
+            : `SELECT id, subject, category, message, status, founder_reply, replied_at, created_at, updated_at
+               FROM support_tickets
+               WHERE user_email = $1
+               ORDER BY created_at DESC
+               LIMIT 100`,
+          [userId || userEmail]
+        );
+
+        return res.end(JSON.stringify({ tickets: rows }));
+      } catch (e) {
+        console.error('[support-tickets] GET mine error:', e.message);
+        res.statusCode = 500;
+        return res.end(JSON.stringify({ error: 'تعذر تحميل التذاكر' }));
+      }
+    }
+
+    // GET /api/support-tickets — كل التذاكر (founder فقط)
+    if (req.url.startsWith('/api/support-tickets') && req.method === 'GET') {
+      res.setHeader('Content-Type', 'application/json');
+      try {
+        if (!isFounderUser(req)) {
+          res.statusCode = 403;
+          return res.end(JSON.stringify({ error: 'صلاحية غير مصرح بها' }));
+        }
+        const q = req.query || {};
+        const params = [];
+        const where = [];
+
+        if (q.status && q.status !== 'all') {
+          params.push(q.status);
+          where.push(`st.status = $${params.length}`);
+        }
+        if (q.school_id) {
+          params.push(q.school_id);
+          where.push(`st.school_id = $${params.length}`);
+        }
+        if (q.school) {
+          params.push(q.school);
+          where.push(`st.school_id::text = $${params.length}`);
+        }
+
+        const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+        params.push(Math.min(parseInt(q.limit, 10) || 500, 1000));
+
+        const rows = await dbQuery(
+          `SELECT st.id, st.school_id, st.user_type, st.user_id, st.user_name, st.user_email,
+                  st.subject, st.category, st.message, st.status, st.founder_reply,
+                  st.replied_at, st.resolved_at, st.created_at, st.updated_at,
+                  COALESCE(s.name_ar, s.name, s.name_en) AS school_name
+           FROM support_tickets st
+           LEFT JOIN schools s ON s.id::text = st.school_id
+           ${whereSql}
+           ORDER BY st.created_at DESC
+           LIMIT $${params.length}`,
+          params
+        );
+
+        // Aggregate counts for the summary header
+        const stats = await dbQuery(
+          `SELECT status, COUNT(*)::int AS count FROM support_tickets GROUP BY status`
+        );
+
+        return res.end(JSON.stringify({ tickets: rows, stats }));
+      } catch (e) {
+        console.error('[support-tickets] GET error:', e.message);
+        res.statusCode = 500;
+        return res.end(JSON.stringify({ error: 'تعذر تحميل التذاكر' }));
+      }
+    }
+
+    // PATCH /api/support-tickets/:id — تحديث الحالة / إضافة رد (founder فقط)
+    if (req.url.startsWith('/api/support-tickets/') && req.method === 'PATCH') {
+      res.setHeader('Content-Type', 'application/json');
+      try {
+        if (!isFounderUser(req)) {
+          res.statusCode = 403;
+          return res.end(JSON.stringify({ error: 'صلاحية غير مصرح بها' }));
+        }
+        const ticketId = String(req.url.split('?')[0].replace('/api/support-tickets/', '')).trim();
+        if (!/^[0-9a-fA-F-]{36}$/.test(ticketId)) {
+          res.statusCode = 400;
+          return res.end(JSON.stringify({ error: 'معرّف التذكرة غير صالح' }));
+        }
+
+        const body = await parseBody(req);
+        const validStatuses = ['new', 'in_progress', 'resolved'];
+        const nextStatus = body.status ? String(body.status).trim() : null;
+        if (nextStatus && !validStatuses.includes(nextStatus)) {
+          res.statusCode = 400;
+          return res.end(JSON.stringify({ error: 'حالة غير صالحة' }));
+        }
+        const reply = body.founder_reply !== undefined ? String(body.founder_reply || '').trim() : null;
+
+        const rows = await dbQuery(
+          `UPDATE support_tickets
+           SET status = COALESCE($1, status),
+               founder_reply = COALESCE($2, founder_reply),
+               replied_at = CASE WHEN $2::text IS NOT NULL THEN CURRENT_TIMESTAMP ELSE replied_at END,
+               resolved_at = CASE
+                 WHEN $1 = 'resolved' THEN CURRENT_TIMESTAMP
+                 WHEN $1 IS NOT NULL AND $1 <> 'resolved' THEN NULL
+                 ELSE resolved_at
+               END,
+               updated_at = CURRENT_TIMESTAMP
+           WHERE id = $3
+           RETURNING *`,
+          [nextStatus, reply, ticketId]
+        );
+
+        if (!rows.length) {
+          res.statusCode = 404;
+          return res.end(JSON.stringify({ error: 'التذكرة غير موجودة' }));
+        }
+        return res.end(JSON.stringify({ success: true, ticket: rows[0] }));
+      } catch (e) {
+        console.error('[support-tickets] PATCH error:', e.message);
+        res.statusCode = 500;
+        return res.end(JSON.stringify({ error: 'تعذر تحديث التذكرة' }));
       }
     }
 

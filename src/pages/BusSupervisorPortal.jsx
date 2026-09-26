@@ -15,7 +15,6 @@ import {
   XCircle,
   Search,
   MessageSquare,
-  LifeBuoy,
   Send,
   Plus,
   Trash2,
@@ -27,6 +26,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import BusSupervisorSidebar from "@/components/layout/BusSupervisorSidebar";
+import SupportWidget from "@/components/shared/SupportWidget";
 import { t } from "@/lib/translations";
 import { toast } from "sonner";
 
@@ -82,7 +82,6 @@ export default function BusSupervisorPortal() {
   const [emergencyModalOpen, setEmergencyModalOpen] = useState(false);
   const [broadcastModalOpen, setBroadcastModalOpen] = useState(false);
   const [safetyModalOpen, setSafetyModalOpen] = useState(false);
-  const [supportModalOpen, setSupportModalOpen] = useState(false);
   const [parentContactModalOpen, setParentContactModalOpen] = useState(false);
   const [selectedStudentForContact, setSelectedStudentForContact] = useState(null);
 
@@ -90,7 +89,6 @@ export default function BusSupervisorPortal() {
   const [emergencyType, setEmergencyType] = useState("breakdown");
   const [emergencyNotes, setEmergencyNotes] = useState("");
   const [broadcastText, setBroadcastText] = useState("");
-  const [supportText, setSupportText] = useState("");
   
   // Safety Checklist
   const [safetyChecks, setSafetyChecks] = useState({
@@ -337,61 +335,6 @@ export default function BusSupervisorPortal() {
     }
   };
 
-  const submitSupport = async () => {
-    if (!supportText.trim()) return;
-    try {
-      const supervisorName = localStorage.getItem("portal_user_name") || (isRTL ? "مشرف الحافلة" : "Bus Supervisor");
-      
-      // 1. Create a support ticket in AuditLog database (for Admin / مدير النظام)
-      await entities.AuditLog.create({
-        timestamp: new Date().toISOString(),
-        user_name: supervisorName,
-        action: "CREATE_SUPPORT_TICKET",
-        entity_type: "SupportTicket",
-        entity_id: "ticket-" + Date.now(),
-        details: isRTL 
-          ? `طلب دعم فني من مشرف الحافلة: ${supportText}`
-          : `Technical support ticket submitted by Bus Supervisor: ${supportText}`
-      });
-
-      // 2. Create a notification for Admin (for Admin Portal alerts)
-      await entities.PortalNotification.create({
-        user_id: "admin@edutrack.com",
-        title: isRTL ? "طلب دعم فني جديد" : "New Technical Support Request",
-        message: isRTL 
-          ? `طلب دعم فني من ${supervisorName}: ${supportText}`
-          : `Technical support requested by ${supervisorName}: ${supportText}`,
-        type: "warning",
-        is_read: false
-      });
-
-      // 3. Create a staff request record in localStorage (for Staff Portal / صفحة الدعم الفني)
-      const savedRequests = JSON.parse(localStorage.getItem("staff_requests") || "[]");
-      const newRequest = {
-        id: "req-support-" + Date.now(),
-        employeeName: supervisorName,
-        role: isRTL ? "مشرف حافلة" : "Bus Supervisor",
-        type: "SUPPORT",
-        date: new Date().toISOString().split("T")[0],
-        duration: isRTL ? "فوري" : "Immediate",
-        reason: supportText,
-        status: "PENDING",
-        createdAt: new Date().toISOString().split("T")[0]
-      };
-      localStorage.setItem("staff_requests", JSON.stringify([newRequest, ...savedRequests]));
-
-      // 4. Trigger storage event to notify other open tabs
-      window.dispatchEvent(new Event("storage"));
-
-      toast.success(isRTL ? "تم إرسال تذكرة الدعم الفني بنجاح" : "Technical support ticket created successfully");
-      setSupportModalOpen(false);
-      setSupportText("");
-    } catch (err) {
-      console.error(err);
-      toast.error(isRTL ? "فشل إرسال طلب الدعم" : "Failed to send support ticket");
-    }
-  };
-
   const handleSendMessage = async () => {
     if (!newMessageText.trim()) return;
     try {
@@ -454,6 +397,7 @@ export default function BusSupervisorPortal() {
   return (
     <div className={`min-h-screen bg-stone-50 text-stone-900 ${isRTL ? 'font-cairo' : 'font-sans'}`} dir={isRTL ? "rtl" : "ltr"}>
       <BusSupervisorSidebar />
+      <SupportWidget />
       <main className={`transition-all duration-300 min-h-screen pt-16 lg:pt-0 ${isRTL ? "lg:mr-64" : "lg:ml-64"}`}>
         <div className="space-y-8 pb-24 p-6 md:p-10 lg:p-12 max-w-7xl mx-auto">
           
@@ -991,13 +935,6 @@ export default function BusSupervisorPortal() {
                     <ShieldCheck size={24} className="text-emerald-500" />
                     {isRTL ? "تقرير السلامة" : "Safety Report"}
                   </button>
-                  <button 
-                    onClick={() => setSupportModalOpen(true)}
-                    className={`${btnOutline} w-full h-16 rounded-[28px] text-stone-600 hover:bg-stone-50 transition-all`}
-                  >
-                    <LifeBuoy size={24} className="text-blue-500" />
-                    {isRTL ? "دعم فني" : "Technical Support"}
-                  </button>
                 </div>
               </Card>
 
@@ -1146,32 +1083,7 @@ export default function BusSupervisorPortal() {
         </div>
       </Modal>
 
-      {/* 4. Technical Support Ticket Modal */}
-      <Modal 
-        isOpen={supportModalOpen} 
-        onClose={() => setSupportModalOpen(false)} 
-        title={isRTL ? "الاتصال بالدعم الفني" : "Technical Support"}
-      >
-        <div className="space-y-6">
-          <div>
-            <label htmlFor="field-bussupervisorportal-textarea-1" className="text-[10px] font-bold text-stone-500 uppercase tracking-widest block mb-2">{isRTL ? "ما المشكلة التي تواجهها؟" : "Describe the issue"}</label>
-            <textarea id="field-bussupervisorportal-textarea-1" name="textarea_1" aria-label="textarea 1"
-              value={supportText}
-              onChange={(e) => setSupportText(e.target.value)}
-              placeholder={isRTL ? "اكتب استفسارك أو مشكلتك الفنية هنا..." : "Describe the technical issue here..."}
-              className="w-full h-32 p-3 rounded-xl border border-stone-200 focus:outline-none focus:border-stone-900 text-sm resize-none"
-            />
-          </div>
-          <button 
-            onClick={submitSupport}
-            className="w-full h-14 bg-stone-900 hover:bg-black text-white font-bold rounded-2xl transition-all shadow-lg cursor-pointer"
-          >
-            {isRTL ? "إرسال طلب الدعم" : "Submit Ticket"}
-          </button>
-        </div>
-      </Modal>
-
-      {/* 5. Parent Contact Info Modal */}
+      {/* 4. Parent Contact Info Modal */}
       <Modal 
         isOpen={parentContactModalOpen} 
         onClose={() => {

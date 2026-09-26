@@ -9,6 +9,7 @@ import {
   Menu, 
   Bell 
 } from 'lucide-react';
+import SupportWidget from '@/components/shared/SupportWidget';
 
 export default function StudentDashboard() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -25,6 +26,7 @@ export default function StudentDashboard() {
 
   return (
     <div className="flex h-screen bg-gray-50 text-right" dir="rtl">
+      <SupportWidget />
       
       {/* القائمة الجانبية (Sidebar) */}
       <aside className={`bg-slate-900 text-white w-64 space-y-6 py-7 px-4 absolute inset-y-0 right-0 transform ${sidebarOpen ? 'translate-x-0' : 'translate-x-full'} md:relative md:translate-x-0 transition duration-200 ease-in-out z-20 shadow-lg`}>

@@ -10,6 +10,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { cn } from "@/lib/utils";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import BranchSelector from "./BranchSelector";
+import SupportWidget from "@/components/shared/SupportWidget";
 import { User, ArrowLeft } from "lucide-react";
 
 export default function AppLayout() {
@@ -114,6 +115,8 @@ export default function AppLayout() {
           <Outlet />
         </div>
       </main>
+      {/* زر الدعم الفني الموحّد على كل صفحات الأدمن */}
+      <SupportWidget />
     </div>
   );
 }

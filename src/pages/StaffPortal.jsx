@@ -33,6 +33,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/AuthContext";
+import SupportWidget from "@/components/shared/SupportWidget";
 
 const btnOutline = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full text-sm font-semibold transition-all border-2 border-stone-200 bg-white/50 backdrop-blur-md text-stone-800 hover:bg-stone-100 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
 const btnPrimary = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed";
@@ -318,6 +319,7 @@ export default function StaffPortal() {
 
     return (
       <div className="min-h-screen bg-stone-50 text-stone-900 flex flex-col p-4 md:p-8" dir={isRTL ? "rtl" : "ltr"}>
+        <SupportWidget />
         <header className="max-w-6xl w-full mx-auto flex flex-col md:flex-row items-center justify-between border-b border-stone-200 pb-6 mb-8 gap-4">
           <div className="flex items-center gap-3">
             <div className="h-12 w-12 rounded-2xl bg-rose-500 text-white flex items-center justify-center shadow-lg">
@@ -446,6 +448,7 @@ export default function StaffPortal() {
   if (currentRole === "security") {
     return (
       <div className="min-h-screen bg-stone-900 text-stone-100 flex flex-col p-4 md:p-8" dir={isRTL ? "rtl" : "ltr"}>
+        <SupportWidget />
         {/* Header */}
         <header className="max-w-6xl w-full mx-auto flex flex-col md:flex-row items-center justify-between border-b border-stone-800 pb-6 mb-8 gap-4">
           <div className="flex items-center gap-3">
@@ -618,6 +621,7 @@ export default function StaffPortal() {
   // GENERAL STAFF PORTAL VIEW (WITH FREE ACCESS AS GENERAL STAFF GUEST)
   return (
     <div className="min-h-screen bg-stone-50 flex flex-col items-center justify-center p-4 md:p-8 relative overflow-hidden" dir={isRTL ? "rtl" : "ltr"}>
+      <SupportWidget />
       {/* Decorative Background Elements */}
       <div className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden">
         <div className="absolute -top-24 -right-24 w-96 h-96 bg-primary/5 rounded-full blur-[100px]" />
