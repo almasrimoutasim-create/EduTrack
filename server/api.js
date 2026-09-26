@@ -2,10 +2,42 @@ import { neon } from './db_compat.js';
 import dotenv from 'dotenv';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { randomBytes } from 'node:crypto';
 import { Server as SocketIOServer } from 'socket.io';
 dotenv.config();
 
-const JWT_SECRET = process.env.JWT_SECRET || 'edutrack_secure_jwt_secret_2026_fallback';
+// Token signing key. There is deliberately no built-in default: a secret that
+// lives in the repo is a public secret, and the founder token *is* the auth
+// boundary (see isFounderUser) - it gates every support ticket. A missing key
+// therefore means:
+//   production -> refuse to boot, loudly and immediately
+//   elsewhere  -> a throwaway per-process key, so the failure mode is
+//                 "sessions reset on restart", never "anyone can sign in as founder"
+const JWT_SECRET = resolveJwtSecret();
+
+function resolveJwtSecret() {
+  const fromEnv = process.env.JWT_SECRET;
+  if (fromEnv) {
+    if (fromEnv.length < 32) {
+      console.warn(`[auth] JWT_SECRET is only ${fromEnv.length} chars. It still signs tokens, but a short key is far easier to brute-force. Generate a real one: node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"`);
+    }
+    return fromEnv;
+  }
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(
+      'JWT_SECRET is not set. Refusing to start: signing tokens with a built-in ' +
+      'default would let anyone forge a founder session and read every support ' +
+      'ticket. Generate a key (node -e "console.log(require(\'crypto\').randomBytes(48).toString(\'base64url\'))") ' +
+      'and set it in the environment - render.yaml already expects this key.'
+    );
+  }
+  console.warn(
+    '[auth] JWT_SECRET is not set. Generated a key for this process only - every ' +
+    'restart will sign everyone out. Copy .env (or create one) with a real ' +
+    'JWT_SECRET to make sessions stable across restarts.'
+  );
+  return randomBytes(48).toString('base64url');
+}
 
 function hashPassword(password) {
   if (!password) return '';
