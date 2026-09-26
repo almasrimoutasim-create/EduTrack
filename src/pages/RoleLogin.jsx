@@ -15,8 +15,7 @@ import {
   Eye,
   EyeOff,
   AlertCircle,
-  X,
-  LifeBuoy
+  X
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card } from "@/components/ui/card";
@@ -71,8 +70,7 @@ export default function RoleLogin() {
     { id: "teacher", icon: GraduationCap, label: { ar: "بوابة المعلم", en: "Teacher Portal" }, color: "bg-indigo-600 text-white", desc: { ar: "إدارة الفصول والحضور والدرجات.", en: "Manage classes, attendance, and grades." }, path: "/teacher-portal" },
     { id: "student", icon: User, label: { ar: "بوابة الطالب", en: "Student Portal" }, color: "bg-teal-600 text-white", desc: { ar: "الجدول الدراسي والنتائج والأنشطة.", en: "Schedule, results, and activities." }, path: "/student-portal" },
     { id: "parent", icon: Users, label: { ar: "بوابة ولي الأمر", en: "Parent Portal" }, color: "bg-rose-600 text-white", desc: { ar: "متابعة تقدم أبنائك الأكاديمي.", en: "Track your children's academic progress." }, path: "/parent-portal" },
-    { id: "staff", icon: ShieldCheck, label: { ar: "بوابة الموظف", en: "Staff Portal" }, color: "bg-blue-600 text-white", desc: { ar: "الأنظمة المساندة والأقسام الإدارية.", en: "Support systems and departments." }, path: "/staff-portal" },
-    { id: "support", icon: LifeBuoy, label: { ar: "الدعم الفني", en: "Technical Support" }, color: "bg-rose-500 text-white", desc: { ar: "حل المشكلات الفنية وتذاكر الدعم.", en: "Resolve technical issues and support tickets." }, path: "/staff-portal" }
+    { id: "staff", icon: ShieldCheck, label: { ar: "بوابة الموظف", en: "Staff Portal" }, color: "bg-blue-600 text-white", desc: { ar: "الأنظمة المساندة والأقسام الإدارية.", en: "Support systems and departments." }, path: "/staff-portal" }
   ];
 
   const toggleLanguage = () => {
@@ -111,12 +109,7 @@ export default function RoleLogin() {
     setLoading(true);
 
     try {
-      let resolvedRole = selectedRole.id;
-      if (resolvedRole === "admin") {
-        resolvedRole = "admin";
-      } else if (resolvedRole === "support") {
-        resolvedRole = "staff";
-      }
+      const resolvedRole = selectedRole.id;
 
       // Security: when selecting admin, verify the account isn't a school-member / gateway account
       if (resolvedRole === "admin") {
@@ -702,13 +695,11 @@ export default function RoleLogin() {
                     )}
                   </button>
 
-                  {(selectedRole.id === "staff" || selectedRole.id === "support") && (
+                  {selectedRole.id === "staff" && (
                     <button
                       type="button"
                       onClick={() => {
-                        const guestUser = selectedRole.id === "support"
-                          ? { id: "support-guest", full_name: isRTL ? "مهندس الدعم الفني" : "Technical Support", email: "support@edutrack.com", role: "support" }
-                          : { id: "staff-guest", full_name: isRTL ? "موظف زائر" : "Staff Guest", email: "guest@edutrack.com", role: "staff" };
+                        const guestUser = { id: "staff-guest", full_name: isRTL ? "موظف زائر" : "Staff Guest", email: "guest@edutrack.com", role: "staff" };
 
                         localStorage.setItem("portal_role", guestUser.role);
                         localStorage.setItem("portal_user", JSON.stringify(guestUser));

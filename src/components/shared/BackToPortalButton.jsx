@@ -1,6 +1,7 @@
 import { ArrowLeft } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useAuth } from "@/lib/AuthContext";
+import { goToSchoolPortals } from "@/lib/portalNavigation";
 
 const PORTAL_HOMES = {
   admin: "/", teacher: "/teacher-portal", student: "/student-portal", parent: "/parent-portal",
@@ -34,9 +35,9 @@ export default function BackToPortalButton({ className = "" }) {
       window.location.href = "/staff-portal";
       return;
     }
-    // إذا كان في الصفحة الرئيسية للبوابة، يرجع لصفحة اختيار البوابات
+    // إذا كان في الصفحة الرئيسية للبوابة، يرجع لصفحة بوابات المدرسة نفسها
     if (currentPath === portalHome) {
-      window.location.href = "/gateway";
+      goToSchoolPortals();
     } else {
       // يرجع خطوة للخلف (صفحة البوابة الحالية)
       window.location.href = portalHome;

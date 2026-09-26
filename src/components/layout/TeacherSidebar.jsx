@@ -11,6 +11,7 @@ import { entities } from "@/api/dbClient";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useAuth } from "@/lib/AuthContext";
+import { logoutToSchoolPortals } from "@/lib/portalNavigation";
 
 export default function TeacherSidebar() {
   const location = useLocation();
@@ -63,21 +64,7 @@ export default function TeacherSidebar() {
     a => !readAnnouncements.includes(a.id)
   ).length;
 
-  const handleLogout = () => {
-    // نحفظ معرّف المدرسة قبل تسجيل الخروج ليتم توجيه المستخدم إلى صفحة بوابات المدرسة نفسها
-    const schoolSlug = (localStorage.getItem("portal_school_slug") || "").trim();
-    localStorage.removeItem("portal_role");
-    localStorage.removeItem("portal_user_id");
-    localStorage.removeItem("portal_user_name");
-    logout(false);
-    // logout يحذف portal_school_slug، لذلك نعيد حفظه ونمرره في الرابط لعرض بيانات المدرسة في صفحة البوابات
-    if (schoolSlug) {
-      localStorage.setItem("portal_school_slug", schoolSlug);
-      window.location.href = `/login?school=${encodeURIComponent(schoolSlug)}`;
-    } else {
-      window.location.href = "/login";
-    }
-  };
+  const handleLogout = () => logoutToSchoolPortals(logout);
 
   const navGroups = [
     {
@@ -136,7 +123,7 @@ export default function TeacherSidebar() {
         <div className="p-8 pb-6">
           <div className={cn("group cursor-pointer", shortName ? "flex flex-col items-center gap-2 text-center" : "flex items-center gap-3")} onClick={() => {
             const slug = localStorage.getItem("portal_school_slug");
-            window.location.href = slug ? `/gateway/${slug}` : "/gateway";
+            window.location.href = slug ? `/gateway/${slug}` : "/login";
           }}>
             {sidebarLogoUrl && !sidebarLogoError ? (
               <img key={sidebarLogoUrl} src={sidebarLogoUrl} alt={schoolName} className={cn("rounded-xl object-contain bg-white border border-stone-100 shadow-sm", "h-24 w-24 p-2")} onError={()=>setSidebarLogoError(true)} />

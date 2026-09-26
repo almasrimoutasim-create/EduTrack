@@ -4,7 +4,7 @@ import {
   FileText, ShoppingCart, Menu, X, Newspaper, Trophy, DollarSign, Shield, BarChart3, LogOut,
   Calendar, FileSpreadsheet, Award, History, Layers, Clock, FolderArchive, HelpCircle, Settings,
   Briefcase, CreditCard, Search, Percent, AlertTriangle, PlusCircle, UserCheck, ArrowLeft, MessageSquare,
-  Megaphone, Video, ChevronDown, Bus, ShoppingBag, LifeBuoy, Printer, Building2
+  Megaphone, Video, ChevronDown, Bus, ShoppingBag, Printer, Building2
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
@@ -13,6 +13,7 @@ import { useLanguage } from "@/lib/LanguageContext";
 import { t } from "@/lib/translations";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/AuthContext";
+import { logoutToSchoolPortals } from "@/lib/portalNavigation";
 
 const BRAND_CONFIGS = {
   admin: {
@@ -374,15 +375,6 @@ export default function Sidebar() {
                 }
               },
               { 
-                label: isRTL ? "الدعم الفني" : "Technical Support", 
-                path: "/staff-portal", 
-                icon: LifeBuoy,
-                onClick: () => {
-                  localStorage.setItem("portal_role", "support");
-                  window.location.href = "/staff-portal";
-                }
-              },
-              { 
                 label: isRTL ? "الموارد البشرية (إدارة الموظفين)" : "Human Resources (Staff Control)", 
                 path: "/staff-control", 
                 icon: Shield,
@@ -474,7 +466,7 @@ export default function Sidebar() {
               window.location.href = "/staff-portal";
             } else {
               const slug = localStorage.getItem("portal_school_slug");
-              window.location.href = slug ? `/gateway/${slug}` : "/gateway";
+              window.location.href = slug ? `/gateway/${slug}` : "/login";
             }
           }}>
 {sidebarLogoUrl && !sidebarLogoError ? (
@@ -635,21 +627,7 @@ export default function Sidebar() {
           
           <button
             type="button"
-            onClick={() => {
-              let slug = null;
-              try {
-                slug = localStorage.getItem('portal_school_slug');
-              } catch { /* ignore */ }
-              try {
-                ['portal_role', 'portal_user', 'portal_user_id', 'portal_user_name',
-                  'portal_is_auth', 'portal_jwt_token', 'portal_gateway_passed',
-                  'portal_school_slug', 'token', 'user'].forEach(k => {
-                  try { localStorage.removeItem(k); } catch { /* ignore */ }
-                });
-              } finally {
-                window.location.replace(slug ? '/gateway/' + encodeURIComponent(slug) : '/login');
-              }
-            }}
+            onClick={() => logoutToSchoolPortals(logout)}
             className="flex items-center gap-3 w-full px-4 py-3 text-sm font-bold text-rose-500 hover:bg-rose-50 rounded-2xl transition-all"
           >
             <LogOut className="h-5 w-5" />

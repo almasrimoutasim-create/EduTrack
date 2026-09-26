@@ -7,6 +7,7 @@ import BusSupervisorSidebar from "./BusSupervisorSidebar";
 import StaffSidebar from "./StaffSidebar";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useAuth } from "@/lib/AuthContext";
+import { goToSchoolPortals } from "@/lib/portalNavigation";
 import { cn } from "@/lib/utils";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import BranchSelector from "./BranchSelector";
@@ -45,9 +46,9 @@ export default function AppLayout() {
       window.location.href = "/staff-portal";
       return;
     }
-    // من محور الأقسام نفسه أو من بوابة رئيسية أخرى يرجع لاختيار البوابات
+    // من محور الأقسام نفسه أو من بوابة رئيسية أخرى يرجع لصفحة بوابات المدرسة نفسها
     if (currentPath === portalHome) {
-      window.location.href = "/gateway";
+      goToSchoolPortals();
     } else {
       window.location.href = portalHome;
     }
