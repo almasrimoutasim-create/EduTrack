@@ -64,11 +64,19 @@ export default function TeacherSidebar() {
   ).length;
 
   const handleLogout = () => {
+    // نحفظ معرّف المدرسة قبل تسجيل الخروج ليتم توجيه المستخدم إلى صفحة بوابات المدرسة نفسها
+    const schoolSlug = (localStorage.getItem("portal_school_slug") || "").trim();
     localStorage.removeItem("portal_role");
     localStorage.removeItem("portal_user_id");
     localStorage.removeItem("portal_user_name");
     logout(false);
-    window.location.href = "/gateway";
+    // logout يحذف portal_school_slug، لذلك نعيد حفظه ونمرره في الرابط لعرض بيانات المدرسة في صفحة البوابات
+    if (schoolSlug) {
+      localStorage.setItem("portal_school_slug", schoolSlug);
+      window.location.href = `/login?school=${encodeURIComponent(schoolSlug)}`;
+    } else {
+      window.location.href = "/login";
+    }
   };
 
   const navGroups = [

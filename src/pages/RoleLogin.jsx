@@ -40,7 +40,10 @@ export default function RoleLogin() {
   const [schoolBrand, setSchoolBrand] = useState(null);
   const [brandLoading, setBrandLoading] = useState(true);
   useEffect(() => {
-    const slug = (localStorage.getItem("portal_school_slug") || "").trim();
+    // مصدر بيانات المدرسة: localStorage أولاً، ثم معامل ?school= (نفس نهج صفحة البوابة)
+    const storedSlug = (localStorage.getItem("portal_school_slug") || "").trim();
+    const querySlug = (new URLSearchParams(window.location.search).get("school") || "").trim();
+    const slug = storedSlug || querySlug;
     if (!slug) { setBrandLoading(false); return; }
     let alive = true;
     const apiBase = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/$/, "");
@@ -49,6 +52,9 @@ export default function RoleLogin() {
       .then(d => {
         if (alive && d?.school) {
           setSchoolBrand(d.school);
+          if (!storedSlug) {
+            try { localStorage.setItem("portal_school_slug", slug); } catch { /* ignore */ }
+          }
           if (d.school.branch_id) {
             localStorage.setItem("portal_branch_id", d.school.branch_id);
             localStorage.setItem("portal_branch_name", d.school.branch_name || d.school.name);
