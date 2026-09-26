@@ -202,7 +202,7 @@ export default function StaffPersonalRequests() {
             >
               {isRTL ? "الكل" : "All"}
             </button>
-            {["LEAVE", "PERMISSION", "PUNCH_CORRECTION", "LOAN", "SUPPORT"].map(type => {
+            {["LEAVE", "PERMISSION", "PUNCH_CORRECTION", "LOAN"].map(type => {
               const display = getRequestTypeDisplay(type);
               return (
                 <button
