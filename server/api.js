@@ -3346,8 +3346,11 @@ WHERE email = $10`,
       }
     }
 
-    // السماح لمسارات الباقات والميزات بالمرور قبل فحص الكيانات — إصلاح 0/0 وفشل التحميل
-    if (!req.url.startsWith('/neon-db/entities/') && !req.url.startsWith('/neon-db/public-register/') && !req.url.startsWith('/api/tier-features') && !req.url.startsWith('/api/subscription-pricing') && !req.url.startsWith('/api/school-features') && !req.url.startsWith('/api/vitals')) return next();
+    // لا توجد بوابة تصفية عامة هنا.
+    // كان السطر التالي يتجاهل كل مسار /api/* غير المُدرج صراحةً عبر return next()،
+    // فتصلك الطلبات إلى معالج SPA في server.js بدل JSON (‏200 + text/html)،
+    // فيفشل res.json() في الواجهة ويظهر خطأ «تعذر تحميل التذاكر».
+    // الآن: /neon-db/* وحده يخضع لفحص JWT وتوجيه الكيانات، وبقية /api/* تُعالَج أدناه.
 
     // Web Vitals endpoint — public (sendBeacon has no auth header), handled BEFORE JWT guard
     if (req.url === '/api/vitals' && req.method === 'POST') {
@@ -3375,11 +3378,17 @@ WHERE email = $10`,
       console.log(`[DEBUG-REG] ${req.method} ${req.url} | origin=${req.headers.origin} | x-founder-auth=${req.headers['x-founder-auth']} | content-type=${req.headers['content-type']}`);
     }
 
-    res.setHeader('Content-Type', 'application/json');
-
     // Parse entity early to allow public registration + founder cross-tenant operations
     const earlyUrlParts = req.url.split('?');
     const earlyPath = earlyUrlParts[0];
+    const isApiPath = earlyPath.startsWith('/api/') || earlyPath.startsWith('/neon-db/');
+
+    // Only API paths get a JSON content type here. SPA routes fall through to the
+    // static/SPA handlers in server.js and must not inherit this header.
+    if (isApiPath) {
+      res.setHeader('Content-Type', 'application/json');
+    }
+
     const earlyMatch = earlyPath.match(/^\/neon-db\/entities\/([^\/]+)(?:\/(.+))?$/);
     const earlyEntity = earlyMatch ? earlyMatch[1] : null;
     const isPublicRegistrationPost = earlyEntity === 'RegistrationRequest' && req.method === 'POST';
@@ -3393,7 +3402,10 @@ WHERE email = $10`,
     const allowWithoutAuth = isPublicRegistrationPost || isPublicRegisterPath || (isFounderEntity && isFounderJwt);
 
     // JWT Authentication Middleware
-    if (!allowWithoutAuth) {
+    // Scoped to /neon-db/* only. /api/* routes run their own checks per handler
+    // (isFounderUser / getBearerUser), and many are intentionally public
+    // (login, webhooks, tier-features, school-features, vitals).
+    if (!allowWithoutAuth && earlyPath.startsWith('/neon-db/')) {
       if (!authHeader || !authHeader.startsWith('Bearer ')) {
         res.statusCode = 401;
         return res.end(JSON.stringify({ error: 'Unauthorized: Missing or invalid token' }));
@@ -3578,601 +3590,609 @@ WHERE email = $10`,
       }
       
       const entityMatch = path.match(/^\/neon-db\/entities\/([^\/]+)(?:\/(.+))?$/);
-      if (!entityMatch) {
+      // Only /neon-db/* paths are subject to entity routing; /api/* paths must
+      // fall through to the route handlers below. An unmatched /api/* path used
+      // to be rejected here with 404, which is what made every route after this
+      // point unreachable dead code.
+      if (!entityMatch && path.startsWith('/neon-db/')) {
         res.statusCode = 404;
         return res.end(JSON.stringify({ error: 'Route not found' }));
       }
 
-      const entityName = entityMatch[1];
-      const entityId = entityMatch[2];
-      const table = getTableName(entityName);
+      // Entity dispatch (/neon-db/entities/* only). Its body also issues a batch
+      // of CREATE TABLE IF NOT EXISTS statements, so it must not run for /api/*.
+      if (entityMatch) {
+        const entityName = entityMatch[1];
+        const entityId = entityMatch[2];
+        const table = getTableName(entityName);
 
-      if (!table || !ALLOWED_TABLES.has(table)) {
-        res.statusCode = 400;
-        return res.end(JSON.stringify({ error: `Unknown entity: ${entityName}` }));
-      }
+        if (!table || !ALLOWED_TABLES.has(table)) {
+          res.statusCode = 400;
+          return res.end(JSON.stringify({ error: `Unknown entity: ${entityName}` }));
+        }
 
-      // Multi-tenant helpers
-       const TENANT_TABLES_SET = new Set(['students','teachers','attendance','subjects','library_books','financial_records','activity_posts','activity_comments','activity_chats','audit_logs','bus_drivers','bus_driver_reports','card_top_ups','class_schedules','donations','friend_requests','store_items','purchases','study_rooms','study_groups','study_group_posts','study_materials','student_awards','student_grades','student_reports','supervisors','staff_members','teacher_ratings','teacher_tasks','portal_access_configs','portal_groups','portal_group_messages','portal_notifications','private_messages','room_messages','room_videos','book_reviews','message_read_receipts','typing_indicators','fines','parent_link_requests','virtual_sessions','session_participants','official_announcements','counseling_cases','case_assessments','intervention_plans','follow_ups','case_visibility_logs','fee_structures','student_fees','fee_payments','activity_fees','student_activity_fees','student_wallet','wallet_transactions','hall_rentals','other_revenue','expenses','salary_records','purchase_orders','visitors','system_admins','system_settings','student_teacher_bonds','bond_payments','school_subscriptions','school_branches']);
-       const isTenantTable = TENANT_TABLES_SET.has(table);
-      const tenantId = req.user?.school_id || null;
+        // Multi-tenant helpers
+         const TENANT_TABLES_SET = new Set(['students','teachers','attendance','subjects','library_books','financial_records','activity_posts','activity_comments','activity_chats','audit_logs','bus_drivers','bus_driver_reports','card_top_ups','class_schedules','donations','friend_requests','store_items','purchases','study_rooms','study_groups','study_group_posts','study_materials','student_awards','student_grades','student_reports','supervisors','staff_members','teacher_ratings','teacher_tasks','portal_access_configs','portal_groups','portal_group_messages','portal_notifications','private_messages','room_messages','room_videos','book_reviews','message_read_receipts','typing_indicators','fines','parent_link_requests','virtual_sessions','session_participants','official_announcements','counseling_cases','case_assessments','intervention_plans','follow_ups','case_visibility_logs','fee_structures','student_fees','fee_payments','activity_fees','student_activity_fees','student_wallet','wallet_transactions','hall_rentals','other_revenue','expenses','salary_records','purchase_orders','visitors','system_admins','system_settings','student_teacher_bonds','bond_payments','school_subscriptions','school_branches']);
+         const isTenantTable = TENANT_TABLES_SET.has(table);
+        const tenantId = req.user?.school_id || null;
 
-      // CRIT-2: Reject requests for tenant tables when JWT has no school_id (prevents cross-tenant data leak)
-      if (isTenantTable && !tenantId && req.user && req.user.role !== 'founder') {
-        res.statusCode = 403;
-        return res.end(JSON.stringify({ error: 'school_id is required in your account to access this resource' }));
-      }
+        // CRIT-2: Reject requests for tenant tables when JWT has no school_id (prevents cross-tenant data leak)
+        if (isTenantTable && !tenantId && req.user && req.user.role !== 'founder') {
+          res.statusCode = 403;
+          return res.end(JSON.stringify({ error: 'school_id is required in your account to access this resource' }));
+        }
 
-      // ===== Independent Teacher Portal Tables =====
-       sql`
-         CREATE TABLE IF NOT EXISTS teacher_own_students (
-           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-           teacher_id UUID NOT NULL,
-           independent_teacher_id VARCHAR(50),
-           school_id UUID,
-           student_name TEXT NOT NULL,
-           student_email TEXT,
-           student_phone TEXT,
-           grade TEXT,
-           parent_name TEXT,
-           parent_phone TEXT,
-           parent_email TEXT,
-           status TEXT DEFAULT 'active',
-           joined_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-           created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-         )
-      `.then(() => console.log('[neon] teacher_own_students table verified'))
-        .catch(err => console.error('[neon] teacher_own_students:', err.message));
+        // ===== Independent Teacher Portal Tables =====
+         sql`
+           CREATE TABLE IF NOT EXISTS teacher_own_students (
+             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+             teacher_id UUID NOT NULL,
+             independent_teacher_id VARCHAR(50),
+             school_id UUID,
+             student_name TEXT NOT NULL,
+             student_email TEXT,
+             student_phone TEXT,
+             grade TEXT,
+             parent_name TEXT,
+             parent_phone TEXT,
+             parent_email TEXT,
+             status TEXT DEFAULT 'active',
+             joined_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+             created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+           )
+        `.then(() => console.log('[neon] teacher_own_students table verified'))
+          .catch(err => console.error('[neon] teacher_own_students:', err.message));
 
-       sql`
-         CREATE TABLE IF NOT EXISTS teacher_assignments (
-           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-           teacher_id UUID NOT NULL,
-           independent_teacher_id VARCHAR(50),
-           school_id UUID,
-           title TEXT NOT NULL,
-           description TEXT,
-           subject TEXT,
-           grade TEXT,
-           due_date TIMESTAMP WITH TIME ZONE,
-           total_points INTEGER DEFAULT 100,
-           attachment_url TEXT,
-           status TEXT DEFAULT 'active',
-           created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-         )
-       `.then(() => console.log('[neon] teacher_assignments table verified'))
-         .catch(err => console.error('[neon] teacher_assignments:', err.message));
+         sql`
+           CREATE TABLE IF NOT EXISTS teacher_assignments (
+             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+             teacher_id UUID NOT NULL,
+             independent_teacher_id VARCHAR(50),
+             school_id UUID,
+             title TEXT NOT NULL,
+             description TEXT,
+             subject TEXT,
+             grade TEXT,
+             due_date TIMESTAMP WITH TIME ZONE,
+             total_points INTEGER DEFAULT 100,
+             attachment_url TEXT,
+             status TEXT DEFAULT 'active',
+             created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+           )
+         `.then(() => console.log('[neon] teacher_assignments table verified'))
+           .catch(err => console.error('[neon] teacher_assignments:', err.message));
 
-       sql`
-         CREATE TABLE IF NOT EXISTS teacher_exams (
-           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-           teacher_id UUID NOT NULL,
-           independent_teacher_id VARCHAR(50),
-           school_id UUID,
-          title TEXT NOT NULL,
-          description TEXT,
-          subject TEXT,
-          grade TEXT,
-          duration_minutes INTEGER DEFAULT 60,
-          total_points INTEGER DEFAULT 100,
-           questions JSONB DEFAULT '[]',
-           due_date TIMESTAMP WITH TIME ZONE,
-           status TEXT DEFAULT 'active',
-           created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-         )
-       `.then(() => console.log('[neon] teacher_exams table verified'))
-         .catch(err => console.error('[neon] teacher_exams:', err.message));
+         sql`
+           CREATE TABLE IF NOT EXISTS teacher_exams (
+             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+             teacher_id UUID NOT NULL,
+             independent_teacher_id VARCHAR(50),
+             school_id UUID,
+            title TEXT NOT NULL,
+            description TEXT,
+            subject TEXT,
+            grade TEXT,
+            duration_minutes INTEGER DEFAULT 60,
+            total_points INTEGER DEFAULT 100,
+             questions JSONB DEFAULT '[]',
+             due_date TIMESTAMP WITH TIME ZONE,
+             status TEXT DEFAULT 'active',
+             created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+           )
+         `.then(() => console.log('[neon] teacher_exams table verified'))
+           .catch(err => console.error('[neon] teacher_exams:', err.message));
 
-       sql`
-         CREATE TABLE IF NOT EXISTS teacher_submissions (
-           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-           teacher_id UUID NOT NULL,
-           independent_teacher_id VARCHAR(50),
-           assignment_id UUID,
-           exam_id UUID,
-           student_id UUID,
-           student_name TEXT,
-           school_id UUID,
-           answers JSONB DEFAULT '{}',
-           score NUMERIC,
-           feedback TEXT,
-           status TEXT DEFAULT 'submitted',
-           submitted_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-           graded_at TIMESTAMP WITH TIME ZONE
-         )
-       `.then(() => console.log('[neon] teacher_submissions table verified'))
-         .catch(err => console.error('[neon] teacher_submissions:', err.message));
+         sql`
+           CREATE TABLE IF NOT EXISTS teacher_submissions (
+             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+             teacher_id UUID NOT NULL,
+             independent_teacher_id VARCHAR(50),
+             assignment_id UUID,
+             exam_id UUID,
+             student_id UUID,
+             student_name TEXT,
+             school_id UUID,
+             answers JSONB DEFAULT '{}',
+             score NUMERIC,
+             feedback TEXT,
+             status TEXT DEFAULT 'submitted',
+             submitted_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+             graded_at TIMESTAMP WITH TIME ZONE
+           )
+         `.then(() => console.log('[neon] teacher_submissions table verified'))
+           .catch(err => console.error('[neon] teacher_submissions:', err.message));
 
-       sql`
-         CREATE TABLE IF NOT EXISTS teacher_live_classes (
-           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-           teacher_id UUID NOT NULL,
-           independent_teacher_id VARCHAR(50),
-           school_id UUID,
-          title TEXT NOT NULL,
-          description TEXT,
-          subject TEXT,
-          grade TEXT,
-          scheduled_at TIMESTAMP WITH TIME ZONE,
-          duration_minutes INTEGER DEFAULT 60,
-          room_token TEXT,
-          room_url TEXT,
-          status TEXT DEFAULT 'scheduled',
-          max_students INTEGER DEFAULT 30,
-          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-        )
-      `.then(() => console.log('[neon] teacher_live_classes table verified'))
-        .catch(err => console.error('[neon] teacher_live_classes:', err.message));
+         sql`
+           CREATE TABLE IF NOT EXISTS teacher_live_classes (
+             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+             teacher_id UUID NOT NULL,
+             independent_teacher_id VARCHAR(50),
+             school_id UUID,
+            title TEXT NOT NULL,
+            description TEXT,
+            subject TEXT,
+            grade TEXT,
+            scheduled_at TIMESTAMP WITH TIME ZONE,
+            duration_minutes INTEGER DEFAULT 60,
+            room_token TEXT,
+            room_url TEXT,
+            status TEXT DEFAULT 'scheduled',
+            max_students INTEGER DEFAULT 30,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+          )
+        `.then(() => console.log('[neon] teacher_live_classes table verified'))
+          .catch(err => console.error('[neon] teacher_live_classes:', err.message));
 
-      sql`
-         CREATE TABLE IF NOT EXISTS class_participants (
-           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-           class_id UUID NOT NULL,
-           student_id UUID,
-           independent_student_id VARCHAR(50),
-           student_name TEXT,
-           school_id UUID,
-           joined_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-           left_at TIMESTAMP WITH TIME ZONE
-         )
-       `.then(() => console.log('[neon] class_participants table verified'))
-         .catch(err => console.error('[neon] class_participants:', err.message));
+        sql`
+           CREATE TABLE IF NOT EXISTS class_participants (
+             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+             class_id UUID NOT NULL,
+             student_id UUID,
+             independent_student_id VARCHAR(50),
+             student_name TEXT,
+             school_id UUID,
+             joined_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+             left_at TIMESTAMP WITH TIME ZONE
+           )
+         `.then(() => console.log('[neon] class_participants table verified'))
+           .catch(err => console.error('[neon] class_participants:', err.message));
 
-       sql`
-         CREATE TABLE IF NOT EXISTS teacher_youtube_videos (
-          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          teacher_id UUID NOT NULL,
-          school_id UUID,
-          title TEXT NOT NULL,
-          description TEXT,
-          youtube_url TEXT NOT NULL,
-          thumbnail_url TEXT,
-          subject TEXT,
-          grade TEXT,
-          is_hidden BOOLEAN DEFAULT FALSE,
-          order_index INTEGER DEFAULT 0,
-          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-        )
-      `.then(async () => {
-        await sql.query(`ALTER TABLE teacher_youtube_videos ADD COLUMN IF NOT EXISTS target_type TEXT DEFAULT 'all'`).catch(()=>{});
-        await sql.query(`ALTER TABLE teacher_youtube_videos ADD COLUMN IF NOT EXISTS target_student_id UUID`).catch(()=>{});
-        await sql.query(`ALTER TABLE teacher_youtube_videos ADD COLUMN IF NOT EXISTS target_student_name TEXT`).catch(()=>{});
-        await sql.query(`ALTER TABLE teacher_youtube_videos ADD COLUMN IF NOT EXISTS video_duration TEXT`).catch(()=>{});
-        console.log('[neon] teacher_youtube_videos table verified with target columns');
-      })
-        .catch(err => console.error('[neon] teacher_youtube_videos:', err.message));
+         sql`
+           CREATE TABLE IF NOT EXISTS teacher_youtube_videos (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            teacher_id UUID NOT NULL,
+            school_id UUID,
+            title TEXT NOT NULL,
+            description TEXT,
+            youtube_url TEXT NOT NULL,
+            thumbnail_url TEXT,
+            subject TEXT,
+            grade TEXT,
+            is_hidden BOOLEAN DEFAULT FALSE,
+            order_index INTEGER DEFAULT 0,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+          )
+        `.then(async () => {
+          await sql.query(`ALTER TABLE teacher_youtube_videos ADD COLUMN IF NOT EXISTS target_type TEXT DEFAULT 'all'`).catch(()=>{});
+          await sql.query(`ALTER TABLE teacher_youtube_videos ADD COLUMN IF NOT EXISTS target_student_id UUID`).catch(()=>{});
+          await sql.query(`ALTER TABLE teacher_youtube_videos ADD COLUMN IF NOT EXISTS target_student_name TEXT`).catch(()=>{});
+          await sql.query(`ALTER TABLE teacher_youtube_videos ADD COLUMN IF NOT EXISTS video_duration TEXT`).catch(()=>{});
+          console.log('[neon] teacher_youtube_videos table verified with target columns');
+        })
+          .catch(err => console.error('[neon] teacher_youtube_videos:', err.message));
 
-      sql`
-        CREATE TABLE IF NOT EXISTS teacher_subscriptions (
-          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          teacher_id UUID NOT NULL,
-          student_id UUID NOT NULL,
-          student_name TEXT,
-          student_email TEXT,
-          school_id UUID,
-          plan TEXT DEFAULT 'monthly',
-          amount NUMERIC DEFAULT 0,
-          status TEXT DEFAULT 'pending',
-          payment_method TEXT,
-          started_at TIMESTAMP WITH TIME ZONE,
-          expires_at TIMESTAMP WITH TIME ZONE,
-          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-        )
-      `.then(() => console.log('[neon] teacher_subscriptions table verified'))
-        .catch(err => console.error('[neon] teacher_subscriptions:', err.message));
+        sql`
+          CREATE TABLE IF NOT EXISTS teacher_subscriptions (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            teacher_id UUID NOT NULL,
+            student_id UUID NOT NULL,
+            student_name TEXT,
+            student_email TEXT,
+            school_id UUID,
+            plan TEXT DEFAULT 'monthly',
+            amount NUMERIC DEFAULT 0,
+            status TEXT DEFAULT 'pending',
+            payment_method TEXT,
+            started_at TIMESTAMP WITH TIME ZONE,
+            expires_at TIMESTAMP WITH TIME ZONE,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+          )
+        `.then(() => console.log('[neon] teacher_subscriptions table verified'))
+          .catch(err => console.error('[neon] teacher_subscriptions:', err.message));
 
-      sql`
-        CREATE TABLE IF NOT EXISTS curriculum_books (
-          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          title TEXT NOT NULL,
-          title_ar TEXT,
-          subject TEXT NOT NULL,
-          grade TEXT NOT NULL,
-          author TEXT,
-          publisher TEXT,
-          year TEXT,
-          cover_url TEXT,
-          file_url TEXT,
-          description TEXT,
-          description_ar TEXT,
-          is_public BOOLEAN DEFAULT TRUE,
-          school_id UUID,
-          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-        )
-       `.then(() => console.log('[neon] curriculum_books table verified'))
-         .catch(err => console.error('[neon] curriculum_books:', err.message));
+        sql`
+          CREATE TABLE IF NOT EXISTS curriculum_books (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            title TEXT NOT NULL,
+            title_ar TEXT,
+            subject TEXT NOT NULL,
+            grade TEXT NOT NULL,
+            author TEXT,
+            publisher TEXT,
+            year TEXT,
+            cover_url TEXT,
+            file_url TEXT,
+            description TEXT,
+            description_ar TEXT,
+            is_public BOOLEAN DEFAULT TRUE,
+            school_id UUID,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+          )
+         `.then(() => console.log('[neon] curriculum_books table verified'))
+           .catch(err => console.error('[neon] curriculum_books:', err.message));
 
-       // Add independent_teacher_id/independent_student_id columns to entity tables for tenant isolation
-       const IND_COLS_SQL = `
-         DO $$ BEGIN
-           ALTER TABLE teacher_own_students ADD COLUMN IF NOT EXISTS independent_teacher_id VARCHAR(50);
-           ALTER TABLE teacher_assignments ADD COLUMN IF NOT EXISTS independent_teacher_id VARCHAR(50);
-           ALTER TABLE teacher_exams ADD COLUMN IF NOT EXISTS independent_teacher_id VARCHAR(50);
-           ALTER TABLE teacher_submissions ADD COLUMN IF NOT EXISTS independent_teacher_id VARCHAR(50);
-           ALTER TABLE teacher_live_classes ADD COLUMN IF NOT EXISTS independent_teacher_id VARCHAR(50);
-           ALTER TABLE class_participants ADD COLUMN IF NOT EXISTS independent_teacher_id VARCHAR(50);
-         EXCEPTION WHEN duplicate_column THEN END $$;`;
-       dbQuery(IND_COLS_SQL).catch(()=>{});
+         // Add independent_teacher_id/independent_student_id columns to entity tables for tenant isolation
+         const IND_COLS_SQL = `
+           DO $$ BEGIN
+             ALTER TABLE teacher_own_students ADD COLUMN IF NOT EXISTS independent_teacher_id VARCHAR(50);
+             ALTER TABLE teacher_assignments ADD COLUMN IF NOT EXISTS independent_teacher_id VARCHAR(50);
+             ALTER TABLE teacher_exams ADD COLUMN IF NOT EXISTS independent_teacher_id VARCHAR(50);
+             ALTER TABLE teacher_submissions ADD COLUMN IF NOT EXISTS independent_teacher_id VARCHAR(50);
+             ALTER TABLE teacher_live_classes ADD COLUMN IF NOT EXISTS independent_teacher_id VARCHAR(50);
+             ALTER TABLE class_participants ADD COLUMN IF NOT EXISTS independent_teacher_id VARCHAR(50);
+           EXCEPTION WHEN duplicate_column THEN END $$;`;
+         dbQuery(IND_COLS_SQL).catch(()=>{});
 
-       // ===== LIST =====
-      if (req.method === 'GET' && !entityId) {
-        let orderBy = searchParams.get('order') || '-created_at';
-        const limit = parseInt(searchParams.get('limit')) || 200;
-        const offset = parseInt(searchParams.get('offset')) || 0;
-        const filterStr = searchParams.get('filters');
+         // ===== LIST =====
+        if (req.method === 'GET' && !entityId) {
+          let orderBy = searchParams.get('order') || '-created_at';
+          const limit = parseInt(searchParams.get('limit')) || 200;
+          const offset = parseInt(searchParams.get('offset')) || 0;
+          const filterStr = searchParams.get('filters');
 
-        let orderColumn = orderBy.startsWith('-') ? orderBy.slice(1) : orderBy;
-        if (orderColumn === 'created_date') orderColumn = 'created_at';
-        orderColumn = sanitizeColumn(orderColumn) || 'created_at';
-        const orderDir = orderBy.startsWith('-') ? 'DESC' : 'ASC';
+          let orderColumn = orderBy.startsWith('-') ? orderBy.slice(1) : orderBy;
+          if (orderColumn === 'created_date') orderColumn = 'created_at';
+          orderColumn = sanitizeColumn(orderColumn) || 'created_at';
+          const orderDir = orderBy.startsWith('-') ? 'DESC' : 'ASC';
 
-        const conditions = [];
-        const values = [];
-        let paramIdx = 1;
+          const conditions = [];
+          const values = [];
+          let paramIdx = 1;
 
-        if (filterStr && filterStr !== 'null') {
-          try {
-            const filters = JSON.parse(filterStr);
-            if (filters && typeof filters === 'object') {
-              for (const [key, val] of Object.entries(filters)) {
-                // Resolve independent_teacher_id to database teacher_id
-                if (key === 'teacher_id' && typeof val === 'string' && val.startsWith('IND-')) {
-                  const resolved = await dbQuery(`SELECT id FROM teachers WHERE independent_teacher_id = $1 LIMIT 1`, [val]);
-                  if (resolved.length > 0) {
-                    const actualKey = sanitizeColumn('teacher_id');
-                    conditions.push(`${actualKey} = $${paramIdx}`);
-                    values.push(resolved[0].id);
-                    paramIdx++;
+          if (filterStr && filterStr !== 'null') {
+            try {
+              const filters = JSON.parse(filterStr);
+              if (filters && typeof filters === 'object') {
+                for (const [key, val] of Object.entries(filters)) {
+                  // Resolve independent_teacher_id to database teacher_id
+                  if (key === 'teacher_id' && typeof val === 'string' && val.startsWith('IND-')) {
+                    const resolved = await dbQuery(`SELECT id FROM teachers WHERE independent_teacher_id = $1 LIMIT 1`, [val]);
+                    if (resolved.length > 0) {
+                      const actualKey = sanitizeColumn('teacher_id');
+                      conditions.push(`${actualKey} = $${paramIdx}`);
+                      values.push(resolved[0].id);
+                      paramIdx++;
+                    }
+                    continue;
                   }
-                  continue;
-                }
-                // Resolve independent_student_id to database student_id
-                if (key === 'student_id' && typeof val === 'string' && val.startsWith('STU-')) {
-                  const resolved = await dbQuery(`SELECT id FROM students WHERE independent_student_id = $1 LIMIT 1`, [val]);
-                  if (resolved.length > 0) {
-                    const actualKey = sanitizeColumn('student_id');
-                    conditions.push(`${actualKey} = $${paramIdx}`);
-                    values.push(resolved[0].id);
-                    paramIdx++;
+                  // Resolve independent_student_id to database student_id
+                  if (key === 'student_id' && typeof val === 'string' && val.startsWith('STU-')) {
+                    const resolved = await dbQuery(`SELECT id FROM students WHERE independent_student_id = $1 LIMIT 1`, [val]);
+                    if (resolved.length > 0) {
+                      const actualKey = sanitizeColumn('student_id');
+                      conditions.push(`${actualKey} = $${paramIdx}`);
+                      values.push(resolved[0].id);
+                      paramIdx++;
+                    }
+                    continue;
                   }
-                  continue;
-                }
-                let actualKey = key;
-                if (table === 'portal_notifications' && key === 'recipient_id') {
-                  actualKey = 'user_id';
-                }
-                const col = sanitizeColumn(actualKey);
-                if (!col || val === null || val === undefined) continue;
+                  let actualKey = key;
+                  if (table === 'portal_notifications' && key === 'recipient_id') {
+                    actualKey = 'user_id';
+                  }
+                  const col = sanitizeColumn(actualKey);
+                  if (!col || val === null || val === undefined) continue;
 
-                if (typeof val === 'object' && val.$in) {
-                  const ph = val.$in.map((_, i) => `$${paramIdx + i}`);
-                  conditions.push(`${col} IN (${ph.join(', ')})`);
-                  values.push(...val.$in);
-                  paramIdx += val.$in.length;
-                } else if (Array.isArray(val)) {
-                  const ph = val.map((_, i) => `$${paramIdx + i}`);
-                  conditions.push(`${col} IN (${ph.join(', ')})`);
-                  values.push(...val);
-                  paramIdx += val.length;
-                } else if (typeof val === 'object' && val.$ne) {
-                  conditions.push(`${col} != $${paramIdx}`);
-                  values.push(val.$ne); paramIdx++;
-                } else if (typeof val === 'object' && val.$gte) {
-                  conditions.push(`${col} >= $${paramIdx}`);
-                  values.push(val.$gte); paramIdx++;
-                } else if (typeof val === 'object' && val.$lte) {
-                  conditions.push(`${col} <= $${paramIdx}`);
-                  values.push(val.$lte); paramIdx++;
-                } else if (typeof val === 'object' && val.$like) {
-                  conditions.push(`${col} ILIKE $${paramIdx}`);
-                  values.push(`%${val.$like}%`); paramIdx++;
-                } else {
-                  conditions.push(`${col} = $${paramIdx}`);
-                  values.push(val); paramIdx++;
+                  if (typeof val === 'object' && val.$in) {
+                    const ph = val.$in.map((_, i) => `$${paramIdx + i}`);
+                    conditions.push(`${col} IN (${ph.join(', ')})`);
+                    values.push(...val.$in);
+                    paramIdx += val.$in.length;
+                  } else if (Array.isArray(val)) {
+                    const ph = val.map((_, i) => `$${paramIdx + i}`);
+                    conditions.push(`${col} IN (${ph.join(', ')})`);
+                    values.push(...val);
+                    paramIdx += val.length;
+                  } else if (typeof val === 'object' && val.$ne) {
+                    conditions.push(`${col} != $${paramIdx}`);
+                    values.push(val.$ne); paramIdx++;
+                  } else if (typeof val === 'object' && val.$gte) {
+                    conditions.push(`${col} >= $${paramIdx}`);
+                    values.push(val.$gte); paramIdx++;
+                  } else if (typeof val === 'object' && val.$lte) {
+                    conditions.push(`${col} <= $${paramIdx}`);
+                    values.push(val.$lte); paramIdx++;
+                  } else if (typeof val === 'object' && val.$like) {
+                    conditions.push(`${col} ILIKE $${paramIdx}`);
+                    values.push(`%${val.$like}%`); paramIdx++;
+                  } else {
+                    conditions.push(`${col} = $${paramIdx}`);
+                    values.push(val); paramIdx++;
+                  }
                 }
               }
-            }
-          } catch (e) { /* ignore filter errors */ }
-        }
-        // Multi-tenant: حقن school_id تلقائياً للمستأجر
-        if (isTenantTable && tenantId) {
-          conditions.push(`school_id = $${paramIdx}`);
-          values.push(tenantId);
-          paramIdx++;
-        }
-        // Gateway lock accounts: each school admin sees only their school's accounts
-        // Multi-branch: فلترة السجلات حسب الفرع إذا تم اختياره (وليس 'all')
-        const branchHeader = req.headers['x-branch-id'];
-        const branchParam = searchParams.get('branch_id');
-        const activeBranchFilter = (branchHeader && branchHeader !== 'all') ? branchHeader : (branchParam && branchParam !== 'all' ? branchParam : null);
-        const BRANCH_SCOPED_TABLES = new Set([
-          'students', 'teachers', 'subjects', 'study_rooms', 'class_schedules',
-          'expenses', 'fee_payments', 'student_fees', 'system_admins', 'system_settings'
-        ]);
-        if (BRANCH_SCOPED_TABLES.has(table) && activeBranchFilter) {
-          conditions.push(`branch_id = $${paramIdx}`);
-          values.push(activeBranchFilter);
-          paramIdx++;
-        }
+            } catch (e) { /* ignore filter errors */ }
+          }
+          // Multi-tenant: حقن school_id تلقائياً للمستأجر
+          if (isTenantTable && tenantId) {
+            conditions.push(`school_id = $${paramIdx}`);
+            values.push(tenantId);
+            paramIdx++;
+          }
+          // Gateway lock accounts: each school admin sees only their school's accounts
+          // Multi-branch: فلترة السجلات حسب الفرع إذا تم اختياره (وليس 'all')
+          const branchHeader = req.headers['x-branch-id'];
+          const branchParam = searchParams.get('branch_id');
+          const activeBranchFilter = (branchHeader && branchHeader !== 'all') ? branchHeader : (branchParam && branchParam !== 'all' ? branchParam : null);
+          const BRANCH_SCOPED_TABLES = new Set([
+            'students', 'teachers', 'subjects', 'study_rooms', 'class_schedules',
+            'expenses', 'fee_payments', 'student_fees', 'system_admins', 'system_settings'
+          ]);
+          if (BRANCH_SCOPED_TABLES.has(table) && activeBranchFilter) {
+            conditions.push(`branch_id = $${paramIdx}`);
+            values.push(activeBranchFilter);
+            paramIdx++;
+          }
 
-        if (table === 'gateway_accounts' && tenantId) {
-          conditions.push(`school_id = $${paramIdx}`);
-          values.push(tenantId);
-          paramIdx++;
-        }
+          if (table === 'gateway_accounts' && tenantId) {
+            conditions.push(`school_id = $${paramIdx}`);
+            values.push(tenantId);
+            paramIdx++;
+          }
 
-        const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-        const limitParam = paramIdx;
-        const offsetParam = paramIdx + 1;
-        const finalValues = [...values, limit, offset];
+          const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+          const limitParam = paramIdx;
+          const offsetParam = paramIdx + 1;
+          const finalValues = [...values, limit, offset];
         
-        const q = `SELECT * FROM ${table} ${whereClause} ORDER BY ${orderColumn} ${orderDir} LIMIT $${limitParam} OFFSET $${offsetParam}`;
-        const rows = await dbQuery(q, finalValues);
-        if (!rows) {
-          console.error(`[neon] SELECT from ${table} returned null — DATABASE_URL may be missing`);
-          return res.end(JSON.stringify([]));
-        }
-        if (table === 'registration_requests') {
-          console.log(`[DEBUG-REG] LIST OK: ${rows.length} rows returned`);
-        }
-        return res.end(JSON.stringify(rows));
-      }
-
-      // ===== GET ONE =====
-      if (req.method === 'GET' && entityId) {
-        let rows;
-        if (isTenantTable && tenantId) {
-          rows = await dbQuery(`SELECT * FROM ${table} WHERE id = $1 AND school_id = $2`, [entityId, tenantId]);
-        } else if (table === 'gateway_accounts' && tenantId) {
-          rows = await dbQuery(`SELECT * FROM ${table} WHERE id = $1 AND school_id = $2`, [entityId, tenantId]);
-        } else {
-          rows = await dbQuery(`SELECT * FROM ${table} WHERE id = $1`, [entityId]);
-        }
-        if (rows.length === 0) {
-          res.statusCode = 404;
-          return res.end(JSON.stringify({ error: 'Not found' }));
-        }
-        return res.end(JSON.stringify(rows[0]));
-      }
-
-      // ===== CREATE =====
-      if (req.method === 'POST') {
-        const body = await parseBody(req);
-        // Resolve independent IDs to database UUIDs for entity tables
-        const IND_PREFIX = 'IND-';
-        const STU_PREFIX = 'STU-';
-        const teacherTables = new Set(['teacher_own_students', 'teacher_assignments', 'teacher_exams', 'teacher_submissions', 'teacher_live_classes', 'class_participants', 'teacher_subscriptions', 'teacher_subscription_requests']);
-        const bothIdTables = new Set(['teacher_subscriptions', 'teacher_subscription_requests']);
-        const isTeacherTable = teacherTables.has(table);
-        const idCols = isTeacherTable ? ['teacher_id'] : ['student_id'];
-        const resolveCols = bothIdTables.has(table) ? ['teacher_id', 'student_id'] : idCols;
-        for (const col of resolveCols) {
-          if (body[col] && typeof body[col] === 'string' && body[col].startsWith(IND_PREFIX)) {
-            const indCol = `independent_${col}`;
-            const indVal = body[col];
-            const resolved = await dbQuery(`SELECT id FROM teachers WHERE independent_teacher_id = $1 LIMIT 1`, [indVal]);
-            if (resolved.length > 0) {
-              body[col] = resolved[0].id;
-              body[indCol] = indVal;
-            }
-          } else if (body[col] && typeof body[col] === 'string' && body[col].startsWith(STU_PREFIX)) {
-            const indCol = `independent_${col}`;
-            const indVal = body[col];
-            const resolved = await dbQuery(`SELECT id FROM students WHERE independent_student_id = $1 LIMIT 1`, [indVal]);
-            if (resolved.length > 0) {
-              body[col] = resolved[0].id;
-              body[indCol] = indVal;
-            }
+          const q = `SELECT * FROM ${table} ${whereClause} ORDER BY ${orderColumn} ${orderDir} LIMIT $${limitParam} OFFSET $${offsetParam}`;
+          const rows = await dbQuery(q, finalValues);
+          if (!rows) {
+            console.error(`[neon] SELECT from ${table} returned null — DATABASE_URL may be missing`);
+            return res.end(JSON.stringify([]));
           }
-        }
-        // Multi-tenant: حقن school_id تلقائياً (الأولوية لـ req.user school_id)
-        // CRITICAL: Always force school_id to prevent cross-school record creation
-        const tenantIdFromUser = req.user?.school_id;
-        if (isTenantTable && tenantIdFromUser) {
-          body.school_id = tenantIdFromUser;
-        }
-        // Gateway lock accounts: scope to the admin's school automatically (Option A shared credential)
-        // Multi-branch: حقن branch_id إن وُجد في الطلب أو الترويسة
-        const branchHeaderPost = req.headers['x-branch-id'];
-        const branchFromUser = req.user?.branch_id;
-        const targetBranchId = body.branch_id || (branchHeaderPost && branchHeaderPost !== 'all' ? branchHeaderPost : null) || branchFromUser || null;
-        const BRANCH_SCOPED_TABLES_POST = new Set([
-          'students', 'teachers', 'subjects', 'study_rooms', 'class_schedules',
-          'expenses', 'fee_payments', 'student_fees', 'system_admins', 'system_settings'
-        ]);
-        if (BRANCH_SCOPED_TABLES_POST.has(table) && targetBranchId) {
-          body.branch_id = targetBranchId;
+          if (table === 'registration_requests') {
+            console.log(`[DEBUG-REG] LIST OK: ${rows.length} rows returned`);
+          }
+          return res.end(JSON.stringify(rows));
         }
 
-        if (table === 'gateway_accounts' && tenantIdFromUser) {
-          body.school_id = tenantIdFromUser;
-        }
-        
-        if (body.portal_password !== undefined) {
-          if (body.portal_password === '') {
-            delete body.portal_password;
+        // ===== GET ONE =====
+        if (req.method === 'GET' && entityId) {
+          let rows;
+          if (isTenantTable && tenantId) {
+            rows = await dbQuery(`SELECT * FROM ${table} WHERE id = $1 AND school_id = $2`, [entityId, tenantId]);
+          } else if (table === 'gateway_accounts' && tenantId) {
+            rows = await dbQuery(`SELECT * FROM ${table} WHERE id = $1 AND school_id = $2`, [entityId, tenantId]);
           } else {
-            body.portal_password = hashPassword(body.portal_password);
+            rows = await dbQuery(`SELECT * FROM ${table} WHERE id = $1`, [entityId]);
           }
-        }
-        if (body.parent_password !== undefined) {
-          if (body.parent_password === '') {
-            delete body.parent_password;
-          } else {
-            body.parent_password = hashPassword(body.parent_password);
+          if (rows.length === 0) {
+            res.statusCode = 404;
+            return res.end(JSON.stringify({ error: 'Not found' }));
           }
-        }
-        if (table === 'gateway_accounts' && body.password !== undefined) {
-          if (body.password === '') {
-            delete body.password;
-          } else {
-            body.password = hashPassword(body.password);
-          }
-        }
-        if (table === 'system_admins' && body.password !== undefined) {
-          if (body.password === '') {
-            delete body.password;
-          } else {
-            body.password = hashPassword(body.password);
-          }
+          return res.end(JSON.stringify(rows[0]));
         }
 
-        if (table === 'portal_notifications' && body.recipient_id !== undefined) {
-          body.user_id = body.recipient_id;
-          delete body.recipient_id;
-        }
-
-        // Hook: Automatically default remaining to amount for student_fees
-        if (table === 'student_fees' && body.remaining === undefined) {
-          body.remaining = body.amount;
-        }
-
-        // Sanitize: convert empty strings to null for UUID/ID columns to avoid PostgreSQL type errors
-        const UUID_COLUMNS = ['subject_id', 'session_id', 'student_id', 'teacher_id', 'expense_id', 'parent_id', 'case_id'];
-        for (const col of UUID_COLUMNS) {
-          if (body[col] !== undefined && body[col] === '') {
-            body[col] = null;
-          }
-        }
-
-        const keys = Object.keys(body).filter(k => body[k] !== undefined && sanitizeColumn(k));
-        if (keys.length === 0) {
-          res.statusCode = 400;
-          return res.end(JSON.stringify({ error: 'Empty body' }));
-        }
-        const columns = keys.map(k => sanitizeColumn(k)).join(', ');
-        const placeholders = keys.map((_, i) => `$${i + 1}`).join(', ');
-        const values = keys.map(k => body[k]);
-        const q = `INSERT INTO ${table} (${columns}) VALUES (${placeholders}) RETURNING *`;
-        const rows = await dbQuery(q, values);
-
-        if (!rows || rows.length === 0) {
-          console.error(`[neon] INSERT into ${table} returned no rows — DATABASE_URL may be missing or query failed`);
-          res.statusCode = 500;
-          return res.end(JSON.stringify({ error: 'Database not configured or INSERT failed. Check DATABASE_URL in Render env vars.' }));
-        }
-
-        // Hook: Update corresponding student_fees row when a fee_payment is recorded
-        if (rows.length > 0 && table === 'fee_payments') {
-          const feeId = body.student_fee_id;
-          const payAmt = parseFloat(body.amount) || 0;
-          if (feeId) {
-            const feeRows = await dbQuery('SELECT * FROM student_fees WHERE id = $1 AND school_id = $2', [feeId, tenantId]);
-            if (feeRows.length > 0) {
-              const currentPaid = parseFloat(feeRows[0].amount_paid) || 0;
-              const totalAmt = parseFloat(feeRows[0].amount) || 0;
-              const newPaid = currentPaid + payAmt;
-              const remaining = Math.max(0, totalAmt - newPaid);
-              let status = 'pending';
-              if (newPaid >= totalAmt) {
-                status = 'paid';
-              } else if (newPaid > 0) {
-                status = 'partial';
+        // ===== CREATE =====
+        if (req.method === 'POST') {
+          const body = await parseBody(req);
+          // Resolve independent IDs to database UUIDs for entity tables
+          const IND_PREFIX = 'IND-';
+          const STU_PREFIX = 'STU-';
+          const teacherTables = new Set(['teacher_own_students', 'teacher_assignments', 'teacher_exams', 'teacher_submissions', 'teacher_live_classes', 'class_participants', 'teacher_subscriptions', 'teacher_subscription_requests']);
+          const bothIdTables = new Set(['teacher_subscriptions', 'teacher_subscription_requests']);
+          const isTeacherTable = teacherTables.has(table);
+          const idCols = isTeacherTable ? ['teacher_id'] : ['student_id'];
+          const resolveCols = bothIdTables.has(table) ? ['teacher_id', 'student_id'] : idCols;
+          for (const col of resolveCols) {
+            if (body[col] && typeof body[col] === 'string' && body[col].startsWith(IND_PREFIX)) {
+              const indCol = `independent_${col}`;
+              const indVal = body[col];
+              const resolved = await dbQuery(`SELECT id FROM teachers WHERE independent_teacher_id = $1 LIMIT 1`, [indVal]);
+              if (resolved.length > 0) {
+                body[col] = resolved[0].id;
+                body[indCol] = indVal;
               }
-              await dbQuery(
-                'UPDATE student_fees SET amount_paid = $1, remaining = $2, status = $3, updated_at = NOW() WHERE id = $4',
-                [newPaid, remaining, status, feeId]
-              );
-              console.log(`[neon] Automatically updated student_fees ID ${feeId}: paid=${newPaid}, remaining=${remaining}, status=${status}`);
+            } else if (body[col] && typeof body[col] === 'string' && body[col].startsWith(STU_PREFIX)) {
+              const indCol = `independent_${col}`;
+              const indVal = body[col];
+              const resolved = await dbQuery(`SELECT id FROM students WHERE independent_student_id = $1 LIMIT 1`, [indVal]);
+              if (resolved.length > 0) {
+                body[col] = resolved[0].id;
+                body[indCol] = indVal;
+              }
             }
           }
-        }
-
-        res.statusCode = 201;
-        if (table === 'registration_requests') {
-          console.log(`[DEBUG-REG] INSERT OK: id=${rows[0].id} email=${rows[0].email} school=${rows[0].school_name} plan=${rows[0].plan}`);
-        }
-        return res.end(JSON.stringify(rows[0]));
-      }
-
-      // ===== UPDATE =====
-      if (req.method === 'PUT' && entityId) {
-        const body = await parseBody(req);
-
-        // Sanitize: convert empty strings to null for UUID/ID columns to avoid PostgreSQL type errors
-        const UUID_COLUMNS = ['subject_id', 'session_id', 'student_id', 'teacher_id', 'expense_id', 'parent_id', 'case_id'];
-        for (const col of UUID_COLUMNS) {
-          if (body[col] !== undefined && body[col] === '') {
-            body[col] = null;
+          // Multi-tenant: حقن school_id تلقائياً (الأولوية لـ req.user school_id)
+          // CRITICAL: Always force school_id to prevent cross-school record creation
+          const tenantIdFromUser = req.user?.school_id;
+          if (isTenantTable && tenantIdFromUser) {
+            body.school_id = tenantIdFromUser;
           }
+          // Gateway lock accounts: scope to the admin's school automatically (Option A shared credential)
+          // Multi-branch: حقن branch_id إن وُجد في الطلب أو الترويسة
+          const branchHeaderPost = req.headers['x-branch-id'];
+          const branchFromUser = req.user?.branch_id;
+          const targetBranchId = body.branch_id || (branchHeaderPost && branchHeaderPost !== 'all' ? branchHeaderPost : null) || branchFromUser || null;
+          const BRANCH_SCOPED_TABLES_POST = new Set([
+            'students', 'teachers', 'subjects', 'study_rooms', 'class_schedules',
+            'expenses', 'fee_payments', 'student_fees', 'system_admins', 'system_settings'
+          ]);
+          if (BRANCH_SCOPED_TABLES_POST.has(table) && targetBranchId) {
+            body.branch_id = targetBranchId;
+          }
+
+          if (table === 'gateway_accounts' && tenantIdFromUser) {
+            body.school_id = tenantIdFromUser;
+          }
+        
+          if (body.portal_password !== undefined) {
+            if (body.portal_password === '') {
+              delete body.portal_password;
+            } else {
+              body.portal_password = hashPassword(body.portal_password);
+            }
+          }
+          if (body.parent_password !== undefined) {
+            if (body.parent_password === '') {
+              delete body.parent_password;
+            } else {
+              body.parent_password = hashPassword(body.parent_password);
+            }
+          }
+          if (table === 'gateway_accounts' && body.password !== undefined) {
+            if (body.password === '') {
+              delete body.password;
+            } else {
+              body.password = hashPassword(body.password);
+            }
+          }
+          if (table === 'system_admins' && body.password !== undefined) {
+            if (body.password === '') {
+              delete body.password;
+            } else {
+              body.password = hashPassword(body.password);
+            }
+          }
+
+          if (table === 'portal_notifications' && body.recipient_id !== undefined) {
+            body.user_id = body.recipient_id;
+            delete body.recipient_id;
+          }
+
+          // Hook: Automatically default remaining to amount for student_fees
+          if (table === 'student_fees' && body.remaining === undefined) {
+            body.remaining = body.amount;
+          }
+
+          // Sanitize: convert empty strings to null for UUID/ID columns to avoid PostgreSQL type errors
+          const UUID_COLUMNS = ['subject_id', 'session_id', 'student_id', 'teacher_id', 'expense_id', 'parent_id', 'case_id'];
+          for (const col of UUID_COLUMNS) {
+            if (body[col] !== undefined && body[col] === '') {
+              body[col] = null;
+            }
+          }
+
+          const keys = Object.keys(body).filter(k => body[k] !== undefined && sanitizeColumn(k));
+          if (keys.length === 0) {
+            res.statusCode = 400;
+            return res.end(JSON.stringify({ error: 'Empty body' }));
+          }
+          const columns = keys.map(k => sanitizeColumn(k)).join(', ');
+          const placeholders = keys.map((_, i) => `$${i + 1}`).join(', ');
+          const values = keys.map(k => body[k]);
+          const q = `INSERT INTO ${table} (${columns}) VALUES (${placeholders}) RETURNING *`;
+          const rows = await dbQuery(q, values);
+
+          if (!rows || rows.length === 0) {
+            console.error(`[neon] INSERT into ${table} returned no rows — DATABASE_URL may be missing or query failed`);
+            res.statusCode = 500;
+            return res.end(JSON.stringify({ error: 'Database not configured or INSERT failed. Check DATABASE_URL in Render env vars.' }));
+          }
+
+          // Hook: Update corresponding student_fees row when a fee_payment is recorded
+          if (rows.length > 0 && table === 'fee_payments') {
+            const feeId = body.student_fee_id;
+            const payAmt = parseFloat(body.amount) || 0;
+            if (feeId) {
+              const feeRows = await dbQuery('SELECT * FROM student_fees WHERE id = $1 AND school_id = $2', [feeId, tenantId]);
+              if (feeRows.length > 0) {
+                const currentPaid = parseFloat(feeRows[0].amount_paid) || 0;
+                const totalAmt = parseFloat(feeRows[0].amount) || 0;
+                const newPaid = currentPaid + payAmt;
+                const remaining = Math.max(0, totalAmt - newPaid);
+                let status = 'pending';
+                if (newPaid >= totalAmt) {
+                  status = 'paid';
+                } else if (newPaid > 0) {
+                  status = 'partial';
+                }
+                await dbQuery(
+                  'UPDATE student_fees SET amount_paid = $1, remaining = $2, status = $3, updated_at = NOW() WHERE id = $4',
+                  [newPaid, remaining, status, feeId]
+                );
+                console.log(`[neon] Automatically updated student_fees ID ${feeId}: paid=${newPaid}, remaining=${remaining}, status=${status}`);
+              }
+            }
+          }
+
+          res.statusCode = 201;
+          if (table === 'registration_requests') {
+            console.log(`[DEBUG-REG] INSERT OK: id=${rows[0].id} email=${rows[0].email} school=${rows[0].school_name} plan=${rows[0].plan}`);
+          }
+          return res.end(JSON.stringify(rows[0]));
         }
 
-        if (body.portal_password !== undefined) {
-          if (body.portal_password === '') {
-            delete body.portal_password;
-          } else {
-            body.portal_password = hashPassword(body.portal_password);
-          }
-        }
-        if (body.parent_password !== undefined) {
-          if (body.parent_password === '') {
-            delete body.parent_password;
-          } else {
-            body.parent_password = hashPassword(body.parent_password);
-          }
-        }
-        if (table === 'gateway_accounts' && body.password !== undefined) {
-          if (body.password === '') {
-            delete body.password;
-          } else {
-            body.password = hashPassword(body.password);
-          }
-        }
-        if (table === 'system_admins' && body.password !== undefined) {
-          if (body.password === '') {
-            delete body.password;
-          } else {
-            body.password = hashPassword(body.password);
-          }
-        }
+        // ===== UPDATE =====
+        if (req.method === 'PUT' && entityId) {
+          const body = await parseBody(req);
 
-        if (table === 'portal_notifications' && body.recipient_id !== undefined) {
-          body.user_id = body.recipient_id;
-          delete body.recipient_id;
-        }
+          // Sanitize: convert empty strings to null for UUID/ID columns to avoid PostgreSQL type errors
+          const UUID_COLUMNS = ['subject_id', 'session_id', 'student_id', 'teacher_id', 'expense_id', 'parent_id', 'case_id'];
+          for (const col of UUID_COLUMNS) {
+            if (body[col] !== undefined && body[col] === '') {
+              body[col] = null;
+            }
+          }
 
-        const keys = Object.keys(body).filter(k =>
-          k !== 'id' && k !== 'created_at' && k !== 'updated_at' && body[k] !== undefined && sanitizeColumn(k)
-        );
-        if (keys.length === 0) {
-          res.statusCode = 400;
-          return res.end(JSON.stringify({ error: 'No fields to update' }));
-        }
-        // Multi-tenant: CRITICAL - force school_id in SET to prevent cross-school record tampering
-        if (isTenantTable && tenantId) {
-          body.school_id = tenantId;
-        }
-        const sets = keys.map((k, i) => `${sanitizeColumn(k)} = $${i + 1}`);
-        const values = keys.map(k => body[k]);
-        values.push(entityId);
-        let q = `UPDATE ${table} SET ${sets.join(', ')} WHERE id = $${values.length} RETURNING *`;
-        // Multi-tenant: منع تعديل سجل لمستأجر آخر (يشمل حسابات القفل المحدودة بالمدرسة)
-        if ((table === 'gateway_accounts' || isTenantTable) && tenantId) {
-          q = `UPDATE ${table} SET ${sets.join(', ')} WHERE id = $${values.length} AND school_id = $${values.length + 1} RETURNING *`;
-          values.push(tenantId);
-        } else {
-          q = `UPDATE ${table} SET ${sets.join(', ')} WHERE id = $${values.length} RETURNING *`;
-        }
-        console.log(`[neon] Updating ${table} ID ${entityId}:`, keys.join(', '));
-        const rows = await dbQuery(q, values);
-        if (rows.length === 0) {
-          console.error(`[neon] Update failed: ${table} ID ${entityId} not found`);
-          res.statusCode = 404;
-          return res.end(JSON.stringify({ error: 'Not found' }));
-        }
-        console.log(`[neon] Update successful for ${table} ID ${entityId}`);
-        return res.end(JSON.stringify(rows[0]));
-      }
+          if (body.portal_password !== undefined) {
+            if (body.portal_password === '') {
+              delete body.portal_password;
+            } else {
+              body.portal_password = hashPassword(body.portal_password);
+            }
+          }
+          if (body.parent_password !== undefined) {
+            if (body.parent_password === '') {
+              delete body.parent_password;
+            } else {
+              body.parent_password = hashPassword(body.parent_password);
+            }
+          }
+          if (table === 'gateway_accounts' && body.password !== undefined) {
+            if (body.password === '') {
+              delete body.password;
+            } else {
+              body.password = hashPassword(body.password);
+            }
+          }
+          if (table === 'system_admins' && body.password !== undefined) {
+            if (body.password === '') {
+              delete body.password;
+            } else {
+              body.password = hashPassword(body.password);
+            }
+          }
 
-        // ===== DELETE =====
-        if (req.method === 'DELETE' && entityId) {
+          if (table === 'portal_notifications' && body.recipient_id !== undefined) {
+            body.user_id = body.recipient_id;
+            delete body.recipient_id;
+          }
+
+          const keys = Object.keys(body).filter(k =>
+            k !== 'id' && k !== 'created_at' && k !== 'updated_at' && body[k] !== undefined && sanitizeColumn(k)
+          );
+          if (keys.length === 0) {
+            res.statusCode = 400;
+            return res.end(JSON.stringify({ error: 'No fields to update' }));
+          }
+          // Multi-tenant: CRITICAL - force school_id in SET to prevent cross-school record tampering
+          if (isTenantTable && tenantId) {
+            body.school_id = tenantId;
+          }
+          const sets = keys.map((k, i) => `${sanitizeColumn(k)} = $${i + 1}`);
+          const values = keys.map(k => body[k]);
+          values.push(entityId);
+          let q = `UPDATE ${table} SET ${sets.join(', ')} WHERE id = $${values.length} RETURNING *`;
+          // Multi-tenant: منع تعديل سجل لمستأجر آخر (يشمل حسابات القفل المحدودة بالمدرسة)
           if ((table === 'gateway_accounts' || isTenantTable) && tenantId) {
-            await dbQuery(`DELETE FROM ${table} WHERE id = $1 AND school_id = $2`, [entityId, tenantId]);
+            q = `UPDATE ${table} SET ${sets.join(', ')} WHERE id = $${values.length} AND school_id = $${values.length + 1} RETURNING *`;
+            values.push(tenantId);
           } else {
-            await dbQuery(`DELETE FROM ${table} WHERE id = $1`, [entityId]);
+            q = `UPDATE ${table} SET ${sets.join(', ')} WHERE id = $${values.length} RETURNING *`;
           }
-          return res.end(JSON.stringify({ success: true }));
+          console.log(`[neon] Updating ${table} ID ${entityId}:`, keys.join(', '));
+          const rows = await dbQuery(q, values);
+          if (rows.length === 0) {
+            console.error(`[neon] Update failed: ${table} ID ${entityId} not found`);
+            res.statusCode = 404;
+            return res.end(JSON.stringify({ error: 'Not found' }));
+          }
+          console.log(`[neon] Update successful for ${table} ID ${entityId}`);
+          return res.end(JSON.stringify(rows[0]));
         }
+
+          // ===== DELETE =====
+          if (req.method === 'DELETE' && entityId) {
+            if ((table === 'gateway_accounts' || isTenantTable) && tenantId) {
+              await dbQuery(`DELETE FROM ${table} WHERE id = $1 AND school_id = $2`, [entityId, tenantId]);
+            } else {
+              await dbQuery(`DELETE FROM ${table} WHERE id = $1`, [entityId]);
+            }
+            return res.end(JSON.stringify({ success: true }));
+          }
+      } // end of /neon-db/entities/* dispatch
 
       // ── POST /api/approve-teacher — الموافقة على تسجيل معلم + إنشاء حساب ──
       if (req.url === '/api/approve-teacher' && req.method === 'POST') {
@@ -5214,6 +5234,12 @@ WHERE email = $10`,
         res.statusCode = 500;
         return res.end(JSON.stringify({ error: 'تعذر تحديث التذكرة' }));
       }
+    }
+
+    // مسارات الواجهة الأمامية (مثل /dashboard) لا يغطيها هذا المعالج إطلاقًا.
+    // نمرّرها إلى معالج SPA في server.js بدل إعادة خطأ 405 خاطئ.
+    if (!path.startsWith('/api/') && !path.startsWith('/neon-db/')) {
+      return next();
     }
 
     res.statusCode = 405;
