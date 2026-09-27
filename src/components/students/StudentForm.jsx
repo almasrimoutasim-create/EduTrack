@@ -242,9 +242,25 @@ export default function StudentForm({ student, onClose }) {
       }
 
       if (isEdit) {
-        await entities.Student.update(student.id, payload);
-        qc.invalidateQueries({ queryKey: ["student-profile", student.id] });
-        qc.invalidateQueries({ queryKey: ["student-detail", student.id] });
+        // الخادم يُعيد الصف المُحدَّث فعلياً (RETURNING *) فنستعمله كمصدر حقيقة
+        const updated = await entities.Student.update(student.id, payload);
+
+        // مهم: استعلام الملف الشخصي غير مُركَّب أثناء التحرير، ومع refetchOnMount:false
+        // فإن invalidateQueries وحده لا يُعيد جلبه فتظهر بيانات قديمة. لذا نزرع الذاكرة فوراً.
+        if (updated?.id) {
+          qc.setQueryData(["student-profile", student.id], (prev) =>
+            Object.assign({}, prev, updated)
+          );
+          qc.setQueriesData({ queryKey: ["students"] }, (rows) =>
+            Array.isArray(rows)
+              ? rows.map((row) => (row?.id === updated.id ? { ...row, ...updated } : row))
+              : rows
+          );
+        }
+
+        // refetchType: "all" يجبر إعادة الجلب حتى للاستعلامات غير النشطة
+        qc.invalidateQueries({ queryKey: ["student-profile", student.id], refetchType: "all" });
+        qc.invalidateQueries({ queryKey: ["student-detail", student.id], refetchType: "all" });
       } else {
         await entities.Student.create(payload);
       }
@@ -253,7 +269,12 @@ export default function StudentForm({ student, onClose }) {
       onClose();
     } catch (err) {
       console.error("Failed to save student:", err);
-      setErrorMsg(isRTL ? "حدث خطأ أثناء حفظ البيانات. يرجى التحقق من صحة الرقم المدرسي." : "Error saving student data. Please check if the School ID is unique.");
+      const detail = err?.message ? ` (${err.message})` : "";
+      setErrorMsg(
+        isRTL
+          ? `حدث خطأ أثناء حفظ البيانات. يرجى التحقق من صحة الرقم المدرسي.${detail}`
+          : `Error saving student data. Please check if the School ID is unique.${detail}`
+      );
     }
     setSaving(false);
   };
