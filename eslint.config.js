@@ -35,6 +35,12 @@ export default [
       "unused-imports": pluginUnusedImports,
     },
     rules: {
+      // The spread of pluginJs.configs.recommended above is discarded by this
+      // `rules` key, so the whole recommended set has to be re-declared here.
+      // `no-undef` is the one that matters most: an undefined identifier in
+      // JSX is a ReferenceError at render, and with no error boundary it
+      // unmounts the whole tree into a blank white page.
+      "no-undef": "error",
       "no-unused-vars": "off",
       "react/jsx-uses-vars": "error",
       "react/jsx-uses-react": "error",

@@ -85,10 +85,12 @@ export default function StaffPayroll({ isEmbedded = false }) {
   }, [customPayrollData]);
 
   // استرجاع السلف المعتمدة من صفحة الطلبات
+  // StaffRequests owns this key and writes it on its own route, so reading it
+  // once on mount is enough: navigating back to payroll remounts this component.
   const approvedLoans = useMemo(() => {
     const saved = localStorage.getItem("staff_approved_loans");
     return saved ? JSON.parse(saved) : [];
-  }, [requestsTriggered]);
+  }, []);
 
   // احتساب مسير الرواتب ودمج السلف والتعديلات اليدوية
   const payrollList = useMemo(() => {

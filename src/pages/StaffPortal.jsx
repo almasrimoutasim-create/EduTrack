@@ -31,6 +31,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/AuthContext";
+import { goToSchoolPortals } from "@/lib/portalNavigation";
 import SupportWidget from "@/components/shared/SupportWidget";
 
 const btnOutline = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full text-sm font-semibold transition-all border-2 border-stone-200 bg-white/50 backdrop-blur-md text-stone-800 hover:bg-stone-100 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
@@ -212,8 +213,9 @@ export default function StaffPortal() {
     localStorage.removeItem("portal_user_name");
     localStorage.removeItem("portal_is_auth");
     localStorage.removeItem("portal_jwt_token");
-    const slug = localStorage.getItem("portal_school_slug");
-    window.location.href = slug ? `/gateway/${slug}` : "/login";
+    // portal_school_slug is intentionally left intact so the branded
+    // portals page can still resolve the school.
+    goToSchoolPortals();
   };
 
   const handleLogoutDept = () => {

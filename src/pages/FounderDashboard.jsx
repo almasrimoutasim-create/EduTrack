@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import LandingContentEditor from "@/components/LandingContentEditor";
 import { useLanguage } from "@/lib/LanguageContext";
+import { useAuth } from "@/lib/AuthContext";
 
 class TierFeaturesErrorBoundary extends React.Component {
   constructor(props) { super(props); this.state = { hasError: false, error: null }; }
@@ -683,8 +684,9 @@ function SchoolCreationWizard({ onClose, onSchoolCreated }) {
       await queryClient.invalidateQueries({ queryKey: ["schools"] });
       await queryClient.invalidateQueries({ queryKey: ["school-branches"] });
 
-      // Generate gateway link
-      const gatewayLink = `${window.location.origin}/gateway/${schoolSlug}`;
+      // Generate gateway link. The School is created without a slug, so the
+      // branch slug is the only identifier this flow actually produces.
+      const gatewayLink = `${window.location.origin}/gateway/${branch?.slug || branchSlug}`;
 
       if (onSchoolCreated) {
         onSchoolCreated({ school, branch, gatewayLink, adminCredentials: { username: adminUsername, password: adminPassword } });

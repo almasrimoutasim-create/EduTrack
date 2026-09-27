@@ -162,7 +162,7 @@ export default function ParentDashboard() {
                   </div>
                   <button className={`${btnOutline} rounded-full gap-1 text-xs`}>
                     <ChevronRight size={14} className={isRTL ? "rotate-180" : ""} />
-                    {t("common.details", language) || "تفاصيل"}
+                    {isRTL ? "تفاصيل" : "Details"}
                   </button>
                 </Card>
               ))}

@@ -5,7 +5,7 @@ import {
   User,
   GraduationCap,
   Users,
-  Bus,
+  Shield,
   ShieldCheck,
   Settings,
   ChevronRight,
