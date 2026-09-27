@@ -15,7 +15,6 @@ import {
   FileText,
   Award,
   ArrowUpRight,
-  LogOut,
   ShoppingBag,
   Calendar,
   GraduationCap,
@@ -38,8 +37,6 @@ import { t } from "@/lib/translations";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { useAuth } from "@/lib/AuthContext";
-import { logoutToSchoolPortals } from "@/lib/portalNavigation";
 import StudentSidebar from "@/components/layout/StudentSidebar";
 import SupportWidget from "@/components/shared/SupportWidget";
 import StudentIDCard from "@/components/student-dashboard/StudentIDCard";
@@ -54,7 +51,6 @@ const btnPrimary = "inline-flex items-center justify-center gap-2 whitespace-now
 export default function StudentPortal() {
   const { language } = useLanguage();
   const isRTL = language === "ar";
-  const { logout } = useAuth();
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -103,8 +99,6 @@ export default function StudentPortal() {
     }
   };
   
-  const handleLogout = () => logoutToSchoolPortals(logout);
-
   // Mock student data
   const studentId = localStorage.getItem("portal_user_id") || "S-505";
   
@@ -1275,10 +1269,6 @@ export default function StudentPortal() {
                   <p className="text-lg font-black leading-none num-en"> {studentAwards.length}</p>
                 </div>
               </div>
-                <button onClick={handleLogout} className={`${btnOutline} h-[52px] px-6 border-rose-500/20 text-rose-100 bg-rose-500/10 hover:bg-rose-500/20`}>
-                  <LogOut size={18} />
-                  <span className="hidden sm:inline">{isRTL ? "تسجيل الخروج" : "Log out"}</span>
-                </button>
             </div>
           </div>
         </div>
