@@ -229,6 +229,10 @@ export default function StaffPortal() {
     }));
     localStorage.setItem("portal_user_id", "staff-guest");
     localStorage.setItem("portal_user_name", "موظف زائر");
+    // Same guest-session keys the portals page seeds, including the gateway
+    // flag — without them RoleGate treats this as a locked session.
+    localStorage.setItem("portal_is_auth", "true");
+    localStorage.setItem("portal_gateway_passed", "true");
     window.location.href = "/staff-portal";
   };
 

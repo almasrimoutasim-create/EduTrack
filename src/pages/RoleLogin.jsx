@@ -211,8 +211,8 @@ export default function RoleLogin() {
     setAdminLoading(true);
     try {
       await login("admin", adminId.trim(), adminPass, schoolBrand?.id || null);
-      // تأكد أن حالة البوابة لا تخلط مع المدير
-      localStorage.removeItem('portal_gateway_passed');
+      // login() already sets portal_gateway_passed — clearing it here used to
+      // land the admin on the school-code form via RoleGate instead of the dashboard.
       window.location.href = "/admin-dashboard";
     } catch (err) {
       let message = err.message;
@@ -511,6 +511,9 @@ export default function RoleLogin() {
                   localStorage.setItem("portal_user_id", "staff-guest");
                   localStorage.setItem("portal_user_name", "موظف زائر");
                   localStorage.setItem("portal_is_auth", "true");
+                  // Seeded sessions never pass through a gateway lock, so mark
+                  // it satisfied — otherwise RoleGate bounces them off /staff-portal.
+                  localStorage.setItem("portal_gateway_passed", "true");
                   window.location.href = "/staff-portal";
                 } else {
                   openLoginPopup(role);

@@ -1,5 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { entities } from '@/api/dbClient';
+import { goToSchoolPortals } from '@/lib/portalNavigation';
 
 const AuthContext = createContext(null);
 
@@ -296,7 +297,9 @@ if (!loggedUser.school_id) {
       // Navigation MUST always happen — even if any storage step above throws,
       // otherwise the lock screen renders on the old URL (no redirect).
       if (shouldRedirect) {
-        window.location.replace(slug ? `/gateway/${slug}` : '/login');
+        // `slug` is passed explicitly because the teardown above already wiped
+        // it, and `replace` so Back cannot return to the locked portal.
+        goToSchoolPortals({ slug, replace: true });
       }
     }
   };

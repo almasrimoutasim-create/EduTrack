@@ -15,7 +15,8 @@ const readSchoolSlug = () => {
 };
 
 // Navigate to the branded portals page, preserving the school branding.
-const navigate = (slug) => {
+const navigate = (slug, { replace = false } = {}) => {
+  const target = slug ? `/login?school=${encodeURIComponent(slug)}` : "/login";
   if (slug) {
     // Re-apply the slug so RoleLogin can resolve the school even if the
     // caller just cleared it.
@@ -24,18 +25,26 @@ const navigate = (slug) => {
     } catch {
       /* storage unavailable - fall through to the unbranded page */
     }
-    window.location.href = `/login?school=${encodeURIComponent(slug)}`;
+  }
+  // `replace` avoids leaving the portal page in history, so a back press
+  // cannot return the user to the screen they just left.
+  if (replace) {
+    window.location.replace(target);
   } else {
-    window.location.href = "/login";
+    window.location.href = target;
   }
 };
 
 /**
  * Leave the current portal without signing out (e.g. a "Back to portals"
  * button). Keeps the session intact.
+ *
+ * Callers that have already read the slug can pass it in — the session
+ * teardown wipes it — together with `{ replace: true }` to suppress the
+ * back-button bounce.
  */
-export function goToSchoolPortals() {
-  navigate(readSchoolSlug());
+export function goToSchoolPortals({ slug = readSchoolSlug(), replace = false } = {}) {
+  navigate(slug, { replace });
 }
 
 /**

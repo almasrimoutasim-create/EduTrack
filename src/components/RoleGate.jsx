@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import RoleLogin from "@/pages/RoleLogin";
-import Gateway from "@/pages/Gateway";
 import BackToPortalButton from "@/components/shared/BackToPortalButton";
+import { goToSchoolPortals } from "@/lib/portalNavigation";
 import { ArrowLeft } from "lucide-react";
 
 const PORTAL_REDIRECTS = { 
@@ -117,6 +117,17 @@ export default function RoleGate({ children }) {
     // Public pages (landing, gateway, login, register) stay viewable for everyone — even logged-in users
     if (isPublicPath) return;
 
+    // A session that never cleared the gateway lock has nothing to render.
+    // The old behaviour showed the bare school-code form, which is a dead end
+    // for anyone who got here from a portal button. Send them to the school's
+    // own portals page instead — /login is a public path, so this cannot loop.
+    if (isAuthenticated && !isGatewayPassed) {
+      console.warn(`Session without gateway lock (role: ${user?.role || "unknown"}) — returning to portals`);
+      setRedirecting(true);
+      goToSchoolPortals();
+      return;
+    }
+
     if (isAuthenticated && user) {
       const userRole = user.role;
       const isAllowed = isPathAllowed(user, path);
@@ -129,7 +140,7 @@ export default function RoleGate({ children }) {
         window.location.href = defaultRedirect;
       }
     }
-  }, [isAuthenticated, user, path, isLoadingAuth, redirecting, isPublicPath]);
+  }, [isAuthenticated, user, path, isLoadingAuth, redirecting, isPublicPath, isGatewayPassed]);
 
   if (isLoadingAuth || redirecting) {
     return (
@@ -167,19 +178,7 @@ export default function RoleGate({ children }) {
     );
   }
 
-  // Authenticated but not passed gateway lock screen? Show gateway
-  if (!isGatewayPassed) {
-    return (
-      <>
-        <a href="/gateway" className="fixed top-4 right-4 z-50 h-9 px-4 rounded-xl bg-white/90 backdrop-blur border border-stone-200 text-stone-700 text-xs font-black flex items-center gap-1.5 shadow-md hover:bg-white">
-          <ArrowLeft size={14} /> العودة للرئيسية
-        </a>
-        <Gateway />
-      </>
-    );
-  }
-
-  // Authenticated & authorized? Let the children render!
+  // Authenticated & passed the gateway lock? Let the children render!
   // للبوابات التي لا تستخدم AppLayout (طالب/معلم/ولي أمر/دعم) نضيف زر رجوع ثابت أعلى اليسار
   const portalRolesWithFixedBack = ["student", "parent", "support", "staff", "bus", "bus_supervisor"];
   const showFixedBack = isAuthenticated && portalRolesWithFixedBack.includes(user?.role) && !isPublicPath && !path.startsWith('/student-panel');

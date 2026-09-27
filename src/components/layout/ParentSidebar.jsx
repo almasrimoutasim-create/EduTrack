@@ -10,7 +10,7 @@ import { entities } from "@/api/dbClient";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useAuth } from "@/lib/AuthContext";
-import { logoutToSchoolPortals } from "@/lib/portalNavigation";
+import { goToSchoolPortals, logoutToSchoolPortals } from "@/lib/portalNavigation";
 
 export default function ParentSidebar() {
   const location = useLocation();
@@ -137,7 +137,7 @@ export default function ParentSidebar() {
       )}>
         {/* Logo Section — يطابق الإعدادات */}
         <div className="p-8 pb-6">
-          <div className={cn("group cursor-pointer", shortName ? "flex flex-col items-center gap-2 text-center" : "flex items-center gap-3")} onClick={() => { const slug = localStorage.getItem("portal_school_slug"); window.location.href = slug ? `/gateway/${slug}` : "/login"; }}>
+          <div className={cn("group cursor-pointer", shortName ? "flex flex-col items-center gap-2 text-center" : "flex items-center gap-3")} onClick={() => { goToSchoolPortals(); }}>
             {sidebarLogoUrl && !sidebarLogoError ? (
               <img key={sidebarLogoUrl} src={sidebarLogoUrl} alt={schoolName} className={cn("rounded-xl object-contain bg-white border border-stone-100 shadow-sm", "h-24 w-24 p-2")} onError={()=>setSidebarLogoError(true)} />
             ) : (

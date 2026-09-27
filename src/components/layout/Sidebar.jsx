@@ -13,7 +13,7 @@ import { useLanguage } from "@/lib/LanguageContext";
 import { t } from "@/lib/translations";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/AuthContext";
-import { logoutToSchoolPortals } from "@/lib/portalNavigation";
+import { goToSchoolPortals, logoutToSchoolPortals } from "@/lib/portalNavigation";
 
 const BRAND_CONFIGS = {
   admin: {
@@ -465,8 +465,7 @@ export default function Sidebar() {
               localStorage.setItem("portal_role", "staff");
               window.location.href = "/staff-portal";
             } else {
-              const slug = localStorage.getItem("portal_school_slug");
-              window.location.href = slug ? `/gateway/${slug}` : "/login";
+              goToSchoolPortals();
             }
           }}>
 {sidebarLogoUrl && !sidebarLogoError ? (
