@@ -39,6 +39,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/lib/AuthContext";
+import { logoutToSchoolPortals } from "@/lib/portalNavigation";
 import StudentSidebar from "@/components/layout/StudentSidebar";
 import SupportWidget from "@/components/shared/SupportWidget";
 import StudentIDCard from "@/components/student-dashboard/StudentIDCard";
@@ -102,13 +103,7 @@ export default function StudentPortal() {
     }
   };
   
-  const handleLogout = () => {
-    localStorage.removeItem("portal_role");
-    localStorage.removeItem("portal_user_id");
-    localStorage.removeItem("portal_user_name");
-    logout(false);
-    window.location.href = "/gateway";
-  };
+  const handleLogout = () => logoutToSchoolPortals(logout);
 
   // Mock student data
   const studentId = localStorage.getItem("portal_user_id") || "S-505";
