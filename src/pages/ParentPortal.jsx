@@ -13,6 +13,7 @@ import {
   ArrowUpRight,
   Wallet,
   DollarSign,
+  CreditCard,
   RefreshCw,
   Clock,
   Sparkles,

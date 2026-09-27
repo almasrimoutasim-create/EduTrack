@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { 
-  Wallet, BookOpen, Clock, Activity, Printer, Download, Plus, ArrowRight, ShieldCheck, Upload
+  Wallet, BookOpen, Clock, Activity, Printer, Download, Plus, ArrowRight, ShieldCheck, Upload, CreditCard
 } from "lucide-react";
 
 const btnOutline = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border-2 border-stone-300 bg-white text-stone-800 hover:bg-stone-50 hover:border-stone-400 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";

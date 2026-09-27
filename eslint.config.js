@@ -9,6 +9,7 @@ export default [
     files: [
       "src/components/**/*.{js,mjs,cjs,jsx}",
       "src/pages/**/*.{js,mjs,cjs,jsx}",
+      "src/App.jsx",
       "src/Layout.jsx",
     ],
     ignores: ["src/lib/**/*", "src/components/ui/**/*"],
@@ -42,6 +43,10 @@ export default [
       // unmounts the whole tree into a blank white page.
       "no-undef": "error",
       "no-unused-vars": "off",
+      // Core `no-undef` does not resolve JSX element names, so `<Foo />` for
+      // an unimported `Foo` slips through it. This is the rule that catches
+      // the blank-page class of bug (ReferenceError at render).
+      "react/jsx-no-undef": "error",
       "react/jsx-uses-vars": "error",
       "react/jsx-uses-react": "error",
       "unused-imports/no-unused-imports": "error",

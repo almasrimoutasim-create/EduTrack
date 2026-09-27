@@ -6,6 +6,7 @@ import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import { LanguageProvider } from '@/lib/LanguageContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
+import AppErrorBoundary from '@/components/shared/AppErrorBoundary';
 import { Toaster as SonnerToaster } from "sonner";
 
 import { lazy, Suspense } from 'react';
@@ -208,6 +209,7 @@ function App() {
     <LanguageProvider>
       <Router>
         <QueryClientProvider client={queryClientInstance}>
+          <AppErrorBoundary>
           <Suspense fallback={<PageLoader />}>
             <Routes>
               <Route path="/founder-login" element={<FounderLogin />} />
@@ -233,6 +235,7 @@ function App() {
               />
             </Routes>
           </Suspense>
+          </AppErrorBoundary>
           <Toaster />
           <SonnerToaster richColors position="top-right" />
         </QueryClientProvider>
