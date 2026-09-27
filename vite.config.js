@@ -5,15 +5,6 @@ import { fileURLToPath } from 'url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
-// VitePWA يُفعَّل فقط عند الحاجة (يزيل ~15 ثانية من وقت البناء)
-const usePwa = process.env.ENABLE_PWA === 'true'
-let VitePWA
-if (usePwa) {
-  VitePWA = (await import('vite-plugin-pwa')).VitePWA
-}
-
-const isProd = process.env.NODE_ENV === 'production'
-
 export default defineConfig({
   logLevel: 'info',
   resolve: {
@@ -30,7 +21,7 @@ export default defineConfig({
           // React & routing core
           'vendor-react': ['react', 'react-dom', 'react-router-dom', '@tanstack/react-query'],
 
-          // جميع Radix UI في قطعة واحدة (كان 3 قطع)
+          // جميع Radix UI في قطعة واحدة
           'vendor-ui': [
             '@radix-ui/react-slot', '@radix-ui/react-label', '@radix-ui/react-separator',
             '@radix-ui/react-tooltip', '@radix-ui/react-toggle', '@radix-ui/react-toggle-group',
@@ -58,8 +49,11 @@ export default defineConfig({
           // النماذج والصحة
           'vendor-forms': ['react-hook-form', '@hookform/resolvers', 'zod'],
 
-          // المستندات وPDF
-          'vendor-docs': ['react-markdown', 'mammoth', 'jspdf', 'pdfjs-dist', 'html2canvas', 'react-pdf'],
+          // PDF فقط (الأثقل)
+          'vendor-pdf': ['jspdf', 'pdfjs-dist', 'react-pdf'],
+
+          // المحررات والمستندات
+          'vendor-editor': ['react-markdown', 'mammoth', 'html2canvas'],
 
           // المصادقة والوقت الحقيقي
           'vendor-auth': ['jsonwebtoken', 'bcryptjs', 'socket.io', 'socket.io-client'],
@@ -80,95 +74,6 @@ export default defineConfig({
   },
   plugins: [
     react(),
-    // VitePWA يُضاف فقط عند تفعيله لتجنب عبء البناء غير الضروري
-    ...(VitePWA ? [VitePWA({
-      registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'robots.txt', 'apple-touch-icon.png'],
-      manifest: {
-        name: 'EduTrack',
-        short_name: 'EduTrack',
-        description: 'منصة إدارة تعليمية متكاملة',
-        theme_color: '#0d9488',
-        background_color: '#ffffff',
-        display: 'standalone',
-        orientation: 'portrait-primary',
-        scope: '/',
-        start_url: '/',
-        icons: [
-          {
-            src: '/pwa-192x192.png',
-            sizes: '192x192',
-            type: 'image/png',
-            purpose: 'any maskable'
-          },
-          {
-            src: '/pwa-512x512.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'any maskable'
-          }
-        ]
-      },
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,woff,ttf,eot}'],
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'google-fonts-cache',
-              expiration: {
-                maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24 * 365
-              },
-              cacheableResponse: {
-                statuses: [0, 200]
-              }
-            }
-          },
-          {
-            urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'gstatic-fonts-cache',
-              expiration: {
-                maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24 * 365
-              },
-              cacheableResponse: {
-                statuses: [0, 200]
-              }
-            }
-          },
-          {
-            urlPattern: /^https:\/\/cdn\.cdnjs\.cloudflare\.com\/.*/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'cdnjs-cache',
-              expiration: {
-                maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24 * 30
-              }
-            }
-          },
-          {
-            urlPattern: /\/api\/.*/i,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'api-cache',
-              expiration: {
-                maxEntries: 100,
-                maxAgeSeconds: 60 * 5
-              },
-              networkTimeoutSeconds: 10
-            }
-          }
-        ]
-      },
-      devOptions: {
-        enabled: false
-      }
-    })] : []),
     {
       name: 'neon-api-middleware',
       async configureServer(server) {
