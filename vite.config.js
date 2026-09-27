@@ -43,7 +43,7 @@ export default defineConfig({
           // الأدوات والمرجعيات
           'vendor-utils': [
             'lodash', 'clsx', 'tailwind-merge', 'class-variance-authority',
-            'date-fns', 'dayjs', 'moment', 'react-day-picker'
+            'date-fns', 'dayjs', 'moment', 'react-day-picker', 'lucide-react'
           ],
 
           // النماذج والصحة
