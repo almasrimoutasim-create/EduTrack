@@ -49,6 +49,11 @@ export default function AppLayout() {
     // من محور الأقسام نفسه أو من بوابة رئيسية أخرى يرجع لصفحة بوابات المدرسة نفسها
     if (currentPath === portalHome) {
       goToSchoolPortals();
+    } else if (portalRole === "admin") {
+      // The System Admin's portal home IS the school portals page, so route it
+      // through the shared helper — a hardcoded "/login" here would drop the
+      // school slug and land on the unbranded page.
+      goToSchoolPortals();
     } else {
       window.location.href = portalHome;
     }

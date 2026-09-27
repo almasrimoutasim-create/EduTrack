@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import RoleLogin from "@/pages/RoleLogin";
 import BackToPortalButton from "@/components/shared/BackToPortalButton";
-import { goToSchoolPortals } from "@/lib/portalNavigation";
+import { goToSchoolPortals, goToSchoolEntry } from "@/lib/portalNavigation";
 import { ArrowLeft } from "lucide-react";
 
 const PORTAL_REDIRECTS = { 
@@ -170,9 +170,9 @@ export default function RoleGate({ children }) {
   if (!isAuthenticated) {
     return (
       <>
-        <a href="/gateway" className="fixed top-4 right-4 z-50 h-9 px-4 rounded-xl bg-white/90 backdrop-blur border border-stone-200 text-stone-700 text-xs font-black flex items-center gap-1.5 shadow-md hover:bg-white">
+        <button type="button" onClick={() => goToSchoolEntry()} className="fixed top-4 right-4 z-50 h-9 px-4 rounded-xl bg-white/90 backdrop-blur border border-stone-200 text-stone-700 text-xs font-black flex items-center gap-1.5 shadow-md hover:bg-white">
           <ArrowLeft size={14} /> العودة للرئيسية
-        </a>
+        </button>
         <RoleLogin />
       </>
     );

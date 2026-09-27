@@ -6,9 +6,22 @@
 // form instead of the school's portals page. Centralising the destination
 // here means no in-app exit can drift back to that dead end.
 
+// Session teardown wipes `portal_school_slug`, and a System Admin may never
+// have had one in the first place — which is exactly how the bare "/gateway"
+// fallback below used to be reached. Remember the last school this browser
+// reached so an exit can always rebuild a branded URL. This key is
+// deliberately absent from the logout wipe list in AuthContext, so it
+// outlives the session it was learned from.
+const LAST_SLUG_KEY = "portal_last_school_slug";
+
 const readSchoolSlug = () => {
   try {
-    return (localStorage.getItem("portal_school_slug") || "").trim();
+    const live = (localStorage.getItem("portal_school_slug") || "").trim();
+    if (live) {
+      try { localStorage.setItem(LAST_SLUG_KEY, live); } catch { /* ignore */ }
+      return live;
+    }
+    return (localStorage.getItem(LAST_SLUG_KEY) || "").trim();
   } catch {
     return "";
   }
@@ -19,9 +32,11 @@ const navigate = (slug, { replace = false } = {}) => {
   const target = slug ? `/login?school=${encodeURIComponent(slug)}` : "/login";
   if (slug) {
     // Re-apply the slug so RoleLogin can resolve the school even if the
-    // caller just cleared it.
+    // caller just cleared it, and keep the durable copy in step so the next
+    // exit can still find a school once this key is wiped again.
     try {
       localStorage.setItem("portal_school_slug", slug);
+      localStorage.setItem(LAST_SLUG_KEY, slug);
     } catch {
       /* storage unavailable - fall through to the unbranded page */
     }
@@ -45,6 +60,31 @@ const navigate = (slug, { replace = false } = {}) => {
  */
 export function goToSchoolPortals({ slug = readSchoolSlug(), replace = false } = {}) {
   navigate(slug, { replace });
+}
+
+/**
+ * Leave the app to a school entry point, preserving branding when we can.
+ *
+ * This is the ONLY function permitted to emit "/gateway", and the "/gateway"
+ * branch is reachable only when no school context exists at all — in which
+ * case the school-code form is the correct destination, not a dead end. When
+ * a school context does exist we must never land on that generic form, so we
+ * go to the school's own portals page instead.
+ *
+ * Use this for loose end-of-app affordances (404 "Go Home", the
+ * unauthenticated lock screen) that are not tied to a specific session.
+ */
+export function goToSchoolEntry({ replace = false } = {}) {
+  const slug = readSchoolSlug();
+  if (slug) {
+    navigate(slug, { replace });
+    return;
+  }
+  if (replace) {
+    window.location.replace("/gateway");
+  } else {
+    window.location.href = "/gateway";
+  }
 }
 
 /**

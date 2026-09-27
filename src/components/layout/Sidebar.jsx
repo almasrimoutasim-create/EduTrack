@@ -616,7 +616,7 @@ export default function Sidebar() {
 
           {portalRole === "admin" && (
             <button
-              onClick={() => { window.location.href = "/login"; }}
+              onClick={() => goToSchoolPortals()}
               className="flex items-center gap-3 w-full px-4 py-3 text-sm font-bold text-emerald-600 hover:bg-emerald-50 rounded-2xl transition-all"
             >
               <Layers className={cn("h-5 w-5", isRTL ? "rotate-180" : "")} />
