@@ -181,9 +181,37 @@ export default function RoleLogin() {
 
   const brandName = schoolBrand?.name_ar || schoolBrand?.name
     || appPublicSettings?.public_settings?.school_name_ar || "EduTrack";
-  const brandLogo = schoolBrand?.logo_url || appPublicSettings?.public_settings?.school_logo || null;
-  const brandBg = appPublicSettings?.public_settings?.school_background_image
-    || "https://images.unsplash.com/photo-1510519138101-570d1dcb3d8e?q=80&w=2000&auto=format&fit=crop";
+  // Branding assets can be stored as absolute URLs / data URIs or as relative
+  // paths served by the backend. Normalise both (same rule as the sidebars).
+  const resolveAssetUrl = (url) => {
+    const trimmed = String(url || "").trim();
+    if (!trimmed) return "";
+    if (/^(https?:|data:|blob:)/i.test(trimmed)) return trimmed;
+    const apiBase = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/$/, "");
+    return `${apiBase}${trimmed.startsWith("/") ? "" : "/"}${trimmed}`;
+  };
+  const FALLBACK_BG = "https://images.unsplash.com/photo-1510519138101-570d1dcb3d8e?q=80&w=2000&auto=format&fit=crop";
+  // Prefer the school resolved from `/public-school/:slug`: unlike
+  // `public-settings` it needs no session/JWT, so it still resolves after the
+  // teacher logs out (when `portal_school_id`/`portal_jwt_token` are wiped).
+  const brandLogo = resolveAssetUrl(
+    schoolBrand?.logo_url || appPublicSettings?.public_settings?.school_logo
+  ) || null;
+  const brandBg = resolveAssetUrl(schoolBrand?.background_image)
+    || appPublicSettings?.public_settings?.school_background_image
+    || FALLBACK_BG;
+
+  // background-image can't report load failures, so preload it and fall back
+  // to the default gradient image when the stored URL is broken/empty.
+  const [bgUrl, setBgUrl] = useState(brandBg || FALLBACK_BG);
+  useEffect(() => {
+    let alive = true;
+    const img = new Image();
+    img.onload = () => { if (alive) setBgUrl(brandBg); };
+    img.onerror = () => { if (alive) setBgUrl(FALLBACK_BG); };
+    img.src = brandBg;
+    return () => { alive = false; };
+  }, [brandBg]);
 
   const handleAdminLogin = async (e) => {
     e.preventDefault();
@@ -282,7 +310,7 @@ export default function RoleLogin() {
       <div className="min-h-screen relative flex items-center justify-center p-4 overflow-hidden" dir={isRTL ? "rtl" : "ltr"}>
         <div
           className="absolute inset-0 z-0 bg-cover bg-center"
-          style={{ backgroundImage: `url('${brandBg}')`, filter: "blur(14px) brightness(0.55)", transform: "scale(1.1)" }}
+          style={{ backgroundImage: `url('${bgUrl}')`, filter: "blur(14px) brightness(0.55)", transform: "scale(1.1)" }}
         />
         <div className="absolute inset-0 z-0 bg-gradient-to-b from-black/30 via-black/50 to-black/70" />
 
