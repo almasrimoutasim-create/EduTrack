@@ -453,11 +453,20 @@ export default function RoleLogin() {
   }
 
   return (
-    <div className="min-h-screen bg-stone-50 flex flex-col items-center justify-center p-4 md:p-8 relative overflow-hidden" dir={isRTL ? "rtl" : "ltr"}>
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 md:p-8 relative overflow-hidden" dir={isRTL ? "rtl" : "ltr"}>
+      {/* School-branded backdrop — same treatment as the lock card so the
+          portals page is recognisably the school's own, not the generic
+          EduTrack screen. */}
+      <div
+        className="absolute inset-0 z-0 bg-cover bg-center"
+        style={{ backgroundImage: `url('${bgUrl}')`, filter: "blur(14px) brightness(0.55)", transform: "scale(1.1)" }}
+      />
+      <div className="absolute inset-0 z-0 bg-gradient-to-b from-black/30 via-black/50 to-black/70" />
+
       {/* Decorative Background Elements */}
-      <div className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden">
-        <div className="absolute -top-24 -right-24 w-96 h-96 bg-primary/5 rounded-full blur-[100px]" />
-        <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-indigo-500/5 rounded-full blur-[100px]" />
+      <div className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden z-0">
+        <div className="absolute -top-24 -right-24 w-96 h-96 bg-white/5 rounded-full blur-[100px]" />
+        <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-primary/10 rounded-full blur-[100px]" />
       </div>
 
       {/* Language Switcher */}
@@ -477,14 +486,18 @@ export default function RoleLogin() {
           <motion.div
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="flex items-center justify-center h-14 w-14 rounded-xl bg-stone-900 text-white shadow-2xl mb-4"
+            className="flex items-center justify-center h-14 w-14 rounded-xl bg-white/95 text-stone-900 shadow-2xl mb-4 border border-white/40 overflow-hidden"
           >
-            <Lock size={28} />
+            {brandLogo ? (
+              <img src={brandLogo} alt={brandName} className="h-full w-full object-contain p-1.5" onError={(e) => { e.currentTarget.style.display = "none"; }} />
+            ) : (
+              <Lock size={28} />
+            )}
           </motion.div>
           <motion.h1
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            className="text-3xl md:text-4xl font-serif font-black text-stone-900 tracking-tight"
+            className="text-3xl md:text-4xl font-serif font-black text-white tracking-tight"
           >
             Edu<span className="text-primary">Track</span>
           </motion.h1>
@@ -492,7 +505,7 @@ export default function RoleLogin() {
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.1 }}
-            className="text-stone-400 text-sm font-medium max-w-lg"
+            className="text-white/70 text-sm font-medium max-w-lg"
           >
             {isRTL ? "نظام إدارة التعليم الذكي. اختر بوابتك للمتابعة." : "Smart Education Management System. Choose your portal to continue."}
           </motion.p>
@@ -503,8 +516,8 @@ export default function RoleLogin() {
               transition={{ delay: 0.2 }}
               className="inline-flex items-center gap-2 bg-emerald-50 border border-emerald-100 text-emerald-800 rounded-full px-4 py-1.5 text-xs font-black"
             >
-              {schoolBrand.logo_url ? (
-                <img src={schoolBrand.logo_url} alt="" className="h-5 w-5 rounded-full object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} />
+              {brandLogo ? (
+                <img src={brandLogo} alt="" className="h-5 w-5 rounded-full object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} />
               ) : null}
               {isRTL ? `بوابة ${schoolBrand.name_ar || schoolBrand.name || ""}` : `${schoolBrand.name_en || schoolBrand.name || ""} Portal`}
             </motion.div>
@@ -579,9 +592,9 @@ export default function RoleLogin() {
         </motion.div>
 
         <footer className="mt-12 text-center">
-          <p className="text-stone-400 text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2">
+          <p className="text-white/60 text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2">
             {isRTL ? "مدعوم من" : "Powered by"}
-            <span className="text-stone-900 font-black">EduTrack Advanced Engine</span>
+            <span className="text-white font-black">EduTrack Advanced Engine</span>
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
             V 2.0.4
           </p>
