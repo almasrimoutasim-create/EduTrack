@@ -57,6 +57,16 @@ export const AuthProvider = ({ children }) => {
             }
           };
           setAppPublicSettings(formatted);
+          try {
+            const cachedBrand = {
+              name: publicData.school_name_ar || publicData.school_name || 'مدارس عباد الرحمن التعليمية',
+              name_ar: publicData.school_name_ar || 'مدارس عباد الرحمن التعليمية',
+              name_en: publicData.school_name_en || 'Abad Al-Rahman Educational Schools',
+              logo_url: publicData.school_logo || publicData.sidebar_logo || '',
+              background_image: publicData.school_background_image || ''
+            };
+            localStorage.setItem('portal_cached_school_brand', JSON.stringify(cachedBrand));
+          } catch { /* ignore */ }
           const schoolKey = localStorage.getItem('portal_school_id') || 'global';
           localStorage.setItem(`cached_school_settings_${schoolKey}`, JSON.stringify(formatted));
           localStorage.removeItem('cached_school_settings');
@@ -83,6 +93,16 @@ export const AuthProvider = ({ children }) => {
           }
         };
         setAppPublicSettings(newSettings);
+        try {
+          const cachedBrand = {
+            name: dbSettings.school_name_ar || 'مدارس عباد الرحمن التعليمية',
+            name_ar: dbSettings.school_name_ar || 'مدارس عباد الرحمن التعليمية',
+            name_en: dbSettings.school_name_en || 'Abad Al-Rahman Educational Schools',
+            logo_url: dbSettings.school_logo || dbSettings.sidebar_logo || '',
+            background_image: dbSettings.school_background_image || ''
+          };
+          localStorage.setItem('portal_cached_school_brand', JSON.stringify(cachedBrand));
+        } catch { /* ignore */ }
         const schoolKey2 = localStorage.getItem('portal_school_id') || 'global';
         localStorage.setItem(`cached_school_settings_${schoolKey2}`, JSON.stringify(newSettings));
         localStorage.removeItem('cached_school_settings');
@@ -291,14 +311,12 @@ if (!loggedUser.school_id) {
         'portal_school_id', 'ind_teacher_id','ind_teacher_name','ind_teacher_email','ind_teacher_token','ind_teacher_user',
         'ind_student_id','ind_student_name','ind_student_email','ind_student_token','ind_student_user'];
       keys.forEach(k => { try { localStorage.removeItem(k); } catch { /* ignore */ } });
-      try { slug = localStorage.getItem('portal_school_slug'); } catch { slug = null; }
-      try { localStorage.removeItem('portal_school_slug'); } catch { /* ignore */ }
+      try { slug = localStorage.getItem('portal_school_slug') || localStorage.getItem('portal_last_school_slug'); } catch { slug = null; }
     } finally {
       // Navigation MUST always happen — even if any storage step above throws,
       // otherwise the lock screen renders on the old URL (no redirect).
       if (shouldRedirect) {
-        // `slug` is passed explicitly because the teardown above already wiped
-        // it, and `replace` so Back cannot return to the locked portal.
+        // `slug` is passed explicitly, and `replace` so Back cannot return to the locked portal.
         goToSchoolPortals({ slug, replace: true });
       }
     }

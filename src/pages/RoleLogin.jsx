@@ -36,8 +36,24 @@ export default function RoleLogin() {
   const [errorMsg, setErrorMsg] = useState("");
 
   // School branding (Option A: members arriving via /gateway/:slug see their school)
-  const [schoolBrand, setSchoolBrand] = useState(null);
-  const [brandLoading, setBrandLoading] = useState(true);
+  const getCachedBrand = () => {
+    try {
+      const storedSlug = (localStorage.getItem("portal_school_slug") || "").trim();
+      const querySlug = (new URLSearchParams(window.location.search).get("school") || "").trim();
+      const slug = querySlug || storedSlug;
+      const cached = localStorage.getItem("portal_cached_school_brand");
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (!slug || !parsed.slug || parsed.slug === slug || parsed.id === slug) {
+          return parsed;
+        }
+      }
+    } catch { /* ignore */ }
+    return null;
+  };
+
+  const [schoolBrand, setSchoolBrand] = useState(getCachedBrand);
+  const [brandLoading, setBrandLoading] = useState(() => !getCachedBrand());
   useEffect(() => {
     // مصدر بيانات المدرسة: localStorage أولاً، ثم معامل ?school= (نفس نهج صفحة البوابة)
     const storedSlug = (localStorage.getItem("portal_school_slug") || "").trim();
@@ -51,6 +67,9 @@ export default function RoleLogin() {
       .then(d => {
         if (alive && d?.school) {
           setSchoolBrand(d.school);
+          try {
+            localStorage.setItem("portal_cached_school_brand", JSON.stringify(d.school));
+          } catch { /* ignore */ }
           if (!storedSlug) {
             try { localStorage.setItem("portal_school_slug", slug); } catch { /* ignore */ }
           }
@@ -323,13 +342,20 @@ export default function RoleLogin() {
           <div className="rounded-[28px] bg-white/95 backdrop-blur-2xl border border-white/40 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.5)] overflow-hidden">
             {/* School brand */}
             <div className="px-8 pt-8 pb-2 text-center flex flex-col items-center">
-              {brandLogo ? (
-                <img src={brandLogo} alt={brandName} className="h-14 w-auto mb-3 object-contain max-h-14 rounded-xl" onError={(e) => { e.currentTarget.style.display = "none"; }} />
-              ) : (
-                <div className="h-14 w-14 rounded-2xl bg-stone-900 text-white flex items-center justify-center mb-3 shadow-lg">
-                  <Lock size={26} className="text-emerald-400" />
-                </div>
-              )}
+              <div className="h-14 min-w-[56px] mb-3 flex items-center justify-center shrink-0">
+                {brandLogo ? (
+                  <img
+                    src={brandLogo}
+                    alt={brandName}
+                    className="h-14 w-auto max-w-[140px] object-contain rounded-xl"
+                    onError={(e) => { e.currentTarget.style.display = "none"; }}
+                  />
+                ) : (
+                  <div className="h-14 w-14 rounded-2xl bg-stone-900 text-white flex items-center justify-center shadow-lg">
+                    <Lock size={26} className="text-emerald-400" />
+                  </div>
+                )}
+              </div>
               <h1 className="text-xl font-black text-stone-900 leading-tight">{brandName}</h1>
               <p className="text-stone-400 text-[11px] font-medium mt-1">
                 {isAdmin

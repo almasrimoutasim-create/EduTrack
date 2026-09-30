@@ -98,9 +98,26 @@ export function goToSchoolEntry({ replace = false } = {}) {
 export function logoutToSchoolPortals(logout) {
   const slug = readSchoolSlug();
   try {
-    logout?.(false);
+    const sessionKeys = [
+      'portal_role', 'portal_user', 'portal_user_id', 'portal_user_name', 'portal_user_email',
+      'portal_is_auth', 'portal_jwt_token', 'portal_gateway_passed', 'token', 'user',
+      'portal_school_id', 'ind_teacher_id', 'ind_teacher_name', 'ind_teacher_email', 'ind_teacher_token', 'ind_teacher_user',
+      'ind_student_id', 'ind_student_name', 'ind_student_email', 'ind_student_token', 'ind_student_user'
+    ];
+    sessionKeys.forEach(k => { try { localStorage.removeItem(k); } catch { /* ignore */ } });
+
+    if (slug) {
+      try {
+        localStorage.setItem("portal_school_slug", slug);
+        localStorage.setItem(LAST_SLUG_KEY, slug);
+      } catch { /* ignore */ }
+    }
   } catch {
     /* never let a storage error strand the user on the portal */
   }
-  navigate(slug);
+
+  // Smoothly replace window location to the school portal / login without
+  // intermediate in-place unmounting or flashing on the protected route
+  const target = slug ? `/login?school=${encodeURIComponent(slug)}` : "/login";
+  window.location.replace(target);
 }

@@ -33,6 +33,21 @@ export default function TeacherSidebar() {
   const [sidebarLogoError, setSidebarLogoError] = useState(false);
   useEffect(() => { setSidebarLogoError(false); }, [sidebarLogoUrl, JSON.stringify(s)]);
 
+  useEffect(() => {
+    if (s.school_name_ar || s.school_logo) {
+      try {
+        const existing = JSON.parse(localStorage.getItem("portal_cached_school_brand") || "{}");
+        localStorage.setItem("portal_cached_school_brand", JSON.stringify({
+          ...existing,
+          name: s.school_name_ar || s.school_name || existing.name,
+          name_ar: s.school_name_ar || existing.name_ar,
+          logo_url: s.school_logo || existing.logo_url,
+          background_image: s.school_background_image || existing.background_image
+        }));
+      } catch { /* ignore */ }
+    }
+  }, [s]);
+
   const teacherId = localStorage.getItem("portal_user_id") || "T-202";
 
   const { data: allMessages = [] } = useQuery({
@@ -64,7 +79,11 @@ export default function TeacherSidebar() {
     a => !readAnnouncements.includes(a.id)
   ).length;
 
-  const handleLogout = () => logoutToSchoolPortals(logout);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const handleLogout = () => {
+    setLoggingOut(true);
+    logoutToSchoolPortals(logout);
+  };
 
   const navGroups = [
     {
@@ -208,10 +227,15 @@ export default function TeacherSidebar() {
           
           <button
             onClick={handleLogout}
-            className="flex items-center gap-3 w-full px-4 py-3 text-sm font-bold text-rose-500 hover:bg-rose-50 rounded-2xl transition-all"
+            disabled={loggingOut}
+            className="flex items-center gap-3 w-full px-4 py-3 text-sm font-bold text-rose-500 hover:bg-rose-50 rounded-2xl transition-all disabled:opacity-60 cursor-pointer"
           >
-            <LogOut className="h-5 w-5" />
-            {isRTL ? "تسجيل الخروج" : "Log out"}
+            {loggingOut ? (
+              <div className="w-5 h-5 border-2 border-rose-500/30 border-t-rose-500 rounded-full animate-spin shrink-0" />
+            ) : (
+              <LogOut className="h-5 w-5 shrink-0" />
+            )}
+            {loggingOut ? (isRTL ? "جاري تسجيل الخروج..." : "Logging out...") : (isRTL ? "تسجيل الخروج" : "Log out")}
           </button>
         </div>
       </aside>
