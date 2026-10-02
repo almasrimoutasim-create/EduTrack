@@ -63,6 +63,28 @@ export function goToSchoolPortals({ slug = readSchoolSlug(), replace = false } =
 }
 
 /**
+ * Build the personal portal link an admin hands to a student or teacher.
+ *
+ * `/login` is the portal picker; `role` opens that portal's login popup and
+ * `sid` pre-fills the identifier field, so the recipient only types their
+ * password instead of guessing which card to tap. `school` keeps the school's
+ * branding alive on a cold visit (no prior localStorage), which is exactly
+ * the case for a link opened on someone else's device.
+ *
+ * `school` may be a slug, a subdomain, or a school id — the backend's
+ * `/neon-db/public-school/:slug` accepts all three.
+ */
+export function buildPortalDeepLink({ role, identifier, school } = {}) {
+  const params = new URLSearchParams();
+  if (role) params.set("role", String(role));
+  if (identifier) params.set("sid", String(identifier));
+  const slug = (school || readSchoolSlug() || "").trim();
+  if (slug) params.set("school", slug);
+  const query = params.toString();
+  return `${window.location.origin}/login${query ? `?${query}` : ""}`;
+}
+
+/**
  * Leave the app to a school entry point, preserving branding when we can.
  *
  * This is the ONLY function permitted to emit "/gateway", and the "/gateway"

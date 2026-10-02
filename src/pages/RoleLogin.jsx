@@ -198,6 +198,46 @@ export default function RoleLogin() {
   const [memberLoading, setMemberLoading] = useState(false);
   const [memberError, setMemberError] = useState("");
 
+  // ── Deep link: /login?role=student&sid=<id|email>[&school=<slug>] ──
+  // The admin shares a personal link with each student/teacher. `role` picks
+  // the portal and `sid` pre-fills the identifier, so the recipient only
+  // types their password instead of hunting for the right card.
+  // Read once at mount: the params are consumed below, then stripped from the
+  // URL so a refresh (or Back) doesn't reopen the popup behind the user.
+  const [deepLink] = useState(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      return {
+        roleId: (params.get("role") || "").trim().toLowerCase(),
+        identifier: (params.get("sid") || "").trim(),
+      };
+    } catch {
+      return { roleId: "", identifier: "" };
+    }
+  });
+  const [deepLinkApplied, setDeepLinkApplied] = useState(false);
+
+  useEffect(() => {
+    // The gateway lock comes first — a brand-new visitor has no school
+    // context yet, so honour the link only once the lock has been passed.
+    if (deepLinkApplied || !lockPassed || !deepLink.roleId) return;
+    const role = roles.find((r) => r.id === deepLink.roleId);
+    // staff seeds its own guest session instead of using this popup.
+    if (!role || role.id === "staff") return;
+
+    setDeepLinkApplied(true);
+    // openLoginPopup clears the field, so the prefill goes after it.
+    openLoginPopup(role);
+    if (deepLink.identifier) setIdentifier(deepLink.identifier);
+
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("role");
+      url.searchParams.delete("sid");
+      window.history.replaceState({}, "", url.pathname + url.search + url.hash);
+    } catch { /* history unavailable — the link is simply re-consumed on reload */ }
+  }, [deepLink, deepLinkApplied, lockPassed, roles]);
+
   const brandName = schoolBrand?.name_ar || schoolBrand?.name
     || appPublicSettings?.public_settings?.school_name_ar || "EduTrack";
   // Branding assets can be stored as absolute URLs / data URIs or as relative

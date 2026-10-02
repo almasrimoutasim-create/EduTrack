@@ -13,6 +13,7 @@ import {
 import LandingContentEditor from "@/components/LandingContentEditor";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useAuth } from "@/lib/AuthContext";
+import { buildPortalDeepLink } from "@/lib/portalNavigation";
 
 class TierFeaturesErrorBoundary extends React.Component {
   constructor(props) { super(props); this.state = { hasError: false, error: null }; }
@@ -2571,9 +2572,13 @@ const FounderDashboard = () => {
                                             if (isStudent || isTeacher) {
                                               const name = r.full_name || r.student_name || '—';
                                               const generatedUsername = r.username_generated || r.email || '—';
-                                              const portalUrl = isTeacher
-                                                ? `${window.location.origin}/teacher-login`
-                                                : `${window.location.origin}/student-login`;
+                                              // كان /student-login و /teacher-login روابط وهمية تُرجع 404.
+                                              // الآن: رابط واحد يفتح بوابة الدور ويملأ المعرّف تلقائياً.
+                                              const portalUrl = buildPortalDeepLink({
+                                                role: isTeacher ? "teacher" : "student",
+                                                identifier: generatedUsername,
+                                                school: r.school_id,
+                                              });
                                               const modalHtml = `
                                                 <div style="direction:rtl;text-align:right;font-family:sans-serif;padding:20px;">
                                                   <h3 style="margin:0 0 12px;color:#7c3aed;">بيانات دخول ${isTeacher ? 'المعلم' : 'الطالب'}</h3>

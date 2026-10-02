@@ -140,6 +140,47 @@ export default function StaffPortal() {
     }
   };
 
+  // ── School scope resolution ────────────────────────────────────────────────
+  // The server scopes staff lookups by school_id (staff_members rows are NOT
+  // global), so a login without schoolId falls into the `school_id IS NULL`
+  // branch and returns "Staff account not found or inactive" for valid users.
+  const resolveSchoolId = async () => {
+    // 1) School already in session (gateway login or an earlier portal login).
+    const fromSession =
+      currentUser?.school_id ||
+      (user && user.school_id) ||
+      localStorage.getItem("portal_school_id");
+    if (fromSession) return fromSession;
+
+    // 2) Branded portal → cached brand id.
+    try {
+      const cached = localStorage.getItem("portal_cached_school_brand");
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed?.id) return parsed.id;
+      }
+    } catch { /* ignore */ }
+
+    // 3) Branded portal → resolve the slug against the public endpoint.
+    const slug =
+      (localStorage.getItem("portal_school_slug") || "").trim() ||
+      (new URLSearchParams(window.location.search).get("school") || "").trim();
+    if (slug) {
+      try {
+        // @ts-ignore
+        const apiBase = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/$/, "");
+        const res = await fetch(`${apiBase}/neon-db/public-school/${encodeURIComponent(slug)}`);
+        const data = await res.json().catch(() => ({}));
+        if (data?.school?.id) {
+          localStorage.setItem("portal_cached_school_brand", JSON.stringify(data.school));
+          return data.school.id;
+        }
+      } catch { /* ignore */ }
+    }
+
+    return null;
+  };
+
   const handleDeptLogin = async (e) => {
     e.preventDefault();
     setErrorMsg("");
@@ -149,10 +190,11 @@ export default function StaffPortal() {
       // @ts-ignore
       const apiBase = import.meta.env.VITE_BACKEND_URL || '';
       const loginUrl = apiBase ? `${apiBase.replace(/\/$/, '')}/neon-db/auth/login` : '/neon-db/auth/login';
+      const schoolId = await resolveSchoolId();
       const response = await fetch(loginUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role: 'staff', identifier: identifier.trim(), password })
+        body: JSON.stringify({ role: 'staff', identifier: identifier.trim(), password, schoolId: schoolId || null })
       });
 
       const data = await response.json();
@@ -188,6 +230,11 @@ export default function StaffPortal() {
       localStorage.setItem("portal_user_id", data.user.id);
       localStorage.setItem("portal_user_name", data.user.full_name);
       localStorage.setItem("portal_is_auth", "true");
+      // Departments are school-scoped — persist the scope so sidebar, branches,
+      // settings and the visitor log query the same school as the login.
+      if (data.user.school_id) {
+        localStorage.setItem("portal_school_id", data.user.school_id);
+      }
       if (data.token) {
         localStorage.setItem("portal_jwt_token", data.token);
       }

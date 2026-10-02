@@ -18,6 +18,7 @@ import {
   ClipboardList, 
   CheckCircle, 
   Copy, 
+  Link2,
   Eye, 
   EyeOff,
   Bus,
@@ -31,6 +32,7 @@ import { t } from "@/lib/translations";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { buildPortalDeepLink } from "@/lib/portalNavigation";
 import FinancialRecordFormDialog from "@/components/shared/FinancialRecordFormDialog";
 
 export default function AdminStudentProfile({ student: initialStudent, onClose, onEdit }) {
@@ -613,6 +615,15 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
     setTimeout(() => setCopiedField(null), 2000);
   };
 
+  // رابط الدخول الشخصي للطالب: يفتح بوابة الطالب مباشرة مع تعبئة المعرّف،
+  // فيكفيه إدخال كلمة المرور فقط. المدرسة تُمرَّر كمعرّف لأن الـbackend
+  // يقبل slug أو domain_subdomain أو id على حد سواء.
+  const studentPortalLink = buildPortalDeepLink({
+    role: "student",
+    identifier: student?.user_email || student?.student_id || "",
+    school: student?.school_id || user?.school_id || null,
+  });
+
   const triggerPrint = () => {
     window.print();
   };
@@ -827,6 +838,21 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
                 {/* Student Account */}
                 <div className="space-y-2.5 p-3 rounded-xl bg-stone-50/50 border border-stone-150/40 text-xs">
                   <span className="font-bold text-stone-500 block border-b border-stone-100 pb-1">{isRTL ? "بوابة الطالب" : "Student Portal"}</span>
+
+                  {/* رابط دخول مخصص للطالب: يفتح بوابة الطالب ويملأ المعرّف تلقائياً */}
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 text-stone-600 font-semibold truncate">
+                      <Link2 size={13} className="text-stone-400 shrink-0" />
+                      <span className="truncate num-en" dir="ltr">{studentPortalLink}</span>
+                    </div>
+                    <button
+                      onClick={() => handleCopy(studentPortalLink, "stuLink")}
+                      className="text-stone-400 hover:text-stone-850 p-1 rounded hover:bg-stone-200/50 transition-colors shrink-0 cursor-pointer"
+                      title={isRTL ? "نسخ رابط دخول الطالب" : "Copy student login link"}
+                    >
+                      {copiedField === "stuLink" ? <CheckCircle size={13} className="text-emerald-500" /> : <Copy size={13} />}
+                    </button>
+                  </div>
                   
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1.5 text-stone-600 font-semibold truncate">
