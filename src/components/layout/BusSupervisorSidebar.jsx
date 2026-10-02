@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import {
-  LayoutDashboard, Bus, Users, MapPin, AlertTriangle, MessageSquare, Navigation, Menu, X, FileText, ArrowLeft
+  LayoutDashboard, Bus, Users, MapPin, AlertTriangle, MessageSquare, Navigation, Menu, X, FileText, ArrowLeft, LogOut
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
@@ -155,11 +155,20 @@ export default function BusSupervisorSidebar() {
           </div>
 
           <button
-            onClick={() => window.history.back()}
-            className="flex items-center gap-3 w-full px-4 py-3 text-sm font-bold text-stone-700 hover:bg-stone-100 rounded-2xl transition-all"
+            onClick={() => { localStorage.setItem("portal_role", "staff"); window.location.href = "/staff-portal"; }}
+            className="flex items-center gap-3 w-full px-4 py-3 text-sm font-bold text-blue-600 hover:bg-blue-50 rounded-2xl transition-all"
           >
             <ArrowLeft className={cn("h-5 w-5", isRTL ? "rotate-180" : "")} />
-            {isRTL ? "زر رجوع" : "Return"}
+            {isRTL ? "بوابة الموظفين" : "Staff Hub"}
+          </button>
+
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="flex items-center gap-3 w-full px-4 py-3 text-sm font-bold text-rose-500 hover:bg-rose-50 rounded-2xl transition-all"
+          >
+            <LogOut className="h-5 w-5" />
+            {isRTL ? "تسجيل الخروج" : "Sign Out"}
           </button>
         </div>
       </aside>
