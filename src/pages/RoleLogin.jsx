@@ -5,7 +5,6 @@ import {
   User,
   GraduationCap,
   Users,
-  Shield,
   ShieldCheck,
   Settings,
   ChevronRight,
@@ -23,7 +22,7 @@ import { Card } from "@/components/ui/card";
 const btnOutline = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full text-sm font-semibold transition-all border-2 border-stone-200 bg-white/50 backdrop-blur-md text-stone-800 hover:bg-stone-100 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
 
 export default function RoleLogin() {
-  const { login, gatewayLogin, appPublicSettings } = useAuth();
+  const { login, appPublicSettings } = useAuth();
   const { language, setLanguage } = useLanguage();
   const isRTL = language === "ar";
 
@@ -53,13 +52,12 @@ export default function RoleLogin() {
   };
 
   const [schoolBrand, setSchoolBrand] = useState(getCachedBrand);
-  const [brandLoading, setBrandLoading] = useState(() => !getCachedBrand());
   useEffect(() => {
     // مصدر بيانات المدرسة: localStorage أولاً، ثم معامل ?school= (نفس نهج صفحة البوابة)
     const storedSlug = (localStorage.getItem("portal_school_slug") || "").trim();
     const querySlug = (new URLSearchParams(window.location.search).get("school") || "").trim();
     const slug = storedSlug || querySlug;
-    if (!slug) { setBrandLoading(false); return; }
+    if (!slug) return;
     let alive = true;
     const apiBase = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/$/, "");
     fetch(`${apiBase}/neon-db/public-school/${encodeURIComponent(slug)}`)
@@ -80,7 +78,7 @@ export default function RoleLogin() {
         }
       })
       .catch(() => {})
-      .finally(() => { if (alive) setBrandLoading(false); });
+      .finally(() => { /* brand is optional — the screen renders without it */ });
     return () => { alive = false; };
   }, []);
 
@@ -153,11 +151,6 @@ export default function RoleLogin() {
             setLoading(false);
             return;
           }
-          // If check returns 'none' and we have a school brand, the account may be school-bound
-          // but not found without schoolId — warn the user
-          if (chk && chk.type === 'none' && schoolBrand?.id) {
-            // Don't block, but the login will use schoolBrand.id which should work
-          }
         } catch {
           // If check fails, log but still proceed with login
           console.warn('check-account-type failed, proceeding with login...');
@@ -169,34 +162,68 @@ export default function RoleLogin() {
     } catch (err) {
       console.error("Login failed:", err);
       let message = err.message || 'فشل تسجيل الدخول';
+      // A 429 is the rate limiter, not a wrong password — and it is not the
+      // moment to spend another request on the wrong-portal hint. The answer
+      // is "wait", not "try a different portal".
+      if (err.status === 429) {
+        const mins = Math.max(1, Math.ceil((err.retryAfter || 0) / 60));
+        setErrorMsg(isRTL
+          ? `تم إيقاف محاولات الدخول مؤقتاً بعد محاولات فاشلة كثيرة. أعد المحاولة بعد ${mins} دقيقة.`
+          : `Login paused after too many failed attempts. Try again in ${mins} minute(s).`);
+        return;
+      }
       if (err.message.includes("Failed to fetch")) {
         message = isRTL ? "عذراً، تعذر الاتصال بالخادم. يرجى التحقق من الشبكة." : "Connection failed. Please check your network.";
       } else if (err.message.includes("Admin account not found") || err.message.includes("account not found")) {
-        message = isRTL ? "لم يتم العثور على حسابك كمدير نظام. تأكد من أنك تستخدم البريد الصحيح أو حاول من تبويب «أعضاء المدرسة»." : "Admin account not found. Make sure you're using the correct email or try from the 'School Members' tab.";
+        message = isRTL ? "لم يتم العثور على حسابك كمدير نظام. تأكد من أنك تستخدم البريد الصحيح." : "Admin account not found. Make sure you're using the correct admin email.";
       } else if (err.message.toLowerCase().includes("invalid password") || err.message.toLowerCase().includes("credentials")) {
         message = isRTL ? "كلمة المرور غير صحيحة، يرجى المحاولة مرة أخرى." : "Incorrect password. Please try again.";
       } else if (err.message.toLowerCase().includes("not found")) {
         message = isRTL ? "الحساب غير مسجل في النظام أو غير نشط حالياً." : "Account not registered or inactive.";
       }
+
+      // The credentials were rejected — it is usually because the person
+      // opened the wrong portal, so ask the server which one owns the account
+      // and turn a generic failure into an actionable pointer.
+      const isNetworkError = err.message?.includes("Failed to fetch");
+      if (!isNetworkError && identifier.trim()) {
+        try {
+          const apiBase = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/$/, "");
+          const checkUrl = apiBase ? `${apiBase}/neon-db/check-account-type` : "/neon-db/check-account-type";
+          const chk = await fetch(checkUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ identifier: identifier.trim(), schoolId: schoolBrand?.id || null })
+          }).then((r) => r.json()).catch(() => null);
+
+          const typeLabels = {
+            gateway: isRTL ? "حساب أعضاء المدرسة" : "School member account",
+            admin: isRTL ? "حساب مدير النظام" : "System admin account",
+            teacher: isRTL ? "حساب معلم" : "Teacher account",
+            student: isRTL ? "حساب طالب" : "Student account",
+            staff: isRTL ? "حساب موظف" : "Staff account"
+          };
+          const portalLabel = {
+            admin: isRTL ? "مدير النظام" : "System Admin",
+            teacher: isRTL ? "المعلم" : "Teacher",
+            student: isRTL ? "الطالب" : "Student",
+            staff: isRTL ? "الموظف" : "Staff"
+          };
+          if (chk?.type && chk.type !== "none" && chk.type !== selectedRole.id && typeLabels[chk.type]) {
+            message = isRTL
+              ? `بيانات الدخول صحيحة لكنها تخص «${typeLabels[chk.type]}» — افتح بوابة ${portalLabel[chk.type] || chk.type} بدلاً من هذه.`
+              : `Those credentials belong to a "${typeLabels[chk.type]}" — open the ${portalLabel[chk.type] || chk.type} portal instead.`;
+          }
+        } catch {
+          // A failed hint lookup must never replace the real error.
+        }
+      }
+
       setErrorMsg(message);
     } finally {
       setLoading(false);
     }
   };
-
-  // ── Unified lock card (Phase 1): admin tab + members tab ──
-  const [activeTab, setActiveTab] = useState("admin"); // 'admin' | 'members'
-  const [lockPassed, setLockPassed] = useState(() => localStorage.getItem("portal_gateway_passed") === "true");
-  const [adminId, setAdminId] = useState("");
-  const [adminPass, setAdminPass] = useState("");
-  const [showAdminPass, setShowAdminPass] = useState(false);
-  const [adminLoading, setAdminLoading] = useState(false);
-  const [adminError, setAdminError] = useState("");
-  const [memberUser, setMemberUser] = useState("");
-  const [memberPass, setMemberPass] = useState("");
-  const [showMemberPass, setShowMemberPass] = useState(false);
-  const [memberLoading, setMemberLoading] = useState(false);
-  const [memberError, setMemberError] = useState("");
 
   // ── Deep link: /login?role=student&sid=<id|email>[&school=<slug>] ──
   // The admin shares a personal link with each student/teacher. `role` picks
@@ -218,12 +245,11 @@ export default function RoleLogin() {
   const [deepLinkApplied, setDeepLinkApplied] = useState(false);
 
   useEffect(() => {
-    // The gateway lock comes first — a brand-new visitor has no school
-    // context yet, so honour the link only once the lock has been passed.
-    if (deepLinkApplied || !lockPassed || !deepLink.roleId) return;
+    // Every role has its own popup now, so a shared link opens straight away —
+    // there is no gateway lock left to clear first.
+    if (deepLinkApplied || !deepLink.roleId) return;
     const role = roles.find((r) => r.id === deepLink.roleId);
-    // staff seeds its own guest session instead of using this popup.
-    if (!role || role.id === "staff") return;
+    if (!role) return;
 
     setDeepLinkApplied(true);
     // openLoginPopup clears the field, so the prefill goes after it.
@@ -236,7 +262,7 @@ export default function RoleLogin() {
       url.searchParams.delete("sid");
       window.history.replaceState({}, "", url.pathname + url.search + url.hash);
     } catch { /* history unavailable — the link is simply re-consumed on reload */ }
-  }, [deepLink, deepLinkApplied, lockPassed, roles]);
+  }, [deepLink, deepLinkApplied, roles]);
 
   const brandName = schoolBrand?.name_ar || schoolBrand?.name
     || appPublicSettings?.public_settings?.school_name_ar || "EduTrack";
@@ -272,256 +298,18 @@ export default function RoleLogin() {
     return () => { alive = false; };
   }, [brandBg]);
 
-  const handleAdminLogin = async (e) => {
-    e.preventDefault();
-    setAdminError("");
-    if (!adminId.trim() || !adminPass) {
-      setAdminError(isRTL ? "أدخل اسم المستخدم وكلمة المرور" : "Enter username and password");
-      return;
-    }
-    // حماية: إذا كان هذا حساب Gateway (أعضاء المدرسة) فلا تسمح بدخول لوحة المدير
-    try {
-      const apiBase = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/$/, "");
-      const checkUrl = apiBase ? `${apiBase}/neon-db/check-account-type` : '/neon-db/check-account-type';
-      const chk = await fetch(checkUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ identifier: adminId.trim(), schoolId: schoolBrand?.id || null }) }).then(r=>r.json()).catch(() => null);
-      if (chk?.type === 'gateway') {
-        setAdminError(isRTL ? "هذا حساب أعضاء المدرسة (Gateway) — استخدم تبويب «أعضاء المدرسة» (الأخضر) للدخول." : "This is a Gateway account — use the 'School Members' tab.");
-        return;
-      }
-      if (chk?.type === 'none' && schoolBrand?.id) {
-        setAdminError(isRTL ? "لم يتم العثور على حسابك كمدير نظام لهذه المدرسة. تأكد من صحة البريد الإلكتروني." : "Admin account not found for this school. Check your email.");
-        return;
-      }
-    } catch (err) {
-      console.warn('check-account-type failed, proceeding:', err);
-    }
-    setAdminLoading(true);
-    try {
-      await login("admin", adminId.trim(), adminPass, schoolBrand?.id || null);
-      // login() already sets portal_gateway_passed — clearing it here used to
-      // land the admin on the school-code form via RoleGate instead of the dashboard.
-      window.location.href = "/admin-dashboard";
-    } catch (err) {
-      let message = err.message;
-      if (message?.includes("Failed to fetch")) {
-        message = isRTL ? "تعذر الاتصال بالخادم. تحقق من الشبكة." : "Connection failed. Check your network.";
-      } else if (message?.includes("Admin account not found") || message?.includes("account not found")) {
-        message = isRTL ? "لم يتم العثور على حساب مدير النظام. تأكد من أنك مسجل كمدير في هذه المدرسة." : "Admin account not found. Make sure you're registered as admin for this school.";
-      } else if (message?.toLowerCase().includes("invalid password") || message?.toLowerCase().includes("credentials")) {
-        message = isRTL ? "بيانات الدخول غير صحيحة." : "Invalid credentials.";
-      } else if (message?.toLowerCase().includes("not found")) {
-        message = isRTL ? "الحساب غير مسجل أو غير نشط." : "Account not found or inactive.";
-      }
-      setAdminError(message);
-    } finally {
-      setAdminLoading(false);
-    }
-  };
-
-  const handleMemberLogin = async (e) => {
-    e.preventDefault();
-    setMemberError("");
-    if (!memberUser.trim() || !memberPass) {
-      setMemberError(isRTL ? "أدخل اسم المستخدم وكلمة المرور" : "Enter username and password");
-      return;
-    }
-    // حماية: إذا كان هذا حساب مدير نظام فلا تسمح بدخول بوابة الأعضاء
-    try {
-      const apiBase = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/$/, "");
-      const checkUrl = apiBase ? `${apiBase}/neon-db/check-account-type` : '/neon-db/check-account-type';
-      const chk = await fetch(checkUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ identifier: memberUser.trim(), schoolId: schoolBrand?.id || null }) }).then(r=>r.json()).catch(()=>null);
-      if (chk?.type === 'admin') {
-        setMemberError(isRTL ? "هذا حساب مدير نظام — استخدم تبويب «مدير النظام» (الأسود) للدخول." : "This is an admin account — use the 'System Admin' tab.");
-        return;
-      }
-      if (chk?.type === 'none' && schoolBrand?.id) {
-        setMemberError(isRTL ? "لم يتم العثور على حساب لأعضاء هذه المدرسة. تأكد من استخدام بيانات البوابة المشتركة." : "School member account not found for this school.");
-        return;
-      }
-    } catch (err) {
-      console.warn('check-account-type failed, proceeding:', err);
-    }
-    setMemberLoading(true);
-    try {
-      await gatewayLogin(memberUser.trim(), memberPass, schoolBrand?.id || null);
-      // تأكد من عدم بقاء حالة مدير قديمة تسبب توجيه للوحة المدير
-      localStorage.removeItem('portal_role');
-      localStorage.removeItem('portal_user');
-      localStorage.removeItem('portal_is_auth');
-      setLockPassed(true);
-    } catch (err) {
-      let message = err.message || (isRTL ? "بيانات الدخول غير صحيحة." : "Invalid credentials.");
-      if (message?.includes("Failed to fetch")) {
-        message = isRTL ? "تعذر الاتصال بالخادم. تحقق من الشبكة." : "Connection failed. Check your network.";
-      } else if (message?.toLowerCase().includes("not found")) {
-        message = isRTL ? "الحساب غير مسجل أو غير نشط." : "Account not found or inactive.";
-      }
-      setMemberError(message);
-    } finally {
-      setMemberLoading(false);
-    }
-  };
-
-  // Phase 1: glass lock card with tabs (admin | members)
-  if (!lockPassed) {
-    const isAdmin = activeTab === "admin";
-    return (
-      <div className="min-h-screen relative flex items-center justify-center p-4 overflow-hidden" dir={isRTL ? "rtl" : "ltr"}>
-        <div
-          className="absolute inset-0 z-0 bg-cover bg-center"
-          style={{ backgroundImage: `url('${bgUrl}')`, filter: "blur(14px) brightness(0.55)", transform: "scale(1.1)" }}
-        />
-        <div className="absolute inset-0 z-0 bg-gradient-to-b from-black/30 via-black/50 to-black/70" />
-
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, type: "spring" }}
-          className="w-full max-w-sm relative z-10"
-        >
-          <div className="rounded-[28px] bg-white/95 backdrop-blur-2xl border border-white/40 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.5)] overflow-hidden">
-            {/* School brand */}
-            <div className="px-8 pt-8 pb-2 text-center flex flex-col items-center">
-              <div className="h-14 min-w-[56px] mb-3 flex items-center justify-center shrink-0">
-                {brandLogo ? (
-                  <img
-                    src={brandLogo}
-                    alt={brandName}
-                    className="h-14 w-auto max-w-[140px] object-contain rounded-xl"
-                    onError={(e) => { e.currentTarget.style.display = "none"; }}
-                  />
-                ) : (
-                  <div className="h-14 w-14 rounded-2xl bg-stone-900 text-white flex items-center justify-center shadow-lg">
-                    <Lock size={26} className="text-emerald-400" />
-                  </div>
-                )}
-              </div>
-              <h1 className="text-xl font-black text-stone-900 leading-tight">{brandName}</h1>
-              <p className="text-stone-400 text-[11px] font-medium mt-1">
-                {isAdmin
-                  ? (isRTL ? "لوحة الإدارة والتحكم" : "Admin Control Panel")
-                  : (isRTL ? "بوابة أعضاء المدرسة" : "School Members Gateway")}
-              </p>
-            </div>
-
-            {/* Tabs */}
-            <div className="px-8 pt-4">
-              <div className="grid grid-cols-2 gap-1.5 p-1.5 bg-stone-100 rounded-2xl">
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("admin")}
-                  className={`h-10 rounded-xl text-xs font-black inline-flex items-center justify-center gap-1.5 transition-all ${isAdmin ? "bg-stone-900 text-white shadow-md" : "text-stone-500 hover:text-stone-800"}`}
-                >
-                  <Shield size={14} />{isRTL ? "مدير النظام" : "System Admin"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("members")}
-                  className={`h-10 rounded-xl text-xs font-black inline-flex items-center justify-center gap-1.5 transition-all ${!isAdmin ? "bg-emerald-600 text-white shadow-md" : "text-stone-500 hover:text-stone-800"}`}
-                >
-                  <Users size={14} />{isRTL ? "أعضاء المدرسة" : "School Members"}
-                </button>
-              </div>
-            </div>
-
-            {/* Unified form */}
-            <div className="px-8 py-6">
-              <AnimatePresence mode="wait">
-                <motion.form
-                  key={activeTab}
-                  initial={{ opacity: 0, x: isAdmin ? 12 : -12 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: isAdmin ? -12 : 12 }}
-                  transition={{ duration: 0.2 }}
-                  onSubmit={isAdmin ? handleAdminLogin : handleMemberLogin}
-                  className="space-y-3.5"
-                >
-                  {(isAdmin ? adminError : memberError) && (
-                    <div className="flex items-start gap-2.5 p-3 rounded-xl bg-rose-50 border border-rose-100 text-rose-600">
-                      <AlertCircle className="shrink-0 mt-0.5" size={15} />
-                      <p className="text-[12px] font-bold leading-relaxed">{isAdmin ? adminError : memberError}</p>
-                    </div>
-                  )}
-
-                  <div className="space-y-1">
-                    <label htmlFor="field-rolelogin-input-4" className="block text-[11px] font-bold uppercase tracking-wider text-stone-400 px-1">
-                      {isAdmin ? (isRTL ? "بريد مدير النظام" : "Admin Email") : (isRTL ? "اسم مستخدم المدرسة المشترك" : "Shared School Username")}
-                    </label>
-                    <input id="field-rolelogin-input-4" name="input_4" aria-label={isAdmin ? "admin username" : "gateway username"}
-                      type="text"
-                      required
-                      autoFocus
-                      value={isAdmin ? adminId : memberUser}
-                      onChange={(e) => isAdmin ? setAdminId(e.target.value) : setMemberUser(e.target.value)}
-                      placeholder={isAdmin ? (isRTL ? "مثال: etrack249@gmail.com" : "e.g. admin@school.com") : (isRTL ? "مثال: hr" : "e.g. hr")}
-                      className="w-full h-12 rounded-xl border border-stone-200 bg-stone-50/80 text-sm font-bold text-stone-900 px-4 placeholder-stone-400 focus:outline-none focus:border-stone-800 focus:bg-white transition-all text-start"
-                      dir="ltr"
-                    />
-                    <p className="text-[10px] text-stone-400 px-1">
-                      {isAdmin
-                        ? (isRTL ? "من الإعدادات → مدراء النظام (Admins)" : "From Settings → System Admins")
-                        : (isRTL ? "من الإعدادات → أعضاء المدرسة — حساب واحد لكل المدرسة" : "From Settings → School Members — one shared account")}
-                    </p>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label htmlFor="field-rolelogin-input-3" className="block text-[11px] font-bold uppercase tracking-wider text-stone-400 px-1">
-                      {isRTL ? "كلمة المرور" : "Password"}
-                    </label>
-                    <div className="relative">
-                      <input id="field-rolelogin-input-3" name="input_3" aria-label="input 3"
-                        type={(isAdmin ? showAdminPass : showMemberPass) ? "text" : "password"}
-                        required
-                        value={isAdmin ? adminPass : memberPass}
-                        onChange={(e) => isAdmin ? setAdminPass(e.target.value) : setMemberPass(e.target.value)}
-                        placeholder="••••••••"
-                        className="w-full h-12 rounded-xl border border-stone-200 bg-stone-50/80 text-sm font-bold text-stone-900 px-4 placeholder-stone-400 focus:outline-none focus:border-stone-800 focus:bg-white transition-all text-start"
-                        style={{ paddingInlineEnd: "2.8rem" }}
-                        dir="ltr"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => isAdmin ? setShowAdminPass(!showAdminPass) : setShowMemberPass(!showMemberPass)}
-                        className="absolute inset-y-0 left-1 flex items-center justify-center text-stone-400 hover:text-stone-600 w-10 cursor-pointer transition-colors"
-                      >
-                        {(isAdmin ? showAdminPass : showMemberPass) ? <EyeOff size={16} /> : <Eye size={16} />}
-                      </button>
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={isAdmin ? adminLoading : memberLoading || brandLoading}
-                    className={`w-full h-12 rounded-xl text-white font-black text-sm tracking-wide hover:scale-[1.01] active:scale-[0.99] disabled:opacity-70 transition-all cursor-pointer flex items-center justify-center gap-2 shadow-lg ${isAdmin ? "bg-stone-900 hover:bg-black shadow-stone-900/25" : "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/25"}`}
-                  >
-                    {(isAdmin ? adminLoading : memberLoading || brandLoading) ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        <span>{brandLoading ? (isRTL ? "جاري تحميل بيانات المدرسة..." : "Loading school data...") : (isRTL ? "جاري التحقق..." : "Verifying...")}</span>
-                      </>
-                    ) : (
-                      <span>{isAdmin ? (isRTL ? "دخول مدير النظام" : "System Admin Login") : (isRTL ? "دخول أعضاء المدرسة" : "School Members Login")}</span>
-                    )}
-                  </button>
-
-                  {!isAdmin && (
-                    <p className="text-[11px] text-center text-stone-400 leading-relaxed">
-                      {isRTL ? "للمعلمين والطلاب والموظفين — أدخل بيانات المدرسة المشتركة للانتقال لاختيار البوابة" : "For teachers, students and staff — enter the shared school credential to reach the portals"}
-                    </p>
-                  )}
-                </motion.form>
-              </AnimatePresence>
-            </div>
-          </div>
-        </motion.div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-stone-50 flex flex-col items-center justify-center p-4 md:p-8 relative overflow-hidden" dir={isRTL ? "rtl" : "ltr"}>
       {/* Decorative Background Elements */}
       <div className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden">
+        {/* School cover art — a faint wash behind the cards keeps each school's
+            branding on this screen without hurting text contrast. */}
+        {schoolBrand?.background_image && (
+          <div
+            className="absolute inset-0 bg-cover bg-center opacity-[0.07]"
+            style={{ backgroundImage: `url('${bgUrl}')` }}
+          />
+        )}
         <div className="absolute -top-24 -right-24 w-96 h-96 bg-primary/5 rounded-full blur-[100px]" />
         <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-indigo-500/5 rounded-full blur-[100px]" />
       </div>
@@ -599,26 +387,7 @@ export default function RoleLogin() {
                 visible: { y: 0, opacity: 1 }
               }}
               whileHover={{ y: -5 }}
-              onClick={() => {
-                if (role.id === "staff") {
-                  localStorage.setItem("portal_role", "staff");
-                  localStorage.setItem("portal_user", JSON.stringify({
-                    id: "staff-guest",
-                    full_name: "موظف زائر",
-                    email: "guest@edutrack.com",
-                    role: "staff"
-                  }));
-                  localStorage.setItem("portal_user_id", "staff-guest");
-                  localStorage.setItem("portal_user_name", "موظف زائر");
-                  localStorage.setItem("portal_is_auth", "true");
-                  // Seeded sessions never pass through a gateway lock, so mark
-                  // it satisfied — otherwise RoleGate bounces them off /staff-portal.
-                  localStorage.setItem("portal_gateway_passed", "true");
-                  window.location.href = "/staff-portal";
-                } else {
-                  openLoginPopup(role);
-                }
-              }}
+              onClick={() => openLoginPopup(role)}
               className="group cursor-pointer"
             >
               <Card className="p-8 border-none shadow-sm hover:shadow-2xl transition-all duration-500 rounded-[24px] bg-white relative overflow-hidden h-full flex flex-col !items-center text-center-keep">
@@ -797,25 +566,6 @@ export default function RoleLogin() {
                       </>
                     )}
                   </button>
-
-                  {selectedRole.id === "staff" && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const guestUser = { id: "staff-guest", full_name: isRTL ? "موظف زائر" : "Staff Guest", email: "guest@edutrack.com", role: "staff" };
-
-                        localStorage.setItem("portal_role", guestUser.role);
-                        localStorage.setItem("portal_user", JSON.stringify(guestUser));
-                        localStorage.setItem("portal_user_id", guestUser.id);
-                        localStorage.setItem("portal_user_name", guestUser.full_name);
-                        localStorage.setItem("portal_is_auth", "true");
-                        window.location.href = "/staff-portal";
-                      }}
-                      className="w-full h-12 rounded-xl border-2 border-stone-200 bg-white hover:bg-stone-50 text-stone-700 font-bold text-sm transition-all cursor-pointer flex items-center justify-center gap-2"
-                    >
-                      <span>{isRTL ? "دخول سريع (زائر)" : "Quick Login (Guest)"}</span>
-                    </button>
-                  )}
 
                   {/* Security Badge */}
                   <div className="text-center pt-2">
