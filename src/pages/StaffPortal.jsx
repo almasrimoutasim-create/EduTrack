@@ -119,8 +119,8 @@ export default function StaffPortal() {
   ];
 
   const handlePortalClick = (path, id) => {
-    // If the user is logged in as a general staff (guest)
-    // and they click a specific department, we prompt them to log in for that department.
+    // Not logged into a specific department yet — ask for the credential
+    // this department requires instead of navigating straight into it.
     if (currentRole === "staff") {
       setSelectedDept(subPortals.find(p => p.id === id));
       setIdentifier("");
@@ -199,7 +199,7 @@ export default function StaffPortal() {
 
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.error || "بيانات الدخول غير صحيحة");
+        throw new Error(data.error_ar || data.error || "بيانات الدخول غير صحيحة");
       }
 
       // Check if the staff member role matches the clicked department
@@ -266,20 +266,15 @@ export default function StaffPortal() {
   };
 
   const handleLogoutDept = () => {
-    // Log out of specific department and return to guest staff role
+    // Leave the department and go back to the grid. This demotes `portal_role`
+    // and nothing else — leaving a department is not an authorisation event.
+    //
+    // It used to authorise: it fabricated a `staff-guest` user object and wrote
+    // `portal_is_auth` / `portal_gateway_passed` from the browser, so reaching
+    // this button minted an authenticated session with no credential check and
+    // no server call. Whatever session exists now is the one a real login set;
+    // picking another department still asks for that department's credential.
     localStorage.setItem("portal_role", "staff");
-    localStorage.setItem("portal_user", JSON.stringify({
-      id: "staff-guest",
-      full_name: "موظف زائر",
-      email: "guest@edutrack.com",
-      role: "staff"
-    }));
-    localStorage.setItem("portal_user_id", "staff-guest");
-    localStorage.setItem("portal_user_name", "موظف زائر");
-    // Same guest-session keys the portals page seeds, including the gateway
-    // flag — without them RoleGate treats this as a locked session.
-    localStorage.setItem("portal_is_auth", "true");
-    localStorage.setItem("portal_gateway_passed", "true");
     window.location.href = "/staff-portal";
   };
 
@@ -496,7 +491,7 @@ export default function StaffPortal() {
     );
   }
 
-  // GENERAL STAFF PORTAL VIEW (WITH FREE ACCESS AS GENERAL STAFF GUEST)
+  // GENERAL STAFF PORTAL VIEW (every department below requires its own credential)
   return (
     <div className="min-h-screen bg-stone-50 flex flex-col items-center justify-center p-4 md:p-8 relative overflow-hidden" dir={isRTL ? "rtl" : "ltr"}>
       <SupportWidget />

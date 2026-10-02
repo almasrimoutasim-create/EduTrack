@@ -1461,6 +1461,121 @@ async function dbQuery(queryStr, params = []) {
   return sql.query(queryStr, params);
 }
 
+// ── Login rate limiting ──────────────────────────────────────────────────────
+// The shared gateway password used to be the speed bump in front of the real
+// credential check. Members now authenticate directly, so this counter is the
+// only thing standing between an attacker and an unattended password sweep.
+//
+// Two independent windows, because each alone is trivially evaded:
+//   per account — one guess spread across many IPs still runs out
+//   per IP      — many accounts tried from one host still runs out
+//
+// Only 4xx counts as a failure. A 5xx is our own outage, and letting a blip
+// lock a school out of its own portal would turn a small problem into a
+// full outage. In-memory and per-process: with more than one server replica
+// each keeps its own window, so the effective limit is a multiple of the
+// numbers below. Swap LOGIN_BUCKETS for Redis to make it global.
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const LOGIN_MAX_PER_ACCOUNT = 10;
+const LOGIN_MAX_PER_IP = 50;
+const LOGIN_BUCKET_CAP = 20000;
+const LOGIN_BUCKETS = new Map();
+
+function clientIp(req) {
+  const fwd = req.headers['x-forwarded-for'];
+  if (typeof fwd === 'string' && fwd.length) return fwd.split(',')[0].trim();
+  return req.socket?.remoteAddress || 'unknown';
+}
+
+// Drop expired hits so a bucket always reflects the current window, and report
+// both its size and how long until its first hit rolls off.
+function pruneBucket(bucket, now) {
+  const hits = LOGIN_BUCKETS.get(bucket);
+  if (!hits) return { count: 0, wait: 0 };
+  const live = hits.filter(t => now - t < LOGIN_WINDOW_MS);
+  if (live.length === 0) {
+    LOGIN_BUCKETS.delete(bucket);
+    return { count: 0, wait: 0 };
+  }
+  if (live.length !== hits.length) LOGIN_BUCKETS.set(bucket, live);
+  return {
+    count: live.length,
+    wait: Math.ceil((Math.min(...live) + LOGIN_WINDOW_MS - now) / 1000)
+  };
+}
+
+function loginBuckets(req, accountKey) {
+  return [`acct:${accountKey}`, `ip:${clientIp(req)}`];
+}
+
+/** Seconds the caller must wait, or 0 when the attempt is allowed. */
+function loginRetryAfter(req, accountKey) {
+  const now = Date.now();
+  // Bound memory: a long-lived process must not keep a bucket for every
+  // identifier an attacker has ever tried.
+  if (LOGIN_BUCKETS.size > LOGIN_BUCKET_CAP) {
+    for (const key of [...LOGIN_BUCKETS.keys()]) {
+      pruneBucket(key, now);
+      if (LOGIN_BUCKETS.size <= LOGIN_BUCKET_CAP / 2) break;
+    }
+  }
+  const [accountBucket, ipBucket] = loginBuckets(req, accountKey);
+  const account = pruneBucket(accountBucket, now);
+  const ip = pruneBucket(ipBucket, now);
+  if (account.count >= LOGIN_MAX_PER_ACCOUNT) return Math.max(1, account.wait);
+  if (ip.count >= LOGIN_MAX_PER_IP) return Math.max(1, ip.wait);
+  return 0;
+}
+
+function noteLoginFailure(req, accountKey) {
+  const now = Date.now();
+  const [accountBucket, ipBucket] = loginBuckets(req, accountKey);
+  for (const [bucket, limit] of [[accountBucket, LOGIN_MAX_PER_ACCOUNT], [ipBucket, LOGIN_MAX_PER_IP]]) {
+    const hits = (LOGIN_BUCKETS.get(bucket) || []).filter(t => now - t < LOGIN_WINDOW_MS);
+    hits.push(now);
+    // Keep a couple of hits past the limit so the window keeps rolling rather
+    // than opening a hole the instant the count dips.
+    LOGIN_BUCKETS.set(bucket, hits.slice(-(limit + 2)));
+  }
+}
+
+/** A success clears the account's own history; the IP total stays. */
+function clearLoginFailures(req, accountKey) {
+  LOGIN_BUCKETS.delete(`acct:${accountKey}`);
+}
+
+/**
+ * Gate a credential endpoint: refuse early once the window is exhausted, then
+ * watch the response so the outcome is recorded exactly once.
+ *
+ * The login handlers below fan out into ~20 branches that each `return
+ * res.end(...)` on their own. Threading a `recordFailure()` call through all of
+ * them is how a limiter silently gets bypassed by the one branch nobody
+ * remembered, so the result is read off `res.statusCode` instead.
+ */
+function guardLoginRoute(req, res, accountKey) {
+  const retryAfter = loginRetryAfter(req, accountKey);
+  if (retryAfter > 0) {
+    res.statusCode = 429;
+    res.setHeader('Retry-After', String(retryAfter));
+    res.end(JSON.stringify({
+      error: 'Too many failed login attempts. Please try again later.',
+      error_ar: 'محاولات دخول فاشلة كثيرة. يرجى المحاولة بعد قليل.',
+      retry_after: retryAfter
+    }));
+    return false;
+  }
+
+  const send = res.end.bind(res);
+  res.end = (chunk, ...rest) => {
+    const code = res.statusCode;
+    if (code >= 200 && code < 300) clearLoginFailures(req, accountKey);
+    else if (code >= 400 && code < 500) noteLoginFailure(req, accountKey);
+    return send(chunk, ...rest);
+  };
+  return true;
+}
+
 export function createApiHandler() {
   return async (req, res, next) => {
     // ── Tier Features GET - معالجة مبكرة قبل فحص الكيانات لتجنب 0/0 وفشل التحميل (يجب قبل guard) ──
@@ -2072,6 +2187,8 @@ export function createApiHandler() {
           return res.end(JSON.stringify({ error: 'Username and password are required' }));
         }
 
+        if (!guardLoginRoute(req, res, `gateway:${String(username).trim().toLowerCase()}`)) return;
+
         let rows;
         if (schoolId) {
           rows = await dbQuery(
@@ -2168,6 +2285,8 @@ const user = {
           res.statusCode = 400;
           return res.end(JSON.stringify({ error: 'Email/ID and password are required' }));
         }
+
+        if (!guardLoginRoute(req, res, `${role || 'unknown'}:${String(identifier).trim().toLowerCase()}`)) return;
 
         // 1. Admin login
         if (role === 'admin') {

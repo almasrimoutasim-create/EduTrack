@@ -211,7 +211,12 @@ export const AuthProvider = ({ children }) => {
       }
 
       if (!response.ok) {
-        throw new Error(data.error || 'فشل تسجيل الدخول');
+        // `error_ar` first so callers that just show the message stay Arabic, and
+        // carry the status so a 429 lockout can be told apart from bad credentials.
+        const err = new Error(data.error_ar || data.error || 'فشل تسجيل الدخول');
+        err.status = response.status;
+        err.retryAfter = data.retry_after;
+        throw err;
       }
 
       const loggedUser = data.user;
@@ -285,7 +290,12 @@ if (!loggedUser.school_id) {
       }
 
       if (!response.ok) {
-        throw new Error(data.error || 'فشل تسجيل الدخول');
+        // `error_ar` first so callers that just show the message stay Arabic, and
+        // carry the status so a 429 lockout can be told apart from bad credentials.
+        const err = new Error(data.error_ar || data.error || 'فشل تسجيل الدخول');
+        err.status = response.status;
+        err.retryAfter = data.retry_after;
+        throw err;
       }
 
       setIsGatewayPassed(true);

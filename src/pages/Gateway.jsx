@@ -118,7 +118,15 @@ export default function Gateway() {
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(data.error || (isRTL ? "بيانات الدخول غير صحيحة" : "Invalid credentials"));
+        // This route is rate limited too, so a 429 lands here with the wait in
+        // `retry_after`; without this it would read as "wrong password".
+        if (response.status === 429) {
+          const mins = Math.max(1, Math.ceil((data.retry_after || 0) / 60));
+          throw new Error(isRTL
+            ? `محاولات فاشلة كثيرة. يرجى المحاولة بعد ${mins} دقيقة.`
+            : `Too many failed attempts. Try again in ${mins} minute(s).`);
+        }
+        throw new Error(data.error_ar || data.error || (isRTL ? "بيانات الدخول غير صحيحة" : "Invalid credentials"));
       }
       // Verify account_type from server
       if (data.account_type && data.account_type !== 'gateway') {
