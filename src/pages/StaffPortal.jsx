@@ -12,11 +12,6 @@ import {
   ArrowLeft,
   Shield,
   Bus,
-  Lock,
-  X,
-  AlertCircle,
-  Eye,
-  EyeOff,
   Bell,
   Calendar,
   Phone,
@@ -25,7 +20,7 @@ import {
   Wifi,
   HeartHandshake
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { useLanguage } from "@/lib/LanguageContext";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -46,14 +41,6 @@ export default function StaffPortal() {
   const currentRole = localStorage.getItem("portal_role") || user?.role || "staff";
   const currentUserStr = localStorage.getItem("portal_user");
   const currentUser = currentUserStr ? JSON.parse(currentUserStr) : null;
-
-  // Dialog & Login state for specific departments
-  const [selectedDept, setSelectedDept] = useState(null);
-  const [identifier, setIdentifier] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState("");
 
   // Security View state (Mock Visitor log data)
   const [visitorName, setVisitorName] = useState("");
@@ -119,139 +106,17 @@ export default function StaffPortal() {
   ];
 
   const handlePortalClick = (path, id) => {
-    // Not logged into a specific department yet — ask for the credential
-    // this department requires instead of navigating straight into it.
-    if (currentRole === "staff") {
-      setSelectedDept(subPortals.find(p => p.id === id));
-      setIdentifier("");
-      setPassword("");
-      setShowPassword(false);
-      setErrorMsg("");
+    if (id === "security") {
+      localStorage.setItem("portal_role", id);
+      window.location.reload();
     } else {
-      // If they are already logged in specifically
-      if (id === "security") {
-        // Just let them view the custom security screen in this component
-        localStorage.setItem("portal_role", id);
-        window.location.reload();
-      } else {
-        localStorage.setItem("portal_role", id);
-        window.location.href = path;
-      }
+      localStorage.setItem("portal_role", id);
+      window.location.href = path;
     }
   };
 
-  // ── School scope resolution ────────────────────────────────────────────────
-  // The server scopes staff lookups by school_id (staff_members rows are NOT
-  // global), so a login without schoolId falls into the `school_id IS NULL`
-  // branch and returns "Staff account not found or inactive" for valid users.
-  const resolveSchoolId = async () => {
-    // 1) School already in session (gateway login or an earlier portal login).
-    const fromSession =
-      currentUser?.school_id ||
-      (user && user.school_id) ||
-      localStorage.getItem("portal_school_id");
-    if (fromSession) return fromSession;
 
-    // 2) Branded portal → cached brand id.
-    try {
-      const cached = localStorage.getItem("portal_cached_school_brand");
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        if (parsed?.id) return parsed.id;
-      }
-    } catch { /* ignore */ }
 
-    // 3) Branded portal → resolve the slug against the public endpoint.
-    const slug =
-      (localStorage.getItem("portal_school_slug") || "").trim() ||
-      (new URLSearchParams(window.location.search).get("school") || "").trim();
-    if (slug) {
-      try {
-        // @ts-ignore
-        const apiBase = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/$/, "");
-        const res = await fetch(`${apiBase}/neon-db/public-school/${encodeURIComponent(slug)}`);
-        const data = await res.json().catch(() => ({}));
-        if (data?.school?.id) {
-          localStorage.setItem("portal_cached_school_brand", JSON.stringify(data.school));
-          return data.school.id;
-        }
-      } catch { /* ignore */ }
-    }
-
-    return null;
-  };
-
-  const handleDeptLogin = async (e) => {
-    e.preventDefault();
-    setErrorMsg("");
-    setLoading(true);
-
-    try {
-      // @ts-ignore
-      const apiBase = import.meta.env.VITE_BACKEND_URL || '';
-      const loginUrl = apiBase ? `${apiBase.replace(/\/$/, '')}/neon-db/auth/login` : '/neon-db/auth/login';
-      const schoolId = await resolveSchoolId();
-      const response = await fetch(loginUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role: 'staff', identifier: identifier.trim(), password, schoolId: schoolId || null })
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error_ar || data.error || "بيانات الدخول غير صحيحة");
-      }
-
-      // Check if the staff member role matches the clicked department
-      const userRole = data.user.role ? data.user.role.toLowerCase() : "";
-      data.user.role = userRole;
-      
-      // Map roles to make sure they align
-      const targetDeptId = selectedDept.id; // e.g. registrar, bus_supervisor, store_keeper, security, hr, accountant
-      
-      const isMatch = 
-        (targetDeptId === "registrar" && userRole === "registrar") ||
-        (targetDeptId === "hr" && userRole === "hr") ||
-        (targetDeptId === "accountant" && userRole === "accountant") ||
-        (targetDeptId === "store_keeper" && (userRole === "store" || userRole === "store_keeper")) ||
-        (targetDeptId === "bus_supervisor" && (userRole === "bus" || userRole === "bus_supervisor")) ||
-        (targetDeptId === "security" && userRole === "security") ||
-        (targetDeptId === "counselor" && (userRole === "counselor" || userRole === "counseling"));
-
-      if (!isMatch) {
-        throw new Error(isRTL ? "عذراً، هذا الحساب غير مصرح له بالدخول لهذا القسم الإداري" : "This account is not authorized for this department");
-      }
-
-      // Login success
-      toast.success(isRTL ? `مرحباً بك في قسم ${selectedDept.label.ar}` : `Welcome to ${selectedDept.label.en}`);
-      
-      localStorage.setItem("portal_role", userRole);
-      localStorage.setItem("portal_user", JSON.stringify(data.user));
-      localStorage.setItem("portal_user_id", data.user.id);
-      localStorage.setItem("portal_user_name", data.user.full_name);
-      localStorage.setItem("portal_is_auth", "true");
-      // Departments are school-scoped — persist the scope so sidebar, branches,
-      // settings and the visitor log query the same school as the login.
-      if (data.user.school_id) {
-        localStorage.setItem("portal_school_id", data.user.school_id);
-      }
-      if (data.token) {
-        localStorage.setItem("portal_jwt_token", data.token);
-      }
-
-      setSelectedDept(null);
-      
-      if (targetDeptId === "security") {
-        window.location.reload();
-      } else {
-        window.location.href = selectedDept.path;
-      }
-    } catch (err) {
-      setErrorMsg(err.message || (isRTL ? "خطأ في تسجيل الدخول" : "Login error"));
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleBack = () => {
     localStorage.removeItem("portal_role");
@@ -590,132 +455,6 @@ export default function StaffPortal() {
           </p>
         </footer>
       </div>
-
-      {/* DEPARTMENT LOGIN DIALOG */}
-      <AnimatePresence>
-        {selectedDept && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm"
-              onClick={() => setSelectedDept(null)}
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="fixed inset-0 z-[101] flex items-center justify-center p-4 pointer-events-none"
-            >
-              <div 
-                className="w-full max-w-md rounded-[28px] bg-white shadow-2xl border border-stone-100 overflow-hidden relative pointer-events-auto"
-                onClick={e => e.stopPropagation()}
-              >
-                {/* Header */}
-                <div className="p-6 pb-4 relative">
-                  <button
-                    onClick={() => setSelectedDept(null)}
-                    className="absolute top-4 end-4 h-8 w-8 rounded-full bg-stone-100 hover:bg-stone-200 flex items-center justify-center text-stone-400 hover:text-stone-700 transition-all cursor-pointer"
-                  >
-                    <X size={16} />
-                  </button>
-
-                  <div className="flex items-center gap-4">
-                    <div className={`h-14 w-14 rounded-[16px] ${selectedDept.color} flex items-center justify-center shadow-lg shrink-0`}>
-                      <selectedDept.icon size={28} />
-                    </div>
-                    <div>
-                      <h2 className="text-lg font-black text-stone-900 font-serif leading-tight">
-                        {isRTL ? `تسجيل دخول | قسم ${selectedDept.label.ar}` : `Login | ${selectedDept.label.en}`}
-                      </h2>
-                      <p className="text-stone-400 text-xs font-semibold mt-0.5">
-                        {isRTL ? "أدخل المعرف الوظيفي أو البريد مع كلمة المرور للتحقق" : "Enter employee ID/Email and password to verify"}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="h-px bg-stone-100 mx-6" />
-
-                {/* Form */}
-                <form onSubmit={handleDeptLogin} className="p-6 space-y-5">
-                  <AnimatePresence mode="wait">
-                    {errorMsg && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -8 }}
-                        className="flex items-start gap-2.5 p-3.5 rounded-2xl bg-rose-50 border border-rose-100 text-rose-600"
-                      >
-                        <AlertCircle className="shrink-0 mt-0.5" size={15} />
-                        <p className="text-xs font-bold leading-relaxed">{errorMsg}</p>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-
-                  <div className="space-y-2">
-                    <label className="block text-[11px] font-black uppercase tracking-wider text-stone-500">
-                      {isRTL ? "البريد الإلكتروني / الرقم الوظيفي" : "Email / Employee ID"}
-                    </label>
-                    <Input
-                      type="text"
-                      required
-                      value={identifier}
-                      onChange={e => setIdentifier(e.target.value)}
-                      placeholder={isRTL ? "أدخل البريد الإلكتروني أو الرقم الوظيفي للموظف" : "Enter employee email or ID"}
-                      className="h-12 rounded-xl border-stone-200 bg-stone-50 font-semibold"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="block text-[11px] font-black uppercase tracking-wider text-stone-500">
-                      {isRTL ? "كلمة المرور" : "Password"}
-                    </label>
-                    <div className="relative">
-                      <Input
-                        type={showPassword ? "text" : "password"}
-                        required
-                        value={password}
-                        onChange={e => setPassword(e.target.value)}
-                        placeholder="••••••••"
-                        className="h-12 rounded-xl border-stone-200 bg-stone-50 font-semibold pr-12 pl-4"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className={`absolute inset-y-0 flex items-center justify-center text-stone-400 hover:text-stone-600 w-10 h-10 my-auto cursor-pointer ${
-                          isRTL ? "left-1" : "right-1"
-                        }`}
-                      >
-                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                      </button>
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full h-12 rounded-xl bg-primary text-white font-serif font-black text-sm tracking-wide shadow-lg shadow-primary/20 hover:bg-primary/90 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:scale-100 transition-all cursor-pointer flex items-center justify-center gap-2"
-                  >
-                    {loading ? (
-                      <>
-                        <div className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                        <span>{isRTL ? "جاري التحقق من الموظف..." : "Verifying..."}</span>
-                      </>
-                    ) : (
-                      <>
-                        <Lock size={15} />
-                        <span>{isRTL ? "تأكيد والذهاب للقسم" : "Verify & Access Department"}</span>
-                      </>
-                    )}
-                  </button>
-                </form>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
     </div>
   );
 }

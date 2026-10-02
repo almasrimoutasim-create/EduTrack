@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { useLanguage } from "@/lib/LanguageContext";
+import { useNavigate } from "react-router-dom";
 import {
   User,
   GraduationCap,
@@ -24,6 +25,7 @@ const btnOutline = "inline-flex items-center justify-center gap-2 whitespace-now
 export default function RoleLogin() {
   const { login, appPublicSettings } = useAuth();
   const { language, setLanguage } = useLanguage();
+  const navigate = useNavigate();
   const isRTL = language === "ar";
 
   // Popup state
@@ -387,7 +389,7 @@ export default function RoleLogin() {
                 visible: { y: 0, opacity: 1 }
               }}
               whileHover={{ y: -5 }}
-              onClick={() => openLoginPopup(role)}
+              onClick={() => role.id === "staff" ? navigate("/staff-portal") : openLoginPopup(role)}
               className="group cursor-pointer"
             >
               <Card className="p-8 border-none shadow-sm hover:shadow-2xl transition-all duration-500 rounded-[24px] bg-white relative overflow-hidden h-full flex flex-col !items-center text-center-keep">

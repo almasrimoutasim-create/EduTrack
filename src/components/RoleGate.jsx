@@ -27,13 +27,14 @@ const PORTAL_REDIRECTS = {
 
 const getDefaultRedirect = (user) => {
   if (!user) return "/";
-  if (user.role === 'teacher') return user.school_id ? "/teacher-portal" : "/teacher-panel";
-  if (user.role === 'student') return user.school_id ? "/student-portal" : "/student-panel";
-  return PORTAL_REDIRECTS[user.role] || "/";
+  const role = (user.role || "").toLowerCase();
+  if (role === 'teacher') return user.school_id ? "/teacher-portal" : "/teacher-panel";
+  if (role === 'student') return user.school_id ? "/student-portal" : "/student-panel";
+  return PORTAL_REDIRECTS[role] || "/";
 };
 
 const isPathAllowed = (user, path) => {
-  const role = user?.role;
+  const role = (user?.role || "").toLowerCase();
   const schoolId = user?.school_id;
   if (role === 'admin') return true;
 
