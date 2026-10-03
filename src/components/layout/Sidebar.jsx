@@ -139,8 +139,8 @@ export default function Sidebar() {
 
   const portalRole = user?.role || "admin";
   const brand = BRAND_CONFIGS[portalRole] || BRAND_CONFIGS.admin;
-  // في صفحة إدارة الكادر الإداري نخفي زر البوابات ونحوّل زر الخروج لرجوع خطوة للخلف
-  const isStaffControlPage = location.pathname.startsWith("/staff-control");
+  // في صفحات الإدارة نخفي زر البوابات ونحوّل زر الخروج لرجوع خطوة للخلف
+  const isStaffControlPage = location.pathname.startsWith("/staff-control") || location.pathname.startsWith("/finance") || location.pathname.startsWith("/counseling");
   const { appPublicSettings: sidebarSettings } = useAuth();
   const s = sidebarSettings?.public_settings || {};
   const shortName = s.sidebar_short_name?.trim();

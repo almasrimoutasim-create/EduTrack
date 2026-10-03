@@ -34,8 +34,8 @@ export default function StaffSidebar() {
   const portalRole = user?.role || "staff";
 
   const handleLogout = () => logoutToSchoolPortals(logout);
-  // في صفحة إدارة الكادر الإداري: إخفاء زر البوابات وتحويل الخروج لرجوع خطوة للخلف
-  const isStaffControlPage = location.pathname.startsWith("/staff-control");
+  // في صفحات الإدارة: إخفاء زر البوابات وتحويل الخروج لرجوع خطوة للخلف
+  const isStaffControlPage = location.pathname.startsWith("/staff-control") || location.pathname.startsWith("/finance") || location.pathname.startsWith("/counseling");
 
   const navGroups = [];
 
