@@ -13,8 +13,6 @@ import {
   Shield,
   Bus,
   Bell,
-  Calendar,
-  Phone,
   UserCheck,
   DoorOpen,
   Wifi,
@@ -209,7 +207,7 @@ export default function StaffPortal() {
             </div>
             {user?.role === "admin" ? (
               <button 
-                onClick={() => goToSchoolPortals()}
+                onClick={handleLogoutDept}
                 className={`${btnOutline} border-stone-750 bg-stone-800 text-stone-200 hover:bg-stone-700 h-10 px-4 rounded-xl text-xs`}
               >
                 <ArrowLeft size={14} className={isRTL ? "" : "rotate-180"} />
