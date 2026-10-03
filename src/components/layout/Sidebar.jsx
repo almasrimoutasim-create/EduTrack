@@ -139,6 +139,8 @@ export default function Sidebar() {
 
   const portalRole = user?.role || "admin";
   const brand = BRAND_CONFIGS[portalRole] || BRAND_CONFIGS.admin;
+  // في صفحة إدارة الكادر الإداري نخفي زر البوابات ونحوّل زر الخروج لرجوع خطوة للخلف
+  const isStaffControlPage = location.pathname.startsWith("/staff-control");
   const { appPublicSettings: sidebarSettings } = useAuth();
   const s = sidebarSettings?.public_settings || {};
   const shortName = s.sidebar_short_name?.trim();
@@ -614,7 +616,7 @@ export default function Sidebar() {
             </button>
           )}
 
-          {portalRole === "admin" && (
+          {portalRole === "admin" && !isStaffControlPage && (
             <button
               onClick={() => goToSchoolPortals()}
               className="flex items-center gap-3 w-full px-4 py-3 text-sm font-bold text-emerald-600 hover:bg-emerald-50 rounded-2xl transition-all"
@@ -626,7 +628,13 @@ export default function Sidebar() {
           
           <button
             type="button"
-            onClick={() => logoutToSchoolPortals(logout)}
+            onClick={() => {
+              if (isStaffControlPage) {
+                window.history.back();
+              } else {
+                logoutToSchoolPortals(logout);
+              }
+            }}
             className="flex items-center gap-3 w-full px-4 py-3 text-sm font-bold text-rose-500 hover:bg-rose-50 rounded-2xl transition-all"
           >
             <LogOut className="h-5 w-5" />

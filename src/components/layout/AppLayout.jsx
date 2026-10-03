@@ -37,8 +37,8 @@ export default function AppLayout() {
   const currentPath = typeof window !== "undefined" ? window.location.pathname : "/";
   const isStaffHubRole = ["registrar","bus","bus_supervisor","store","store_keeper","hr","accountant","counselor","counseling","security","staff","support"].includes(portalRole);
   const staffDashboard = STAFF_DASHBOARDS[portalRole];
-  // يظهر في كل الصفحات بما فيها لوحة التحكم
-  const showBack = !currentPath.startsWith("/register");
+  // يظهر في كل الصفحات بما فيها لوحة التحكم — مخفي في صفحة إدارة الكادر الإداري (/staff-control) حسب الطلب
+  const showBack = !currentPath.startsWith("/register") && !currentPath.startsWith("/staff-control");
 
   const handleBackToPortal = () => {
     // للأقسام الإدارية: من لوحة التحكم الخاصة بهم يرجع لمحور الأقسام /staff-portal

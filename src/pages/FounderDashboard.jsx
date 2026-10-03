@@ -964,6 +964,7 @@ const FounderDashboard = () => {
   const [teacherStatusFilter, setTeacherStatusFilter] = useState("all");
   const [studentSearch, setStudentSearch] = useState("");
   const [studentStatusFilter, setStudentStatusFilter] = useState("all");
+  const [studentSchoolFilter, setStudentSchoolFilter] = useState("all"); // "all" | school.id | school_name | "__none__"
   const [teacherSubFilter, setTeacherSubFilter] = useState("all"); // all, pending, trial_active, active, rejected
   const [viewRequestDetail, setViewRequestDetail] = useState(null);
   const queryClient = useQueryClient();
@@ -1442,8 +1443,43 @@ const FounderDashboard = () => {
   const filteredStudents = allStudents.filter(s => {
     const matchSearch = !studentSearch || s.full_name?.toLowerCase().includes(studentSearch.toLowerCase()) || s.user_email?.toLowerCase().includes(studentSearch.toLowerCase()) || s.student_id?.toLowerCase().includes(studentSearch.toLowerCase()) || s.phone?.includes(studentSearch);
     const matchStatus = studentStatusFilter === "all" || s.status === studentStatusFilter;
-    return matchSearch && matchStatus;
+    let matchSchool = true;
+    if (studentSchoolFilter !== "all") {
+      if (studentSchoolFilter === "__none__") {
+        matchSchool = !s.school_id && !s.school_name;
+      } else {
+        const schoolObj = schools.find(sc => String(sc.id) === String(studentSchoolFilter));
+        if (schoolObj) {
+          matchSchool = String(s.school_id) === String(schoolObj.id) || (s.school_name && schoolObj.name && s.school_name === schoolObj.name);
+        } else {
+          matchSchool = String(s.school_id) === String(studentSchoolFilter) || s.school_name === studentSchoolFilter;
+        }
+      }
+    }
+    return matchSearch && matchStatus && matchSchool;
   });
+  // قائمة المدارس للفلتر: المدارس المسجلة + أي اسم مدرسة ظاهر في بيانات الطلاب وغير موجود في السجل
+  const studentSchoolOptions = (() => {
+    const map = new Map();
+    (schools || []).forEach(sc => {
+      if (sc?.id) map.set(String(sc.id), { value: String(sc.id), label: sc.name || "مدرسة بدون اسم", count: 0 });
+    });
+    (allStudents || []).forEach(s => {
+      if (s?.school_id && !map.has(String(s.school_id))) {
+        map.set(String(s.school_id), { value: String(s.school_id), label: s.school_name || String(s.school_id), count: 0 });
+      }
+    });
+    // احتساب عدد الطلاب لكل مدرسة
+    (allStudents || []).forEach(s => {
+      const keyById = s?.school_id ? String(s.school_id) : null;
+      if (keyById && map.has(keyById)) { map.get(keyById).count += 1; return; }
+      if (s?.school_name) {
+        for (const opt of map.values()) { if (opt.label === s.school_name) { opt.count += 1; break; } }
+      }
+    });
+    return [...map.values()].sort((a, b) => a.label.localeCompare(b.label, "ar"));
+  })();
+  const noSchoolStudentsCount = allStudents.filter(s => !s.school_id && !s.school_name).length;
   const activeStudents = allStudents.filter(s => s.status === "active").length;
 
   // ── Pre-computed IIFE replacements (TDZ safety) ──
@@ -2771,15 +2807,25 @@ const FounderDashboard = () => {
         {/* ───── 5️⃣ إدارة الطلاب ───── */}
         {section === "students" && (
           <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-              <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3">
+              <div className="flex items-center gap-2 flex-wrap">
                 <p className="text-sm text-slate-500">إجمالي {filteredStudents.length} طالب — <span className="font-bold text-emerald-600">{filteredStudents.filter(s=>s.status==="active").length} نشط</span></p>
-                <select id="field-founderdashboard-select-33" name="select_33" aria-label="select 33" value={studentStatusFilter} onChange={(e)=>setStudentStatusFilter(e.target.value)} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold">
+                <select id="field-founderdashboard-select-33" name="select_33" aria-label="حالة الطالب" value={studentStatusFilter} onChange={(e)=>setStudentStatusFilter(e.target.value)} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold">
                   <option value="all">الكل</option>
                   <option value="active">نشط</option>
                   <option value="suspended">معلق</option>
                   <option value="expired">منتهي</option>
                 </select>
+                <select id="field-founderdashboard-student-school" name="student_school_filter" aria-label="فرز حسب المدرسة" value={studentSchoolFilter} onChange={(e)=>setStudentSchoolFilter(e.target.value)} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold max-w-[220px]">
+                  <option value="all">كل المدارس ({allStudents.length})</option>
+                  {studentSchoolOptions.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label} ({opt.count})</option>
+                  ))}
+                  {noSchoolStudentsCount > 0 && <option value="__none__">بدون مدرسة ({noSchoolStudentsCount})</option>}
+                </select>
+                {studentSchoolFilter !== "all" && (
+                  <button onClick={()=>setStudentSchoolFilter("all")} className="px-2 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold" title="إلغاء فلتر المدرسة">✕ إلغاء الفلتر</button>
+                )}
               </div>
               <input id="field-founderdashboard-input-32" name="input_32" aria-label="input 32" value={studentSearch} onChange={(e)=>setStudentSearch(e.target.value)} placeholder="بحث بالاسم أو البريد أو الرقم أو الهاتف..." className="w-full sm:w-64 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"/>
             </div>
