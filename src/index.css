@@ -1203,3 +1203,111 @@
     size: A4 portrait;        /* ← حجم الورق واتجاهه عند الطباعة */
   }
 }
+
+
+/* ══════════════════════════════════════════════════════════════
+   📱 إصلاحات التجاوب مع الهواتف (Mobile-first)
+   - كل القواعد هنا داخل max-width فقط: لا تمس شاشات الكمبيوتر
+   - الديسكتوب (md/lg) يبقى كما هو تماماً
+   ══════════════════════════════════════════════════════════════ */
+
+/* منع التمرير الأفقي للصفحة نفسها (التمرير الداخلي للجداول يبقى يعمل) */
+html, body {
+  overflow-x: clip;
+  max-width: 100vw;
+}
+img, video, canvas, svg {
+  max-width: 100%;
+  height: auto;
+}
+pre, code {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* تمرير لمسي ناعم لحاويات الجداول */
+.overflow-x-auto {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+@media (max-width: 640px) {
+  /* ── الجداول تتحول لبطاقات عمودية (الديسكتوب خارج هذا الـ media لا يتأثر) ── */
+  main table:not(.sudan-subjects-table):not(.sudan-mini-table):not(.pro-horizontal-table):not(.absence-mini-table):not([data-no-cards]) {
+    display: block;
+    width: 100%;
+    background: transparent;
+    border: 0;
+  }
+  main table:not(.sudan-subjects-table):not(.sudan-mini-table):not(.pro-horizontal-table):not(.absence-mini-table):not([data-no-cards]) thead {
+    display: none;
+  }
+  main table:not(.sudan-subjects-table):not(.sudan-mini-table):not(.pro-horizontal-table):not(.absence-mini-table):not([data-no-cards]) tbody {
+    display: block;
+    width: 100%;
+  }
+  main table:not(.sudan-subjects-table):not(.sudan-mini-table):not(.pro-horizontal-table):not(.absence-mini-table):not([data-no-cards]) tbody > tr {
+    display: block;
+    background: #fff;
+    border: 1px solid rgb(231 229 228);
+    border-radius: 1rem;
+    margin-bottom: 0.75rem;
+    padding: 0.5rem 0.875rem;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  }
+  main table:not(.sudan-subjects-table):not(.sudan-mini-table):not(.pro-horizontal-table):not(.absence-mini-table):not([data-no-cards]) td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    width: 100% !important;
+    border: 0 !important;
+    border-bottom: 1px dashed rgb(231 229 228) !important;
+    text-align: end;
+  }
+  main table:not(.sudan-subjects-table):not(.sudan-mini-table):not(.pro-horizontal-table):not(.absence-mini-table):not([data-no-cards]) td:last-child {
+    border-bottom: 0 !important;
+  }
+  main table:not(.sudan-subjects-table):not(.sudan-mini-table):not(.pro-horizontal-table):not(.absence-mini-table):not([data-no-cards]) td::before {
+    content: attr(data-label);
+    font-weight: 800;
+    font-size: 0.7rem;
+    color: rgb(120 113 108);
+    flex-shrink: 0;
+    max-width: 45%;
+    text-align: start;
+  }
+  main table:not(.sudan-subjects-table):not(.sudan-mini-table):not(.pro-horizontal-table):not(.absence-mini-table):not([data-no-cards]) td:empty {
+    display: none;
+  }
+
+  /* تقليل الحشوات الكبيرة على الهاتف فقط */
+  .p-8 { padding: 1rem !important; }
+  .p-10 { padding: 1rem !important; }
+  .p-6 { padding: 0.875rem !important; }
+  .rounded-\[40px\] { border-radius: 1.25rem !important; }
+  .rounded-\[36px\] { border-radius: 1.25rem !important; }
+  .rounded-\[32px\] { border-radius: 1rem !important; }
+
+  /* الجداول المستثناة (الشهادات): خط أصغر وحشوة أقل + التفاف للنصوص الطويلة */
+  table th, table td {
+    padding: 0.5rem 0.5rem !important;
+    font-size: 0.75rem !important;
+  }
+
+  /* صفحات الشهادات A4: حاوية تمرير ناعم بدل خروج المحتوى عن الشاشة */
+  .sudan-cert-portrait,
+  .pro-cert-page-landscape {
+    max-width: none;
+    transform-origin: top right;
+  }
+  .cert-mobile-scroll {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* عناوين أصغر قليلاً على الهاتف */
+  h1 { font-size: 1.35rem !important; line-height: 1.6 !important; }
+  h2 { font-size: 1.15rem !important; line-height: 1.6 !important; }
+}

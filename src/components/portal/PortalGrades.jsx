@@ -29,7 +29,7 @@ export default function PortalGrades({ student }) {
   if (isLoading) return <p className="text-center text-sm text-muted-foreground py-8">Loading grades...</p>;
 
   if (grades.length === 0) return (
-    <Card className="p-10 text-center">
+    <Card className="p-6 sm:p-10 text-center">
       <BookOpen className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
       <p className="text-muted-foreground text-sm">No grades recorded yet.</p>
     </Card>
@@ -40,7 +40,7 @@ export default function PortalGrades({ student }) {
   return (
     <div className="space-y-4">
       {/* Summary */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 gap-2 sm:gap-3">
         <Card className="p-3 text-center">
           <p className={`text-2xl font-bold ${pctColor(avg)}`}>{avg}%</p>
           <p className="text-xs text-muted-foreground">Overall Avg</p>

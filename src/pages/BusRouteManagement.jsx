@@ -222,7 +222,7 @@ export default function BusRouteManagement() {
   const activeRouteDriver = drivers.find(d => d.bus_route === selectedRoute);
 
   return (
-    <div className="space-y-8 pb-24 p-6 md:p-10 lg:p-12 max-w-7xl mx-auto" dir={isRTL ? "rtl" : "ltr"}>
+    <div className="space-y-8 pb-24 p-4 sm:p-6 md:p-10 lg:p-12 max-w-7xl mx-auto" dir={isRTL ? "rtl" : "ltr"}>
       <PageHeader 
         title={isRTL ? "إدارة مسارات الحافلات" : "Bus Routes Management"} 
         subtitle={isRTL ? "إنشاء وتعديل مسارات الحافلات المدرسية، وتوزيع المشرفين والسائقين والطلاب عليها." : "Create and manage school bus routes, and assign supervisors, drivers, and students."}

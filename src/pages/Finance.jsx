@@ -2125,7 +2125,7 @@ export default function Finance() {
                   </select>
                 </div>
 
-                <div className="grid grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                   <div className="space-y-1.5">
                     <Label>الأساسي</Label>
                     <Input type="number" value={baseSal} onChange={e => setBaseSal(e.target.value)} required />

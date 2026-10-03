@@ -51,7 +51,7 @@ export default function ParentActivityLog({ student, privacyMode }) {
 
       <TabsContent value="attendance" className="space-y-4">
         {/* Attendance Stats */}
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           <Card className="p-3 text-center">
             <p className="text-xs text-muted-foreground">Present</p>
             <p className="text-xl font-bold text-emerald-600">{attendanceStats.present}</p>

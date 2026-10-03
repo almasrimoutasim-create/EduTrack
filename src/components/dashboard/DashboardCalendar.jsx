@@ -95,7 +95,7 @@ export default function DashboardCalendar() {
   const handleNextMonth = () => setCurrent(addMonths(current, 1));
 
   return (
-    <Card className="p-8 border-none bg-white/50 backdrop-blur-xl shadow-sm hover:shadow-lg transition-all duration-500">
+    <Card className="p-4 sm:p-8 border-none bg-white/50 backdrop-blur-xl shadow-sm hover:shadow-lg transition-all duration-500">
       <div className="flex flex-col gap-5 mb-8">
         <div className="flex items-center gap-3">
           <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center">

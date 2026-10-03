@@ -140,7 +140,7 @@ export default function Dashboard() {
       ══════════════════════════════════════ */}
       <motion.div
         
-        className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary via-primary/90 to-indigo-600 p-8 text-white shadow-xl"
+        className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary via-primary/90 to-indigo-600 p-5 sm:p-8 text-white shadow-xl"
       >
         {/* Decorative circles */}
         <div className="absolute top-0 left-0 w-64 h-64 bg-white/5 rounded-full -translate-x-1/2 -translate-y-1/2" />

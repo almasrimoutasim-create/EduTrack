@@ -45,7 +45,7 @@ export default function PortalHome({ student }) {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 gap-2 sm:gap-3">
         <Card>
           <CardContent className="p-4 flex flex-col items-center gap-1">
             <ClipboardCheck className="h-5 w-5 text-green-600" />

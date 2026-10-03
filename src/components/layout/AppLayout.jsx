@@ -1,10 +1,13 @@
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import StudentSidebar from "./StudentSidebar";
 import ParentSidebar from "./ParentSidebar";
 import TeacherSidebar from "./TeacherSidebar";
 import BusSupervisorSidebar from "./BusSupervisorSidebar";
 import StaffSidebar from "./StaffSidebar";
+import MobileBottomNav from "./MobileBottomNav";
+import { useEffect } from "react";
+import { enhanceResponsiveTables } from "@/lib/responsiveTables";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useAuth } from "@/lib/AuthContext";
 import { goToSchoolPortals } from "@/lib/portalNavigation";
@@ -17,7 +20,26 @@ import { User, ArrowLeft } from "lucide-react";
 export default function AppLayout() {
   const { language } = useLanguage();
   const { user } = useAuth();
+  const location = useLocation();
   const isRTL = language === "ar";
+
+  // تحويل الجداول إلى بطاقات على الهاتف (CSS + data-labels، الديسكتوب لا يتأثر)
+  useEffect(() => {
+    enhanceResponsiveTables(document);
+    const target = document.querySelector("main");
+    if (!target || typeof MutationObserver === "undefined") return undefined;
+    let scheduled = false;
+    const observer = new MutationObserver(() => {
+      if (scheduled) return;
+      scheduled = true;
+      requestAnimationFrame(() => {
+        scheduled = false;
+        enhanceResponsiveTables(document);
+      });
+    });
+    observer.observe(target, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, [location.pathname]);
 
   const portalRole = user?.role || "admin";
 
@@ -80,11 +102,11 @@ export default function AppLayout() {
       )}>
         {/* الشريط العلوي الثابت (Fixed Header) */}
         <header className={cn(
-          "h-16 border-b border-stone-100 bg-white/80 backdrop-blur-md fixed top-0 right-0 left-0 z-30 flex items-center justify-between px-6 transition-all duration-300 no-print",
+          "h-16 border-b border-stone-100 bg-white/80 backdrop-blur-md fixed top-0 right-0 left-0 z-30 flex items-center justify-between px-3 sm:px-6 transition-all duration-300 no-print",
           isRTL ? "lg:mr-64" : "lg:ml-64"
         )}>
           {/* الجانب الأيمن (RTL) / الأيسر (LTR) - معلومات المستخدم */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 ms-10 lg:ms-0 min-w-0">
             <div className="h-8 w-8 rounded-full bg-stone-100 flex items-center justify-center text-stone-600 shadow-inner">
               <User size={16} />
             </div>
@@ -116,11 +138,13 @@ export default function AppLayout() {
           </div>
         </header>
 
-        {/* محتوى الصفحة الرئيسي مع حساب مسافة الشريط العلوي */}
-        <div className="p-5 pt-24 lg:p-8 lg:pt-24 max-w-[1600px] w-full mx-auto flex-1">
+        {/* محتوى الصفحة الرئيسي مع حساب مسافة الشريط العلوي والسفلي للموبايل */}
+        <div className="p-3 sm:p-5 pt-20 sm:pt-24 lg:p-8 lg:pt-24 pb-24 lg:pb-8 max-w-[1600px] w-full mx-auto flex-1 min-w-0">
           <Outlet />
         </div>
       </main>
+      {/* شريط التنقل السفلي للهواتف فقط (مخفي على الكمبيوتر) */}
+      <MobileBottomNav role={portalRole} />
       {/* زر الدعم الفني الموحّد على كل صفحات الأدمن */}
       <SupportWidget />
     </div>

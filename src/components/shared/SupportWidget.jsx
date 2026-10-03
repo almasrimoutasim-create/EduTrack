@@ -172,7 +172,7 @@ export default function SupportWidget() {
         onClick={() => setOpen(true)}
         title={labels.fabTitle}
         aria-label={labels.fabTitle}
-        className={`fixed bottom-6 z-[90] flex items-center gap-2 rounded-full bg-rose-600 px-5 py-3.5 text-white shadow-lg shadow-rose-600/30 transition-all hover:bg-rose-700 hover:shadow-xl hover:shadow-rose-600/40 focus:outline-none focus-visible:ring-4 focus-visible:ring-rose-300 ${
+        className={`fixed bottom-24 lg:bottom-6 z-[90] flex items-center gap-2 rounded-full bg-rose-600 px-5 py-3.5 text-white shadow-lg shadow-rose-600/30 transition-all hover:bg-rose-700 hover:shadow-xl hover:shadow-rose-600/40 focus:outline-none focus-visible:ring-4 focus-visible:ring-rose-300 ${
           isRTL ? "left-6" : "right-6"
         }`}
       >

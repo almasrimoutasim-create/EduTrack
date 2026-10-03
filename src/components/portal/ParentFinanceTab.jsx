@@ -474,7 +474,7 @@ export default function ParentFinanceTab({ student, user, language }) {
 
           <div className="space-y-4">
             {/* Preset amounts */}
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {[10, 20, 50, 100].map(amt => (
                 <button
                   key={amt}
