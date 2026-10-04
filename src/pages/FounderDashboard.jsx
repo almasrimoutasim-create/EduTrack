@@ -4,16 +4,17 @@ import { entities } from "@/api/dbClient";
 import { toast } from "sonner";
 import {
   LayoutDashboard, Building2, FileText, CreditCard, LifeBuoy, Settings,
-  LogOut, CheckCircle2, XCircle, Bell, School as SchoolIcon, TrendingUp,
+  LogOut, CheckCircle2, XCircle, Bell, School as SchoolIcon,
   Users, CircleDollarSign, RefreshCw, Eye, Plus, Clock, AlertTriangle, AlertCircle, ImageIcon,
   BarChart3, MessageCircle, Save, Download, KeyRound, PauseCircle, Timer,
-  MapPin, Calendar, Phone, Mail, Crown, Zap, Shield, Copy, Printer, Send, UserPlus, Lock, Link2, ExternalLink, GraduationCap, Trash2, SlidersHorizontal, Search, X, CheckCircle, Loader2,
-  Sparkles, ArrowRight, Globe, Building, ShieldCheck
+  MapPin, Calendar, Phone, Mail, Crown, Copy, Printer, Send, UserPlus, Lock, Link2, ExternalLink, GraduationCap, Trash2, SlidersHorizontal, X, CheckCircle, Loader2,
+  ShieldCheck, Menu
 } from "lucide-react";
 import LandingContentEditor from "@/components/LandingContentEditor";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useAuth } from "@/lib/AuthContext";
 import { buildPortalDeepLink } from "@/lib/portalNavigation";
+import { enhanceResponsiveTables } from "@/lib/responsiveTables";
 
 class TierFeaturesErrorBoundary extends React.Component {
   constructor(props) { super(props); this.state = { hasError: false, error: null }; }
@@ -195,7 +196,7 @@ function PaymentReceiptsSection() {
           <div className="bg-white rounded-2xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
             <h3 className="font-bold text-lg mb-4">تفاصيل طلب الترقية</h3>
             <div className="space-y-3 text-sm">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="bg-slate-50 rounded-xl p-3"><p className="text-xs text-slate-500">المدرسة</p><p className="font-bold">{selectedReceipt.school_name || selectedReceipt.school_id}</p></div>
                 <div className="bg-emerald-50 rounded-xl p-3"><p className="text-xs text-emerald-600">المبلغ</p><p className="font-bold text-emerald-700">${selectedReceipt.amount}</p></div>
                 <div className="bg-blue-50 rounded-xl p-3"><p className="text-xs text-blue-600">الباقة</p><p className="font-bold capitalize">{selectedReceipt.plan} • {selectedReceipt.billing_cycle === "yearly" ? "سنوي" : "شهري"}</p></div>
@@ -444,7 +445,7 @@ function TierFeaturesSection() {
 
       {/* Dropdown Filter + Tier Toggles */}
       <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex flex-wrap items-center gap-4">
-        <div className="relative flex-1 min-w-[260px] max-w-md">
+        <div className="relative flex-1 min-w-0 sm:min-w-[260px] max-w-md w-full">
           <select
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
@@ -509,10 +510,10 @@ function TierFeaturesSection() {
           </div>
           <div className="divide-y divide-slate-100">
             {/* Feature headers */}
-            <div className="grid grid-cols-[2fr_1fr_1fr_1fr] px-5 py-2 bg-slate-50 text-xs font-bold text-slate-500">
+            <div className="grid grid-cols-[1fr_auto] md:grid-cols-[2fr_1fr_1fr_1fr] px-4 sm:px-5 py-2 bg-slate-50 text-xs font-bold text-slate-500">
               <span>الميزة</span>
-              <span>Status</span>
-              <span>Description</span>
+              <span className="hidden md:block">Status</span>
+              <span className="hidden md:block">Description</span>
               <span className="text-right">Toggle</span>
             </div>
             {Object.entries(groupedFeatures).map(([cat, catFeatures]) => (
@@ -521,17 +522,17 @@ function TierFeaturesSection() {
                   {categoryLabels[cat] || cat}
                 </div>
                 {catFeatures.map(feature => (
-                  <div key={feature.feature_key} className="grid grid-cols-[2fr_1fr_1fr_1fr] px-5 py-3 hover:bg-slate-50/50 items-center gap-3">
+                  <div key={feature.feature_key} className="grid grid-cols-[1fr_auto] md:grid-cols-[2fr_1fr_1fr_1fr] px-4 sm:px-5 py-3 hover:bg-slate-50/50 items-center gap-3">
                     <div className="min-w-0">
                       <p className="font-bold text-sm text-slate-900 truncate">{feature.name_ar}</p>
                       <p className="text-[10px] text-slate-400 truncate">{feature.name_en} · <code className="bg-slate-100 px-1 rounded">{feature.feature_key}</code></p>
                     </div>
-                    <div>
+                    <div className="hidden md:block">
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${localTiers[feature.feature_key]?.[tier] ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
                         {localTiers[feature.feature_key]?.[tier] ? 'مفعّل' : 'معطّل'}
                       </span>
                     </div>
-                    <div className="text-xs text-slate-500 truncate">{feature.description_ar || feature.name_en}</div>
+                    <div className="hidden md:block text-xs text-slate-500 truncate">{feature.description_ar || feature.name_en}</div>
                     <div className="flex justify-center">
                       <button
                         onClick={() => toggleFeature(feature.feature_key, tier)}
@@ -765,7 +766,7 @@ function SchoolCreationWizard({ onClose, onSchoolCreated }) {
                   className={inputClass}
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label>البريد الإلكتروني *</label>
                   <input
@@ -834,7 +835,7 @@ function SchoolCreationWizard({ onClose, onSchoolCreated }) {
                   className={inputClass}
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label>هاتف الفرع</label>
                   <input
@@ -873,7 +874,7 @@ function SchoolCreationWizard({ onClose, onSchoolCreated }) {
                   className={inputClass}
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label>البريد الإلكتروني *</label>
                   <input
@@ -957,6 +958,12 @@ function SchoolCreationWizard({ onClose, onSchoolCreated }) {
 
 const FounderDashboard = () => {
   const [section, setSection] = useState("overview");
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+  // جداول الإيصالات تتحول لبطاقات على الهاتف (نفس نظام AppLayout — الديسكتوب لا يتأثر)
+  useEffect(() => {
+    enhanceResponsiveTables(document);
+  }, [section]);
   const [reqFilter, setReqFilter] = useState("all"); // "all" | "schools" | "students" | "teachers"
   const [showSchoolWizard, setShowSchoolWizard] = useState(false);
   // ── Filter states (declared early: used by pre-computed .filter() blocks below ── TDZ safety) ──
@@ -1998,9 +2005,23 @@ const FounderDashboard = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 flex" dir="rtl">
-      {/* Sidebar */}
-      <aside className="w-64 shrink-0 bg-slate-900 text-slate-200 flex flex-col min-h-screen sticky top-0">
-        <div className="p-5 border-b border-slate-800 flex items-center gap-3">
+      {/* زر القائمة للهواتف فقط (مخفي على الكمبيوتر) */}
+      <button
+        onClick={() => setMobileNavOpen((v) => !v)}
+        aria-label="القائمة"
+        className="fixed top-4 right-4 z-50 lg:hidden bg-slate-900 text-white rounded-xl w-10 h-10 p-0 flex items-center justify-center shadow-lg"
+      >
+        {mobileNavOpen ? <X size={20} /> : <Menu size={20} />}
+      </button>
+
+      {/* خلفية الدرج على الهاتف */}
+      {mobileNavOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 z-30 lg:hidden" onClick={() => setMobileNavOpen(false)} />
+      )}
+
+      {/* Sidebar — ثابت على الكمبيوتر، درج منزلق على الهاتف */}
+      <aside className={`bg-slate-900 text-slate-200 flex flex-col min-h-screen sticky top-0 h-screen z-40 transition-transform duration-300 w-64 shrink-0 max-lg:fixed max-lg:top-0 max-lg:bottom-0 max-lg:right-0 ${mobileNavOpen ? "max-lg:translate-x-0" : "max-lg:translate-x-full"}`}>
+        <div className="p-5 max-lg:pt-16 border-b border-slate-800 flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-violet-500 flex items-center justify-center">
             <SchoolIcon className="text-white" size={22} />
           </div>
@@ -2017,7 +2038,7 @@ const FounderDashboard = () => {
             return (
               <button
                 key={n.id}
-                onClick={() => setSection(n.id)}
+                onClick={() => { setSection(n.id); setMobileNavOpen(false); }}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition ${
                   active ? "bg-blue-600 text-white shadow-lg shadow-blue-900/40" : "text-slate-300 hover:bg-slate-800"
                 }`}
@@ -2042,8 +2063,8 @@ const FounderDashboard = () => {
       </aside>
 
       {/* Content */}
-      <main className="flex-1 p-6 md:p-8 overflow-auto">
-        <header className="mb-6">
+      <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 pt-20 lg:pt-8 overflow-auto">
+        <header className="mb-6 max-lg:pr-12">
           <h1 className="text-2xl font-extrabold text-slate-900">
             {NAV.find((n) => n.id === section)?.label}
           </h1>
@@ -2434,7 +2455,7 @@ const FounderDashboard = () => {
               <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={()=>setShowAdd(false)}>
                 <div className="bg-white rounded-2xl p-6 max-w-lg w-full shadow-xl" onClick={e=>e.stopPropagation()}>
                   <h3 className="font-extrabold text-lg mb-4">إضافة مدرسة يدوياً</h3>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="col-span-2"><label htmlFor="field-founderdashboard-name" className="text-xs font-bold text-slate-600">اسم المدرسة *</label><input id="field-founderdashboard-name" name="name" aria-label="name" value={newSchool.name} onChange={e=>setNewSchool({...newSchool, name:e.target.value})} className="w-full mt-1 rounded-xl border border-slate-300 px-3 py-2 text-sm" placeholder="مثال: مدارس النور"/></div>
                     <div><label htmlFor="field-founderdashboard-country" className="text-xs font-bold text-slate-600">البلد</label><input id="field-founderdashboard-country" name="country" aria-label="country" value={newSchool.country} onChange={e=>setNewSchool({...newSchool, country:e.target.value})} className="w-full mt-1 rounded-xl border border-slate-300 px-3 py-2 text-sm"/></div>
                     <div><label htmlFor="field-founderdashboard-plan" className="text-xs font-bold text-slate-600">الخطة</label><select id="field-founderdashboard-plan" name="plan" aria-label="plan" value={newSchool.plan} onChange={e=>setNewSchool({...newSchool, plan:e.target.value})} className="w-full mt-1 rounded-xl border border-slate-300 px-3 py-2 text-sm"><option value="starter">Starter $49</option><option value="professional">Professional $99</option><option value="enterprise">Enterprise $199</option></select></div>
@@ -3604,7 +3625,7 @@ const FounderDashboard = () => {
               <h3 className="text-lg font-black text-slate-900 mb-1">{editingPlan ? "تعديل الخطة" : "إضافة خطة جديدة"}</h3>
               <p className="text-sm text-slate-500 mb-4">{editingPlan ? "تحديث بيانات الخطة" : "إنشاء خطة اشتراك جديدة للمعلمين"}</p>
               <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label htmlFor="field-founderdashboard-plan-name" className="block text-xs font-bold text-slate-600 mb-1">اسم الخطة (إنجليزي)</label>
                     <input id="field-founderdashboard-plan-name" name="plan_name" aria-label="plan name" type="text" value={newPlan.plan_name} onChange={e => setNewPlan({...newPlan, plan_name: e.target.value})} className="w-full h-10 rounded-xl border border-slate-200 px-3 text-sm font-bold focus:border-blue-500 outline-none" placeholder="e.g. teacher_monthly" />
@@ -3635,7 +3656,7 @@ const FounderDashboard = () => {
                     <input id="field-founderdashboard-trial-days" name="trial_days" aria-label="trial days" type="number" value={newPlan.trial_days} onChange={e => setNewPlan({...newPlan, trial_days: parseInt(e.target.value) || 0})} className="w-full h-10 rounded-xl border border-slate-200 px-3 text-sm font-bold focus:border-blue-500 outline-none" min="0" />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label htmlFor="field-founderdashboard-price-monthly" className="block text-xs font-bold text-slate-600 mb-1">السعر الشهري</label>
                     <input id="field-founderdashboard-price-monthly" name="price_monthly" aria-label="price monthly" type="number" value={newPlan.price_monthly} onChange={e => setNewPlan({...newPlan, price_monthly: parseFloat(e.target.value) || 0})} className="w-full h-10 rounded-xl border border-slate-200 px-3 text-sm font-bold focus:border-blue-500 outline-none" min="0" />
@@ -3664,7 +3685,7 @@ const FounderDashboard = () => {
               <p className="text-sm text-slate-500 mb-4">مراجعة طلب اشتراك المعلم والموافقة عليه أو رفضه</p>
               
               <div className="space-y-3 bg-slate-50 rounded-xl p-4 mb-4">
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div><span className="text-xs text-slate-500">المعلم:</span><p className="font-bold text-sm">{viewTeacherSubDetail.teacher_name}</p></div>
                   <div><span className="text-xs text-slate-500">البريد الإلكتروني:</span><p className="font-bold text-sm" dir="ltr">{viewTeacherSubDetail.teacher_email}</p></div>
                   <div><span className="text-xs text-slate-500">الهاتف:</span><p className="font-bold text-sm">{viewTeacherSubDetail.teacher_phone || "—"}</p></div>
@@ -3704,7 +3725,7 @@ const FounderDashboard = () => {
               {viewTeacherSubDetail.status === 'pending' && (
                 <div className="space-y-3 bg-amber-50 rounded-xl p-4 mb-4 border border-amber-100">
                   <p className="text-xs font-bold text-amber-700 mb-2">التحكم في الطلب:</p>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label htmlFor="field-founderdashboard-input-8" className="block text-xs font-bold text-slate-600 mb-1">أيام الفترة التجريبية</label>
                       <input id="field-founderdashboard-input-8" name="input_8" aria-label="input 8" type="number" value={approveTrialDays} onChange={e => setApproveTrialDays(parseInt(e.target.value) || 30)} className="w-full h-10 rounded-xl border border-slate-200 px-3 text-sm font-bold focus:border-blue-500 outline-none" min="0" max="90" />

@@ -84,6 +84,12 @@ export default function ParentPortal() {
   const [tuitionPayMethod, setTuitionPayMethod] = React.useState("wallet");
   const [isSubmittingTuition, setIsSubmittingTuition] = React.useState(false);
 
+  // Tuition receipt upload states (overview blue card)
+  const [tuitionReceiptFile, setTuitionReceiptFile] = React.useState(null);
+  const [tuitionReceiptRef, setTuitionReceiptRef] = React.useState("");
+  const [isUploadingReceipt, setIsUploadingReceipt] = React.useState(false);
+  const tuitionReceiptInputRef = React.useRef(null);
+
   // Parse parent credentials from auth context
   const portalUserStr = localStorage.getItem("portal_user");
   const portalUser = portalUserStr ? JSON.parse(portalUserStr) : null;
@@ -276,6 +282,96 @@ export default function ParentPortal() {
     }
   };
 
+  const handleTuitionReceiptChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const validTypes = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
+    if (!validTypes.includes(file.type)) {
+      toast.error(isRTL ? "الصيغ المدعومة: JPG أو PNG أو WEBP أو PDF" : "Supported formats: JPG, PNG, WEBP or PDF");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error(isRTL ? "الحجم الأقصى للملف 5 ميجا" : "Max file size is 5MB");
+      return;
+    }
+    setTuitionReceiptFile(file);
+  };
+
+  const handleUploadTuitionReceipt = async () => {
+    if (!currentStudent || !tuitionReceiptFile) {
+      toast.error(isRTL ? "يرجى اختيار صورة الإيصال أولاً" : "Please select the receipt file first");
+      return;
+    }
+    setIsUploadingReceipt(true);
+    try {
+      const receiptBase64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(tuitionReceiptFile);
+      });
+
+      const tuitionTotal = parseFloat(currentStudent.tuition_total) || 5000;
+      const paidSoFar = dynamicTuitionPaid > 0 ? dynamicTuitionPaid : (parseFloat(currentStudent.tuition_paid) || 0);
+      const remainingDue = Math.max(0, tuitionTotal - paidSoFar);
+
+      await entities.FinancialRecord.create({
+        type: "income",
+        record_type: "tuition",
+        recipient_type: "student",
+        recipient_name: currentStudent.full_name,
+        recipient_id: currentStudent.id,
+        amount: remainingDue,
+        description: `Tuition receipt upload (pending review) — File: ${tuitionReceiptFile.name} — Ref: ${tuitionReceiptRef || "—"}`,
+        payment_date: new Date().toISOString().split('T')[0],
+        status: "pending",
+        payment_method: "bank_transfer",
+        receipt_image: receiptBase64,
+        receipt_filename: tuitionReceiptFile.name,
+        transfer_reference: tuitionReceiptRef || ""
+      });
+
+      qc.invalidateQueries({ queryKey: ["parent-student-records", currentStudent.id] });
+      qc.invalidateQueries({ queryKey: ["financial-records"] });
+
+      toast.success(isRTL ? "تم رفع إيصال السداد بنجاح وهو قيد المراجعة من الإدارة." : "Receipt uploaded successfully and is pending admin review.");
+      setTuitionReceiptFile(null);
+      setTuitionReceiptRef("");
+      if (tuitionReceiptInputRef.current) tuitionReceiptInputRef.current.value = "";
+    } catch (err) {
+      console.error(err);
+      // Fallback: retry without the image payload (in case the column does not exist yet)
+      try {
+        const tuitionTotal = parseFloat(currentStudent.tuition_total) || 5000;
+        const paidSoFar = dynamicTuitionPaid > 0 ? dynamicTuitionPaid : (parseFloat(currentStudent.tuition_paid) || 0);
+        const remainingDue = Math.max(0, tuitionTotal - paidSoFar);
+        await entities.FinancialRecord.create({
+          type: "income",
+          record_type: "tuition",
+          recipient_type: "student",
+          recipient_name: currentStudent.full_name,
+          recipient_id: currentStudent.id,
+          amount: remainingDue,
+          description: `Tuition receipt upload (pending review) — File: ${tuitionReceiptFile.name} — Ref: ${tuitionReceiptRef || "—"}`,
+          payment_date: new Date().toISOString().split('T')[0],
+          status: "pending",
+          payment_method: "bank_transfer"
+        });
+        qc.invalidateQueries({ queryKey: ["parent-student-records", currentStudent.id] });
+        qc.invalidateQueries({ queryKey: ["financial-records"] });
+        toast.success(isRTL ? "تم رفع إيصال السداد بنجاح وهو قيد المراجعة من الإدارة." : "Receipt uploaded successfully and is pending admin review.");
+        setTuitionReceiptFile(null);
+        setTuitionReceiptRef("");
+        if (tuitionReceiptInputRef.current) tuitionReceiptInputRef.current.value = "";
+      } catch (fallbackErr) {
+        console.error(fallbackErr);
+        toast.error(isRTL ? "فشل رفع إيصال السداد" : "Failed to upload payment receipt");
+      }
+    } finally {
+      setIsUploadingReceipt(false);
+    }
+  };
+
   const { data: recentActivity = [] } = useQuery({
     queryKey: ["parent-activity"],
     // @ts-ignore
@@ -325,6 +421,22 @@ export default function ParentPortal() {
       return isTuitionType && isPaid && !isTopUp;
     })
     .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+
+  const pendingTuitionReceipts = currentStudentRecords.filter(r => {
+    if (r.status !== "pending") return false;
+    const isTuitionType = r.record_type === "tuition" || r.record_type === "income";
+    if (!isTuitionType) return false;
+    const desc = (r.description || "").toLowerCase();
+    const isTopUp = desc.includes("top-up") ||
+                    desc.includes("top up") ||
+                    desc.includes("شحن") ||
+                    desc.includes("بطاقة") ||
+                    desc.includes("card") ||
+                    desc.includes("wallet") ||
+                    desc.includes("محفظة");
+    if (isTopUp) return false;
+    return desc.includes("receipt") || desc.includes("إيصال") || !!r.receipt_image || !!r.receipt_filename || !!r.transfer_reference;
+  });
 
   // Query performance-related child data
   const { data: studentGrades = [] } = useQuery({
@@ -1105,41 +1217,120 @@ export default function ParentPortal() {
               {/* Finance & Fees Quick Action */}
               <section className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <Card className="lg:col-span-2 p-10 bg-gradient-to-br from-indigo-900 to-indigo-800 text-white rounded-[48px] shadow-2xl relative overflow-hidden border-none">
-                  <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
-                    <div className="max-w-md">
-                      <div className="h-14 w-14 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center mb-6 border border-white/10">
-                        <CreditCard size={32} className="text-indigo-300" />
-                      </div>
-                      <h4 className="text-3xl font-serif font-bold mb-3">{isRTL ? "الرسوم الدراسية" : "Tuition Fees"}</h4>
-                      <p className="text-indigo-100/60 leading-relaxed mb-8">
-                        {isRTL ? "بإمكانك دفع الرسوم الدراسية، متابعة الفواتير السابقة، وإدارة خطط الدفع الميسرة بكل سهولة." : "You can pay tuition fees, track past invoices, and manage easy payment plans effortlessly."}
-                      </p>
-                      <div className="flex items-center gap-4">
-                        <button 
-                          onClick={() => {
-                            setSearchParams({ tab: "payments" });
-                            setTimeout(() => {
-                              setTuitionPayAmount(0);
-                              setCustomTuitionPay("");
-                              setIsTuitionDialogOpen(true);
-                            }, 150);
-                          }}
-                          className="bg-white text-indigo-900 hover:bg-indigo-50 rounded-2xl px-8 h-12 font-bold shadow-xl cursor-pointer"
-                        >
-                          {isRTL ? "ادفع الآن" : "Pay Now"}
-                        </button>
-                        <div className="flex flex-col">
-                          <span className="text-[10px] font-bold text-indigo-300 uppercase tracking-widest">{isRTL ? "المبلغ المستحق" : "Balance Due"}</span>
-                          <span className="text-xl font-black num-en">
-                            ${currentStudent ? Math.max(0, (parseFloat(currentStudent.tuition_total) || 5000) - dynamicTuitionPaid).toFixed(2) : "0.00"}
-                          </span>
+                  <div className="relative z-10 flex flex-col gap-8">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-8">
+                      <div className="max-w-md">
+                        <div className="h-14 w-14 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center mb-6 border border-white/10">
+                          <CreditCard size={32} className="text-indigo-300" />
                         </div>
+                        <h4 className="text-3xl font-serif font-bold mb-3">{isRTL ? "الرسوم الدراسية" : "Tuition Fees"}</h4>
+                        <p className="text-indigo-100/60 leading-relaxed">
+                          {isRTL ? "بإمكانك دفع الرسوم الدراسية، متابعة الفواتير السابقة، وإدارة خطط الدفع الميسرة بكل سهولة." : "You can pay tuition fees, track past invoices, and manage easy payment plans effortlessly."}
+                        </p>
+                      </div>
+                      
+                      <div className="hidden md:flex w-48 h-48 rounded-[40px] bg-white/5 backdrop-blur-md border border-white/10 flex-col items-center justify-center gap-2 p-6 text-center shrink-0">
+                        <ShieldCheck size={48} className="text-emerald-400 mb-2" />
+                        <p className="text-xs font-bold text-white/80 uppercase tracking-widest">{isRTL ? "دفع آمن ١٠٠٪" : "100% Secure"}</p>
                       </div>
                     </div>
-                    
-                    <div className="hidden md:block w-48 h-48 rounded-[40px] bg-white/5 backdrop-blur-md border border-white/10 flex flex-col items-center justify-center gap-2 p-6 text-center">
-                      <ShieldCheck size={48} className="text-emerald-400 mb-2" />
-                      <p className="text-xs font-bold text-white/80 uppercase tracking-widest">{isRTL ? "دفع آمن ١٠٠٪" : "100% Secure"}</p>
+
+                    {/* Tuition amounts summary */}
+                    {(() => {
+                      const tuitionTotal = currentStudent ? (parseFloat(currentStudent.tuition_total) || 5000) : 0;
+                      const tuitionPaid = dynamicTuitionPaid > 0 ? dynamicTuitionPaid : (currentStudent ? (parseFloat(currentStudent.tuition_paid) || 0) : 0);
+                      const tuitionRemaining = Math.max(0, tuitionTotal - tuitionPaid);
+                      const summaryItems = [
+                        { label: isRTL ? "مبلغ الرسوم الدراسية" : "Total Tuition", value: tuitionTotal, color: "text-white" },
+                        { label: isRTL ? "المبلغ المدفوع" : "Amount Paid", value: tuitionPaid, color: "text-emerald-300" },
+                        { label: isRTL ? "المبلغ المتبقي" : "Remaining Due", value: tuitionRemaining, color: "text-amber-300" },
+                      ];
+                      return (
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          {summaryItems.map((item, idx) => (
+                            <div key={idx} className="bg-white/10 backdrop-blur-md border border-white/10 rounded-3xl p-5 text-center">
+                              <p className="text-[11px] font-bold text-indigo-200 uppercase tracking-widest mb-2">{item.label}</p>
+                              <p className={`text-2xl font-black num-en ${item.color}`}>${item.value.toFixed(2)}</p>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
+
+                    <div className="flex flex-wrap items-center gap-4">
+                      <button 
+                        onClick={() => {
+                          setSearchParams({ tab: "payments" });
+                          setTimeout(() => {
+                            setTuitionPayAmount(0);
+                            setCustomTuitionPay("");
+                            setIsTuitionDialogOpen(true);
+                          }, 150);
+                        }}
+                        className="bg-white text-indigo-900 hover:bg-indigo-50 rounded-2xl px-8 h-12 font-bold shadow-xl cursor-pointer"
+                      >
+                        {isRTL ? "ادفع الآن" : "Pay Now"}
+                      </button>
+                      <button
+                        onClick={() => setSearchParams({ tab: "payments" })}
+                        className="h-12 px-6 rounded-2xl font-bold border-2 border-white/20 text-white hover:bg-white/10 transition-all cursor-pointer"
+                      >
+                        {isRTL ? "عرض الفواتير" : "View Invoices"}
+                      </button>
+                    </div>
+
+                    {/* Receipt upload */}
+                    <div className="bg-white/10 backdrop-blur-md border border-white/10 rounded-3xl p-5">
+                      <div className="flex items-center gap-2 mb-4">
+                        <Upload size={18} className="text-indigo-200" />
+                        <h5 className="font-bold text-sm">{isRTL ? "رفع إيصال سداد" : "Upload Payment Receipt"}</h5>
+                      </div>
+                      <div className="flex flex-col md:flex-row gap-3">
+                        <input
+                          ref={tuitionReceiptInputRef}
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp,application/pdf"
+                          onChange={handleTuitionReceiptChange}
+                          className="hidden"
+                          id="tuition-receipt-upload"
+                        />
+                        <label
+                          htmlFor="tuition-receipt-upload"
+                          className="flex-1 flex items-center justify-center gap-2 h-12 px-4 rounded-2xl bg-white/10 border-2 border-dashed border-white/25 hover:bg-white/15 hover:border-white/40 transition-all cursor-pointer text-sm font-bold text-indigo-100 truncate"
+                        >
+                          <Upload size={16} className="shrink-0" />
+                          <span className="truncate">
+                            {tuitionReceiptFile ? tuitionReceiptFile.name : (isRTL ? "اختر صورة الإيصال (JPG / PNG / PDF)" : "Choose receipt file (JPG / PNG / PDF)")}
+                          </span>
+                        </label>
+                        <input
+                          type="text"
+                          value={tuitionReceiptRef}
+                          onChange={(e) => setTuitionReceiptRef(e.target.value)}
+                          placeholder={isRTL ? "رقم المرجع / العملية (اختياري)" : "Transfer ref. (optional)"}
+                          className="md:w-52 h-12 px-4 rounded-2xl bg-white/10 border border-white/20 text-sm font-semibold text-white placeholder:text-indigo-200/60 focus:outline-none focus:ring-2 focus:ring-white/40"
+                        />
+                        <button
+                          onClick={handleUploadTuitionReceipt}
+                          disabled={isUploadingReceipt || !tuitionReceiptFile}
+                          className="h-12 px-6 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-white text-sm font-bold shadow-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+                        >
+                          {isUploadingReceipt ? (isRTL ? "جاري الرفع..." : "Uploading...") : (isRTL ? "رفع الإيصال" : "Upload")}
+                        </button>
+                      </div>
+                      <p className="text-[11px] text-indigo-200/70 font-semibold mt-3">
+                        {isRTL ? "سيتم إرسال الإيصال للإدارة للمراجعة ولن يُحتسب ضمن المدفوع حتى الاعتماد. الحد الأقصى 5 ميجا." : "The receipt will be sent for admin review and counts as paid only after approval. Max 5MB."}
+                      </p>
+                      {pendingTuitionReceipts.length > 0 && (
+                        <div className="mt-3 flex items-center gap-2 bg-amber-400/20 border border-amber-300/30 rounded-2xl px-4 py-2.5">
+                          <Clock size={14} className="text-amber-200 shrink-0" />
+                          <p className="text-[11px] font-bold text-amber-100">
+                            {isRTL
+                              ? `لديك ${pendingTuitionReceipts.length} إيصال قيد مراجعة الإدارة حالياً.`
+                              : `You have ${pendingTuitionReceipts.length} receipt(s) pending admin review.`}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
                   

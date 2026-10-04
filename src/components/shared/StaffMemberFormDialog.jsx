@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,6 +8,25 @@ import { entities } from "@/api/dbClient";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLanguage } from "@/lib/LanguageContext";
 import { toast } from "sonner";
+import { FileText, Upload, Eye, Trash2, Award, Loader2 } from "lucide-react";
+
+function parseStaffCertificates(raw) {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw.filter(Boolean);
+  if (typeof raw === "string") {
+    const s = raw.trim();
+    if (!s) return [];
+    try {
+      const parsed = JSON.parse(s);
+      if (Array.isArray(parsed)) return parsed.filter(Boolean);
+      if (typeof parsed === "string" && parsed) return [parsed];
+    } catch {
+      if (s.startsWith("data:") || s.startsWith("http") || s.startsWith("/")) return [s];
+      return [];
+    }
+  }
+  return [];
+}
 
 export default function StaffMemberFormDialog({ open, onClose, member }) {
   const isEdit = !!member;
@@ -15,12 +34,19 @@ export default function StaffMemberFormDialog({ open, onClose, member }) {
   const { language } = useLanguage();
   const isRTL = language === "ar";
   const [saving, setSaving] = useState(false);
+  const [uploadingCv, setUploadingCv] = useState(false);
+  const [uploadingCert, setUploadingCert] = useState(false);
+  const cvInputRef = useRef(null);
+  const certInputRef = useRef(null);
   const [form, setForm] = useState(member ? {
     ...member,
-    salary: member.salary !== undefined && member.salary !== null ? Number(member.salary) : 4000
+    salary: member.salary !== undefined && member.salary !== null ? Number(member.salary) : 4000,
+    cv_document_url: member.cv_document_url || "",
+    certificates_urls: parseStaffCertificates(member.certificates_urls)
   } : {
     full_name: "", employee_id: "", role: "bus_supervisor",
-    email: "", phone: "", portal_password: "", status: "active", notes: "", salary: 4000
+    email: "", phone: "", portal_password: "", status: "active", notes: "", salary: 4000,
+    cv_document_url: "", certificates_urls: []
   });
 
   useEffect(() => {
@@ -28,17 +54,85 @@ export default function StaffMemberFormDialog({ open, onClose, member }) {
       setForm({
         ...member,
         portal_password: "",
-        salary: member.salary !== undefined && member.salary !== null ? Number(member.salary) : 4000
+        salary: member.salary !== undefined && member.salary !== null ? Number(member.salary) : 4000,
+        cv_document_url: member.cv_document_url || "",
+        certificates_urls: parseStaffCertificates(member.certificates_urls)
       });
     } else {
       setForm({
         full_name: "", employee_id: "", role: "bus_supervisor",
-        email: "", phone: "", portal_password: "", status: "active", notes: "", salary: 4000
+        email: "", phone: "", portal_password: "", status: "active", notes: "", salary: 4000,
+        cv_document_url: "", certificates_urls: []
       });
     }
   }, [member]);
 
   const update = (key, val) => setForm(f => ({ ...f, [key]: val }));
+
+  const uploadFileToServer = async (file) => {
+    const reader = new FileReader();
+    const dataUri = await new Promise((resolve, reject) => {
+      reader.onload = (e) => resolve(e.target.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+    let finalUrl = dataUri;
+    try {
+      const base64Data = typeof dataUri === "string" ? dataUri.split(",")[1] : null;
+      if (base64Data) {
+        const apiBase = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/$/, "");
+        const uploadUrl = apiBase ? `${apiBase}/neon-db/upload` : "/neon-db/upload";
+        const res = await fetch(uploadUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fileName: file.name, fileData: base64Data })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.fileUrl) finalUrl = data.fileUrl;
+        }
+      }
+    } catch (err) {
+      console.warn("Upload endpoint failed, falling back to data URI:", err);
+    }
+    return finalUrl;
+  };
+
+  const handleCvUpload = async (file) => {
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error(isRTL ? "حجم الملف كبير جداً (الحد الأقصى 5MB)" : "File is too large (max 5MB)");
+      return;
+    }
+    setUploadingCv(true);
+    try {
+      const url = await uploadFileToServer(file);
+      update("cv_document_url", url);
+      toast.success(isRTL ? "تم إرفاق السيرة الذاتية" : "CV attached");
+    } finally {
+      setUploadingCv(false);
+    }
+  };
+
+  const handleCertUpload = async (file) => {
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error(isRTL ? "حجم الملف كبير جداً (الحد الأقصى 5MB)" : "File is too large (max 5MB)");
+      return;
+    }
+    setUploadingCert(true);
+    try {
+      const url = await uploadFileToServer(file);
+      setForm(f => ({ ...f, certificates_urls: [...parseStaffCertificates(f.certificates_urls), url] }));
+      toast.success(isRTL ? "تمت إضافة الشهادة" : "Certificate added");
+    } finally {
+      setUploadingCert(false);
+    }
+  };
+
+  const removeCertificate = (idx) => {
+    setForm(f => ({ ...f, certificates_urls: parseStaffCertificates(f.certificates_urls).filter((_, i) => i !== idx) }));
+  };
 
   const handleSave = async () => {
     if (!form.full_name) {
@@ -55,7 +149,12 @@ export default function StaffMemberFormDialog({ open, onClose, member }) {
     }
     setSaving(true);
     try {
-      const payload = { ...form };
+      const certs = parseStaffCertificates(form.certificates_urls);
+      const payload = {
+        ...form,
+        certificates_urls: certs.length > 0 ? JSON.stringify(certs) : null,
+        cv_document_url: form.cv_document_url || null
+      };
       if (!payload.portal_password) {
         delete payload.portal_password;
       }
@@ -213,6 +312,61 @@ export default function StaffMemberFormDialog({ open, onClose, member }) {
               className="mt-1 rounded-lg border-stone-200"
               placeholder={isRTL ? "أية ملاحظات إضافية..." : "Any additional notes..."}
             />
+          </div>
+          {/* مستندات الموظف: السيرة الذاتية + الشهادات */}
+          <div className="border border-stone-200 rounded-xl p-3 bg-stone-50/50 space-y-3">
+            <Label className="block font-bold">{isRTL ? "مستندات الموظف" : "Staff Documents"}</Label>
+            <div className="space-y-1.5">
+              <Label className="text-xs">{isRTL ? "مستند السيرة الذاتية (صورة أو PDF)" : "CV Document (Image or PDF)"}</Label>
+              <input type="file" ref={cvInputRef} accept="image/*,application/pdf" onChange={e => { handleCvUpload(e.target.files?.[0]); e.target.value = ""; }} className="hidden" />
+              {form.cv_document_url ? (
+                <div className="flex items-center justify-between p-2.5 rounded-xl bg-white border border-stone-200">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center shrink-0"><FileText size={15} /></div>
+                    <p className="text-xs font-bold text-stone-800 truncate">{isRTL ? "تم إرفاق السيرة الذاتية" : "CV attached"}</p>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <a href={form.cv_document_url} target="_blank" rel="noopener noreferrer" className="p-1.5 text-stone-500 hover:text-stone-800 hover:bg-stone-200/50 rounded-lg transition-colors" title={isRTL ? "معاينة" : "Preview"}><Eye size={15} /></a>
+                    <button type="button" onClick={() => update("cv_document_url", "")} className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors" title={isRTL ? "حذف" : "Remove"}><Trash2 size={15} /></button>
+                  </div>
+                </div>
+              ) : (
+                <div onClick={() => cvInputRef.current?.click()} className="flex items-center gap-2.5 p-2.5 rounded-xl border border-dashed border-stone-300 hover:border-primary/50 hover:bg-primary/5 bg-white cursor-pointer transition-all">
+                  <div className="w-8 h-8 rounded-lg bg-stone-50 border border-stone-200 flex items-center justify-center text-stone-400 shrink-0">{uploadingCv ? <Loader2 size={15} className="animate-spin text-primary" /> : <Upload size={15} />}</div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-bold text-stone-700 truncate">{isRTL ? "انقر لاختيار ملف السيرة الذاتية" : "Click to select CV file"}</p>
+                    <p className="text-[10px] text-stone-400">{isRTL ? "صورة أو PDF (الحد الأقصى 5MB)" : "Image or PDF (Max 5MB)"}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">{isRTL ? "مستندات الشهادات (يمكن رفع أكثر من شهادة)" : "Certificates (multiple allowed)"}</Label>
+              <input type="file" ref={certInputRef} accept="image/*,application/pdf" onChange={e => { handleCertUpload(e.target.files?.[0]); e.target.value = ""; }} className="hidden" />
+              {parseStaffCertificates(form.certificates_urls).length > 0 && (
+                <div className="space-y-2">
+                  {parseStaffCertificates(form.certificates_urls).map((url, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-2.5 rounded-xl bg-white border border-stone-200">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center shrink-0"><Award size={15} /></div>
+                        <p className="text-xs font-bold text-stone-800 truncate">{isRTL ? `الشهادة ${idx + 1}` : `Certificate ${idx + 1}`}</p>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <a href={url} target="_blank" rel="noopener noreferrer" className="p-1.5 text-stone-500 hover:text-stone-800 hover:bg-stone-200/50 rounded-lg transition-colors" title={isRTL ? "معاينة" : "Preview"}><Eye size={15} /></a>
+                        <button type="button" onClick={() => removeCertificate(idx)} className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors" title={isRTL ? "حذف" : "Remove"}><Trash2 size={15} /></button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div onClick={() => certInputRef.current?.click()} className="flex items-center gap-2.5 p-2.5 rounded-xl border border-dashed border-stone-300 hover:border-primary/50 hover:bg-primary/5 bg-white cursor-pointer transition-all">
+                <div className="w-8 h-8 rounded-lg bg-stone-50 border border-stone-200 flex items-center justify-center text-stone-400 shrink-0">{uploadingCert ? <Loader2 size={15} className="animate-spin text-primary" /> : <Upload size={15} />}</div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold text-stone-700 truncate">{isRTL ? "انقر لإضافة شهادة" : "Click to add certificate"}</p>
+                  <p className="text-[10px] text-stone-400">{isRTL ? "يمكنك إضافة عدة شهادات - صورة أو PDF لكل شهادة" : "You can add multiple certificates - image or PDF each"}</p>
+                </div>
+              </div>
+            </div>
           </div>
           <button 
             onClick={handleSave} 

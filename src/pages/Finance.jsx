@@ -14,6 +14,7 @@ import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Toolti
 import PageHeader from "@/components/shared/PageHeader";
 import StaffPayroll from "@/pages/StaffPayroll";
 import StatCard from "@/components/shared/StatCard";
+import PendingTuitionReceipts, { isPendingTuitionReceipt } from "@/components/finance/PendingTuitionReceipts";
 import {
   LayoutDashboard, GraduationCap, Calendar, DollarSign, CreditCard,
   ShoppingBag, FileSpreadsheet, Plus, Search, Clock, CheckCircle2,
@@ -78,6 +79,14 @@ export default function Finance() {
   });
   /** @type {any[]} */
   const feePayments = feePaymentsQuery.data || [];
+
+  const tuitionReceiptsQuery = useQuery({
+    queryKey: ['tuition-receipts-pending'],
+    queryFn: () => entities.FinancialRecord.list("-created_at", {}, 1000),
+    staleTime: 1000 * 60 * 2,
+  });
+  /** @type {any[]} */
+  const tuitionReceiptsAll = tuitionReceiptsQuery.data || [];
 
   const activityFeesQuery = useQuery({
     queryKey: ['activity-fees'],
@@ -345,16 +354,82 @@ export default function Finance() {
     onError: () => toast.error('فشل في تسجيل الدفعة'),
   });
 
+  // ── Tuition receipts review (parent uploads) ─────────────────────────────
+  const [processingReceiptId, setProcessingReceiptId] = useState(null);
+
+  const pendingReceipts = useMemo(() =>
+    tuitionReceiptsAll
+      .filter(isPendingTuitionReceipt)
+      .map(r => {
+        const st = students.find(s => s.id === r.recipient_id || s.student_id === r.recipient_id);
+        return { ...r, _studentName: st?.full_name || r.recipient_name };
+      }),
+    [tuitionReceiptsAll, students]);
+
+  const handleApproveReceipt = async (rec) => {
+    setProcessingReceiptId(rec.id);
+    try {
+      const amount = parseFloat(rec.amount) || 0;
+      const st = students.find(s => s.id === rec.recipient_id || s.student_id === rec.recipient_id);
+      await entities.FinancialRecord.update(rec.id, { status: 'paid' });
+      if (st && amount > 0) {
+        const currentPaid = parseFloat(st.tuition_paid) || 0;
+        await entities.Student.update(st.id, { tuition_paid: currentPaid + amount });
+        const targetFee = studentFees
+          .filter(f => f.student_id === st.id && f.status !== 'paid')
+          .sort((a, b) => new Date(a.due_date || a.created_at) - new Date(b.due_date || b.created_at))[0];
+        if (targetFee) {
+          const remainingVal = parseFloat(targetFee.remaining ?? (targetFee.amount - (targetFee.amount_paid || 0)));
+          await entities.FeePayment.create({
+            student_fee_id: targetFee.id,
+            student_id: st.id,
+            amount: Math.min(amount, Math.max(0, remainingVal)),
+            payment_method: 'bank_transfer',
+            paid_by: user?.id,
+            notes: `اعتماد إيصال مرفوع من ولي الأمر — ${rec.transfer_reference || rec.receipt_filename || ''}`.trim()
+          });
+        }
+      }
+      qc.invalidateQueries({ queryKey: ['tuition-receipts-pending'] });
+      qc.invalidateQueries({ queryKey: ['fee-payments-all'] });
+      qc.invalidateQueries({ queryKey: ['student-fees-all'] });
+      qc.invalidateQueries({ queryKey: ['students'] });
+      toast.success('تم اعتماد الإيصال وتسجيل الدفعة بنجاح');
+    } catch (err) {
+      console.error(err);
+      toast.error('فشل اعتماد الإيصال');
+    } finally {
+      setProcessingReceiptId(null);
+    }
+  };
+
+  const handleRejectReceipt = async (rec) => {
+    if (!window.confirm('هل أنت متأكد من رفض هذا الإيصال؟ سيتم إشعار ولي الأمر ضمنياً بتغير الحالة.')) return;
+    setProcessingReceiptId(rec.id);
+    try {
+      await entities.FinancialRecord.update(rec.id, { status: 'rejected' });
+      qc.invalidateQueries({ queryKey: ['tuition-receipts-pending'] });
+      toast.success('تم رفض الإيصال');
+    } catch (err) {
+      console.error(err);
+      toast.error('فشل رفض الإيصال');
+    } finally {
+      setProcessingReceiptId(null);
+    }
+  };
+
   const handleAddFeeSubmit = (e) => {
     e.preventDefault();
     if (!selectedStudent) return;
     let name = manualFeeName;
     let amt = parseFloat(manualFeeAmount);
+    let cur = "SDG";
     if (selectedStructureId) {
       const st = feeStructures.find(f => String(f.id) === String(selectedStructureId));
       if (st) {
         name = st.fee_name;
         amt = parseFloat(st.amount);
+        cur = st.currency || "SDG";
       }
     }
     if (!name || isNaN(amt) || amt <= 0 || !feeDueDate) {
@@ -364,6 +439,7 @@ export default function Finance() {
       student_id: selectedStudent.id,
       fee_name: name,
       amount: amt,
+      currency: cur,
       due_date: feeDueDate,
       payment_plan: feePaymentPlan,
       fee_structure_id: selectedStructureId ? String(selectedStructureId) : null,
@@ -406,6 +482,23 @@ export default function Finance() {
 
   // ── Tab 3: تسعيرة الصفوف ──────────────────────────────────────────────────
 
+  // العملات المدعومة للرسوم (جنيه سوداني، دولار، ريال سعودي/قطري، درهم إماراتي، ...)
+  const FEE_CURRENCIES = [
+    { code: "SDG", label: "جنيه سوداني", symbol: "ج.س" },
+    { code: "USD", label: "دولار أمريكي", symbol: "$" },
+    { code: "SAR", label: "ريال سعودي", symbol: "ر.س" },
+    { code: "QAR", label: "ريال قطري", symbol: "ر.ق" },
+    { code: "AED", label: "درهم إماراتي", symbol: "د.إ" },
+    { code: "EGP", label: "جنيه مصري", symbol: "ج.م" },
+    { code: "EUR", label: "يورو", symbol: "€" },
+  ];
+  const currencySymbol = (code) => (FEE_CURRENCIES.find(c => c.code === code)?.symbol || code || "ج.س");
+  const formatFeeAmount = (amount, currency) => {
+    const n = parseFloat(amount);
+    const val = isNaN(n) ? "0.00" : n.toFixed(2);
+    return `${currencySymbol(currency)} ${val}`;
+  };
+
   const [addStructureOpen, setAddStructureOpen] = useState(false);
   const [editStructureOpen, setEditStructureOpen] = useState(false);
   const [applyDialogOpen, setApplyDialogOpen] = useState(false);
@@ -415,10 +508,12 @@ export default function Finance() {
   const [newStructGrade, setNewStructGrade] = useState("1");
   const [newStructName, setNewStructName] = useState("");
   const [newStructAmt, setNewStructAmt] = useState("");
+  const [newStructCurrency, setNewStructCurrency] = useState("SDG");
 
   const [editStructGrade, setEditStructGrade] = useState("");
   const [editStructName, setEditStructName] = useState("");
   const [editStructAmt, setEditStructAmt] = useState("");
+  const [editStructCurrency, setEditStructCurrency] = useState("SDG");
 
   const createStructureMutation = useMutation({
     /** @param {any} data */
@@ -429,8 +524,9 @@ export default function Finance() {
       setAddStructureOpen(false);
       setNewStructName("");
       setNewStructAmt("");
+      setNewStructCurrency("SDG");
     },
-    onError: () => toast.error('فشل في إضافة التسعيرة'),
+    onError: (err) => toast.error(`فشل في إضافة التسعيرة: ${err?.message || 'خطأ غير معروف'}`),
   });
 
   const editStructureMutation = useMutation({
@@ -441,7 +537,7 @@ export default function Finance() {
       toast.success('تم تعديل التسعيرة بنجاح');
       setEditStructureOpen(false);
     },
-    onError: () => toast.error('فشل في تعديل التسعيرة'),
+    onError: (err) => toast.error(`فشل في تعديل التسعيرة: ${err?.message || 'خطأ غير معروف'}`),
   });
 
   const toggleStructureMutation = useMutation({
@@ -450,28 +546,65 @@ export default function Finance() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['fee-structures'] }),
   });
 
+  const handleCreateStructureSubmit = (e) => {
+    e.preventDefault();
+    const amt = parseFloat(newStructAmt);
+    if (!newStructName.trim()) return toast.error("يرجى إدخال اسم الرسوم");
+    if (isNaN(amt) || amt <= 0) return toast.error("يرجى إدخال مبلغ صحيح أكبر من صفر");
+    if (!newStructGrade) return toast.error("يرجى اختيار الصف المستهدف");
+    createStructureMutation.mutate({
+      grade_level: newStructGrade,
+      fee_name: newStructName.trim(),
+      amount: amt,
+      currency: newStructCurrency,
+      is_active: true,
+      created_by: user.id
+    });
+  };
+
+  const handleEditStructureSubmit = (e) => {
+    e.preventDefault();
+    if (!selectedStructure) return;
+    const amt = parseFloat(editStructAmt);
+    if (!editStructName.trim()) return toast.error("يرجى إدخال اسم الرسوم");
+    if (isNaN(amt) || amt <= 0) return toast.error("يرجى إدخال مبلغ صحيح أكبر من صفر");
+    editStructureMutation.mutate({
+      id: selectedStructure.id,
+      grade_level: editStructGrade,
+      fee_name: editStructName.trim(),
+      amount: amt,
+      currency: editStructCurrency,
+    });
+  };
+
   const applyToGrade = async (struct, dueDate) => {
     if (!dueDate) return toast.error('يرجى تحديد تاريخ الاستحقاق');
-    const targets = students.filter(s => struct.grade_level === 'all' || s.grade === struct.grade_level);
+    const targets = students.filter(s => struct.grade_level === 'all' || String(s.grade) === String(struct.grade_level));
+    if (targets.length === 0) return toast.error('لا يوجد طلاب في هذا الصف لتطبيق الرسوم عليهم');
     let count = 0;
-    for (const s of targets) {
-      const exists = studentFees.find(f => f.student_id === s.id && f.fee_structure_id === struct.id);
-      if (!exists) {
-        await entities.StudentFee.create({
-          student_id: s.id,
-          fee_structure_id: struct.id,
-          fee_name: struct.fee_name,
-          amount: struct.amount,
-          due_date: dueDate,
-          payment_plan: 'full',
-          created_by: user.id,
-        });
-        count++;
+    try {
+      for (const s of targets) {
+        const exists = studentFees.find(f => String(f.student_id) === String(s.id) && String(f.fee_structure_id) === String(struct.id));
+        if (!exists) {
+          await entities.StudentFee.create({
+            student_id: s.id,
+            fee_structure_id: struct.id,
+            fee_name: struct.fee_name,
+            amount: struct.amount,
+            currency: struct.currency || 'SDG',
+            due_date: dueDate,
+            payment_plan: 'full',
+            created_by: user.id,
+          });
+          count++;
+        }
       }
+      qc.invalidateQueries({ queryKey: ['student-fees-all'] });
+      toast.success(`تم تطبيق الرسوم على ${count} طالب`);
+      setApplyDialogOpen(false);
+    } catch (err) {
+      toast.error(`فشل في تطبيق الرسوم: ${err?.message || 'خطأ غير معروف'}`);
     }
-    qc.invalidateQueries({ queryKey: ['student-fees-all'] });
-    toast.success(`تم تطبيق الرسوم على ${count} طالب`);
-    setApplyDialogOpen(false);
   };
 
   // ── Tab 4: رسوم الأنشطة ─────────────────────────────────────────────────────
@@ -1080,6 +1213,14 @@ export default function Finance() {
 
       {/* ────────────────── Tab 2: Tuition Fees ────────────────── */}
       {activeTab === "tuition" && (
+        <div className="space-y-6">
+          <PendingTuitionReceipts
+            receipts={pendingReceipts}
+            isRTL={true}
+            processingId={processingReceiptId}
+            onApprove={handleApproveReceipt}
+            onReject={handleRejectReceipt}
+          />
         <Card className="border border-stone-200/80 shadow-sm rounded-3xl p-6 bg-white space-y-6">
           <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
             <div className="flex flex-wrap gap-3 flex-1 w-full">
@@ -1303,6 +1444,7 @@ export default function Finance() {
             </DialogContent>
           </Dialog>
         </Card>
+        </div>
       )}
 
       {/* ────────────────── Tab 3: Fee Structures ────────────────── */}
@@ -1329,6 +1471,7 @@ export default function Finance() {
                   <th className="pb-3">الاسم والوصف</th>
                   <th className="pb-3">الصف المستهدف</th>
                   <th className="pb-3">المبلغ الكلي</th>
+                  <th className="pb-3">العملة</th>
                   <th className="pb-3">نوع الدفع</th>
                   <th className="pb-3">حالة القالب</th>
                   <th className="pb-3 text-left">الإجراءات</th>
@@ -1339,7 +1482,12 @@ export default function Finance() {
                   <tr key={st.id} className="border-b border-stone-50 text-sm hover:bg-stone-50/30">
                     <td className="py-4 font-bold text-stone-900">{st.fee_name}</td>
                     <td className="py-4 text-stone-500 font-semibold">الصف {st.grade_level}</td>
-                    <td className="py-4 num-en font-black">${parseFloat(st.amount).toFixed(2)}</td>
+                    <td className="py-4 num-en font-black">{formatFeeAmount(st.amount, st.currency)}</td>
+                    <td className="py-4">
+                      <Badge className="bg-sky-50 text-sky-700 font-bold">
+                        {FEE_CURRENCIES.find(c => c.code === (st.currency || 'SDG'))?.label || st.currency || 'جنيه سوداني'}
+                      </Badge>
+                    </td>
                     <td className="py-4 text-stone-500 font-medium">سنوي</td>
                     <td className="py-4">
                       <Badge className={st.is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-stone-100 text-stone-500'}>
@@ -1353,6 +1501,7 @@ export default function Finance() {
                           setEditStructGrade(st.grade_level);
                           setEditStructName(st.fee_name);
                           setEditStructAmt(st.amount.toString());
+                          setEditStructCurrency(st.currency || 'SDG');
                           setEditStructureOpen(true);
                         }}
                         className="text-xs bg-amber-600 hover:bg-amber-700 text-white px-3 py-1.5 rounded-lg cursor-pointer font-bold"
@@ -1385,16 +1534,7 @@ export default function Finance() {
                 <DialogTitle className="font-serif text-lg">قالب تسعيرة جديد</DialogTitle>
                 <DialogDescription>إنشاء هيكل مالي لتطبيقه لاحقاً</DialogDescription>
               </DialogHeader>
-              <form onSubmit={(e) => {
-                e.preventDefault();
-                createStructureMutation.mutate({
-                  grade_level: newStructGrade,
-                  fee_name: newStructName,
-                  amount: parseFloat(newStructAmt),
-                  is_active: true,
-                  created_by: user.id
-                });
-              }} className="space-y-4 pt-3">
+              <form onSubmit={handleCreateStructureSubmit} className="space-y-4 pt-3">
                 <div className="space-y-1.5">
                   <Label>الصف المستهدف</Label>
                   <select id="field-finance-select-19" name="select_19" aria-label="select 19" value={newStructGrade} onChange={e => setNewStructGrade(e.target.value)} className="w-full bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 focus:outline-none">
@@ -1407,13 +1547,23 @@ export default function Finance() {
                   <Label>اسم الرسوم</Label>
                   <Input value={newStructName} onChange={e => setNewStructName(e.target.value)} placeholder="مثال: القسط الدراسي الأول" required />
                 </div>
-                <div className="space-y-1.5">
-                  <Label>المبلغ</Label>
-                  <Input value={newStructAmt} onChange={e => setNewStructAmt(e.target.value)} type="number" placeholder="مثال: 1200" required />
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label>المبلغ</Label>
+                    <Input value={newStructAmt} onChange={e => setNewStructAmt(e.target.value)} type="number" min="0" step="0.01" placeholder="مثال: 1200" required />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>العملة</Label>
+                    <select value={newStructCurrency} onChange={e => setNewStructCurrency(e.target.value)} className="w-full bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 focus:outline-none font-bold">
+                      {FEE_CURRENCIES.map(c => (
+                        <option key={c.code} value={c.code}>{c.label} ({c.symbol})</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
                 <div className="flex gap-3 justify-end pt-3">
-                  <button type="submit" className="bg-stone-900 text-white font-bold px-5 h-11 rounded-xl hover:bg-black cursor-pointer">
-                    حفظ
+                  <button type="submit" disabled={createStructureMutation.isPending} className="bg-stone-900 text-white font-bold px-5 h-11 rounded-xl hover:bg-black cursor-pointer disabled:opacity-50">
+                    {createStructureMutation.isPending ? 'جارٍ الحفظ...' : 'حفظ'}
                   </button>
                   <button type="button" onClick={() => setAddStructureOpen(false)} className="border border-stone-200 font-bold px-5 h-11 rounded-xl hover:bg-stone-50 cursor-pointer">
                     إلغاء
@@ -1430,16 +1580,7 @@ export default function Finance() {
                 <DialogTitle className="font-serif text-lg">تعديل قالب التسعيرة</DialogTitle>
                 <DialogDescription>تحديث بيانات الهيكل المالي الحالي</DialogDescription>
               </DialogHeader>
-              <form onSubmit={(e) => {
-                e.preventDefault();
-                if (!selectedStructure) return;
-                editStructureMutation.mutate({
-                  id: selectedStructure.id,
-                  grade_level: editStructGrade,
-                  fee_name: editStructName,
-                  amount: parseFloat(editStructAmt),
-                });
-              }} className="space-y-4 pt-3">
+              <form onSubmit={handleEditStructureSubmit} className="space-y-4 pt-3">
                 <div className="space-y-1.5">
                   <Label>الصف المستهدف</Label>
                   <select id="field-finance-select-18" name="select_18" aria-label="select 18" value={editStructGrade} onChange={e => setEditStructGrade(e.target.value)} className="w-full bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 focus:outline-none">
@@ -1452,13 +1593,23 @@ export default function Finance() {
                   <Label>اسم الرسوم</Label>
                   <Input value={editStructName} onChange={e => setEditStructName(e.target.value)} placeholder="مثال: القسط الدراسي الأول" required />
                 </div>
-                <div className="space-y-1.5">
-                  <Label>المبلغ</Label>
-                  <Input value={editStructAmt} onChange={e => setEditStructAmt(e.target.value)} type="number" placeholder="مثال: 1200" required />
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label>المبلغ</Label>
+                    <Input value={editStructAmt} onChange={e => setEditStructAmt(e.target.value)} type="number" min="0" step="0.01" placeholder="مثال: 1200" required />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>العملة</Label>
+                    <select value={editStructCurrency} onChange={e => setEditStructCurrency(e.target.value)} className="w-full bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 focus:outline-none font-bold">
+                      {FEE_CURRENCIES.map(c => (
+                        <option key={c.code} value={c.code}>{c.label} ({c.symbol})</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
                 <div className="flex gap-3 justify-end pt-3">
-                  <button type="submit" className="bg-amber-600 hover:bg-amber-700 text-white font-bold px-5 h-11 rounded-xl cursor-pointer">
-                    تعديل وحفظ
+                  <button type="submit" disabled={editStructureMutation.isPending} className="bg-amber-600 hover:bg-amber-700 text-white font-bold px-5 h-11 rounded-xl cursor-pointer disabled:opacity-50">
+                    {editStructureMutation.isPending ? 'جارٍ الحفظ...' : 'تعديل وحفظ'}
                   </button>
                   <button type="button" onClick={() => setEditStructureOpen(false)} className="border border-stone-200 font-bold px-5 h-11 rounded-xl hover:bg-stone-50 cursor-pointer">
                     إلغاء
@@ -1474,7 +1625,7 @@ export default function Finance() {
               <DialogHeader>
                 <DialogTitle className="font-serif text-lg">تطبيق الرسوم على طلاب الصف</DialogTitle>
                 <DialogDescription>
-                  سيتم إنشاء فاتورة رسوم بقيمة <strong className="text-stone-900">${selectedStructure?.amount}</strong> لجميع طلاب الصف <strong className="text-stone-900">{selectedStructure?.grade_level}</strong> الذين ليس لديهم هذا البند.
+                  سيتم إنشاء فاتورة رسوم بقيمة <strong className="text-stone-900">{selectedStructure ? formatFeeAmount(selectedStructure.amount, selectedStructure.currency) : ''}</strong> لجميع طلاب الصف <strong className="text-stone-900">{selectedStructure?.grade_level}</strong> الذين ليس لديهم هذا البند.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 pt-3">

@@ -34,6 +34,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { buildPortalDeepLink } from "@/lib/portalNavigation";
 import FinancialRecordFormDialog from "@/components/shared/FinancialRecordFormDialog";
+import PendingTuitionReceipts, { isPendingTuitionReceipt } from "@/components/finance/PendingTuitionReceipts";
 
 export default function AdminStudentProfile({ student: initialStudent, onClose, onEdit }) {
   const { language } = useLanguage();
@@ -51,6 +52,7 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
   const [showParentPass, setShowParentPass] = useState(false);
   const [copiedField, setCopiedField] = useState(null);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [processingReceiptId, setProcessingReceiptId] = useState(null);
 
   // States for other outstanding dues & fines form
   const [fineCategory, setFineCategory] = useState("general");
@@ -655,6 +657,69 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
 
   const remainingTuition = Math.max(0, totalTuition - paidTuition);
 
+  // Parent-uploaded tuition receipts awaiting review
+  const pendingReceipts = React.useMemo(
+    () => (dbFinancialRecords || []).filter(isPendingTuitionReceipt),
+    [dbFinancialRecords]
+  );
+
+  const refreshFinanceQueries = () => {
+    _qc.invalidateQueries({ queryKey: ["financial-records", student?.id] });
+    _qc.invalidateQueries({ queryKey: ["student-profile", student?.id] });
+    _qc.invalidateQueries({ queryKey: ["admin-student-fees", student?.id] });
+    _qc.invalidateQueries({ queryKey: ["admin-student-fee-payments", student?.id] });
+    _qc.invalidateQueries({ queryKey: ["tuition-receipts-pending"] });
+    _qc.invalidateQueries({ queryKey: ["parent-student-records", student?.id] });
+  };
+
+  const handleApproveReceipt = async (rec) => {
+    setProcessingReceiptId(rec.id);
+    try {
+      const amount = parseFloat(rec.amount) || 0;
+      await entities.FinancialRecord.update(rec.id, { status: "paid" });
+      if (amount > 0) {
+        const currentPaid = parseFloat(student.tuition_paid) || 0;
+        await entities.Student.update(student.id, { tuition_paid: currentPaid + amount });
+        const targetFee = (studentFees || [])
+          .filter(f => f.status !== "paid")
+          .sort((a, b) => new Date(a.due_date || a.created_at) - new Date(b.due_date || b.created_at))[0];
+        if (targetFee) {
+          const remainingVal = parseFloat(targetFee.remaining ?? (targetFee.amount - (targetFee.amount_paid || 0)));
+          await entities.FeePayment.create({
+            student_fee_id: targetFee.id,
+            student_id: student.id,
+            amount: Math.min(amount, Math.max(0, remainingVal)),
+            payment_method: "bank_transfer",
+            paid_by: user?.id,
+            notes: `اعتماد إيصال مرفوع من ولي الأمر — ${rec.transfer_reference || rec.receipt_filename || ""}`.trim()
+          });
+        }
+      }
+      refreshFinanceQueries();
+      toast.success(isRTL ? "تم اعتماد الإيصال وتسجيل الدفعة بنجاح!" : "Receipt approved and payment recorded!");
+    } catch (err) {
+      console.error(err);
+      toast.error(isRTL ? "فشل اعتماد الإيصال" : "Failed to approve receipt");
+    } finally {
+      setProcessingReceiptId(null);
+    }
+  };
+
+  const handleRejectReceipt = async (rec) => {
+    if (!window.confirm(isRTL ? "هل أنت متأكد من رفض هذا الإيصال؟" : "Are you sure you want to reject this receipt?")) return;
+    setProcessingReceiptId(rec.id);
+    try {
+      await entities.FinancialRecord.update(rec.id, { status: "rejected" });
+      refreshFinanceQueries();
+      toast.success(isRTL ? "تم رفض الإيصال" : "Receipt rejected");
+    } catch (err) {
+      console.error(err);
+      toast.error(isRTL ? "فشل رفض الإيصال" : "Failed to reject receipt");
+    } finally {
+      setProcessingReceiptId(null);
+    }
+  };
+
   const getStatusColor = (status) => {
     switch (status) {
       case "active": return "bg-emerald-500/10 text-emerald-600 border-emerald-200/50";
@@ -1206,6 +1271,15 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
                       </Card>
                     </div>
 
+                    {/* Pending receipts review */}
+                    <PendingTuitionReceipts
+                      receipts={pendingReceipts}
+                      isRTL={isRTL}
+                      processingId={processingReceiptId}
+                      onApprove={handleApproveReceipt}
+                      onReject={handleRejectReceipt}
+                    />
+
                     {/* Financial Transactions history */}
                     <Card className="border border-stone-200/80 rounded-2xl p-5 bg-white shadow-sm space-y-4">
                       <div className="flex items-center justify-between border-b border-stone-100 pb-2">
@@ -1241,8 +1315,14 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
                                 <td className="py-3 px-3 text-center font-bold text-stone-900 num-en">${t.amount.toFixed(2)}</td>
                                 <td className="py-3 px-3 text-stone-600 text-xs">{t.method}</td>
                                 <td className="py-3 px-3 text-center">
-                                  <Badge className="bg-emerald-500/15 text-emerald-700 border-none shadow-none font-bold rounded">
-                                    {isRTL ? "مكتمل" : "Completed"}
+                                  <Badge className={`border-none shadow-none font-bold rounded ${
+                                    t.status === "pending" ? "bg-amber-500/15 text-amber-700" :
+                                    t.status === "rejected" ? "bg-rose-500/15 text-rose-700" :
+                                    "bg-emerald-500/15 text-emerald-700"
+                                  }`}>
+                                    {t.status === "pending" ? (isRTL ? "قيد المراجعة" : "Pending") :
+                                     t.status === "rejected" ? (isRTL ? "مرفوض" : "Rejected") :
+                                     (isRTL ? "مكتمل" : "Completed")}
                                   </Badge>
                                 </td>
                               </tr>

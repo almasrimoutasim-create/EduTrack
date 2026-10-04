@@ -4,7 +4,7 @@ import { entities } from '@/api/dbClient';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
 import { toast } from 'sonner';
-import { Settings as SettingsIcon, Save, Image as ImageIcon, Building2, Globe, Shield, UserPlus, Key, Trash2, Upload, Users, Edit, X, Crown, Zap, Loader2, CheckCircle, AlertCircle, Calendar, CreditCard, Eye, Download, RefreshCw, FileText, Clock, Copy, ExternalLink, Link2 } from 'lucide-react';
+import { Settings as SettingsIcon, Save, Image as ImageIcon, Building2, Globe, Shield, UserPlus, Key, Trash2, Upload, Users, Edit, X, Crown, Zap, Loader2, CheckCircle, AlertCircle, Calendar, CreditCard, Eye, Download, RefreshCw, FileText, Clock, Copy, ExternalLink, Link2, Award } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -30,6 +30,25 @@ export default function Settings() {
 
   const [editingGateway, setEditingGateway] = useState(null);
   const [editingAdmin, setEditingAdmin] = useState(null);
+
+  // مستندات الموظفين: الشهادات قد تكون JSON string (من التسجيل العام) أو array
+  const parseAdminCertificates = (raw) => {
+    if (!raw) return [];
+    if (Array.isArray(raw)) return raw.filter(Boolean);
+    if (typeof raw === "string") {
+      const s = raw.trim();
+      if (!s) return [];
+      try {
+        const parsed = JSON.parse(s);
+        if (Array.isArray(parsed)) return parsed.filter(Boolean);
+        if (typeof parsed === "string" && parsed) return [parsed];
+      } catch {
+        if (s.startsWith("data:") || s.startsWith("http") || s.startsWith("/")) return [s];
+        return [];
+      }
+    }
+    return [];
+  };
 
   // ── اشتراك الباقات (مدير المدرسة) ──
   const schoolId = localStorage.getItem('portal_school_id') || user?.school_id || null;
@@ -987,18 +1006,19 @@ export default function Settings() {
                 <thead className="bg-stone-50">
                   <tr>
                     <th className="px-4 py-3 text-xs font-bold text-stone-500">{isRTL ? "البريد الإلكتروني" : "Email"}</th>
+                    <th className="px-4 py-3 text-xs font-bold text-stone-500">{isRTL ? "المستندات" : "Documents"}</th>
                     <th className="px-4 py-3 text-xs font-bold text-stone-500">{isRTL ? "تاريخ الإضافة" : "Added On"}</th>
                     <th className="px-4 py-3 text-xs font-bold text-stone-500 w-24"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-stone-100">
                   {isLoadingAdmins ? (
-                    <tr><td colSpan="3" className="p-4 text-center text-sm text-stone-400">Loading...</td></tr>
+                    <tr><td colSpan="4" className="p-4 text-center text-sm text-stone-400">Loading...</td></tr>
                   ) : systemAdmins?.map(admin => {
                     if (editingAdmin?.id === admin.id) {
                       return (
                         <tr key={admin.id} className="bg-blue-50/50">
-                          <td colSpan="3" className="p-3">
+                          <td colSpan="4" className="p-3">
                             <div className="flex items-center gap-2">
                               <Input 
                                 value={editingAdmin.email}
@@ -1036,6 +1056,40 @@ export default function Settings() {
                     return (
                       <tr key={admin.id} className="hover:bg-stone-50/50">
                         <td className="px-4 py-3 font-bold text-stone-900" dir="ltr">{admin.email}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            {admin.cv_document_url ? (
+                              <a
+                                href={admin.cv_document_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-100 transition-colors"
+                                title={isRTL ? "معاينة السيرة الذاتية" : "Preview CV"}
+                              >
+                                <FileText size={12} />
+                                <span>{isRTL ? "السيرة" : "CV"}</span>
+                                <Eye size={11} />
+                              </a>
+                            ) : null}
+                            {parseAdminCertificates(admin.certificates_urls).map((url, idx) => (
+                              <a
+                                key={idx}
+                                href={url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-lg bg-blue-50 text-blue-700 border border-blue-100 hover:bg-blue-100 transition-colors"
+                                title={isRTL ? `معاينة الشهادة ${idx + 1}` : `Preview certificate ${idx + 1}`}
+                              >
+                                <Award size={12} />
+                                <span>{isRTL ? `ش ${idx + 1}` : `C${idx + 1}`}</span>
+                                <Eye size={11} />
+                              </a>
+                            ))}
+                            {!admin.cv_document_url && parseAdminCertificates(admin.certificates_urls).length === 0 && (
+                              <span className="text-[11px] text-stone-400">—</span>
+                            )}
+                          </div>
+                        </td>
                         <td className="px-4 py-3 text-sm text-stone-500">
                           {new Date(admin.created_at).toLocaleDateString()}
                         </td>
@@ -1057,7 +1111,7 @@ export default function Settings() {
                     );
                   })}
                   {systemAdmins?.length === 0 && (
-                    <tr><td colSpan="3" className="p-4 text-center text-sm text-stone-400">{isRTL ? "لا يوجد مدراء" : "No admins found"}</td></tr>
+                    <tr><td colSpan="4" className="p-4 text-center text-sm text-stone-400">{isRTL ? "لا يوجد مدراء" : "No admins found"}</td></tr>
                   )}
                 </tbody>
               </table>

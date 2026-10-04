@@ -2,16 +2,16 @@ import React, { useState, useMemo, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { entities } from "@/api/dbClient";
 import { useSearchParams } from "react-router-dom";
-import { 
-  Users, 
-  Search, 
-  Shield, 
-  Mail, 
-  Phone, 
-  MoreVertical, 
-  UserPlus, 
-  Settings, 
-  CheckCircle2, 
+import {
+  Users,
+  Search,
+  Shield,
+  Mail,
+  Phone,
+  MoreVertical,
+  UserPlus,
+  Settings,
+  CheckCircle2,
   Clock,
   Briefcase,
   UserCheck,
@@ -20,7 +20,10 @@ import {
   Trash2,
   XCircle,
   Coffee,
-  ChevronDown
+  ChevronDown,
+  FileText,
+  Award,
+  Eye
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -42,6 +45,25 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 
 const btnOutline = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border-2 border-stone-200 bg-white text-stone-800 hover:bg-stone-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
 const btnPrimary = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed";
+
+// مستندات الموظف: الشهادات قد تكون JSON string (من التسجيل العام) أو array
+function parseStaffCertificates(raw) {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw.filter(Boolean);
+  if (typeof raw === "string") {
+    const s = raw.trim();
+    if (!s) return [];
+    try {
+      const parsed = JSON.parse(s);
+      if (Array.isArray(parsed)) return parsed.filter(Boolean);
+      if (typeof parsed === "string" && parsed) return [parsed];
+    } catch {
+      if (s.startsWith("data:") || s.startsWith("http") || s.startsWith("/")) return [s];
+      return [];
+    }
+  }
+  return [];
+}
 
 // استخراج الحروف الأولى من الاسم لعرضها كـ avatar
 function getInitials(name) {
@@ -434,6 +456,52 @@ export default function StaffControl() {
                               </span>
                             </div>
                           )}
+                          {/* مستندات الموظف: السيرة الذاتية + الشهادات */}
+                          <div className="flex flex-wrap items-center gap-2 pt-1">
+                            {member.cv_document_url ? (
+                              <a
+                                href={member.cv_document_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-100 transition-colors"
+                              >
+                                <FileText size={13} />
+                                <span>{isRTL ? "السيرة الذاتية" : "CV"}</span>
+                                <Eye size={12} />
+                              </a>
+                            ) : (
+                              <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg bg-stone-50 text-stone-400 border border-stone-100">
+                                <FileText size={13} />
+                                <span>{isRTL ? "لا توجد سيرة ذاتية" : "No CV"}</span>
+                              </span>
+                            )}
+                            {(() => {
+                              const certs = parseStaffCertificates(member.certificates_urls);
+                              if (certs.length === 0) {
+                                return (
+                                  <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg bg-stone-50 text-stone-400 border border-stone-100">
+                                    <Award size={13} />
+                                    <span>{isRTL ? "لا توجد شهادات" : "No certificates"}</span>
+                                  </span>
+                                );
+                              }
+                              return certs.map((url, idx) => (
+                                <a
+                                  key={idx}
+                                  href={url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1.5 rounded-lg bg-blue-50 text-blue-700 border border-blue-100 hover:bg-blue-100 transition-colors"
+                                >
+                                  <Award size={13} />
+                                  <span>{isRTL ? `شهادة ${idx + 1}` : `Cert ${idx + 1}`}</span>
+                                  <Eye size={12} />
+                                </a>
+                              ));
+                            })()}
+                          </div>
                         </div>
                       </div>
 

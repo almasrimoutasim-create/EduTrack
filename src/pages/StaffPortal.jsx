@@ -16,7 +16,10 @@ import {
   UserCheck,
   DoorOpen,
   Wifi,
-  HeartHandshake
+  HeartHandshake,
+  Megaphone,
+  Clock,
+  ShieldAlert
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useLanguage } from "@/lib/LanguageContext";
@@ -50,6 +53,38 @@ export default function StaffPortal() {
     staleTime: 1000 * 30,
     refetchInterval: 1000 * 30
   });
+
+  // Official announcements targeted at staff
+  const { data: officialAnnouncements = [] } = useQuery({
+    queryKey: ["official-announcements-staff"],
+    // @ts-ignore
+    queryFn: () => entities.OfficialAnnouncement.list("-created_at"),
+    staleTime: 1000 * 60 * 2
+  });
+
+  const staffAnnouncements = React.useMemo(() => {
+    return officialAnnouncements.filter(a => {
+      if (a.target_audience !== "staff" && a.target_audience !== "all") return false;
+      if (a.target_audience === "all") return true;
+      const dept = a.target_department;
+      if (!dept || dept === "all_staff") return true;
+      return dept === currentRole;
+    });
+  }, [officialAnnouncements, currentRole]);
+
+  const getDeptLabel = (deptId) => {
+    const map = {
+      all_staff: isRTL ? "كل الأقسام" : "All departments",
+      registrar: isRTL ? "المسجل" : "Registrar",
+      bus_supervisor: isRTL ? "مشرف حافلة" : "Bus Supervisor",
+      store_keeper: isRTL ? "أمين مستودع" : "Store Keeper",
+      security: isRTL ? "حارس أمن" : "Security Guard",
+      hr: isRTL ? "الموارد البشرية" : "Human Resources",
+      accountant: isRTL ? "المحاسب" : "Accountant",
+      counselor: isRTL ? "المرشد الطلابي" : "Student Counselor",
+    };
+    return map[deptId] || deptId;
+  };
 
   const subPortals = [
     { 
@@ -350,6 +385,44 @@ export default function StaffPortal() {
             </Card>
           </div>
         </main>
+
+        {/* Official announcements for security staff */}
+        <section className="max-w-6xl w-full mx-auto mt-8">
+          <Card className="p-6 bg-stone-850 border-stone-800 text-white rounded-3xl shadow-xl">
+            <div className="flex items-center gap-2 mb-4">
+              <Megaphone size={18} className="text-amber-500" />
+              <h3 className="text-lg font-serif font-black text-white">
+                {isRTL ? "التعاميم والقرارات الرسمية" : "Official Announcements"}
+              </h3>
+            </div>
+            {staffAnnouncements.length === 0 ? (
+              <p className="text-xs font-bold text-stone-500 text-center py-6">
+                {isRTL ? "لا توجد تعاميم موجهة لقسمك حالياً" : "No announcements for your department right now"}
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {staffAnnouncements.map(ann => (
+                  <div key={ann.id} className="p-4 bg-stone-800/60 border border-stone-750 rounded-2xl relative overflow-hidden">
+                    {ann.priority === "high" && <div className="absolute top-0 right-0 left-0 h-1 bg-rose-500" />}
+                    <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                      <h4 className="text-sm font-black text-white">{ann.title}</h4>
+                      {ann.priority === "high" && (
+                        <span className="bg-rose-500/15 text-rose-400 rounded-lg text-[9px] font-black px-2 py-0.5">
+                          {isRTL ? "عاجل" : "Urgent"}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-stone-300 text-xs whitespace-pre-line leading-relaxed">{ann.content}</p>
+                    <p className="text-[10px] text-stone-500 font-bold mt-2 num-en flex items-center gap-1">
+                      <Clock size={11} />
+                      {ann.created_at ? new Date(ann.created_at).toLocaleDateString(isRTL ? "ar-EG" : "en-US") : ""}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        </section>
       </div>
     );
   }
@@ -443,6 +516,70 @@ export default function StaffPortal() {
             </motion.div>
           ))}
         </motion.div>
+
+        {/* Official announcements for staff */}
+        <motion.section
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.2 }}
+          className="mt-8"
+        >
+          <Card className="p-8 border-none shadow-sm rounded-[24px] bg-white">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="h-12 w-12 rounded-[16px] bg-purple-600 text-white flex items-center justify-center shadow-xl">
+                  <Megaphone size={24} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-serif font-black text-stone-900">
+                    {isRTL ? "التعاميم والقرارات الرسمية" : "Official Announcements"}
+                  </h3>
+                  <p className="text-stone-400 text-xs font-medium">
+                    {isRTL ? "القرارات الموجهة للموظفين والأقسام" : "Decisions addressed to staff and departments"}
+                  </p>
+                </div>
+              </div>
+              {staffAnnouncements.filter(a => a.priority === "high").length > 0 && (
+                <span className="flex items-center gap-1.5 bg-rose-50 text-rose-600 rounded-xl text-[10px] font-black px-3 py-1.5">
+                  <ShieldAlert size={13} />
+                  {isRTL ? "يوجد تعميم عاجل" : "Urgent circular"}
+                </span>
+              )}
+            </div>
+
+            {staffAnnouncements.length === 0 ? (
+              <div className="py-8 text-center text-stone-400 text-xs font-bold bg-stone-50/60 rounded-2xl">
+                {isRTL ? "لا توجد تعاميم موجهة للموظفين حالياً" : "No staff announcements right now"}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {staffAnnouncements.map(ann => (
+                  <div key={ann.id} className="p-4 rounded-2xl border border-stone-100 bg-stone-50/50 relative overflow-hidden">
+                    {ann.priority === "high" && <div className="absolute top-0 right-0 left-0 h-1 bg-rose-500" />}
+                    <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                      <h4 className="text-sm font-black text-stone-900">{ann.title}</h4>
+                      {ann.priority === "high" && (
+                        <span className="bg-rose-50 text-rose-600 rounded-lg text-[9px] font-black px-2 py-0.5">
+                          {isRTL ? "عاجل" : "Urgent"}
+                        </span>
+                      )}
+                      {ann.target_audience === "staff" && ann.target_department && ann.target_department !== "all_staff" && (
+                        <span className="bg-purple-50 text-purple-700 rounded-lg text-[9px] font-black px-2 py-0.5">
+                          {getDeptLabel(ann.target_department)}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-stone-600 text-xs whitespace-pre-line leading-relaxed">{ann.content}</p>
+                    <p className="text-[10px] text-stone-400 font-bold mt-2 num-en flex items-center gap-1">
+                      <Clock size={11} />
+                      {ann.created_at ? new Date(ann.created_at).toLocaleDateString(isRTL ? "ar-EG" : "en-US") : ""}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        </motion.section>
 
         <footer className="mt-12 text-center">
           <p className="text-stone-400 text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2">

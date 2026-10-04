@@ -27,6 +27,23 @@ import { toast } from "sonner";
 const btnOutline = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-sm font-semibold transition-all border-2 border-stone-200 bg-white text-stone-800 hover:bg-stone-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
 const btnPrimary = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-sm font-semibold transition-all bg-stone-900 text-white hover:bg-black cursor-pointer shadow-lg shadow-stone-200 disabled:opacity-50 disabled:cursor-not-allowed";
 
+const STAFF_DEPARTMENTS = [
+  { id: "all_staff", ar: "كل أقسام الموظفين", en: "All Staff Departments" },
+  { id: "registrar", ar: "المسجل", en: "Registrar" },
+  { id: "bus_supervisor", ar: "مشرف حافلة", en: "Bus Supervisor" },
+  { id: "store_keeper", ar: "أمين مستودع", en: "Store Keeper" },
+  { id: "security", ar: "حارس أمن", en: "Security Guard" },
+  { id: "hr", ar: "الموارد البشرية", en: "Human Resources" },
+  { id: "accountant", ar: "المحاسب", en: "Accountant" },
+  { id: "counselor", ar: "المرشد الطلابي", en: "Student Counselor" },
+];
+
+export function getDepartmentLabel(deptId, isRTL) {
+  const d = STAFF_DEPARTMENTS.find(x => x.id === deptId);
+  if (!d) return deptId || "";
+  return isRTL ? d.ar : d.en;
+}
+
 export default function OfficialAnnouncements() {
   const { language } = useLanguage();
   const isRTL = language === "ar";
@@ -36,6 +53,7 @@ export default function OfficialAnnouncements() {
   const [content, setContent] = useState("");
   const [priority, setPriority] = useState("normal");
   const [targetAudience, setTargetAudience] = useState("all");
+  const [targetDepartment, setTargetDepartment] = useState("all_staff");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Fetch announcements
@@ -58,6 +76,7 @@ export default function OfficialAnnouncements() {
         content,
         priority,
         target_audience: targetAudience,
+        target_department: targetAudience === "staff" ? targetDepartment : null,
         created_by: "System Admin"
       });
 
@@ -66,6 +85,7 @@ export default function OfficialAnnouncements() {
       setContent("");
       setPriority("normal");
       setTargetAudience("all");
+      setTargetDepartment("all_staff");
       qc.invalidateQueries({ queryKey: ["official-announcements"] });
     } catch (err) {
       console.error(err);
@@ -96,6 +116,8 @@ export default function OfficialAnnouncements() {
         return isRTL ? "الطلاب" : "Students";
       case "parents":
         return isRTL ? "أولياء الأمور" : "Parents";
+      case "staff":
+        return isRTL ? "الموظفون" : "Staff";
       default:
         return isRTL ? "الجميع" : "All Users";
     }
@@ -109,7 +131,7 @@ export default function OfficialAnnouncements() {
       />
 
       {/* Analytics Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
         <Card className="p-8 border-none shadow-sm bg-white rounded-[40px] flex flex-col justify-between group">
           <div className="h-12 w-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
             <Megaphone size={24} />
@@ -150,6 +172,18 @@ export default function OfficialAnnouncements() {
             <p className="text-stone-400 text-[10px] font-bold uppercase tracking-widest mb-1">{isRTL ? "للمعلمين" : "Targeting Teachers"}</p>
             <h4 className="text-3xl font-black text-amber-600">
               {announcements.filter(a => a.target_audience === "teachers" || a.target_audience === "all").length}
+            </h4>
+          </div>
+        </Card>
+
+        <Card className="p-8 border-none shadow-sm bg-white rounded-[40px] flex flex-col justify-between group">
+          <div className="h-12 w-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center">
+            <Users size={24} />
+          </div>
+          <div className="mt-4">
+            <p className="text-stone-400 text-[10px] font-bold uppercase tracking-widest mb-1">{isRTL ? "للموظفين" : "Targeting Staff"}</p>
+            <h4 className="text-3xl font-black text-purple-600">
+              {announcements.filter(a => a.target_audience === "staff" || a.target_audience === "all").length}
             </h4>
           </div>
         </Card>
@@ -198,8 +232,24 @@ export default function OfficialAnnouncements() {
                     <option value="teachers">{isRTL ? "المعلمون" : "Teachers"}</option>
                     <option value="students">{isRTL ? "الطلاب" : "Students"}</option>
                     <option value="parents">{isRTL ? "أولياء الأمور" : "Parents"}</option>
+                    <option value="staff">{isRTL ? "الموظفون" : "Staff"}</option>
                   </select>
                 </div>
+
+                {targetAudience === "staff" && (
+                  <div className="space-y-1.5 col-span-2">
+                    <Label className="text-xs font-bold text-stone-500 uppercase tracking-wider">{isRTL ? "قسم الموظفين المستهدف" : "Target Staff Department"}</Label>
+                    <select
+                      value={targetDepartment}
+                      onChange={e => setTargetDepartment(e.target.value)}
+                      className="w-full h-11 px-3 rounded-xl border border-stone-200 text-sm font-semibold bg-white focus:outline-none focus:ring-2 focus:ring-stone-900/10"
+                    >
+                      {STAFF_DEPARTMENTS.map(d => (
+                        <option key={d.id} value={d.id}>{isRTL ? d.ar : d.en}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
                 <div className="space-y-1.5">
                   <Label className="text-xs font-bold text-stone-500 uppercase tracking-wider">{isRTL ? "أولوية العرض" : "Priority"}</Label>
@@ -266,6 +316,11 @@ export default function OfficialAnnouncements() {
                         <Badge className="bg-stone-50 text-stone-600 border-none rounded-lg text-[9px] font-black px-2 py-0.5">
                           {getAudienceLabel(ann.target_audience)}
                         </Badge>
+                        {ann.target_audience === "staff" && ann.target_department && ann.target_department !== "all_staff" && (
+                          <Badge className="bg-purple-50 text-purple-700 border-none rounded-lg text-[9px] font-black px-2 py-0.5">
+                            {getDepartmentLabel(ann.target_department, isRTL)}
+                          </Badge>
+                        )}
                       </div>
                       
                       <p className="text-stone-600 text-sm whitespace-pre-line leading-relaxed">

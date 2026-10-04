@@ -348,6 +348,7 @@ if (process.env.DATABASE_URL) {
       content TEXT NOT NULL,
       priority TEXT DEFAULT 'normal',
       target_audience TEXT NOT NULL,
+      target_department TEXT,
       created_by TEXT,
       created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -357,6 +358,7 @@ if (process.env.DATABASE_URL) {
   }).catch(err => {
     console.error('[neon] failed to verify/create official_announcements table:', err.message);
   });
+  sql.query(`ALTER TABLE official_announcements ADD COLUMN IF NOT EXISTS target_department TEXT`).catch(()=>{});
 
   // Auto-create hall_rentals table
   sql`
@@ -473,6 +475,162 @@ if (process.env.DATABASE_URL) {
   }).catch(err => {
     console.error('[neon] failed to verify/create purchase_orders table:', err.message);
   });
+
+  // ── Finance: fee structures + student fees (تسعيرة الصفوف) ────────────────
+  // These tables had no CREATE TABLE, so FeeStructure.create() failed with
+  // "relation does not exist" and the UI only showed "فشل في إضافة التسعيرة".
+  sql`
+    CREATE TABLE IF NOT EXISTS fee_structures (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      school_id UUID,
+      branch_id UUID,
+      grade_level TEXT NOT NULL,
+      fee_name TEXT NOT NULL,
+      amount NUMERIC NOT NULL,
+      currency TEXT NOT NULL DEFAULT 'SDG',
+      academic_year TEXT DEFAULT '2025-2026',
+      is_active BOOLEAN NOT NULL DEFAULT TRUE,
+      created_by TEXT,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `.then(() => {
+    console.log('[neon] fee_structures table verified/created');
+  }).catch(err => {
+    console.error('[neon] failed to verify/create fee_structures table:', err.message);
+  });
+
+  sql`
+    CREATE TABLE IF NOT EXISTS student_fees (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      school_id UUID,
+      branch_id UUID,
+      student_id UUID,
+      fee_structure_id UUID,
+      fee_name TEXT NOT NULL,
+      amount NUMERIC NOT NULL,
+      currency TEXT NOT NULL DEFAULT 'SDG',
+      amount_paid NUMERIC NOT NULL DEFAULT 0,
+      remaining NUMERIC,
+      status TEXT NOT NULL DEFAULT 'pending',
+      due_date TEXT,
+      payment_plan TEXT DEFAULT 'full',
+      notes TEXT,
+      created_by TEXT,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `.then(() => {
+    console.log('[neon] student_fees table verified/created');
+  }).catch(err => {
+    console.error('[neon] failed to verify/create student_fees table:', err.message);
+  });
+
+  sql`
+    CREATE TABLE IF NOT EXISTS fee_payments (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      school_id UUID,
+      branch_id UUID,
+      student_fee_id UUID,
+      student_id UUID,
+      amount NUMERIC NOT NULL,
+      currency TEXT NOT NULL DEFAULT 'SDG',
+      payment_method TEXT,
+      paid_by TEXT,
+      notes TEXT,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `.then(() => {
+    console.log('[neon] fee_payments table verified/created');
+  }).catch(err => {
+    console.error('[neon] failed to verify/create fee_payments table:', err.message);
+  });
+
+  sql`
+    CREATE TABLE IF NOT EXISTS activity_fees (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      school_id UUID,
+      activity_name TEXT NOT NULL,
+      description TEXT,
+      amount NUMERIC NOT NULL,
+      currency TEXT NOT NULL DEFAULT 'SDG',
+      due_date TEXT,
+      grade_level TEXT DEFAULT 'all',
+      is_mandatory BOOLEAN DEFAULT FALSE,
+      created_by TEXT,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `.then(() => {
+    console.log('[neon] activity_fees table verified/created');
+  }).catch(err => {
+    console.error('[neon] failed to verify/create activity_fees table:', err.message);
+  });
+
+  sql`
+    CREATE TABLE IF NOT EXISTS student_activity_fees (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      school_id UUID,
+      student_id UUID,
+      activity_fee_id UUID,
+      status TEXT NOT NULL DEFAULT 'pending',
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `.then(() => {
+    console.log('[neon] student_activity_fees table verified/created');
+  }).catch(err => {
+    console.error('[neon] failed to verify/create student_activity_fees table:', err.message);
+  });
+
+  sql`
+    CREATE TABLE IF NOT EXISTS student_wallet (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      school_id UUID,
+      student_id UUID,
+      balance NUMERIC NOT NULL DEFAULT 0,
+      currency TEXT NOT NULL DEFAULT 'SDG',
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `.then(() => {
+    console.log('[neon] student_wallet table verified/created');
+  }).catch(err => {
+    console.error('[neon] failed to verify/create student_wallet table:', err.message);
+  });
+
+  sql`
+    CREATE TABLE IF NOT EXISTS wallet_transactions (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      school_id UUID,
+      student_id UUID,
+      type TEXT NOT NULL,
+      amount NUMERIC NOT NULL,
+      currency TEXT NOT NULL DEFAULT 'SDG',
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `.then(() => {
+    console.log('[neon] wallet_transactions table verified/created');
+  }).catch(err => {
+    console.error('[neon] failed to verify/create wallet_transactions table:', err.message);
+  });
+
+  // Migration for existing deployments: add currency where the table already exists
+  for (const tbl of ['fee_structures','student_fees','fee_payments','activity_fees','student_wallet','wallet_transactions','hall_rentals','other_revenue','expenses','salary_records','purchase_orders','donations']) {
+    sql.query(`ALTER TABLE ${tbl} ADD COLUMN IF NOT EXISTS currency TEXT NOT NULL DEFAULT 'SDG'`).catch(()=>{});
+    sql.query(`ALTER TABLE ${tbl} ADD COLUMN IF NOT EXISTS school_id UUID`).catch(()=>{});
+  }
+  sql.query(`ALTER TABLE fee_structures ADD COLUMN IF NOT EXISTS academic_year TEXT DEFAULT '2025-2026'`).catch(()=>{});
+  sql.query(`ALTER TABLE fee_structures ADD COLUMN IF NOT EXISTS branch_id UUID`).catch(()=>{});
+  sql.query(`ALTER TABLE student_fees ADD COLUMN IF NOT EXISTS branch_id UUID`).catch(()=>{});
+  sql.query(`ALTER TABLE student_fees ADD COLUMN IF NOT EXISTS currency TEXT NOT NULL DEFAULT 'SDG'`).catch(()=>{});
+  sql.query(`ALTER TABLE fee_payments ADD COLUMN IF NOT EXISTS branch_id UUID`).catch(()=>{});
+  // Tuition receipt uploads from the parent portal (stored on financial_records)
+  sql.query(`ALTER TABLE financial_records ADD COLUMN IF NOT EXISTS receipt_image TEXT`).catch(()=>{});
+  sql.query(`ALTER TABLE financial_records ADD COLUMN IF NOT EXISTS receipt_filename TEXT`).catch(()=>{});
+  sql.query(`ALTER TABLE financial_records ADD COLUMN IF NOT EXISTS transfer_reference TEXT`).catch(()=>{});
 
   // Auto-create counseling_cases table
   sql`
@@ -602,6 +760,9 @@ if (process.env.DATABASE_URL) {
   }).catch(err => {
     console.error('[neon] failed to alter staff_members table:', err.message);
   });
+  // Migration: staff document uploads (CV + certificates, mirrors teachers/system_admins)
+  sql`ALTER TABLE staff_members ADD COLUMN IF NOT EXISTS cv_document_url TEXT;`.catch(() => {});
+  sql`ALTER TABLE staff_members ADD COLUMN IF NOT EXISTS certificates_urls TEXT;`.catch(() => {});
   // Auto-create gateway_accounts table
   sql`
     CREATE TABLE IF NOT EXISTS gateway_accounts (
