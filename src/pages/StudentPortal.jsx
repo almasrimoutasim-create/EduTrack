@@ -164,14 +164,54 @@ export default function StudentPortal() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isViewOnly, setIsViewOnly] = useState(false);
 
+  // Helper: check if an assignment is targeted to a specific student grade/section
+  const isAssignmentForStudent = (asm, studentGrade, studentSection) => {
+    if (!studentGrade) return true; // If no grade info, show all (fallback)
+    const sGrade = String(studentGrade).trim();
+    const sSection = studentSection ? String(studentSection).trim() : "";
+
+    // 1. Check target_classes array (new system)
+    if (Array.isArray(asm.target_classes) && asm.target_classes.length > 0) {
+      return asm.target_classes.some(tc => {
+        const tcGrade = String(tc.grade || "").trim();
+        const tcSection = String(tc.section || "").trim();
+        if (tcGrade !== sGrade) return false;
+        // If teacher didn't specify a section, or student has no section, match on grade only
+        if (!tcSection || !sSection) return true;
+        return tcSection === sSection;
+      });
+    }
+
+    // 2. Fallback: check legacy grade/section fields
+    if (asm.grade) {
+      const asmGrades = String(asm.grade).split(",").map(g => g.trim());
+      if (!asmGrades.includes(sGrade)) return false;
+      if (asm.section && sSection) {
+        const asmSections = String(asm.section).split(",").map(s => s.trim());
+        return asmSections.includes(sSection);
+      }
+      return true;
+    }
+
+    // 3. No targeting info at all → show to everyone (legacy assignments)
+    return true;
+  };
+
   const loadAssignments = (e) => {
     const saved = localStorage.getItem("edu_assignments");
     if (saved) {
       const parsed = JSON.parse(saved);
+      const studentGrade = student?.grade;
+      const studentSection = student?.section || student?.class_section || "";
+
+      // Filter to only assignments targeted to this student's class
+      const relevant = parsed.filter(asm => isAssignmentForStudent(asm, studentGrade, studentSection));
+
       if (e && e.key === "edu_assignments") {
         const oldVal = e.oldValue ? JSON.parse(e.oldValue) : [];
-        if (parsed.length > oldVal.length) {
-          const newAsm = parsed[0];
+        const oldRelevant = oldVal.filter(asm => isAssignmentForStudent(asm, studentGrade, studentSection));
+        if (relevant.length > oldRelevant.length) {
+          const newAsm = relevant[0];
           if (newAsm) {
             toast.success(
               isRTL 
@@ -182,7 +222,7 @@ export default function StudentPortal() {
           }
         }
       }
-      setAssignments(parsed);
+      setAssignments(relevant);
     }
   };
 
@@ -190,7 +230,7 @@ export default function StudentPortal() {
     loadAssignments();
     window.addEventListener("storage", loadAssignments);
     return () => window.removeEventListener("storage", loadAssignments);
-  }, []);
+  }, [student?.grade, student?.section]);
 
   const handleStartTask = (asm) => {
     const savedSubmissions = localStorage.getItem("edu_submissions");

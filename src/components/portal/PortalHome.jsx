@@ -24,7 +24,7 @@ export default function PortalHome({ student }) {
 
   const pendingFines = fines.filter(f => f.status === "pending");
   const totalFines = pendingFines.reduce((s, f) => s + f.amount, 0);
-  const recentAttendance = [...attendance].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
+  const recentAttendance = [...attendance].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
 
   return (
     <div className="space-y-5">

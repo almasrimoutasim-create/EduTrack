@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { 
   FileText, Plus, Trash2, CheckCircle2, XCircle, Clock, Clock3, AlertCircle, 
   HelpCircle, Eye, ChevronRight, Save, AlignLeft, CheckSquare, 
-  List, Award, Users, BookOpen, Star, RefreshCw, Check, Edit2
+  List, Award, Users, BookOpen, Star, RefreshCw, Check, Edit2,
+  GraduationCap, Filter, School
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -69,7 +70,13 @@ const getThemeClasses = (subjectName, isPendingAmber) => {
   };
 };
 
-export default function AssignmentsGradingTab({ isRTL = true, subjects = [] }) {
+export default function AssignmentsGradingTab({ 
+  isRTL = true, 
+  subjects = [], 
+  teacherClasses = [], 
+  teacherSchedules = [], 
+  teacherId = null 
+}) {
   const [assignments, setAssignments] = useState(() => {
     try {
       const saved = localStorage.getItem("edu_assignments");
@@ -131,6 +138,98 @@ export default function AssignmentsGradingTab({ isRTL = true, subjects = [] }) {
   const [formQuestions, setFormQuestions] = useState(/** @type {any[]} */ ([
     { id: "fq1", type: "mcq", text: "", options: ["خيّار 1"], correctAnswer: "", points: 1 }
   ]));
+  // Target class selection state
+  const [selectedClasses, setSelectedClasses] = useState([]);
+  const [classSelectionError, setClassSelectionError] = useState(false);
+  const [filterClassId, setFilterClassId] = useState("all");
+
+  // Extract unique classes and sections taught by the teacher
+  const availableClasses = useMemo(() => {
+    const list = [];
+    const seen = new Set();
+    
+    // 1. From teacherClasses or subjects
+    const source = (teacherClasses && teacherClasses.length > 0) ? teacherClasses : (subjects || []);
+    source.forEach(c => {
+      const grade = c.grade || c.grade_level;
+      const section = c.section || "";
+      if (grade) {
+        const key = `${grade}-${section}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          const sectionLabel = section ? (isRTL ? `شعبة ${section}` : `Section ${section}`) : "";
+          const gradeLabel = isRTL ? `الصف ${grade}` : `Grade ${grade}`;
+          const label = sectionLabel ? `${gradeLabel} - ${sectionLabel}` : gradeLabel;
+          list.push({
+            id: c.id ? String(c.id) : `cls-${grade}-${section || 'all'}`,
+            grade: String(grade),
+            section: String(section || ""),
+            label,
+            subject: c.name || ""
+          });
+        }
+      }
+    });
+
+    // 2. From teacherSchedules if any extra
+    if (teacherSchedules && teacherSchedules.length > 0) {
+      teacherSchedules.forEach(s => {
+        const grade = s.grade;
+        const section = s.section || "";
+        if (grade) {
+          const key = `${grade}-${section}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            const sectionLabel = section ? (isRTL ? `شعبة ${section}` : `Section ${section}`) : "";
+            const gradeLabel = isRTL ? `الصف ${grade}` : `Grade ${grade}`;
+            const label = sectionLabel ? `${gradeLabel} - ${sectionLabel}` : gradeLabel;
+            list.push({
+              id: s.id ? String(s.id) : `cls-${grade}-${section || 'all'}`,
+              grade: String(grade),
+              section: String(section || ""),
+              label,
+              subject: s.subject_name || ""
+            });
+          }
+        }
+      });
+    }
+
+    // 3. Fallback standard classes if list is empty
+    if (list.length === 0) {
+      const defaults = [
+        { grade: "4", section: "أ" },
+        { grade: "4", section: "ب" },
+        { grade: "5", section: "أ" },
+        { grade: "5", section: "ب" },
+        { grade: "6", section: "أ" },
+        { grade: "6", section: "ب" },
+      ];
+      defaults.forEach(d => {
+        list.push({
+          id: `cls-${d.grade}-${d.section}`,
+          grade: d.grade,
+          section: d.section,
+          label: isRTL ? `الصف ${d.grade} - شعبة (${d.section})` : `Grade ${d.grade} - Section (${d.section})`,
+          subject: ""
+        });
+      });
+    }
+
+    return list;
+  }, [teacherClasses, subjects, teacherSchedules, isRTL]);
+
+  const filteredAssignments = useMemo(() => {
+    if (filterClassId === "all") return assignments;
+    return assignments.filter(asm => {
+      if (Array.isArray(asm.target_classes) && asm.target_classes.length > 0) {
+        return asm.target_classes.some(c => c.id === filterClassId || `${c.grade}-${c.section}` === filterClassId || c.grade === filterClassId);
+      }
+      if (asm.class_id && asm.class_id === filterClassId) return true;
+      if (asm.grade && String(asm.grade) === filterClassId) return true;
+      return true;
+    });
+  }, [assignments, filterClassId]);
 
   // Create Assignment Form Actions
   const addQuestion = () => {
@@ -208,7 +307,23 @@ export default function AssignmentsGradingTab({ isRTL = true, subjects = [] }) {
       return;
     }
 
+    if (!selectedClasses || selectedClasses.length === 0) {
+      setClassSelectionError(true);
+      toast.error(isRTL ? "يرجى تحديد الصف / الفصل الدراسي المستهدف للواجب (حقل إلزامي)" : "Please select target class/grade (Required)");
+      return;
+    }
+
     const totalPoints = formQuestions.reduce((sum, q) => sum + (q.points || 0), 0);
+    const targetClassesData = selectedClasses.map(c => ({
+      id: c.id,
+      grade: c.grade,
+      section: c.section,
+      label: c.label
+    }));
+    const primaryClassId = selectedClasses[0]?.id || null;
+    const primaryGradeId = selectedClasses[0]?.grade || null;
+    const gradeStr = selectedClasses.map(c => c.grade).filter((v, i, a) => a.indexOf(v) === i).join(", ");
+    const sectionStr = selectedClasses.map(c => c.section).filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(", ");
 
     if (editingAsmId) {
       setAssignments(prev => {
@@ -218,22 +333,49 @@ export default function AssignmentsGradingTab({ isRTL = true, subjects = [] }) {
             return {
               ...asm,
               title: formTitle,
+              description: formDesc,
               subject: resolvedSubject,
               dueDate: formDueDate,
               questionsCount: formQuestions.length,
               points: totalPoints,
-              questions: formQuestions
+              questions: formQuestions,
+              target_classes: targetClassesData,
+              class_id: primaryClassId,
+              grade_id: primaryGradeId,
+              grade: gradeStr,
+              section: sectionStr
             };
           }
           return asm;
         });
       });
+
+      // Sync update with database
+      try {
+        entities.TeacherAssignment.update(editingAsmId, {
+          title: formTitle,
+          description: formDesc,
+          subject: resolvedSubject,
+          due_date: formDueDate ? new Date(formDueDate).toISOString() : null,
+          total_points: totalPoints,
+          grade: gradeStr,
+          class_id: primaryClassId ? String(primaryClassId) : null,
+          grade_id: primaryGradeId ? String(primaryGradeId) : null,
+          section: sectionStr,
+          target_classes: targetClassesData,
+          questions: formQuestions
+        }).catch(err => console.warn("Backend update silent fallback:", err));
+      } catch (e) {
+        console.warn("DB TeacherAssignment sync error:", e);
+      }
+
       toast.success(isRTL ? "تم تحديث الواجب بنجاح!" : "Assignment updated successfully!");
       setEditingAsmId(null);
     } else {
       const newAsm = {
         id: `asm-${Date.now()}`,
         title: formTitle,
+        description: formDesc,
         subject: resolvedSubject,
         dueDate: formDueDate,
         questionsCount: formQuestions.length,
@@ -241,7 +383,13 @@ export default function AssignmentsGradingTab({ isRTL = true, subjects = [] }) {
         submissionsCount: 0,
         gradedCount: 0,
         averageScore: 0,
-        questions: formQuestions
+        questions: formQuestions,
+        target_classes: targetClassesData,
+        class_id: primaryClassId,
+        grade_id: primaryGradeId,
+        grade: gradeStr,
+        section: sectionStr,
+        created_at: new Date().toISOString()
       };
 
       setAssignments(prev => {
@@ -253,13 +401,35 @@ export default function AssignmentsGradingTab({ isRTL = true, subjects = [] }) {
         return { ...safePrev, [newAsm.id]: [] };
       });
 
+      // Sync creation with database
+      try {
+        entities.TeacherAssignment.create({
+          teacher_id: teacherId || "00000000-0000-0000-0000-000000000000",
+          title: formTitle,
+          description: formDesc,
+          subject: resolvedSubject,
+          due_date: formDueDate ? new Date(formDueDate).toISOString() : null,
+          total_points: totalPoints,
+          grade: gradeStr,
+          class_id: primaryClassId ? String(primaryClassId) : null,
+          grade_id: primaryGradeId ? String(primaryGradeId) : null,
+          section: sectionStr,
+          target_classes: targetClassesData,
+          questions: formQuestions,
+          status: "active"
+        }).catch(err => console.warn("Backend create silent fallback:", err));
+      } catch (e) {
+        console.warn("DB TeacherAssignment sync error:", e);
+      }
+
       // Post an official announcement to notify students about the new assignment
       try {
+        const classTargetNames = targetClassesData.map(c => c.label).join("، ");
         entities.OfficialAnnouncement.create({
-          title: isRTL ? `واجب جديد: ${newAsm.title}` : `New Assignment: ${newAsm.title}`,
+          title: isRTL ? `واجب جديد (${classTargetNames}): ${newAsm.title}` : `New Assignment: ${newAsm.title}`,
           content: isRTL 
-            ? `قام المعلم بنشر واجب جديد لمادة (${newAsm.subject})، آخر موعد للتسليم هو ${newAsm.dueDate}.` 
-            : `The teacher published a new assignment for (${newAsm.subject}), due date is ${newAsm.dueDate}.`,
+            ? `قام المعلم بنشر واجب جديد لمادة (${newAsm.subject}) لطلاب (${classTargetNames})، آخر موعد للتسليم هو ${newAsm.dueDate}.` 
+            : `The teacher published a new assignment for (${newAsm.subject}) for (${classTargetNames}), due date is ${newAsm.dueDate}.`,
           priority: "high",
           target_audience: "students",
           created_at: new Date().toISOString()
@@ -276,6 +446,8 @@ export default function AssignmentsGradingTab({ isRTL = true, subjects = [] }) {
     setFormDesc("");
     setFormSubject("");
     setFormDueDate("");
+    setSelectedClasses([]);
+    setClassSelectionError(false);
     setFormQuestions([{ id: "fq1", type: "mcq", text: "", options: ["خيّار 1"], correctAnswer: "", points: 1 }]);
     setView("list");
   };
@@ -383,8 +555,74 @@ export default function AssignmentsGradingTab({ isRTL = true, subjects = [] }) {
 
       {/* 1. LIST VIEW */}
       {view === "list" && (
-        <div className="grid grid-cols-1 gap-6">
-          {assignments.map(asm => {
+        <div className="space-y-6">
+          {/* Class Filter Bar */}
+          <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-stone-100 shadow-sm">
+            <div className="flex items-center gap-2">
+              <Filter size={15} className="text-primary" />
+              <span className="text-xs font-bold text-stone-700">{isRTL ? "تصفية الواجبات حسب الفصل:" : "Filter by Class:"}</span>
+            </div>
+            
+            <div className="flex flex-wrap items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setFilterClassId("all")}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  filterClassId === "all"
+                    ? "bg-stone-900 text-white shadow-sm"
+                    : "bg-stone-100 text-stone-600 hover:bg-stone-200"
+                }`}
+              >
+                {isRTL ? "جميع الفصول" : "All Classes"} ({assignments.length})
+              </button>
+
+              {availableClasses.map(cls => {
+                const count = assignments.filter(asm => {
+                  if (Array.isArray(asm.target_classes) && asm.target_classes.length > 0) {
+                    return asm.target_classes.some(c => c.id === cls.id || (c.grade === cls.grade && c.section === cls.section));
+                  }
+                  return asm.grade === cls.grade && (!asm.section || asm.section === cls.section);
+                }).length;
+
+                const isSelected = filterClassId === cls.id || filterClassId === `${cls.grade}-${cls.section}`;
+                return (
+                  <button
+                    key={cls.id}
+                    type="button"
+                    onClick={() => setFilterClassId(isSelected ? "all" : (cls.id || `${cls.grade}-${cls.section}`))}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                      isSelected
+                        ? "bg-primary text-white shadow-sm"
+                        : "bg-stone-100 text-stone-600 hover:bg-stone-200"
+                    }`}
+                  >
+                    <span>{cls.label}</span>
+                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${isSelected ? "bg-white/20 text-white" : "bg-stone-200 text-stone-600"}`}>
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {filteredAssignments.length === 0 ? (
+            <Card className="p-12 text-center bg-stone-50/50 border border-dashed border-stone-200 rounded-[32px] space-y-3">
+              <GraduationCap className="h-10 w-10 text-stone-300 mx-auto" />
+              <p className="font-bold text-stone-600 text-sm">{isRTL ? "لا توجد واجبات مطابقة لهذا الفصل الدراسي." : "No assignments found for this class."}</p>
+              {filterClassId !== "all" && (
+                <button
+                  type="button"
+                  onClick={() => setFilterClassId("all")}
+                  className="text-xs font-bold text-primary hover:underline cursor-pointer"
+                >
+                  {isRTL ? "عرض جميع الواجبات" : "View all assignments"}
+                </button>
+              )}
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 gap-6">
+              {filteredAssignments.map(asm => {
             const currentSubmissions = (submissions && submissions[asm.id]) || [];
             const pendingCount = currentSubmissions.filter(s => s.status === "pending").length;
             
@@ -412,6 +650,27 @@ export default function AssignmentsGradingTab({ isRTL = true, subjects = [] }) {
                         setFormSubject(asm.subject);
                         setFormDueDate(asm.dueDate);
                         setFormQuestions(asm.questions || []);
+                        if (asm.target_classes && Array.isArray(asm.target_classes) && asm.target_classes.length > 0) {
+                          setSelectedClasses(asm.target_classes);
+                        } else if (asm.grade) {
+                          const gList = String(asm.grade).split(",").map(g => g.trim());
+                          const sList = asm.section ? String(asm.section).split(",").map(s => s.trim()) : [""];
+                          const reconstructed = [];
+                          gList.forEach(g => {
+                            sList.forEach(s => {
+                              reconstructed.push({
+                                id: asm.class_id || `cls-${g}-${s || 'all'}`,
+                                grade: g,
+                                section: s,
+                                label: isRTL ? `الصف ${g}${s ? ` - شعبة (${s})` : ''}` : `Grade ${g}${s ? ` - Sec (${s})` : ''}`
+                              });
+                            });
+                          });
+                          setSelectedClasses(reconstructed);
+                        } else {
+                          setSelectedClasses([]);
+                        }
+                        setClassSelectionError(false);
                         setView("create");
                       }}
                       className="inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-lg text-[10px] font-bold transition-all border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 h-8 px-2.5 cursor-pointer shadow-sm"
@@ -429,11 +688,33 @@ export default function AssignmentsGradingTab({ isRTL = true, subjects = [] }) {
                     </button>
                   </div>
 
-                  {/* Middle: Assignment Title */}
+                  {/* Middle: Assignment Title & Target Classes */}
                   <div className="flex-1 text-center order-1 md:order-2 w-full md:px-6">
                     <h3 className="text-base md:text-lg font-bold text-stone-900 group-hover:text-primary transition-colors leading-snug">
                       {asm.title}
                     </h3>
+                    {((asm.target_classes && asm.target_classes.length > 0) || asm.grade) && (
+                      <div className="flex flex-wrap items-center justify-center gap-1.5 mt-2">
+                        <span className="text-[11px] text-stone-400 font-bold flex items-center gap-1">
+                          <GraduationCap size={13} className="text-primary" />
+                          {isRTL ? "الفصول المستهدفة:" : "Classes:"}
+                        </span>
+                        {Array.isArray(asm.target_classes) && asm.target_classes.length > 0 ? (
+                          asm.target_classes.map((tc, idx) => (
+                            <span 
+                              key={tc.id || idx} 
+                              className="inline-flex items-center text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200/70 px-2 py-0.5 rounded-lg"
+                            >
+                              {tc.label || (isRTL ? `الصف ${tc.grade}${tc.section ? ` (${tc.section})` : ''}` : `Grade ${tc.grade}${tc.section ? ` (${tc.section})` : ''}`)}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="inline-flex items-center text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200/70 px-2 py-0.5 rounded-lg">
+                            {isRTL ? `الصف ${asm.grade}${asm.section ? ` (${asm.section})` : ''}` : `Grade ${asm.grade}${asm.section ? ` (${asm.section})` : ''}`}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* Right Side: Subject Badge & Date */}
@@ -566,6 +847,29 @@ export default function AssignmentsGradingTab({ isRTL = true, subjects = [] }) {
                   rows={2}
                   className="w-full text-sm text-stone-500 border-none focus:outline-none resize-none"
                 />
+              </div>
+
+              {/* Target classes preview in header */}
+              <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-stone-100">
+                <span className="text-xs font-bold text-stone-400 flex items-center gap-1.5">
+                  <GraduationCap size={14} className="text-primary" />
+                  {isRTL ? "الفصول المستهدفة:" : "Targeted Classes:"}
+                </span>
+                {selectedClasses.length === 0 ? (
+                  <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-lg border ${
+                    classSelectionError 
+                      ? "text-rose-600 bg-rose-50 border-rose-200 animate-pulse" 
+                      : "text-amber-700 bg-amber-50 border-amber-200"
+                  }`}>
+                    {isRTL ? "لم يتم تحديد صف بعد (مطلوب من لوحة الإعدادات جانباً *)" : "No class selected yet (Required in sidebar *)"}
+                  </span>
+                ) : (
+                  selectedClasses.map(c => (
+                    <Badge key={c.id || `${c.grade}-${c.section}`} className="bg-primary/10 text-primary border border-primary/20 text-[11px] font-bold px-2.5 py-0.5 rounded-lg">
+                      {c.label}
+                    </Badge>
+                  ))
+                )}
               </div>
             </Card>
 
@@ -770,6 +1074,109 @@ export default function AssignmentsGradingTab({ isRTL = true, subjects = [] }) {
                       )}
                     </SelectContent>
                   </Select>
+                </div>
+
+                {/* Target Classes & Sections Selection (Mandatory) */}
+                <div className={`space-y-2 p-3.5 rounded-2xl transition-all ${
+                  classSelectionError 
+                    ? "bg-rose-50/70 border-2 border-rose-300 ring-2 ring-rose-200/50" 
+                    : "bg-stone-50/60 border border-stone-200/80"
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <GraduationCap className="h-4 w-4 text-primary" />
+                      <Label className="text-stone-800 font-bold text-xs">
+                        {isRTL ? "الصف / الشعبة المستهدفة" : "Target Classes / Grades"}
+                      </Label>
+                      <span className="text-rose-500 font-black text-xs">*</span>
+                    </div>
+
+                    {/* Quick selection actions */}
+                    <div className="flex items-center gap-1.5">
+                      {selectedClasses.length < availableClasses.length ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedClasses([...availableClasses]);
+                            setClassSelectionError(false);
+                          }}
+                          className="text-[10px] font-bold text-primary hover:underline cursor-pointer"
+                        >
+                          {isRTL ? "تحديد الكل" : "Select All"}
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedClasses([])}
+                          className="text-[10px] font-bold text-stone-400 hover:text-rose-500 hover:underline cursor-pointer"
+                        >
+                          {isRTL ? "إلغاء التحديد" : "Deselect"}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <p className="text-[11px] text-stone-500 font-medium leading-relaxed">
+                    {isRTL 
+                      ? "حدد الفصول والشُعب التي سيمكن لطلابها حل هذا الواجب حصرياً:" 
+                      : "Select the specific classes/sections that can access this homework:"}
+                  </p>
+
+                  {/* Available classes interactive multi-select list */}
+                  <div className="space-y-1.5 max-h-48 overflow-y-auto pr-0.5">
+                    {availableClasses.map((cls) => {
+                      const isSelected = selectedClasses.some(c => c.id === cls.id || (c.grade === cls.grade && c.section === cls.section));
+                      return (
+                        <div
+                          key={cls.id}
+                          onClick={() => {
+                            if (isSelected) {
+                              setSelectedClasses(prev => prev.filter(c => !(c.id === cls.id || (c.grade === cls.grade && c.section === cls.section))));
+                            } else {
+                              setSelectedClasses(prev => [...prev, cls]);
+                              setClassSelectionError(false);
+                            }
+                          }}
+                          className={`flex items-center justify-between p-2.5 rounded-xl border text-xs font-semibold cursor-pointer transition-all select-none ${
+                            isSelected 
+                              ? "bg-white border-primary text-stone-900 shadow-sm ring-1 ring-primary/30" 
+                              : "bg-white/80 border-stone-200 text-stone-600 hover:border-stone-300 hover:bg-white"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <div className={`h-4 w-4 rounded-md border flex items-center justify-center transition-colors ${
+                              isSelected ? "bg-primary border-primary text-white" : "border-stone-300 bg-white"
+                            }`}>
+                              {isSelected && <Check size={11} strokeWidth={3} />}
+                            </div>
+                            <span>{cls.label}</span>
+                          </div>
+
+                          {cls.section && (
+                            <Badge variant="outline" className={`text-[10px] font-bold py-0 px-1.5 ${isSelected ? "border-primary/40 text-primary bg-primary/5" : "text-stone-400"}`}>
+                              {isRTL ? `شعبة ${cls.section}` : `Sec ${cls.section}`}
+                            </Badge>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Summary & Error feedback */}
+                  <div className="pt-1 flex items-center justify-between text-[11px] font-bold">
+                    <span className={selectedClasses.length > 0 ? "text-primary" : "text-stone-400"}>
+                      {selectedClasses.length > 0
+                        ? (isRTL ? `تم تحديد ${selectedClasses.length} من أصل ${availableClasses.length} فصول` : `Selected ${selectedClasses.length} of ${availableClasses.length} classes`)
+                        : (isRTL ? "لم يتم تحديد أي صف بعد" : "No class selected yet")}
+                    </span>
+                  </div>
+
+                  {classSelectionError && (
+                    <div className="flex items-center gap-1 text-[11px] font-bold text-rose-600 pt-0.5 animate-pulse">
+                      <AlertCircle size={12} />
+                      <span>{isRTL ? "هذا الحقل إلزامي: يرجى تحديد صف دراسي واحد على الأقل" : "Required: Please select at least one class"}</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-1.5">
@@ -1007,6 +1414,23 @@ export default function AssignmentsGradingTab({ isRTL = true, subjects = [] }) {
                 <div className="space-y-1">
                   <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">{isRTL ? "عنوان الواجب" : "Title"}</p>
                   <h4 className="text-lg font-black text-stone-850">{previewAsm.title}</h4>
+                  {((previewAsm.target_classes && previewAsm.target_classes.length > 0) || previewAsm.grade) && (
+                    <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                      <GraduationCap size={13} className="text-primary" />
+                      <span className="text-[11px] font-bold text-stone-500">{isRTL ? "الفصول المستهدفة:" : "Classes:"}</span>
+                      {Array.isArray(previewAsm.target_classes) && previewAsm.target_classes.length > 0 ? (
+                        previewAsm.target_classes.map((tc, idx) => (
+                          <Badge key={tc.id || idx} className="bg-amber-100 text-amber-800 border-none text-[10px] font-bold px-2 py-0.5">
+                            {tc.label || `الصف ${tc.grade} (${tc.section})`}
+                          </Badge>
+                        ))
+                      ) : (
+                        <Badge className="bg-amber-100 text-amber-800 border-none text-[10px] font-bold px-2 py-0.5">
+                          الصف {previewAsm.grade} {previewAsm.section ? `(${previewAsm.section})` : ''}
+                        </Badge>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div className="flex gap-4">
                   <div className="text-center bg-white px-3 py-1.5 rounded-xl border border-stone-200">

@@ -3965,6 +3965,11 @@ WHERE email = $10`,
              description TEXT,
              subject TEXT,
              grade TEXT,
+             class_id VARCHAR(100),
+             grade_id VARCHAR(100),
+             section TEXT,
+             target_classes JSONB DEFAULT '[]',
+             questions JSONB DEFAULT '[]',
              due_date TIMESTAMP WITH TIME ZONE,
              total_points INTEGER DEFAULT 100,
              attachment_url TEXT,
@@ -4118,6 +4123,11 @@ WHERE email = $10`,
            DO $$ BEGIN
              ALTER TABLE teacher_own_students ADD COLUMN IF NOT EXISTS independent_teacher_id VARCHAR(50);
              ALTER TABLE teacher_assignments ADD COLUMN IF NOT EXISTS independent_teacher_id VARCHAR(50);
+              ALTER TABLE teacher_assignments ADD COLUMN IF NOT EXISTS class_id VARCHAR(100);
+              ALTER TABLE teacher_assignments ADD COLUMN IF NOT EXISTS grade_id VARCHAR(100);
+              ALTER TABLE teacher_assignments ADD COLUMN IF NOT EXISTS section TEXT;
+              ALTER TABLE teacher_assignments ADD COLUMN IF NOT EXISTS target_classes JSONB DEFAULT '[]';
+              ALTER TABLE teacher_assignments ADD COLUMN IF NOT EXISTS questions JSONB DEFAULT '[]';
              ALTER TABLE teacher_exams ADD COLUMN IF NOT EXISTS independent_teacher_id VARCHAR(50);
              ALTER TABLE teacher_submissions ADD COLUMN IF NOT EXISTS independent_teacher_id VARCHAR(50);
              ALTER TABLE teacher_live_classes ADD COLUMN IF NOT EXISTS independent_teacher_id VARCHAR(50);
@@ -4474,7 +4484,13 @@ WHERE email = $10`,
             body.school_id = tenantId;
           }
           const sets = keys.map((k, i) => `${sanitizeColumn(k)} = $${i + 1}`);
-          const values = keys.map(k => body[k]);
+          const values = keys.map(k => {
+            const val = body[k];
+            if (val !== null && typeof val === 'object' && !Buffer.isBuffer(val)) {
+              return JSON.stringify(val);
+            }
+            return val;
+          });
           values.push(entityId);
           let q = `UPDATE ${table} SET ${sets.join(', ')} WHERE id = $${values.length} RETURNING *`;
           // Multi-tenant: منع تعديل سجل لمستأجر آخر (يشمل حسابات القفل المحدودة بالمدرسة)

@@ -35,7 +35,7 @@ export default function GradeDistributionChart({ students = [] }) {
     };
   });
 
-  const CustomTooltip = ({ active, payload }) => {
+  const CustomTooltip = ({ active = false, payload = [] } = {}) => {
     if (active && payload && payload.length) {
       const d = payload[0].payload;
       return (

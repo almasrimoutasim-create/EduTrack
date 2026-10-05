@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { entities } from "@/api/dbClient";
@@ -600,7 +600,13 @@ export default function TeacherPortal() {
             </TabsContent>
             
             <TabsContent value="grading" className="m-0 space-y-6">
-              <AssignmentsGradingTab isRTL={isRTL} subjects={classes} />
+              <AssignmentsGradingTab 
+                isRTL={isRTL} 
+                subjects={classes} 
+                teacherClasses={classes}
+                teacherSchedules={teacherSchedules}
+                teacherId={teacherId}
+              />
             </TabsContent>
 
             <TabsContent value="students" className="m-0 space-y-6">

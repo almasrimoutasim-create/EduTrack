@@ -81,7 +81,7 @@ export default function RenewSubscription() {
     if (!school?.expires_at) return { status: "unknown", text: isRTL ? "غير محدد" : "Unknown", className: "text-slate-500" };
     const now = new Date();
     const exp = new Date(school.expires_at);
-    const diffDays = Math.ceil((exp - now) / (1000 * 60 * 60 * 24));
+    const diffDays = Math.ceil((exp.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
     
     if (diffDays < 0) return { status: "expired", text: isRTL ? `منتهي منذ ${Math.abs(diffDays)} يوم` : `Expired ${Math.abs(diffDays)} days ago`, className: "text-rose-600 font-bold" };
     if (diffDays <= 1) return { status: "critical", text: isRTL ? "ينتهي اليوم!" : "Expires today!", className: "text-rose-600 font-bold" };

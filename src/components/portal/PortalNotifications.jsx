@@ -39,7 +39,7 @@ export default function PortalNotifications({ me }) {
     });
   }, [notifs.length]);
 
-  const sorted = [...notifs].sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
+  const sorted = [...notifs].sort((a, b) => new Date(b.created_date).getTime() - new Date(a.created_date).getTime());
 
   return (
     <div className="space-y-4">

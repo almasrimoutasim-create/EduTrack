@@ -47,7 +47,7 @@ export default function GroupChat({ group, me }) {
           <p className="text-center text-sm text-muted-foreground py-6">No messages yet. Start the conversation!</p>
         ) : (
           messages
-            .sort((a, b) => new Date(a.created_date) - new Date(b.created_date))
+            .sort((a, b) => new Date(a.created_date).getTime() - new Date(b.created_date).getTime())
             .map(msg => (
               <div key={msg.id} className="flex gap-2 group">
                 {msg.sender_photo ? (

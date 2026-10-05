@@ -37,7 +37,7 @@ export default function FinancialOverviewCard({ studentFees = [], feePayments = 
 
     // Recent payments
     const recentPayments = [...feePayments]
-      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       .slice(0, 3);
 
     return { totalCharged, totalPaid, pending, collectionRate, paidCount, pendingCount, overdueCount, recentPayments };

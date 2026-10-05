@@ -682,7 +682,7 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
         await entities.Student.update(student.id, { tuition_paid: currentPaid + amount });
         const targetFee = (studentFees || [])
           .filter(f => f.status !== "paid")
-          .sort((a, b) => new Date(a.due_date || a.created_at) - new Date(b.due_date || b.created_at))[0];
+          .sort((a, b) => new Date(a.due_date || a.created_at).getTime() - new Date(b.due_date || b.created_at).getTime())[0];
         if (targetFee) {
           const remainingVal = parseFloat(targetFee.remaining ?? (targetFee.amount - (targetFee.amount_paid || 0)));
           await entities.FeePayment.create({
