@@ -821,6 +821,8 @@ export default function AssignmentsGradingTab({
             );
           })}
         </div>
+          )}
+        </div>
       )}
 
       {/* 2. FORM BUILDER VIEW (Google Forms/MS Forms experience) */}

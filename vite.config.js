@@ -12,9 +12,14 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  esbuild: {
+    jsx: 'automatic',
+    target: 'es2020',
+  },
   build: {
     sourcemap: false,
     chunkSizeWarningLimit: 800,
+    target: 'es2020',
     rollupOptions: {
       output: {
         manualChunks: {
