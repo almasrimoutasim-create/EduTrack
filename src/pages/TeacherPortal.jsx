@@ -19,7 +19,6 @@ import {
   Star,
   Video,
   Megaphone,
-  Bell,
   Search,
   Trophy,
   Award
@@ -42,6 +41,8 @@ import { Input } from "@/components/ui/input";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import AdminStudentProfile from "@/components/students/AdminStudentProfile";
 import RecordedVideosManager from "@/components/teacher/RecordedVideosManager";
+import SchoolVideosLibrary from "@/components/teacher/SchoolVideosLibrary";
+import TeacherStudyMaterialsManager from "@/components/teacher/TeacherStudyMaterialsManager";
 
 const btnOutline = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-sm font-semibold transition-all border-2 border-stone-300 bg-white text-stone-800 hover:bg-stone-50 hover:border-stone-400 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
 const btnPrimary = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-sm font-semibold transition-all bg-stone-900 text-white hover:bg-black cursor-pointer shadow-lg shadow-stone-200 disabled:opacity-50 disabled:cursor-not-allowed";
@@ -415,12 +416,15 @@ export default function TeacherPortal() {
               </div>
             </div>
           ) : activeTab === "videos" ? (
-            <RecordedVideosManager
-              isRTL={isRTL}
-              teacherId={teacherId}
-              students={filteredTeacherStudents}
-              classes={classes}
-            />
+            <div className="space-y-8">
+              <RecordedVideosManager
+                isRTL={isRTL}
+                teacherId={teacherId}
+                students={filteredTeacherStudents}
+                classes={classes}
+              />
+              <SchoolVideosLibrary isRTL={isRTL} teacherId={teacherId} />
+            </div>
           ) : (
             <>
               <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
@@ -742,6 +746,15 @@ export default function TeacherPortal() {
                     </Table>
                   </div>
                 )}
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="materials" className="m-0 space-y-6">
+              <Card className="p-6 md:p-8 bg-white border-none shadow-sm rounded-[48px]">
+                <TeacherStudyMaterialsManager
+                  isRTL={isRTL}
+                  teacherName={portalUser?.full_name || portalUser?.name || ""}
+                />
               </Card>
             </TabsContent>
           </Tabs>

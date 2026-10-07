@@ -1078,6 +1078,27 @@ if (process.env.DATABASE_URL) {
   sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS section TEXT;`.catch(() => {});
   sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS date_of_birth DATE;`.catch(() => {});
   sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS address TEXT;`.catch(() => {});
+  // Migration: student dashboard profile extras (avatar + gamification cache)
+  sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS profile_image TEXT;`.catch(() => {});
+  sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS avatar_url TEXT;`.catch(() => {});
+  // Ensure NFC attendance table exists with the columns used by /api/attendance/scan
+  sql`
+    CREATE TABLE IF NOT EXISTS attendance (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      student_id TEXT,
+      student_name TEXT,
+      student_card_id TEXT,
+      date TEXT,
+      type TEXT,
+      status TEXT DEFAULT 'present',
+      time TEXT,
+      recorded_by TEXT,
+      notes TEXT,
+      school_id UUID,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `.then(() => console.log('[neon] attendance table verified'))
+    .catch(err => console.error('[neon] attendance:', err.message));
 
   // ── Multi-tenant: إضافة school_id لكل جدول مستأجر + فهرسة + RLS سيتم لاحقاً ──
   const TENANT_TABLES = [
@@ -3281,6 +3302,239 @@ WHERE email = $10`,
         }
       }
 
+      // ── GET /api/teacher/dashboard-stats — إحصائيات وتنبيهات لوحة تحكم المعلم ──
+      // All values are computed live from PostgreSQL for the authenticated teacher
+      // (JWT identity). No mock/static values. Every query is scoped by school_id
+      // (multi-tenancy) plus branch_id on tables that carry it.
+      if ((req.url === '/api/teacher/dashboard-stats' || req.url.startsWith('/api/teacher/dashboard-stats?') || req.url === '/neon-db/teacher/dashboard-stats' || req.url.startsWith('/neon-db/teacher/dashboard-stats?')) && req.method === 'GET') {
+        res.setHeader('Content-Type', 'application/json');
+        try {
+          const me = getBearerUser(req);
+          if (!me) { res.statusCode = 401; return res.end(JSON.stringify({ error: 'Auth required' })); }
+          if (me.role !== 'teacher') { res.statusCode = 403; return res.end(JSON.stringify({ error: 'Teacher access only' })); }
+
+          const lookupId = String(me.independent_teacher_id || me.id || '');
+          const teacherRows = await dbQuery(
+            `SELECT id, full_name, school_id, branch_id, independent_teacher_id
+             FROM teachers WHERE (id::text = $1 OR independent_teacher_id = $1) LIMIT 1`,
+            [lookupId]
+          );
+          if (teacherRows.length === 0) { res.statusCode = 404; return res.end(JSON.stringify({ error: 'Teacher not found' })); }
+          const teacher = teacherRows[0];
+          const teacherUuid = String(teacher.id);
+          const schoolId = teacher.school_id ? String(teacher.school_id) : null;
+          const branchId = teacher.branch_id ? String(teacher.branch_id) : null;
+          // Identity set for TEXT columns (student_grades.teacher_id, class_schedules.teacher_id, virtual_sessions.teacher_id)
+          const textKeys = [teacherUuid, String(me.id || ''), teacher.independent_teacher_id ? String(teacher.independent_teacher_id) : null]
+            .filter((v, i, a) => v && a.indexOf(v) === i);
+
+          // Never let one failing aggregate break the whole dashboard: default to empty/zero.
+          const safe = async (q, p, fb) => {
+            try { return await dbQuery(q, p); } catch (e) { console.error('[teacher/dashboard-stats]', e.message); return fb; }
+          };
+          // Percentage expression shared by grade aggregates (score may be raw points or already a percent).
+          const PCT = `CASE WHEN COALESCE(max_score, 0) <> 0 THEN (COALESCE(score, 0) / NULLIF(max_score, 0)) * 100 ELSE COALESCE(score, 0) END`;
+          // Ownership predicate for tables with (teacher_id UUID, independent_teacher_id TEXT).
+          const ownedBy = (alias, keysParam, indParam) => `(${alias}.teacher_id::text = ANY(${keysParam}) OR ${alias}.independent_teacher_id = ANY(${indParam}))`;
+          const indKeys = textKeys.filter(Boolean);
+
+          // 1) Total students — school (+branch) scope; independent teachers fall back to actually-linked students.
+          let totalStudents = 0;
+          if (schoolId) {
+            const params = [schoolId];
+            let q = `SELECT COUNT(*)::int AS n FROM students WHERE school_id = $1`;
+            if (branchId) { params.push(branchId); q += ` AND branch_id = $2`; }
+            totalStudents = (await safe(q, params, [{ n: 0 }]))[0]?.n ?? 0;
+          } else {
+            const linked = await safe(
+              `SELECT COUNT(DISTINCT sid)::int AS n FROM (
+                 SELECT student_id::text AS sid FROM student_grades WHERE teacher_id = ANY($1)
+                 UNION
+                 SELECT student_id::text AS sid FROM teacher_submissions WHERE ${ownedBy('teacher_submissions', '$1', '$1')}
+               ) s`,
+              [textKeys], [{ n: 0 }]
+            );
+            totalStudents = linked[0]?.n ?? 0;
+          }
+
+          // 2) Grades aggregate + performance distribution (real recorded scores only).
+          const gradeScope = schoolId ? ` AND school_id = $2` : ``;
+          const gradeParams = schoolId ? [textKeys, schoolId] : [textKeys];
+          const gradeAgg = (await safe(
+            `SELECT COUNT(*)::int AS n,
+                    COALESCE(AVG(${PCT}), 0)::float AS avg_pct,
+                    COALESCE(SUM(CASE WHEN ${PCT} >= 85 THEN 1 ELSE 0 END), 0)::int AS excellent,
+                    COALESCE(SUM(CASE WHEN ${PCT} >= 60 AND ${PCT} < 85 THEN 1 ELSE 0 END), 0)::int AS good,
+                    COALESCE(SUM(CASE WHEN ${PCT} < 60 THEN 1 ELSE 0 END), 0)::int AS needs_help
+             FROM student_grades WHERE teacher_id = ANY($1)${gradeScope}`,
+            gradeParams, [{ n: 0, avg_pct: 0, excellent: 0, good: 0, needs_help: 0 }]
+          ))[0] || { n: 0, avg_pct: 0, excellent: 0, good: 0, needs_help: 0 };
+
+          // Students needing academic support (distinct students averaging below 60%).
+          const needHelpRows = await safe(
+            `SELECT COUNT(*)::int AS n FROM (
+               SELECT student_id FROM student_grades WHERE teacher_id = ANY($1)${gradeScope}
+               GROUP BY student_id HAVING AVG(${PCT}) < 60
+             ) s`,
+            gradeParams, [{ n: 0 }]
+          );
+          const needHelpCount = needHelpRows[0]?.n ?? 0;
+
+          // 3) Assignments: total created + completed (graded submissions) + pending grading.
+          const assignParams = schoolId ? [textKeys, schoolId] : [textKeys];
+          const assignTotal = (await safe(
+            `SELECT COUNT(*)::int AS n FROM teacher_assignments WHERE ${ownedBy('teacher_assignments', '$1', '$1')}${schoolId ? ` AND teacher_assignments.school_id = $2` : ``}`,
+            assignParams, [{ n: 0 }]
+          ))[0]?.n ?? 0;
+          const subBase = `FROM teacher_submissions WHERE ${ownedBy('teacher_submissions', '$1', '$1')}${schoolId ? ` AND teacher_submissions.school_id = $2` : ``}`;
+          const completedAssignments = (await safe(`SELECT COUNT(*)::int AS n ${subBase} AND graded_at IS NOT NULL`, assignParams, [{ n: 0 }]))[0]?.n ?? 0;
+          const pendingGrading = (await safe(`SELECT COUNT(*)::int AS n ${subBase} AND graded_at IS NULL`, assignParams, [{ n: 0 }]))[0]?.n ?? 0;
+
+          // 4) Real teaching hours (live classes duration + completed virtual sessions duration).
+          const liveMinutes = (await safe(
+            `SELECT COALESCE(SUM(duration_minutes), 0)::int AS n FROM teacher_live_classes WHERE ${ownedBy('teacher_live_classes', '$1', '$1')}${schoolId ? ` AND teacher_live_classes.school_id = $2` : ``}`,
+            assignParams, [{ n: 0 }]
+          ))[0]?.n ?? 0;
+          const virtualMinutes = (await safe(
+            `SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (ended_at - started_at)) / 60), 0)::int AS n
+             FROM virtual_sessions WHERE teacher_id = ANY($1) AND started_at IS NOT NULL AND ended_at IS NOT NULL${schoolId ? ` AND school_id = $2` : ``}`,
+            gradeParams, [{ n: 0 }]
+          ))[0]?.n ?? 0;
+          const teachingHours = Math.round(((liveMinutes + virtualMinutes) / 60) * 10) / 10;
+
+          // 5) Today's lessons (class schedules + live classes scheduled today).
+          const weekday = new Date().toLocaleDateString('en-US', { weekday: 'long' });
+          const schedParams = schoolId ? [textKeys, weekday, schoolId] : [textKeys, weekday];
+          let scheduleRows = await safe(
+            `SELECT id, subject_name, grade, section, start_time, end_time, room
+             FROM class_schedules WHERE teacher_id = ANY($1) AND day_of_week = $2${schoolId ? ` AND school_id = $3` : ``}
+             ORDER BY start_time LIMIT 10`,
+            schedParams, []
+          );
+          const liveToday = await safe(
+            `SELECT id, title AS subject_name, subject, scheduled_at, duration_minutes, status, room_token
+             FROM teacher_live_classes WHERE ${ownedBy('teacher_live_classes', '$1', '$1')}
+             AND scheduled_at::date = CURRENT_DATE${schoolId ? ` AND teacher_live_classes.school_id = $2` : ``}
+             ORDER BY scheduled_at LIMIT 10`,
+            assignParams, []
+          );
+          const nowHHMM = new Date().toTimeString().slice(0, 5);
+          const timeStatus = (s, e) => {
+            const t = String(s || '').slice(0, 5), x = String(e || '').slice(0, 5);
+            if (!/^\d{2}:\d{2}$/.test(t) || !/^\d{2}:\d{2}$/.test(x)) return 'upcoming';
+            if (nowHHMM < t) return 'upcoming';
+            if (nowHHMM <= x) return 'active';
+            return 'finished';
+          };
+          const todayLessons = [];
+          for (const r of scheduleRows) {
+            let enrolled = 0;
+            if (schoolId && r.grade) {
+              const p = [schoolId, String(r.grade)];
+              let q = `SELECT COUNT(*)::int AS n FROM students WHERE school_id = $1 AND grade = $2`;
+              if (r.section) { q += ` AND section = $3`; p.push(String(r.section)); }
+              if (branchId) { q += ` AND branch_id = $${p.length + 1}`; p.push(branchId); }
+              enrolled = (await safe(q, p, [{ n: 0 }]))[0]?.n ?? 0;
+            }
+            todayLessons.push({
+              id: r.id, kind: 'schedule',
+              name: [r.grade, r.section, r.subject_name].filter(Boolean).join(' — ') || r.subject_name,
+              time: [r.start_time, r.end_time].filter(Boolean).join(' - '),
+              room: r.room || null,
+              status: timeStatus(r.start_time, r.end_time),
+              enrolled,
+            });
+          }
+          for (const r of liveToday) {
+            todayLessons.push({
+              id: r.id, kind: 'live',
+              name: r.subject_name || r.subject,
+              time: r.scheduled_at,
+              room: r.room_token || null,
+              status: r.status === 'live' ? 'active' : (r.status === 'ended' ? 'finished' : 'upcoming'),
+              enrolled: 0,
+            });
+          }
+
+          // 6) Star students — top 4 by average recorded score; fallback to attendance score.
+          let starStudents = (await safe(
+            `SELECT student_id AS id, MAX(student_name) AS name, AVG(${PCT})::float AS avg_score
+             FROM student_grades WHERE teacher_id = ANY($1)${gradeScope}
+             GROUP BY student_id ORDER BY avg_score DESC LIMIT 4`,
+            gradeParams, []
+          )).map((s) => ({ id: s.id, name: s.name, avgScore: Math.round(Number(s.avg_score || 0) * 10) / 10 }));
+          if (starStudents.length === 0 && schoolId) {
+            const fbParams = branchId ? [schoolId, branchId] : [schoolId];
+            starStudents = (await safe(
+              `SELECT id, full_name AS name, COALESCE(attendance_score, 0)::float AS avg_score
+               FROM students WHERE school_id = $1${branchId ? ` AND branch_id = $2` : ``}
+               ORDER BY avg_score DESC NULLS LAST, created_at DESC LIMIT 4`,
+              fbParams, []
+            )).map((s) => ({ id: s.id, name: s.name, avgScore: Math.round(Number(s.avg_score || 0) * 10) / 10 }));
+          }
+
+          // 7) Alerts — unread stored notifications for this teacher + live derived alerts.
+          let stored = [];
+          if (schoolId) {
+            stored = await safe(
+              `SELECT id, title, message, type, created_at FROM portal_notifications
+               WHERE school_id = $1 AND COALESCE(is_read, false) = false AND (user_id = ANY($2) OR user_id IS NULL)
+               ORDER BY created_at DESC LIMIT 10`,
+              [schoolId, textKeys], []
+            );
+          } else {
+            stored = await safe(
+              `SELECT id, title, message, type, created_at FROM portal_notifications
+               WHERE COALESCE(is_read, false) = false AND user_id = ANY($1)
+               ORDER BY created_at DESC LIMIT 10`,
+              [textKeys], []
+            );
+          }
+          let absentToday = 0;
+          if (schoolId) {
+            absentToday = (await safe(
+              `SELECT COUNT(DISTINCT student_id)::int AS n FROM attendance
+               WHERE school_id = $1 AND date = CURRENT_DATE AND status = 'absent'`,
+              [schoolId], [{ n: 0 }]
+            ))[0]?.n ?? 0;
+          }
+          const derived = [];
+          if (pendingGrading > 0) derived.push({ id: 'derived-grading', title: 'مهام بانتظار التصحيح', message: `${pendingGrading} مهمة بانتظار التصحيح`, type: 'grading', created_at: new Date().toISOString() });
+          if (needHelpCount > 0) derived.push({ id: 'derived-help', title: 'طلاب يحتاجون دعماً', message: `${needHelpCount} من الطلاب يحتاجون دعماً أكاديمياً`, type: 'support', created_at: new Date().toISOString() });
+          if (absentToday > 0) derived.push({ id: 'derived-absence', title: 'غياب اليوم', message: `${absentToday} من الطلاب غائبون اليوم`, type: 'attendance', created_at: new Date().toISOString() });
+          const alerts = [...stored.map((n) => ({ id: n.id, title: n.title, message: n.message, type: n.type || 'info', created_at: n.created_at })), ...derived];
+
+          return res.end(JSON.stringify({
+            success: true,
+            stats: {
+              totalStudents,
+              todayLessons: todayLessons.length,
+              pendingGrading,
+              avgPerformance: Math.round(Number(gradeAgg.avg_pct || 0) * 10) / 10,
+              completedAssignments,
+              totalAssignments: assignTotal,
+              teachingHours,
+              needHelpCount,
+              absentToday,
+              gradesRecorded: gradeAgg.n ?? 0,
+            },
+            performanceDistribution: {
+              excellent: gradeAgg.excellent ?? 0,
+              good: gradeAgg.good ?? 0,
+              needsHelp: gradeAgg.needs_help ?? 0,
+            },
+            todayLessons,
+            starStudents,
+            alerts,
+            unreadNotifications: stored.length,
+          }));
+        } catch (error) {
+          console.error('[teacher/dashboard-stats] error:', error);
+          res.statusCode = 500;
+          return res.end(JSON.stringify({ error: error.message }));
+        }
+      }
+
       // ── Bond Confirm Payment ──
      if (req.url === '/api/bond-confirm-payment' && req.method === 'POST') {
        res.setHeader('Content-Type', 'application/json');
@@ -3534,6 +3788,294 @@ WHERE email = $10`,
         return res.end(JSON.stringify({ success: true, authorized: true, videos: Array.isArray(videos) ? videos : [] }));
       } catch (error) {
         console.error('[student/teacher-videos] error:', error);
+        res.statusCode = 500;
+        return res.end(JSON.stringify({ error: error.message, videos: [] }));
+      }
+    }
+
+    // ── Student Dashboard APIs (لوحة تحكم الطالب — بيانات حقيقية) ──
+    // All endpoints require a valid student JWT (getBearerUser). Identity is
+    // ALWAYS taken from the token, never from query/body, to prevent IDOR.
+    function requireStudent(req) {
+      const u = getBearerUser(req);
+      if (!u) return { error: 'Unauthorized: Missing or invalid token', status: 401 };
+      const role = String(u.role || '').toLowerCase();
+      if (role !== 'student' && role !== 'admin' && role !== 'founder' && role !== 'school_admin') {
+        return { error: 'Student authentication required', status: 403 };
+      }
+      return { user: u };
+    }
+
+    // ── GET /api/student/profile — الملف الشخصي + XP + الأوسمة + المحفظة ──
+    if ((req.url === '/api/student/profile' || req.url.startsWith('/api/student/profile?')) && req.method === 'GET') {
+      res.setHeader('Content-Type', 'application/json');
+      try {
+        const auth = requireStudent(req);
+        if (auth.error) { res.statusCode = auth.status; return res.end(JSON.stringify({ error: auth.error })); }
+        const studentId = auth.user.id;
+        const rows = await dbQuery(
+          `SELECT id, full_name, user_email, student_id, phone, grade, section, school_name, city, status, school_id, profile_image, avatar_url
+           FROM students WHERE id = $1 LIMIT 1`, [studentId]);
+        if (!rows.length) { res.statusCode = 404; return res.end(JSON.stringify({ error: 'Student not found' })); }
+        const s = rows[0];
+        // XP: awards points + 50 per present attendance + submissions score
+        let xp = 500;
+        let awards = [];
+        try {
+          awards = await dbQuery(`SELECT id, title, points, date, badge FROM student_awards WHERE student_id = $1 OR student_id = $2 ORDER BY date DESC LIMIT 50`, [s.student_id, s.id]);
+          xp += awards.reduce((sum, a) => sum + (Number(a.points) || 0), 0);
+        } catch { awards = []; }
+        let presentCount = 0;
+        try {
+          const att = await dbQuery(`SELECT COUNT(*)::int AS n FROM attendance WHERE (student_id = $1 OR student_id = $2) AND (status = 'present' OR type IN ('gate_in','IN','in'))`, [s.id, s.student_id]);
+          presentCount = att[0]?.n || 0;
+          xp += presentCount * 50;
+        } catch { /* attendance table may differ */ }
+        try {
+          const subs = await dbQuery(`SELECT COALESCE(SUM(score),0)::int AS total FROM teacher_submissions WHERE student_id = $1 AND status = 'graded'`, [s.id]);
+          xp += Number(subs[0]?.total) || 0;
+        } catch { /* submissions optional */ }
+        let wallet = { balance: 0, currency: 'SDG', card_status: 'active' };
+        try {
+          const w = await dbQuery(`SELECT balance, currency FROM student_wallet WHERE student_id = $1 LIMIT 1`, [s.id]);
+          if (w.length) wallet = { balance: Number(w[0].balance) || 0, currency: w[0].currency || 'SDG', card_status: 'active' };
+        } catch { /* wallet optional */ }
+        const level = Math.floor(xp / 500) + 1;
+        return res.end(JSON.stringify({
+          success: true,
+          profile: {
+            id: s.id, full_name: s.full_name, student_id: s.student_id, email: s.user_email,
+            phone: s.phone, grade: s.grade, section: s.section, school_name: s.school_name,
+            city: s.city, status: s.status, school_id: s.school_id,
+            avatar: s.profile_image || s.avatar_url || null,
+            xp, level, attendance_days: presentCount, wallet,
+          },
+          awards: Array.isArray(awards) ? awards : [],
+        }));
+      } catch (error) {
+        console.error('[student/profile] error:', error);
+        res.statusCode = 500;
+        return res.end(JSON.stringify({ error: error.message }));
+      }
+    }
+
+    // ── GET /api/student/wallet — المحفظة الرقمية EduWallet ──
+    if ((req.url === '/api/student/wallet' || req.url.startsWith('/api/student/wallet?')) && req.method === 'GET') {
+      res.setHeader('Content-Type', 'application/json');
+      try {
+        const auth = requireStudent(req);
+        if (auth.error) { res.statusCode = auth.status; return res.end(JSON.stringify({ error: auth.error })); }
+        const studentId = auth.user.id;
+        let wallet = { balance: 0, currency: 'SDG', card_status: 'active' };
+        let transactions = [];
+        try {
+          const w = await dbQuery(`SELECT balance, currency FROM student_wallet WHERE student_id = $1 LIMIT 1`, [studentId]);
+          if (w.length) wallet = { balance: Number(w[0].balance) || 0, currency: w[0].currency || 'SDG', card_status: 'active' };
+          else {
+            await dbQuery(`INSERT INTO student_wallet (student_id, balance, currency) VALUES ($1, 0, 'SDG') ON CONFLICT DO NOTHING`, [studentId]).catch(()=>{});
+          }
+        } catch (e) { console.error('[student/wallet] wallet read:', e.message); }
+        try {
+          transactions = await dbQuery(`SELECT id, type, amount, currency, created_at FROM wallet_transactions WHERE student_id = $1 ORDER BY created_at DESC LIMIT 20`, [studentId]);
+        } catch { transactions = []; }
+        return res.end(JSON.stringify({ success: true, wallet, transactions: Array.isArray(transactions) ? transactions : [] }));
+      } catch (error) {
+        console.error('[student/wallet] error:', error);
+        res.statusCode = 500;
+        return res.end(JSON.stringify({ error: error.message }));
+      }
+    }
+
+    // ── POST /api/attendance/scan — محاكي بوابات NFC (IN/OUT) ──
+    if ((req.url === '/api/attendance/scan' || req.url.startsWith('/api/attendance/scan?')) && req.method === 'POST') {
+      res.setHeader('Content-Type', 'application/json');
+      try {
+        const auth = requireStudent(req);
+        if (auth.error) { res.statusCode = auth.status; return res.end(JSON.stringify({ error: auth.error })); }
+        const body = await parseBody(req);
+        const direction = String(body.direction || body.type || '').toUpperCase();
+        if (!['IN', 'OUT'].includes(direction)) {
+          res.statusCode = 400;
+          return res.end(JSON.stringify({ error: 'direction must be IN or OUT' }));
+        }
+        const studentId = auth.user.id;
+        const sRows = await dbQuery(`SELECT id, full_name, student_id, grade, section, school_id FROM students WHERE id = $1 LIMIT 1`, [studentId]);
+        if (!sRows.length) { res.statusCode = 404; return res.end(JSON.stringify({ error: 'Student not found' })); }
+        const st = sRows[0];
+        const now = new Date();
+        const dateStr = now.toISOString().split('T')[0];
+        const timeStr = now.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+        // Prevent duplicate same-direction scan within 2 minutes (double-tap guard)
+        try {
+          const recent = await dbQuery(
+            `SELECT type, created_at FROM attendance WHERE student_id = $1 ORDER BY created_at DESC LIMIT 1`, [st.id]);
+          if (recent.length && String(recent[0].type).toUpperCase() === direction) {
+            const diffMs = now - new Date(recent[0].created_at);
+            if (diffMs < 2 * 60 * 1000) {
+              res.statusCode = 429;
+              return res.end(JSON.stringify({ error: 'تم تسجيل هذه الحركة للتو — انتظر دقيقتين قبل إعادة المسح', error_en: 'Duplicate scan blocked (2-min guard)', last_scan: recent[0] }));
+            }
+          }
+        } catch { /* guard is best-effort */ }
+        const inserted = await dbQuery(
+          `INSERT INTO attendance (student_id, student_name, student_card_id, date, type, status, time, recorded_by, notes, school_id)
+           VALUES ($1,$2,$3,$4,$5,'present',$6,'NFC Smart Gate Simulator',$7,$8) RETURNING id, date, type, time, created_at`,
+          [st.id, st.full_name, st.student_id || st.id, dateStr, direction, timeStr,
+           direction === 'IN' ? 'دخول الطالب عبر البوابة الذكية' : 'خروج الطالب عبر البوابة الذكية',
+           st.school_id || null]);
+        const record = inserted[0] || { date: dateStr, type: direction, time: timeStr };
+        const assumedLocation = direction === 'IN' ? 'داخل المدرسة' : 'خارج المدرسة';
+        return res.end(JSON.stringify({
+          success: true, direction,
+          last_scan: { date: record.date, time: record.time, type: record.type },
+          assumed_location: assumedLocation,
+          scanned_at: now.toISOString(),
+        }));
+      } catch (error) {
+        console.error('[attendance/scan] error:', error);
+        res.statusCode = 500;
+        return res.end(JSON.stringify({ error: error.message }));
+      }
+    }
+
+    // ── GET /api/attendance/last — آخر مسح مسجل ──
+    if ((req.url === '/api/attendance/last' || req.url.startsWith('/api/attendance/last?')) && req.method === 'GET') {
+      res.setHeader('Content-Type', 'application/json');
+      try {
+        const auth = requireStudent(req);
+        if (auth.error) { res.statusCode = auth.status; return res.end(JSON.stringify({ error: auth.error })); }
+        const rows = await dbQuery(`SELECT date, type, time, created_at FROM attendance WHERE student_id = $1 ORDER BY created_at DESC LIMIT 1`, [auth.user.id]);
+        const last = rows[0] || null;
+        const assumed_location = !last ? 'غير معروف' : (String(last.type).toUpperCase() === 'IN' || String(last.type) === 'gate_in' ? 'داخل المدرسة' : 'خارج المدرسة');
+        return res.end(JSON.stringify({ success: true, last_scan: last, assumed_location }));
+      } catch (error) {
+        res.statusCode = 500;
+        return res.end(JSON.stringify({ error: error.message }));
+      }
+    }
+
+    // ── GET /api/schedule/today & /api/schedule/week ──
+    async function handleStudentSchedule(req, res, mode) {
+      res.setHeader('Content-Type', 'application/json');
+      try {
+        const auth = requireStudent(req);
+        if (auth.error) { res.statusCode = auth.status; return res.end(JSON.stringify({ error: auth.error })); }
+        const sRows = await dbQuery(`SELECT grade, section FROM students WHERE id = $1 LIMIT 1`, [auth.user.id]);
+        const grade = sRows[0]?.grade;
+        if (!grade) return res.end(JSON.stringify({ success: true, day: null, classes: [], week: {} }));
+        const dayEn = new Date().toLocaleDateString('en-US', { weekday: 'long' });
+        if (mode === 'today') {
+          const classes = await dbQuery(
+            `SELECT id, subject_name, teacher_name, room, start_time, end_time, day_of_week, grade, section
+             FROM class_schedules WHERE grade = $1 ORDER BY start_time ASC`, [String(grade)]);
+          const todays = classes.filter(c => String(c.day_of_week || '').toLowerCase() === dayEn.toLowerCase());
+          return res.end(JSON.stringify({ success: true, day: dayEn, classes: todays, total: todays.length }));
+        }
+        const all = await dbQuery(
+          `SELECT id, subject_name, teacher_name, room, start_time, end_time, day_of_week, grade, section
+           FROM class_schedules WHERE grade = $1 ORDER BY start_time ASC`, [String(grade)]);
+        const week = {};
+        for (const c of (Array.isArray(all) ? all : [])) {
+          const d = c.day_of_week || 'Unknown';
+          if (!week[d]) week[d] = [];
+          week[d].push(c);
+        }
+        return res.end(JSON.stringify({ success: true, day: dayEn, week }));
+      } catch (error) {
+        console.error('[schedule] error:', error);
+        res.statusCode = 500;
+        return res.end(JSON.stringify({ error: error.message }));
+      }
+    }
+    if ((req.url === '/api/schedule/today' || req.url.startsWith('/api/schedule/today?')) && req.method === 'GET') {
+      return await handleStudentSchedule(req, res, 'today');
+    }
+    if ((req.url === '/api/schedule/week' || req.url.startsWith('/api/schedule/week?')) && req.method === 'GET') {
+      return await handleStudentSchedule(req, res, 'week');
+    }
+
+    // ── GET /api/homework/student — الواجبات + الاختبارات الخاصة بالطالب ──
+    if ((req.url === '/api/homework/student' || req.url.startsWith('/api/homework/student?')) && req.method === 'GET') {
+      res.setHeader('Content-Type', 'application/json');
+      try {
+        const auth = requireStudent(req);
+        if (auth.error) { res.statusCode = auth.status; return res.end(JSON.stringify({ error: auth.error })); }
+        const sRows = await dbQuery(`SELECT id, student_id, grade, section FROM students WHERE id = $1 LIMIT 1`, [auth.user.id]);
+        const st = sRows[0];
+        if (!st) { res.statusCode = 404; return res.end(JSON.stringify({ error: 'Student not found' })); }
+        let assignments = [];
+        try {
+          assignments = await dbQuery(
+            `SELECT id, teacher_id, title, description, subject, grade, section, due_date, total_points, questions, status, created_at
+             FROM teacher_assignments WHERE status = 'active' AND (grade IS NULL OR grade = $1 OR grade = '') ORDER BY created_at DESC LIMIT 50`,
+            [String(st.grade || '')]);
+        } catch (e) { console.error('[homework] assignments:', e.message); assignments = []; }
+        let exams = [];
+        try {
+          exams = await dbQuery(
+            `SELECT id, teacher_id, title, description, subject, grade, duration_minutes, total_points, questions, due_date, status, created_at
+             FROM teacher_exams WHERE status = 'active' AND (grade IS NULL OR grade = $1 OR grade = '') ORDER BY created_at DESC LIMIT 50`,
+            [String(st.grade || '')]);
+        } catch (e) { console.error('[homework] exams:', e.message); exams = []; }
+        let submissions = [];
+        try {
+          submissions = await dbQuery(`SELECT assignment_id, exam_id, score, status FROM teacher_submissions WHERE student_id = $1`, [st.id]);
+        } catch { submissions = []; }
+        const subMap = {};
+        for (const sb of (Array.isArray(submissions) ? submissions : [])) {
+          if (sb.assignment_id) subMap['a:' + sb.assignment_id] = sb;
+          if (sb.exam_id) subMap['e:' + sb.exam_id] = sb;
+        }
+        const withStatus = (list, prefix) => (Array.isArray(list) ? list : []).map(item => ({
+          ...item,
+          submission: subMap[prefix + item.id] || null,
+          is_submitted: !!subMap[prefix + item.id],
+        }));
+        const aList = withStatus(assignments, 'a:');
+        const pending = aList.filter(a => !a.is_submitted).length;
+        return res.end(JSON.stringify({
+          success: true,
+          assignments: aList, exams: withStatus(exams, 'e:'),
+          summary: { total_assignments: aList.length, pending, submitted: aList.length - pending, total_exams: exams.length },
+        }));
+      } catch (error) {
+        console.error('[homework/student] error:', error);
+        res.statusCode = 500;
+        return res.end(JSON.stringify({ error: error.message }));
+      }
+    }
+
+    // ── GET /api/teacher/school-videos — school library published by the administration ──
+    // Lets a teacher browse videos published for their whole school (teacher_id IS NULL
+    // or owned by another teacher of the same school). Read-only: copying into the
+    // teacher's own library is done through the generic entity POST.
+    if ((req.url === '/api/teacher/school-videos' || req.url.startsWith('/api/teacher/school-videos?')) && req.method === 'GET') {
+      res.setHeader('Content-Type', 'application/json');
+      try {
+        const ownerUuid = await resolveTeacherUuid(req.user);
+        if (!req.user || req.user.role !== 'teacher' || !ownerUuid) {
+          res.statusCode = 401;
+          return res.end(JSON.stringify({ error: 'Teacher authentication required', videos: [] }));
+        }
+        const teacherRows = await dbQuery(`SELECT school_id FROM teachers WHERE id = $1 LIMIT 1`, [ownerUuid]);
+        const schoolId = teacherRows.length > 0 ? teacherRows[0].school_id : (req.user.school_id || null);
+        if (!schoolId) {
+          return res.end(JSON.stringify({ success: true, videos: [] }));
+        }
+        const videos = await dbQuery(
+          `SELECT v.*, t.full_name as teacher_name, t.full_name as owner_name
+           FROM teacher_youtube_videos v
+           LEFT JOIN teachers t ON t.id = v.teacher_id
+           WHERE v.school_id = $1
+             AND (v.teacher_id IS NULL OR v.teacher_id <> $2)
+             AND (v.is_hidden IS FALSE OR v.is_hidden IS NULL)
+           ORDER BY v.created_at DESC
+           LIMIT 200`,
+          [schoolId, ownerUuid]
+        );
+        return res.end(JSON.stringify({ success: true, videos: Array.isArray(videos) ? videos : [] }));
+      } catch (error) {
+        console.error('[teacher/school-videos] error:', error);
         res.statusCode = 500;
         return res.end(JSON.stringify({ error: error.message, videos: [] }));
       }
@@ -4231,6 +4773,10 @@ WHERE email = $10`,
           // Same independent-id columns every teacher-owned table carries, so the
           // generic IND- resolution on create stays valid for this table too.
           await sql.query(`ALTER TABLE teacher_youtube_videos ADD COLUMN IF NOT EXISTS independent_teacher_id VARCHAR(50)`).catch(()=>{});
+          // Admin school-level videos: teacher_id may be NULL (school-wide library
+          // published by the administration). Teachers see them read-only and
+          // students receive them through the school_id scope.
+          await sql.query(`ALTER TABLE teacher_youtube_videos ALTER COLUMN teacher_id DROP NOT NULL`).catch(()=>{});
           console.log('[neon] teacher_youtube_videos table verified with target columns');
         })
           .catch(err => console.error('[neon] teacher_youtube_videos:', err.message));

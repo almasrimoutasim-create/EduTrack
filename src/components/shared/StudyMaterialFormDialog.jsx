@@ -55,6 +55,10 @@ export default function StudyMaterialFormDialog({ open, onClose, material }) {
         toast.success("Material uploaded");
       }
       qc.invalidateQueries({ queryKey: ["materials"] });
+      qc.invalidateQueries({ queryKey: ["admin-study-materials"] });
+      qc.invalidateQueries({ queryKey: ["teacher-study-materials"] });
+      qc.invalidateQueries({ queryKey: ["student-all-study-materials"] });
+      qc.invalidateQueries({ queryKey: ["student-materials"] });
       onClose();
     } catch (err) {
       console.error("Failed to save material:", err);

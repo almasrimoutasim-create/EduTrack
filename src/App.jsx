@@ -60,6 +60,7 @@ const StaffPersonalRequests = lazy(() => import('./pages/StaffPersonalRequests')
 const StaffPortal = lazy(() => import('./pages/StaffPortal'));
 const StudentDirectory = lazy(() => import('./pages/StudentDirectory'));
 const StudentPortal = lazy(() => import('./pages/StudentPortal'));
+const StudentDashboard = lazy(() => import('./pages/StudentDashboard'));
 const AuditLog = lazy(() => import('./pages/AuditLog'));
 const Library = lazy(() => import('./pages/Library'));
 const ArabicShowcase = lazy(() => import('./pages/ArabicShowcase'));
@@ -196,6 +197,7 @@ const AuthenticatedApp = () => {
         <Route path="/bus-supervisor" element={<BusSupervisorPortal />} />
         <Route path="/staff-portal" element={<StaffPortal />} />
         <Route path="/student-portal" element={<StudentPortal />} />
+        <Route path="/student-dashboard" element={<StudentDashboard />} />
         <Route path="/teacher-panel" element={<LandingPage />} />
         <Route path="/student-panel" element={<LandingPage />} />
         <Route path="*" element={<PageNotFound />} />

@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Trophy, Plus, Trash2, Star, Medal, Crown, Award, Zap, Heart, Flame } from "lucide-react";
+import { toast } from "sonner";
 
 const AWARD_ICONS = {
   trophy: Trophy, star: Star, medal: Medal, crown: Crown,
@@ -42,29 +43,50 @@ export default function AwardsManager() {
   const upd = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   const save = async () => {
-    if (!selectedStudent || !form.title) return;
+    if (saving) return;
+    if (!selectedStudent || !form.title.trim()) return;
     setSaving(true);
-    await entities.StudentAward.create({
-      ...form,
-      student_id: selectedStudent.id,
-      student_name: selectedStudent.full_name,
-    });
-    // Notify student
-    await entities.PortalNotification.create({
-      recipient_id: selectedStudent.id,
-      message: `🏆 You received a new award: "${form.title}"`,
-      type: "award",
-      ref_id: selectedStudent.id,
-    });
-    qc.invalidateQueries(["all-awards"]);
-    setSaving(false); setShowAdd(false);
-    setForm({ title: "", description: "", icon: "trophy", color: "gold", awarded_date: new Date().toISOString().split("T")[0] });
-    setSelectedStudent(null);
+    try {
+      await entities.StudentAward.create({
+        ...form,
+        title: form.title.trim(),
+        student_id: selectedStudent.id,
+        student_name: selectedStudent.full_name,
+      });
+      // Notify student — failure here must not block the award itself
+      try {
+        await entities.PortalNotification.create({
+          recipient_id: selectedStudent.id,
+          message: `🏆 You received a new award: "${form.title.trim()}"`,
+          type: "award",
+          ref_id: selectedStudent.id,
+        });
+      } catch (notifyErr) {
+        console.error("[AwardsManager] notify failed:", notifyErr);
+      }
+      await qc.invalidateQueries({ queryKey: ["all-awards"] });
+      toast.success("تم منح الجائزة بنجاح");
+      setShowAdd(false);
+      setForm({ title: "", description: "", icon: "trophy", color: "gold", awarded_date: new Date().toISOString().split("T")[0] });
+      setSelectedStudent(null);
+    } catch (err) {
+      console.error("[AwardsManager] save failed:", err);
+      toast.error(err?.message || "تعذر حفظ الجائزة. تحقق من الاتصال وحاول مجدداً");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const deleteAward = async (id) => {
-    await entities.StudentAward.delete(id);
-    qc.invalidateQueries(["all-awards"]);
+    if (!id || !window.confirm("حذف هذه الجائزة؟")) return;
+    try {
+      await entities.StudentAward.delete(id);
+      await qc.invalidateQueries({ queryKey: ["all-awards"] });
+      toast.success("تم حذف الجائزة");
+    } catch (err) {
+      console.error("[AwardsManager] delete failed:", err);
+      toast.error(err?.message || "تعذر حذف الجائزة");
+    }
   };
 
   const IconPreview = AWARD_ICONS[form.icon] || Trophy;
@@ -84,7 +106,7 @@ export default function AwardsManager() {
           <Trophy className="h-5 w-5 text-yellow-500" />
           <h2 className="font-bold text-lg">Student Awards</h2>
         </div>
-        <button onClick={() => setShowAdd(true)} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed h-11 px-4 gap-1.5"><Plus className="h-4 w-4" /> Give Award</button>
+        <button type="button" onClick={() => setShowAdd(true)} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed h-11 px-4 gap-1.5"><Plus className="h-4 w-4" /> Give Award</button>
       </div>
 
       {Object.keys(byStudent).length === 0 ? (
@@ -110,8 +132,11 @@ export default function AwardsManager() {
                           {a.description && <p className="text-[9px] text-muted-foreground text-center">{a.description}</p>}
                         </div>
                         <button
+                          type="button"
                           onClick={() => deleteAward(a.id)}
-                          className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-destructive text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                          aria-label={`Delete award ${a.title}`}
+                          title="Delete"
+                          className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-destructive text-white flex items-center justify-center opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 focus-visible:opacity-100 transition-opacity"
                         >
                           <Trash2 className="h-3 w-3" />
                         </button>
@@ -180,8 +205,8 @@ export default function AwardsManager() {
             </div>
           </div>
           <DialogFooter>
-            <button className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border-2 border-stone-200 bg-white text-stone-800 hover:bg-stone-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed h-11 px-4" onClick={() => setShowAdd(false)}>Cancel</button>
-            <button className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed h-11 px-4" onClick={save} disabled={saving || !form.title || !selectedStudent}>
+            <button type="button" className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border-2 border-stone-200 bg-white text-stone-800 hover:bg-stone-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed h-11 px-4" onClick={() => setShowAdd(false)}>Cancel</button>
+            <button type="button" className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed h-11 px-4" onClick={save} disabled={saving || !form.title.trim() || !selectedStudent} title={!selectedStudent ? "اختر الطالب أولاً" : !form.title.trim() ? "أدخل عنوان الجائزة" : "منح الجائزة"}>
               {saving ? "Saving..." : "Give Award 🏆"}
             </button>
           </DialogFooter>

@@ -73,7 +73,6 @@ const isPathAllowed = (user, path) => {
            path.startsWith('/attendance-summary') || 
            path.startsWith('/weekly-attendance') || 
            path.startsWith('/subjects') || 
-           path.startsWith('/materials') || 
            path.startsWith('/study-rooms') || 
            path.startsWith('/room-view') || 
            path.startsWith('/activity') || 

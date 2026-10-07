@@ -136,6 +136,7 @@ export default function Schedules() {
   const [endTime, setEndTime] = useState("09:00");
   const [room, setRoom] = useState("");
   const [section, setSection] = useState("أبو بكر");
+  const [academicTrack, setAcademicTrack] = useState("sudanese");
 
   // Fetch subjects
   const { data: subjects = [] } = useQuery({
@@ -211,12 +212,14 @@ export default function Schedules() {
     setEndTime("09:00");
     setRoom("");
     setSection("أبو بكر");
+    setAcademicTrack("sudanese");
   };
 
   const handleStartEdit = (cls) => {
     setEditingSchedule(cls);
     setGrade(cls.grade || "1");
     setSection(cls.section || "أبو بكر");
+    setAcademicTrack(cls.academic_track || "sudanese");
     setDayOfWeek(cls.day_of_week || "Sunday");
     setStartTime(cls.start_time || "08:00");
     setEndTime(cls.end_time || "09:00");
@@ -235,9 +238,10 @@ export default function Schedules() {
     const selectedSub = subjects.find(s => s.id === subjectId);
     if (!selectedSub) return;
 
-    // Check for potential conflict in same grade, section and day/time range
+    // Check for potential conflict in same track, grade, section and day/time range
     const hasConflict = schedules.some(s => 
       (!editingSchedule || s.id !== editingSchedule.id) &&
+      (s.academic_track || "sudanese") === academicTrack &&
       s.grade === grade && 
       s.section === section && 
       s.day_of_week === dayOfWeek && 
@@ -254,6 +258,7 @@ export default function Schedules() {
     const scheduleData = {
       grade: grade,
       section: section,
+      academic_track: academicTrack,
       day_of_week: dayOfWeek,
       start_time: startTime,
       end_time: endTime,
@@ -397,9 +402,16 @@ export default function Schedules() {
                           )}
 
                           <div className={`flex justify-between items-center pt-2 border-t border-stone-200/50 flex-wrap gap-1 mt-1.5`}>
-                            <Badge className={`${colors.badge} border-none font-bold text-[10px] px-1.5 py-0.5 rounded-md`}>
-                              {isRTL ? `${cls.grade} - ${cls.section || 'أبو بكر'}` : `Gr ${cls.grade} - ${cls.section || 'Abu Bakr'}`}
-                            </Badge>
+                            <div className="flex items-center gap-1 flex-wrap">
+                              <Badge className={`${colors.badge} border-none font-bold text-[10px] px-1.5 py-0.5 rounded-md`}>
+                                {isRTL ? `${cls.grade} - ${cls.section || 'أبو بكر'}` : `Gr ${cls.grade} - ${cls.section || 'Abu Bakr'}`}
+                              </Badge>
+                              <Badge className="bg-sky-100/80 text-sky-800 border-none font-bold text-[10px] px-1.5 py-0.5 rounded-md">
+                                {(cls.academic_track || "sudanese") === "british"
+                                  ? (isRTL ? "بريطاني" : "British")
+                                  : (isRTL ? "سوداني" : "Sudanese")}
+                              </Badge>
+                            </div>
                             {cls.room && (
                               <span className={`text-xs font-bold ${colors.subtext} flex items-center gap-1`}>
                                 <MapPin size={11} className={colors.icon} /> {cls.room}
@@ -457,6 +469,19 @@ export default function Schedules() {
                 {["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"].map(g => (
                   <option key={g} value={g}>{isRTL ? `الصف ${g}` : `Grade ${g}`}</option>
                 ))}
+              </select>
+            </div>
+
+            {/* Academic Track Select */}
+            <div className="space-y-1.5">
+              <label htmlFor="field-schedules-track" className="text-xs font-bold text-stone-550 block">{isRTL ? "القسم الدراسي" : "Academic Track"}</label>
+              <select id="field-schedules-track" name="academic_track" aria-label="Academic Track"
+                value={academicTrack}
+                onChange={(e) => setAcademicTrack(e.target.value)}
+                className="w-full h-11 rounded-xl border border-stone-200 bg-white text-xs font-bold px-3 text-stone-700 outline-none cursor-pointer"
+              >
+                <option value="sudanese">{isRTL ? "المنهج السوداني (Sudanese Curriculum)" : "Sudanese Curriculum — المنهج السوداني"}</option>
+                <option value="british">{isRTL ? "المنهج البريطاني (British Curriculum)" : "British Curriculum — المنهج البريطاني"}</option>
               </select>
             </div>
 

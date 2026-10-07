@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Heart, MessageCircle, Send, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { toast } from "sonner";
 
 const roleBadge = { admin: "bg-primary text-primary-foreground", teacher: "bg-blue-100 text-blue-700", student: "bg-green-100 text-green-700" };
 
@@ -11,40 +12,72 @@ export default function PostCard({ post, currentUser, comments, onRefresh, onAut
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [liking, setLiking] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const likedBy = post.liked_by ? post.liked_by.split(",").filter(Boolean) : [];
   const isLiked = likedBy.includes(currentUser?.email);
 
   const handleLike = async () => {
-    let updated;
-    if (isLiked) {
-      updated = likedBy.filter(e => e !== currentUser?.email).join(",");
-    } else {
-      updated = [...likedBy, currentUser?.email].join(",");
+    if (liking || !currentUser?.email) return;
+    setLiking(true);
+    const previousLikedBy = post.liked_by;
+    const previousLikes = post.likes;
+    try {
+      let updated;
+      if (isLiked) {
+        updated = likedBy.filter(e => e !== currentUser?.email).join(",");
+      } else {
+        updated = [...likedBy, currentUser?.email].join(",");
+      }
+      await entities.ActivityPost.update(post.id, { liked_by: updated, likes: updated.split(",").filter(Boolean).length });
+      await onRefresh?.();
+    } catch (err) {
+      console.error("[PostCard] like failed:", err);
+      toast.error("تعذر تسجيل الإعجاب");
+      // rollback is handled by refetch; no local optimistic state kept
+      void previousLikedBy; void previousLikes;
+    } finally {
+      setLiking(false);
     }
-    await entities.ActivityPost.update(post.id, { liked_by: updated, likes: updated.split(",").filter(Boolean).length });
-    onRefresh();
   };
 
   const handleComment = async () => {
+    if (submitting) return;
     if (!commentText.trim()) return;
     setSubmitting(true);
-    const role = currentUser?.role === "admin" ? "admin" : "student";
-    await entities.ActivityComment.create({
-      post_id: post.id,
-      author_name: currentUser?.full_name || "Unknown",
-      author_email: currentUser?.email,
-      author_role: role,
-      content: commentText.trim()
-    });
-    setCommentText("");
-    setSubmitting(false);
-    onRefresh();
+    try {
+      const role = currentUser?.role === "admin" ? "admin" : "student";
+      await entities.ActivityComment.create({
+        post_id: post.id,
+        author_name: currentUser?.full_name || "Unknown",
+        author_email: currentUser?.email,
+        author_role: role,
+        content: commentText.trim()
+      });
+      setCommentText("");
+      await onRefresh?.();
+    } catch (err) {
+      console.error("[PostCard] comment failed:", err);
+      toast.error(err?.message || "تعذر إرسال التعليق");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleDeletePost = async () => {
-    await entities.ActivityPost.delete(post.id);
-    onRefresh();
+    if (deleting || !window.confirm("حذف هذا المنشور؟")) return;
+    setDeleting(true);
+    try {
+      await entities.ActivityPost.delete(post.id);
+      await onRefresh?.();
+      toast.success("تم حذف المنشور");
+    } catch (err) {
+      console.error("[PostCard] delete failed:", err);
+      toast.error(err?.message || "تعذر حذف المنشور");
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const postComments = comments.filter(c => c.post_id === post.id);
@@ -63,7 +96,7 @@ export default function PostCard({ post, currentUser, comments, onRefresh, onAut
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <button onClick={() => onAuthorClick?.(post.author_email)} className="text-sm font-semibold hover:underline text-left">
+                <button type="button" onClick={() => onAuthorClick?.(post.author_email)} className="text-sm font-semibold hover:underline text-left">
                   {post.author_name}
                 </button>
                 <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full capitalize ${roleBadge[post.author_role] || roleBadge.student}`}>
@@ -76,7 +109,7 @@ export default function PostCard({ post, currentUser, comments, onRefresh, onAut
             </div>
           </div>
           {canDelete && (
-            <button className="cursor-pointer text-stone-400 hover:text-stone-900 hover:bg-stone-100 rounded-lg px-3 py-2 h-7 w-7 p-0 flex items-center justify-center text-muted-foreground hover:text-destructive" onClick={handleDeletePost}>
+            <button type="button" disabled={deleting} aria-label="Delete post" className="cursor-pointer text-stone-400 hover:text-stone-900 hover:bg-stone-100 rounded-lg px-3 py-2 h-7 w-7 p-0 flex items-center justify-center text-muted-foreground hover:text-destructive disabled:opacity-50" onClick={handleDeletePost}>
               <Trash2 className="h-3.5 w-3.5" />
             </button>
           )}
@@ -96,14 +129,20 @@ export default function PostCard({ post, currentUser, comments, onRefresh, onAut
         {/* Actions */}
         <div className="flex items-center gap-3 pt-1 border-t">
           <button
+            type="button"
             onClick={handleLike}
+            disabled={liking || !currentUser?.email}
+            aria-pressed={isLiked}
+            title={!currentUser?.email ? "سجل الدخول للتفاعل" : isLiked ? "إلغاء الإعجاب" : "إعجاب"}
             className={`flex items-center gap-1.5 text-sm transition-colors ${isLiked ? "text-red-500 font-medium" : "text-muted-foreground hover:text-red-500"}`}
           >
             <Heart className={`h-4 w-4 ${isLiked ? "fill-red-500" : ""}`} />
             {post.likes || 0}
           </button>
           <button
+            type="button"
             onClick={() => setShowComments(!showComments)}
+            aria-expanded={showComments}
             className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             <MessageCircle className="h-4 w-4" />
@@ -130,10 +169,10 @@ export default function PostCard({ post, currentUser, comments, onRefresh, onAut
                 placeholder="Write a comment..."
                 value={commentText}
                 onChange={e => setCommentText(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && handleComment()}
+                onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleComment(); } }}
                 className="h-8 text-xs"
               />
-              <button className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed h-8 w-8 p-0 shrink-0" onClick={handleComment} disabled={submitting || !commentText.trim()}>
+              <button type="button" className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed h-8 w-8 p-0 shrink-0" onClick={handleComment} disabled={submitting || !commentText.trim()} title={submitting ? "جاري الإرسال..." : "إرسال التعليق"}>
                 <Send className="h-3.5 w-3.5" />
               </button>
             </div>

@@ -346,7 +346,7 @@ export default function Sidebar() {
               { label: isRTL ? "الدرجات والنتائج" : "Grades & Results", path: "/grades", icon: Award },
               { label: isRTL ? "طباعة النتائج" : "Print Results", path: "/print-results", icon: Printer },
               { label: isRTL ? "الجداول الدراسية" : "Schedules", path: "/schedules", icon: Calendar },
-              { label: t("common.materials", language), path: "/materials", icon: FileText },
+              { label: isRTL ? "الفيديوهات المسجلة" : "Recorded Videos", path: "/materials", icon: Video },
               { label: t("common.activity", language), path: "/activity", icon: Newspaper },
               { label: t("common.awards", language), path: "/awards", icon: Trophy }
             ]

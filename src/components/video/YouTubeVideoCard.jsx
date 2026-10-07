@@ -37,7 +37,10 @@ export default function YouTubeVideoCard({
     <Card className="rounded-2xl border-stone-200/80 bg-white overflow-hidden shadow-sm hover:shadow-md transition-all duration-200 flex flex-col group">
       {/* Thumbnail Area */}
       <div 
-        onClick={() => onPlay(video)}
+        onClick={() => onPlay?.(video)}
+        onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onPlay?.(video); } }}
+        role="button"
+        tabIndex={0}
         className="relative aspect-video w-full bg-stone-900 cursor-pointer overflow-hidden"
       >
         {thumbnail ? (
@@ -111,7 +114,7 @@ export default function YouTubeVideoCard({
 
           {/* Title */}
           <h3 
-            onClick={() => onPlay(video)}
+            onClick={() => onPlay?.(video)}
             className="text-sm font-black text-stone-900 line-clamp-2 hover:text-emerald-700 cursor-pointer transition-colors"
           >
             {video.title}
@@ -137,7 +140,8 @@ export default function YouTubeVideoCard({
         <div className="mt-4 pt-3 border-t border-stone-100 flex items-center gap-2">
           {/* Main Play Action Button */}
           <button
-            onClick={() => onPlay(video)}
+            type="button"
+            onClick={() => onPlay?.(video)}
             className="flex-1 h-9 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-sm active:scale-95 cursor-pointer"
           >
             <Play size={14} fill="currentColor" />
@@ -146,7 +150,8 @@ export default function YouTubeVideoCard({
 
           {/* Copy link button */}
           <button
-            onClick={() => onCopyLink(video)}
+            type="button"
+            onClick={() => onCopyLink?.(video)}
             title={isRTL ? "نسخ الرابط" : "Copy URL"}
             className="h-9 w-9 rounded-xl border border-stone-200 bg-stone-50 hover:bg-stone-100 text-stone-700 flex items-center justify-center transition-colors cursor-pointer shrink-0"
           >
@@ -158,6 +163,7 @@ export default function YouTubeVideoCard({
             <>
               {onEdit && (
                 <button
+                  type="button"
                   onClick={() => onEdit(video)}
                   title={isRTL ? "تعديل" : "Edit"}
                   className="h-9 w-9 rounded-xl border border-stone-200 bg-stone-50 hover:bg-stone-100 text-stone-700 flex items-center justify-center transition-colors cursor-pointer shrink-0"
@@ -168,6 +174,7 @@ export default function YouTubeVideoCard({
 
               {onToggleHidden && (
                 <button
+                  type="button"
                   onClick={() => onToggleHidden(video.id, video.is_hidden)}
                   title={video.is_hidden ? (isRTL ? "إظهار للطلاب" : "Show to students") : (isRTL ? "إخفاء عن الطلاب" : "Hide from students")}
                   className={`h-9 w-9 rounded-xl border flex items-center justify-center transition-colors cursor-pointer shrink-0 ${
@@ -182,8 +189,10 @@ export default function YouTubeVideoCard({
 
               {onDelete && (
                 <button
-                  onClick={() => onDelete(video.id)}
+                  type="button"
+                  onClick={() => onDelete?.(video.id)}
                   title={isRTL ? "حذف" : "Delete"}
+                  aria-label={isRTL ? "حذف الفيديو" : "Delete video"}
                   className="h-9 w-9 rounded-xl border border-red-100 bg-red-50 hover:bg-red-100 text-red-600 flex items-center justify-center transition-colors cursor-pointer shrink-0"
                 >
                   <Trash2 size={14} />

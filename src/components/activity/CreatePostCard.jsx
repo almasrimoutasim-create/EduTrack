@@ -4,6 +4,7 @@ import { fileClient } from "@/api/fileClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Image, Video, X, Loader2, Send } from "lucide-react";
+import { toast } from "sonner";
 
 export default function CreatePostCard({ user, studentProfile, onPostCreated }) {
   const [content, setContent] = useState("");
@@ -30,29 +31,38 @@ export default function CreatePostCard({ user, studentProfile, onPostCreated }) 
   };
 
   const handleSubmit = async () => {
+    if (uploading) return;
     if (!content.trim() && !mediaFile) return;
     setUploading(true);
-    let media_url = null;
-    if (mediaFile) {
-      const res = await fileClient.uploadFile({ file: mediaFile });
-      media_url = res.file_url;
+    try {
+      let media_url = null;
+      if (mediaFile) {
+        const res = await fileClient.uploadFile({ file: mediaFile });
+        media_url = res.file_url;
+        if (!media_url) throw new Error("فشل رفع المرفق");
+      }
+      const role = user?.role === "admin" ? "admin" : studentProfile ? "student" : "teacher";
+      await entities.ActivityPost.create({
+        author_name: user?.full_name || "Unknown",
+        author_email: user?.email,
+        author_role: role,
+        author_photo: studentProfile?.photo_url || null,
+        content: content.trim(),
+        media_url,
+        media_type: mediaFile ? mediaType : "none",
+        likes: 0,
+        liked_by: ""
+      });
+      setContent("");
+      clearMedia();
+      toast.success("تم نشر المنشور");
+      onPostCreated?.();
+    } catch (err) {
+      console.error("[CreatePostCard] submit failed:", err);
+      toast.error(err?.message || "تعذر النشر. تحقق من الاتصال وحاول مجدداً");
+    } finally {
+      setUploading(false);
     }
-    const role = user?.role === "admin" ? "admin" : studentProfile ? "student" : "teacher";
-    await entities.ActivityPost.create({
-      author_name: user?.full_name || "Unknown",
-      author_email: user?.email,
-      author_role: role,
-      author_photo: studentProfile?.photo_url || null,
-      content: content.trim(),
-      media_url,
-      media_type: mediaFile ? mediaType : "none",
-      likes: 0,
-      liked_by: ""
-    });
-    setContent("");
-    clearMedia();
-    setUploading(false);
-    onPostCreated();
   };
 
   return (
@@ -72,7 +82,7 @@ export default function CreatePostCard({ user, studentProfile, onPostCreated }) 
 
         {mediaPreview && (
           <div className="relative rounded-xl overflow-hidden border">
-            <button onClick={clearMedia} className="absolute top-2 right-2 z-10 bg-black/50 text-white rounded-full p-1 hover:bg-black/70">
+            <button type="button" onClick={clearMedia} aria-label="Remove attachment" className="absolute top-2 right-2 z-10 bg-black/50 text-white rounded-full p-1 hover:bg-black/70">
               <X className="h-3.5 w-3.5" />
             </button>
             {mediaType === "image"
@@ -84,16 +94,16 @@ export default function CreatePostCard({ user, studentProfile, onPostCreated }) 
 
         <div className="flex items-center justify-between pt-1">
           <div className="flex gap-2">
-            <button className="cursor-pointer text-stone-400 hover:text-stone-900 hover:bg-stone-100 rounded-lg px-3 py-2 h-8 px-3 gap-1.5 text-muted-foreground" onClick={() => imageRef.current?.click()}>
+            <button type="button" className="cursor-pointer text-stone-400 hover:text-stone-900 hover:bg-stone-100 rounded-lg px-3 py-2 h-8 px-3 gap-1.5 text-muted-foreground" onClick={() => imageRef.current?.click()}>
               <Image className="h-4 w-4" /> Photo
             </button>
-            <button className="cursor-pointer text-stone-400 hover:text-stone-900 hover:bg-stone-100 rounded-lg px-3 py-2 h-8 px-3 gap-1.5 text-muted-foreground" onClick={() => videoRef.current?.click()}>
+            <button type="button" className="cursor-pointer text-stone-400 hover:text-stone-900 hover:bg-stone-100 rounded-lg px-3 py-2 h-8 px-3 gap-1.5 text-muted-foreground" onClick={() => videoRef.current?.click()}>
               <Video className="h-4 w-4" /> Video
             </button>
             <input id="field-createpostcard-input-2" name="input_2" aria-label="input 2" ref={imageRef} type="file" accept="image/*" className="hidden" onChange={e => handleFileSelect(e, "image")} />
             <input id="field-createpostcard-input-1" name="input_1" aria-label="input 1" ref={videoRef} type="file" accept="video/*" className="hidden" onChange={e => handleFileSelect(e, "video")} />
           </div>
-          <button onClick={handleSubmit} disabled={uploading || (!content.trim() && !mediaFile)} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed h-8 px-3 gap-1.5">
+          <button type="button" onClick={handleSubmit} disabled={uploading || (!content.trim() && !mediaFile)} title={uploading ? "جاري النشر..." : (!content.trim() && !mediaFile) ? "اكتب شيئاً أو أرفق صورة أولاً" : "نشر"} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed h-8 px-3 gap-1.5">
             {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             Post
           </button>
