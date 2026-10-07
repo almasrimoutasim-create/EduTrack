@@ -41,6 +41,7 @@ import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import AdminStudentProfile from "@/components/students/AdminStudentProfile";
+import RecordedVideosManager from "@/components/teacher/RecordedVideosManager";
 
 const btnOutline = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-sm font-semibold transition-all border-2 border-stone-300 bg-white text-stone-800 hover:bg-stone-50 hover:border-stone-400 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
 const btnPrimary = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-sm font-semibold transition-all bg-stone-900 text-white hover:bg-black cursor-pointer shadow-lg shadow-stone-200 disabled:opacity-50 disabled:cursor-not-allowed";
@@ -413,6 +414,13 @@ export default function TeacherPortal() {
                 )}
               </div>
             </div>
+          ) : activeTab === "videos" ? (
+            <RecordedVideosManager
+              isRTL={isRTL}
+              teacherId={teacherId}
+              students={filteredTeacherStudents}
+              classes={classes}
+            />
           ) : (
             <>
               <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">

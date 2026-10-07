@@ -54,6 +54,66 @@ function isFounderUser(req) {
   const u = getBearerUser(req);
   return u && u.role === 'founder' ? u : null;
 }
+// Teachers log in either with their row UUID (school teachers) or with their
+// independent id ("IND-…"). Recorded-video ownership is stored as the UUID, so
+// the JWT identity has to be resolved before it can be compared/forced.
+async function resolveTeacherUuid(user) {
+  if (!user || user.role !== 'teacher') return null;
+  const uid = String(user.id || '');
+  if (!uid) return null;
+  if (uid.startsWith('IND-')) {
+    const rows = await dbQuery(`SELECT id FROM teachers WHERE independent_teacher_id = $1 LIMIT 1`, [uid]);
+    return rows.length > 0 ? rows[0].id : null;
+  }
+  return uid;
+}
+// Targeting payload for teacher_youtube_videos. `target_classes` is JSONB and
+// must reach Postgres as text (a JS array is serialised as a Postgres array and
+// the insert/update would fail on the type mismatch).
+async function normaliseVideoTargets(body, isNew) {
+  if (isNew && body.target_type === undefined) body.target_type = 'all';
+  if (body.target_type !== undefined) {
+    const targetType = String(body.target_type || 'all').trim() || 'all';
+    body.target_type = targetType;
+    if (targetType !== 'student') {
+      body.target_student_id = null;
+      body.target_student_name = null;
+    }
+    if (targetType !== 'classes') body.target_classes = '[]';
+  }
+  if (body.target_student_id === '') body.target_student_id = null;
+  if (body.target_classes !== undefined && body.target_classes !== null) {
+    if (Array.isArray(body.target_classes)) {
+      body.target_classes = JSON.stringify(body.target_classes);
+    } else if (typeof body.target_classes === 'string') {
+      const raw = body.target_classes.trim();
+      if (raw.startsWith('[')) {
+        try { JSON.parse(raw); } catch { body.target_classes = '[]'; }
+      } else {
+        body.target_classes = JSON.stringify(raw ? [raw] : []);
+      }
+    }
+  } else if (body.target_classes === null) {
+    body.target_classes = '[]';
+  }
+}
+// Ownership check shared by PUT/DELETE on recorded videos.
+async function loadVideoForWrite(entityId) {
+  const rows = await dbQuery(`SELECT teacher_id, school_id FROM teacher_youtube_videos WHERE id = $1`, [entityId]);
+  return rows.length > 0 ? rows[0] : null;
+}
+async function canManageVideo(req, row, tenantId) {
+  const role = req.user?.role;
+  if (role === 'founder') return true;
+  if (role === 'teacher') {
+    const ownerUuid = await resolveTeacherUuid(req.user);
+    return !!ownerUuid && String(row.teacher_id) === String(ownerUuid);
+  }
+  if (role === 'admin' || role === 'school_admin') {
+    return !tenantId || !row.school_id || String(row.school_id) === String(tenantId);
+  }
+  return false;
+}
 // Constant-time string compare (avoids timing leaks on env secrets)
 function safeEqualStr(a, b) {
   const sa = String(a || ''), sb = String(b || '');
@@ -3344,24 +3404,46 @@ WHERE email = $10`,
     if ((req.url === '/api/student/teacher-videos' || req.url.startsWith('/api/student/teacher-videos?')) && req.method === 'GET') {
       res.setHeader('Content-Type', 'application/json');
       try {
+        const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
         const urlObj = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
         const teacherId = urlObj.searchParams.get('teacherId');
-        const studentId = urlObj.searchParams.get('studentId');
         const user = getBearerUser(req);
 
-        const actualStudentId = (user && user.role === 'student') ? user.id : studentId;
-
-        if (!actualStudentId) {
+        // Identity always comes from the token — the old ?studentId= query
+        // fallback let anyone pull another student's library.
+        if (!user || user.role !== 'student' || !UUID_RE.test(String(user.id || ''))) {
           res.statusCode = 401;
           return res.end(JSON.stringify({ error: 'Student authentication required', authorized: false, videos: [] }));
         }
+        const actualStudentId = user.id;
 
-        // If a specific teacher is queried, verify the student has an approved subscription or bond
-        if (teacherId) {
-          let resolvedTeacherId = teacherId;
-          if (typeof teacherId === 'string' && teacherId.startsWith('IND-')) {
+        const studentRows = await dbQuery(
+          `SELECT id, grade, section, school_id FROM students WHERE id = $1 LIMIT 1`,
+          [actualStudentId]
+        );
+        const student = Array.isArray(studentRows) && studentRows.length > 0 ? studentRows[0] : null;
+        const studentSchoolId = student?.school_id || user.school_id || null;
+
+        // Class keys this student matches: "grade|section" plus the grade-only
+        // key (teachers targeting a whole grade store the bare grade).
+        const classKeys = [];
+        const g = String(student?.grade || '').trim();
+        const s = String(student?.section || '').trim();
+        if (g) {
+          if (s) classKeys.push(`${g}|${s}`.toLowerCase());
+          classKeys.push(g.toLowerCase());
+        }
+
+        let resolvedTeacherId = null;
+        if (teacherId && teacherId !== 'null' && teacherId !== 'undefined') {
+          resolvedTeacherId = teacherId;
+          if (teacherId.startsWith('IND-')) {
             const resolved = await dbQuery(`SELECT id FROM teachers WHERE independent_teacher_id = $1 LIMIT 1`, [teacherId]);
             if (resolved.length > 0) resolvedTeacherId = resolved[0].id;
+          }
+          if (!UUID_RE.test(String(resolvedTeacherId))) {
+            res.statusCode = 400;
+            return res.end(JSON.stringify({ error: 'Invalid teacher id', authorized: false, videos: [] }));
           }
 
           const approvedRel = await dbQuery(
@@ -3379,48 +3461,74 @@ WHERE email = $10`,
               videos: []
             }));
           }
-
-          const videos = await dbQuery(
-            `SELECT v.*, t.full_name as teacher_name
-             FROM teacher_youtube_videos v
-             LEFT JOIN teachers t ON t.id = v.teacher_id
-             WHERE v.teacher_id = $1
-               AND (v.is_hidden IS FALSE OR v.is_hidden IS NULL)
-               AND (v.target_student_id IS NULL OR v.target_student_id = $2 OR v.target_type = 'all')
-             ORDER BY v.order_index ASC, v.created_at DESC`,
-            [resolvedTeacherId, actualStudentId]
-          );
-
-          return res.end(JSON.stringify({ success: true, authorized: true, videos: Array.isArray(videos) ? videos : [] }));
         }
 
-        // Otherwise, fetch recorded videos from all approved teachers of this student
+        // Approved teachers (subscriptions/bonds) — used both as an access grant
+        // and as the default library scope when no school context exists.
         const approvedTeachers = await dbQuery(
           `SELECT teacher_id FROM teacher_subscriptions WHERE student_id = $1 AND status = 'approved'
            UNION
            SELECT teacher_id FROM student_teacher_bonds WHERE student_id = $1 AND status = 'approved'`,
           [actualStudentId]
         );
+        const approvedIds = (Array.isArray(approvedTeachers) ? approvedTeachers : [])
+          .map(r => r.teacher_id)
+          .filter(id => id && UUID_RE.test(String(id)));
 
-        if (!approvedTeachers || approvedTeachers.length === 0) {
+        const conditions = [
+          `(v.is_hidden IS FALSE OR v.is_hidden IS NULL)`
+        ];
+        const values = [actualStudentId, JSON.stringify(classKeys)];
+        // $1 student id, $2 class keys (jsonb)
+
+        // Access grant: a row is visible when it belongs to this student's school
+        // OR to an approved/bonded teacher. Querying one teacher additionally
+        // requires that teacher to be approved (checked above).
+        const scopeParts = [];
+        if (studentSchoolId && UUID_RE.test(String(studentSchoolId))) {
+          values.push(studentSchoolId);
+          scopeParts.push(`v.school_id = $${values.length}`);
+        }
+        if (approvedIds.length > 0) {
+          const ph = approvedIds.map(id => { values.push(id); return `$${values.length}`; });
+          scopeParts.push(`v.teacher_id IN (${ph.join(', ')})`);
+        }
+        if (resolvedTeacherId) {
+          // Narrow to the requested teacher only.
+          values.push(resolvedTeacherId);
+          conditions.push(`v.teacher_id = $${values.length}`);
+        }
+        if (scopeParts.length === 0 && !resolvedTeacherId) {
           return res.end(JSON.stringify({ success: true, authorized: true, videos: [] }));
         }
+        if (scopeParts.length > 0) conditions.push(`(${scopeParts.join(' OR ')})`);
 
-        const tIds = approvedTeachers.map(r => r.teacher_id).filter(Boolean);
-        if (tIds.length === 0) {
-          return res.end(JSON.stringify({ success: true, authorized: true, videos: [] }));
-        }
+        // Targeting: 'all' | 'classes' (jsonb array overlap) | 'student'.
+        // Legacy rows carry only target_student_id, so a set target wins over
+        // the (possibly NULL) target_type column.
+        conditions.push(`(
+          CASE WHEN v.target_student_id IS NOT NULL THEN 'student'
+               ELSE COALESCE(v.target_type, 'all')
+          END = 'all'
+          OR (
+            CASE WHEN v.target_student_id IS NOT NULL THEN 'student'
+                 ELSE COALESCE(v.target_type, 'all')
+            END = 'student' AND v.target_student_id = $1
+          )
+          OR (
+            CASE WHEN v.target_student_id IS NOT NULL THEN 'student'
+                 ELSE COALESCE(v.target_type, 'all')
+            END = 'classes' AND v.target_classes && $2::jsonb
+          )
+        )`);
 
-        const placeholders = tIds.map((_, i) => `${i + 2}`).join(',');
         const videos = await dbQuery(
           `SELECT v.*, t.full_name as teacher_name
            FROM teacher_youtube_videos v
            LEFT JOIN teachers t ON t.id = v.teacher_id
-           WHERE v.teacher_id IN (${placeholders})
-             AND (v.is_hidden IS FALSE OR v.is_hidden IS NULL)
-             AND (v.target_student_id IS NULL OR v.target_student_id = $1 OR v.target_type = 'all')
+           WHERE ${conditions.join(' AND ')}
            ORDER BY v.order_index ASC, v.created_at DESC`,
-          [actualStudentId, ...tIds]
+          values
         );
 
         return res.end(JSON.stringify({ success: true, authorized: true, videos: Array.isArray(videos) ? videos : [] }));
@@ -3934,6 +4042,50 @@ WHERE email = $10`,
           return res.end(JSON.stringify({ error: 'school_id is required in your account to access this resource' }));
         }
 
+        // ===== Recorded (unlisted YouTube) videos: role + ownership guard =====
+        // This table mixes two audiences: teachers manage their own rows, students
+        // read rows aimed at them. Neither should touch the generic entity API
+        // blindly, so every verb is gated here before any SQL runs.
+        const isVideoTable = table === 'teacher_youtube_videos';
+        let forcedVideoTeacherId = null;
+        if (isVideoTable) {
+          const role = req.user?.role;
+          if (role === 'student') {
+            if (req.method !== 'GET') {
+              res.statusCode = 403;
+              return res.end(JSON.stringify({ error: 'Students have read-only access to recorded videos' }));
+            }
+            // Students read through /api/student/teacher-videos (scoped + target
+            // filtered); the raw entity list would leak hidden/other-class rows.
+            res.statusCode = 403;
+            return res.end(JSON.stringify({ error: 'Use /api/student/teacher-videos to list recorded videos' }));
+          }
+          if (role === 'teacher') {
+            forcedVideoTeacherId = await resolveTeacherUuid(req.user);
+            if (!forcedVideoTeacherId) {
+              res.statusCode = 403;
+              return res.end(JSON.stringify({ error: 'Teacher profile not found' }));
+            }
+          } else if (role !== 'founder' && role !== 'school_admin' && role !== 'admin') {
+            res.statusCode = 403;
+            return res.end(JSON.stringify({ error: 'Not authorized for recorded videos' }));
+          }
+          // Existing rows were created before school_id was populated on insert;
+          // every write (and every single-row read) re-verifies ownership here so
+          // a stolen/guessed id can never be read or mutated across teachers.
+          if (entityId && (req.method === 'PUT' || req.method === 'DELETE' || req.method === 'GET')) {
+            const existingVideo = await loadVideoForWrite(entityId);
+            if (!existingVideo) {
+              res.statusCode = 404;
+              return res.end(JSON.stringify({ error: 'Video not found' }));
+            }
+            if (!(await canManageVideo(req, existingVideo, tenantId))) {
+              res.statusCode = 403;
+              return res.end(JSON.stringify({ error: 'You do not own this video' }));
+            }
+          }
+        }
+
         // ===== Independent Teacher Portal Tables =====
          sql`
            CREATE TABLE IF NOT EXISTS teacher_own_students (
@@ -4074,6 +4226,11 @@ WHERE email = $10`,
           await sql.query(`ALTER TABLE teacher_youtube_videos ADD COLUMN IF NOT EXISTS target_student_id UUID`).catch(()=>{});
           await sql.query(`ALTER TABLE teacher_youtube_videos ADD COLUMN IF NOT EXISTS target_student_name TEXT`).catch(()=>{});
           await sql.query(`ALTER TABLE teacher_youtube_videos ADD COLUMN IF NOT EXISTS video_duration TEXT`).catch(()=>{});
+          // Class targeting: array of "grade|section" keys (lower-cased), shared with the student match key
+          await sql.query(`ALTER TABLE teacher_youtube_videos ADD COLUMN IF NOT EXISTS target_classes JSONB DEFAULT '[]'`).catch(()=>{});
+          // Same independent-id columns every teacher-owned table carries, so the
+          // generic IND- resolution on create stays valid for this table too.
+          await sql.query(`ALTER TABLE teacher_youtube_videos ADD COLUMN IF NOT EXISTS independent_teacher_id VARCHAR(50)`).catch(()=>{});
           console.log('[neon] teacher_youtube_videos table verified with target columns');
         })
           .catch(err => console.error('[neon] teacher_youtube_videos:', err.message));
@@ -4221,6 +4378,20 @@ WHERE email = $10`,
             values.push(tenantId);
             paramIdx++;
           }
+          // Recorded videos: a teacher JWT only ever lists its own rows (the
+          // filter value can't be spoofed — it comes from the token, not the
+          // query string). School admins fall back to school scoping.
+          if (isVideoTable) {
+            if (forcedVideoTeacherId) {
+              conditions.push(`teacher_id = $${paramIdx}`);
+              values.push(forcedVideoTeacherId);
+              paramIdx++;
+            } else if (tenantId) {
+              conditions.push(`(school_id = $${paramIdx} OR school_id IS NULL)`);
+              values.push(tenantId);
+              paramIdx++;
+            }
+          }
           // Gateway lock accounts: each school admin sees only their school's accounts
           // Multi-branch: فلترة السجلات حسب الفرع إذا تم اختياره (وليس 'all')
           const branchHeader = req.headers['x-branch-id'];
@@ -4282,7 +4453,7 @@ WHERE email = $10`,
           // Resolve independent IDs to database UUIDs for entity tables
           const IND_PREFIX = 'IND-';
           const STU_PREFIX = 'STU-';
-          const teacherTables = new Set(['teacher_own_students', 'teacher_assignments', 'teacher_exams', 'teacher_submissions', 'teacher_live_classes', 'class_participants', 'teacher_subscriptions', 'teacher_subscription_requests']);
+          const teacherTables = new Set(['teacher_own_students', 'teacher_assignments', 'teacher_exams', 'teacher_submissions', 'teacher_live_classes', 'class_participants', 'teacher_subscriptions', 'teacher_subscription_requests', 'teacher_youtube_videos']);
           const bothIdTables = new Set(['teacher_subscriptions', 'teacher_subscription_requests']);
           const isTeacherTable = teacherTables.has(table);
           const idCols = isTeacherTable ? ['teacher_id'] : ['student_id'];
@@ -4363,13 +4534,29 @@ WHERE email = $10`,
             delete body.recipient_id;
           }
 
+          // Recorded videos: ownership comes from the token, targeting is
+          // normalised (and target_classes serialised) before the insert.
+          if (isVideoTable) {
+            if (forcedVideoTeacherId) body.teacher_id = forcedVideoTeacherId;
+            if (!body.title || !String(body.title).trim()) {
+              res.statusCode = 400;
+              return res.end(JSON.stringify({ error: 'title is required' }));
+            }
+            if (!body.youtube_url || !String(body.youtube_url).trim()) {
+              res.statusCode = 400;
+              return res.end(JSON.stringify({ error: 'youtube_url is required' }));
+            }
+            if (tenantIdFromUser && !body.school_id) body.school_id = tenantIdFromUser;
+            await normaliseVideoTargets(body, true);
+          }
+
           // Hook: Automatically default remaining to amount for student_fees
           if (table === 'student_fees' && body.remaining === undefined) {
             body.remaining = body.amount;
           }
 
           // Sanitize: convert empty strings to null for UUID/ID columns to avoid PostgreSQL type errors
-          const UUID_COLUMNS = ['subject_id', 'session_id', 'student_id', 'teacher_id', 'expense_id', 'parent_id', 'case_id'];
+          const UUID_COLUMNS = ['subject_id', 'session_id', 'student_id', 'teacher_id', 'expense_id', 'parent_id', 'case_id', 'target_student_id'];
           for (const col of UUID_COLUMNS) {
             if (body[col] !== undefined && body[col] === '') {
               body[col] = null;
@@ -4431,7 +4618,7 @@ WHERE email = $10`,
           const body = await parseBody(req);
 
           // Sanitize: convert empty strings to null for UUID/ID columns to avoid PostgreSQL type errors
-          const UUID_COLUMNS = ['subject_id', 'session_id', 'student_id', 'teacher_id', 'expense_id', 'parent_id', 'case_id'];
+          const UUID_COLUMNS = ['subject_id', 'session_id', 'student_id', 'teacher_id', 'expense_id', 'parent_id', 'case_id', 'target_student_id'];
           for (const col of UUID_COLUMNS) {
             if (body[col] !== undefined && body[col] === '') {
               body[col] = null;
@@ -4470,6 +4657,17 @@ WHERE email = $10`,
           if (table === 'portal_notifications' && body.recipient_id !== undefined) {
             body.user_id = body.recipient_id;
             delete body.recipient_id;
+          }
+
+          // Recorded videos: normalise targeting (JSONB-safe) and freeze ownership.
+          if (isVideoTable) {
+            if (forcedVideoTeacherId) {
+              body.teacher_id = forcedVideoTeacherId;
+            } else {
+              delete body.teacher_id;
+            }
+            delete body.school_id;
+            await normaliseVideoTargets(body, false);
           }
 
           const keys = Object.keys(body).filter(k =>

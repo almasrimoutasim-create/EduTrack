@@ -44,6 +44,7 @@ import VisualSchedule from "@/components/schedule/VisualSchedule";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import PageHeader from "@/components/shared/PageHeader";
 import StudentLevelsXP from "@/components/student-dashboard/StudentLevelsXP";
+import StudentRecordedVideos from "@/components/student/StudentRecordedVideos";
 
 const btnOutline = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-sm font-semibold transition-all border-2 border-stone-300 bg-white text-stone-800 hover:bg-stone-50 hover:border-stone-400 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
 const btnPrimary = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-sm font-semibold transition-all bg-stone-900 text-white hover:bg-black cursor-pointer shadow-lg shadow-stone-200 disabled:opacity-50 disabled:cursor-not-allowed";
@@ -1246,6 +1247,18 @@ export default function StudentPortal() {
                   )}
                 </div>
               </Card>
+            </div>
+          ) : view === "videos" ? (
+            <div className="space-y-6">
+              <PageHeader
+                title={isRTL ? "الفيديوهات المسجلة" : "Recorded Videos"}
+                subtitle={isRTL ? "حصص مسجلة من معلميك متاحة داخل بوابة الطالب" : "Lessons recorded by your teachers, available inside the student portal"}
+              >
+                <button onClick={() => window.location.href = "/student-portal"} className={`${btnOutline} h-11 px-5 rounded-xl`}>
+                  {isRTL ? "العودة للوحة التحكم" : "Back to Dashboard"}
+                </button>
+              </PageHeader>
+              <StudentRecordedVideos isRTL={isRTL} />
             </div>
           ) : (
             <>
