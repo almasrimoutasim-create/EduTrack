@@ -3,32 +3,36 @@ import { useLanguage } from "@/lib/LanguageContext";
 import PageHeader from "@/components/shared/PageHeader";
 import AdminRecordedVideosManager from "@/components/admin/AdminRecordedVideosManager";
 import AdminStudyMaterialsManager from "@/components/admin/AdminStudyMaterialsManager";
-import { Video, BookOpen } from "lucide-react";
+import { Video, BookOpen, BookMarked } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
- * Route: /materials — two libraries side by side:
- * 1) Recorded (unlisted) YouTube videos → teacher_youtube_videos
- *    (flows to teacher tab=videos + student view=videos).
+ * Route: /materials — three central libraries:
+ * 1) Curriculum Textbooks (كتب المنهج) → study_materials (type="textbook")
  * 2) Digital study materials (PDF/notes/links) → study_materials
- *    (flows to teacher tab=materials + student view=materials).
+ * 3) Recorded YouTube videos → teacher_youtube_videos
  */
 export default function Materials() {
   const { language } = useLanguage();
   const isRTL = language === "ar";
-  const [tab, setTab] = useState("videos");
+  const [tab, setTab] = useState("textbooks");
+
+  const tabs = [
+    { id: "textbooks", label: isRTL ? "كتب المنهج الدراسي" : "Curriculum Textbooks", icon: BookMarked },
+    { id: "digital", label: isRTL ? "المواد الدراسية الرقمية" : "Digital Materials", icon: BookOpen },
+    { id: "videos", label: isRTL ? "الفيديوهات المسجلة" : "Recorded Videos", icon: Video },
+  ];
 
   return (
     <div className="space-y-6 pb-20" dir={isRTL ? "rtl" : "ltr"}>
       <PageHeader
-        title={isRTL ? "المواد التعليمية" : "Learning Materials"}
-        subtitle={isRTL ? "مكتبة المدرسة — فيديوهات مسجلة ومواد رقمية، تُنشر مرة واحدة لتظهر للمعلمين والطلاب" : "School library — videos and digital materials, published once for teachers and students"}
+        title={isRTL ? "المواد والمناهج التعليمية" : "Learning Materials & Curricula"}
+        subtitle={isRTL
+          ? "مكتبة المدرسة — كتب المنهج الدراسي والمواد الرقمية والفيديوهات المسجلة، تُدار مركزياً لتظهر للمعلمين والطلاب"
+          : "School library — curriculum textbooks, digital materials and recorded videos, managed centrally for teachers and students"}
       />
-      <div className="flex gap-2 p-1 rounded-2xl bg-stone-100 border border-stone-200 w-fit">
-        {[
-          { id: "videos", label: isRTL ? "الفيديوهات المسجلة" : "Recorded Videos", icon: Video },
-          { id: "digital", label: isRTL ? "المواد الدراسية الرقمية" : "Digital Materials", icon: BookOpen },
-        ].map(t => (
+      <div className="flex flex-wrap gap-2 p-1 rounded-2xl bg-stone-100 border border-stone-200 w-fit">
+        {tabs.map(t => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
@@ -42,10 +46,14 @@ export default function Materials() {
           </button>
         ))}
       </div>
-      {tab === "videos" ? (
+      {tab === "textbooks" && (
+        <AdminStudyMaterialsManager isRTL={isRTL} mode="textbooks" />
+      )}
+      {tab === "digital" && (
+        <AdminStudyMaterialsManager isRTL={isRTL} mode="materials" />
+      )}
+      {tab === "videos" && (
         <AdminRecordedVideosManager isRTL={isRTL} />
-      ) : (
-        <AdminStudyMaterialsManager isRTL={isRTL} />
       )}
     </div>
   );

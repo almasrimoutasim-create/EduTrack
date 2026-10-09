@@ -8,29 +8,41 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import StudyMaterialFormDialog from "@/components/shared/StudyMaterialFormDialog";
 import { toast } from "sonner";
 import {
-  BookOpen, Plus, Search, Loader2, FileText, Link2,
+  BookOpen, BookMarked, Plus, Search, Loader2, FileText, Link2,
   StickyNote, PlayCircle, Pencil, Trash2, Eye, EyeOff
 } from "lucide-react";
 
 const TYPE_META = {
   document: { icon: FileText, labelAr: "مستند", labelEn: "Document", cls: "bg-rose-50 text-rose-700 border-rose-200" },
+  textbook: { icon: BookMarked, labelAr: "كتاب منهج", labelEn: "Textbook", cls: "bg-teal-50 text-teal-700 border-teal-200" },
   video: { icon: PlayCircle, labelAr: "فيديو/ملف", labelEn: "Video", cls: "bg-blue-50 text-blue-700 border-blue-200" },
   link: { icon: Link2, labelAr: "رابط", labelEn: "Link", cls: "bg-indigo-50 text-indigo-700 border-indigo-200" },
   note: { icon: StickyNote, labelAr: "ملاحظة", labelEn: "Note", cls: "bg-amber-50 text-amber-700 border-amber-200" },
 };
 
-export default function AdminStudyMaterialsManager({ isRTL = true }) {
+export default function AdminStudyMaterialsManager({ isRTL = true, mode = "materials" }) {
   const qc = useQueryClient();
+  const isTextbooks = mode === "textbooks";
   const [query, setQuery] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [pendingDelete, setPendingDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
-  const { data: materials = [], isLoading } = useQuery({
-    queryKey: ["admin-study-materials"],
-    queryFn: () => entities.StudyMaterial.list("-created_date", 500),
+  const { data: rawMaterials = [], isLoading } = useQuery({
+    queryKey: ["admin-study-materials", mode],
+    queryFn: () => isTextbooks
+      ? entities.StudyMaterial.list("-created_date", { type: "textbook" }, 500)
+      : entities.StudyMaterial.list("-created_date", 500),
   });
+
+  const materials = useMemo(() => {
+    if (!Array.isArray(rawMaterials)) return [];
+    if (isTextbooks) {
+      return rawMaterials.filter(m => m.type === "textbook");
+    }
+    return rawMaterials.filter(m => m.type !== "textbook");
+  }, [rawMaterials, isTextbooks]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -69,35 +81,44 @@ export default function AdminStudyMaterialsManager({ isRTL = true }) {
     setDeleting(true);
     try {
       await entities.StudyMaterial.delete(pendingDelete.id);
-      toast.success(isRTL ? "تم حذف المادة" : "Material deleted");
+      toast.success(isRTL ? (isTextbooks ? "تم حذف كتاب المنهج" : "تم حذف المادة") : "Item deleted");
       setPendingDelete(null);
       refresh();
     } catch (err) {
       console.error("[admin-study-materials] delete failed:", err);
-      toast.error(isRTL ? "تعذر حذف المادة" : "Could not delete");
+      toast.error(isRTL ? "تعذر حذف العنصر" : "Could not delete");
     } finally {
       setDeleting(false);
     }
   };
 
   const publishedCount = materials.filter(m => m.is_published !== false).length;
+  const HeaderIcon = isTextbooks ? BookMarked : BookOpen;
 
   return (
     <div className="space-y-6" dir={isRTL ? "rtl" : "ltr"}>
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <h2 className="text-2xl font-black text-stone-900 flex items-center gap-2">
-            <BookOpen size={24} className="text-teal-600" />
-            {isRTL ? "المواد الدراسية الرقمية" : "Digital Study Materials"}
+            <HeaderIcon size={24} className="text-teal-600" />
+            {isTextbooks
+              ? (isRTL ? "كتب المنهج الدراسي" : "Curriculum Textbooks")
+              : (isRTL ? "المواد الدراسية الرقمية" : "Digital Study Materials")}
           </h2>
           <p className="text-sm text-stone-500 font-semibold mt-1">
-            {isRTL
-              ? "ملفات PDF ومذكرات وروابط — حدد المادة والصف عند الرفع لتظهر للطلاب ضمن موادهم."
-              : "PDFs, notes and links — set subject and grade so students see them."}
+            {isTextbooks
+              ? (isRTL
+                ? "الكتب المدرسية المقررة والمناهج الدراسية الرسمية للطلاب — يتم ربطها بالصف والمادة للظهور في بوابة الطالب."
+                : "Official prescribed textbooks and syllabus for students by grade and subject.")
+              : (isRTL
+                ? "ملفات PDF ومذكرات وروابط — حدد المادة والصف عند الرفع لتظهر للطلاب ضمن موادهم."
+                : "PDFs, notes and links — set subject and grade so students see them.")}
           </p>
           <div className="flex flex-wrap items-center gap-2 mt-3">
             <Badge className="bg-stone-100 text-stone-700 border-stone-200 text-[11px] font-bold px-2.5 py-1">
-              {isRTL ? `${materials.length} مادة · ${publishedCount} منشورة` : `${materials.length} items · ${publishedCount} published`}
+              {isTextbooks
+                ? (isRTL ? `${materials.length} كتاب منهج · ${publishedCount} منشور` : `${materials.length} textbooks · ${publishedCount} published`)
+                : (isRTL ? `${materials.length} مادة · ${publishedCount} منشورة` : `${materials.length} items · ${publishedCount} published`)}
             </Badge>
           </div>
         </div>
@@ -106,7 +127,9 @@ export default function AdminStudyMaterialsManager({ isRTL = true }) {
           className="inline-flex items-center gap-2 h-11 px-5 rounded-2xl bg-stone-900 text-white text-sm font-bold hover:bg-black transition-all shadow-lg shadow-stone-200 cursor-pointer"
         >
           <Plus size={18} />
-          {isRTL ? "رفع مادة" : "Upload material"}
+          {isTextbooks
+            ? (isRTL ? "إضافة كتاب منهج" : "Add Textbook")
+            : (isRTL ? "رفع مادة" : "Upload material")}
         </button>
       </div>
 
@@ -115,7 +138,9 @@ export default function AdminStudyMaterialsManager({ isRTL = true }) {
         <Input
           value={query}
           onChange={e => setQuery(e.target.value)}
-          placeholder={isRTL ? "ابحث بالعنوان / المادة / الصف..." : "Search title / subject / grade..."}
+          placeholder={isTextbooks
+            ? (isRTL ? "ابحث باسم الكتاب / المادة / الصف..." : "Search textbook / subject / grade...")
+            : (isRTL ? "ابحث بالعنوان / المادة / الصف..." : "Search title / subject / grade...")}
           className="h-11 ps-11 rounded-2xl bg-white border-stone-200"
         />
       </div>
@@ -123,17 +148,31 @@ export default function AdminStudyMaterialsManager({ isRTL = true }) {
       {isLoading ? (
         <Card className="p-16 text-center border-dashed border-2 border-stone-200 bg-white rounded-[32px]">
           <Loader2 size={36} className="animate-spin text-teal-600 mx-auto" />
-          <p className="text-sm font-bold text-stone-500 mt-4">{isRTL ? "جاري تحميل المواد..." : "Loading..."}</p>
+          <p className="text-sm font-bold text-stone-500 mt-4">
+            {isTextbooks
+              ? (isRTL ? "جاري تحميل كتب المنهج..." : "Loading textbooks...")
+              : (isRTL ? "جاري تحميل المواد..." : "Loading...")}
+          </p>
         </Card>
       ) : filtered.length === 0 ? (
         <Card className="p-16 text-center border-dashed border-2 border-stone-200 bg-stone-50/50 rounded-[32px]">
-          <BookOpen size={48} className="mx-auto text-stone-300 mb-3" />
+          <HeaderIcon size={48} className="mx-auto text-stone-300 mb-3" />
           <p className="font-black text-lg text-stone-700">
-            {query ? (isRTL ? "لا توجد نتائج مطابقة" : "No matches") : (isRTL ? "لا توجد مواد رقمية بعد" : "No materials yet")}
+            {query
+              ? (isRTL ? "لا توجد نتائج مطابقة" : "No matches")
+              : (isTextbooks
+                ? (isRTL ? "لا توجد كتب منهج دراسي بعد" : "No textbooks yet")
+                : (isRTL ? "لا توجد مواد رقمية بعد" : "No materials yet"))}
           </p>
           {!query && (
-            <button onClick={openCreate} className="mt-5 inline-flex items-center gap-2 h-10 px-5 rounded-2xl bg-teal-600 text-white text-sm font-bold hover:bg-teal-700 cursor-pointer">
-              <Plus size={16} /> {isRTL ? "رفع مادة" : "Upload"}
+            <button
+              onClick={openCreate}
+              className="mt-5 inline-flex items-center gap-2 h-10 px-5 rounded-2xl bg-teal-600 text-white text-sm font-bold hover:bg-teal-700 cursor-pointer"
+            >
+              <Plus size={16} />
+              {isTextbooks
+                ? (isRTL ? "إضافة كتاب منهج" : "Add Textbook")
+                : (isRTL ? "رفع مادة" : "Upload")}
             </button>
           )}
         </Card>
@@ -152,7 +191,7 @@ export default function AdminStudyMaterialsManager({ isRTL = true }) {
                     <div className="min-w-0">
                       <p className="font-black text-sm text-stone-900 truncate">{m.title}</p>
                       <p className="text-[11px] font-bold text-stone-400 truncate">
-                        {m.subject_name || "—"} · {isRTL ? "الصف" : "Grade"} {m.grade || "—"}
+                        {m.subject_name || (isTextbooks ? (isRTL ? "عام" : "General") : "—")} · {isRTL ? "الصف" : "Grade"} {m.grade || "—"}
                       </p>
                     </div>
                   </div>
@@ -190,15 +229,24 @@ export default function AdminStudyMaterialsManager({ isRTL = true }) {
         open={dialogOpen}
         onClose={() => { setDialogOpen(false); setEditing(null); refresh(); }}
         material={editing}
+        defaultType={isTextbooks ? "textbook" : "document"}
       />
 
       <Dialog open={!!pendingDelete} onOpenChange={open => !open && setPendingDelete(null)}>
         <DialogContent className="max-w-md w-[92vw] rounded-3xl bg-white p-0" dir={isRTL ? "rtl" : "ltr"}>
           <DialogHeader className="px-6 pt-6">
-            <DialogTitle className="text-lg font-black text-stone-900">{isRTL ? "حذف المادة؟" : "Delete material?"}</DialogTitle>
+            <DialogTitle className="text-lg font-black text-stone-900">
+              {isTextbooks
+                ? (isRTL ? "حذف كتاب المنهج؟" : "Delete textbook?")
+                : (isRTL ? "حذف المادة؟" : "Delete material?")}
+            </DialogTitle>
           </DialogHeader>
           <div className="px-6 pb-2">
-            <p className="text-sm text-stone-600">{isRTL ? `سيتم حذف "${pendingDelete?.title || ""}" نهائياً.` : "This will permanently delete the item."}</p>
+            <p className="text-sm text-stone-600">
+              {isRTL
+                ? `سيتم حذف "${pendingDelete?.title || ""}" نهائياً.`
+                : "This will permanently delete the item."}
+            </p>
           </div>
           <DialogFooter className="px-6 py-5 border-t border-stone-100 gap-2">
             <button onClick={() => setPendingDelete(null)} className="h-11 px-5 rounded-2xl border-2 border-stone-300 bg-white text-stone-800 text-sm font-semibold hover:bg-stone-50 cursor-pointer">

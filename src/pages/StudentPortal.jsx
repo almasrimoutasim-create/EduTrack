@@ -537,11 +537,34 @@ export default function StudentPortal() {
                   return { icon: BookOpen, color: "text-teal-650", bg: "bg-teal-50" };
                 };
 
-                // --- Textbook: filter LibraryBooks linked to this subject ---
-                const subjectBooks = allLibraryBooks.filter(b =>
+                // --- Textbook: filter LibraryBooks and StudyMaterials (type="textbook") linked to this subject ---
+                const textbooksFromMaterials = allStudyMaterials
+                  .filter(m =>
+                    m.type === 'textbook' &&
+                    m.is_published !== false &&
+                    (
+                      (m.subject_id && m.subject_id === selectedSubject.id) ||
+                      (m.subject_name && selectedSubject.name && m.subject_name.trim().toLowerCase() === selectedSubject.name.trim().toLowerCase())
+                    )
+                  )
+                  .map(m => ({
+                    id: m.id,
+                    title: m.title,
+                    author: m.teacher_name || m.author || (isRTL ? "منهج دراسي رسمي" : "Official Curriculum"),
+                    description: m.description,
+                    file_url: m.file_url || m.external_url,
+                    thumbnail_url: m.thumbnail_url || null,
+                    subject_code: selectedSubject.code,
+                    subject_name: m.subject_name || selectedSubject.name,
+                    isStudyMaterial: true
+                  }));
+
+                const libraryBooksForSubject = allLibraryBooks.filter(b =>
                   b.subject_id === selectedSubject.id ||
                   b.subject_name?.toLowerCase() === selectedSubject.name?.toLowerCase()
                 );
+
+                const subjectBooks = [...libraryBooksForSubject, ...textbooksFromMaterials];
 
                 return (
                   <div className="space-y-6">
@@ -939,14 +962,125 @@ export default function StudentPortal() {
                   </div>
                 );
               })() : (
-                <>
-                  {studentSubjects.length === 0 ? (
-                    <Card className="p-12 text-center bg-stone-50 border border-dashed border-stone-200 rounded-3xl">
-                      <BookOpen className="h-8 w-8 text-stone-300 mx-auto mb-2" />
-                      <p className="text-stone-400 text-xs font-bold">{isRTL ? "لا توجد مواد مخصصة لصفك الدراسي حالياً." : "No subjects assigned for your grade currently."}</p>
-                    </Card>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="space-y-8">
+                  {/* Dedicated Prominent Curriculum Textbooks Section */}
+                  {(() => {
+                    const gradeTextbooks = allStudyMaterials.filter(m =>
+                      m.type === 'textbook' &&
+                      m.is_published !== false &&
+                      student?.grade &&
+                      String(m.grade) === String(student.grade)
+                    );
+
+                    if (gradeTextbooks.length === 0) return null;
+
+                    return (
+                      <div className="space-y-4 p-6 rounded-[32px] bg-gradient-to-br from-amber-500/10 via-teal-500/5 to-transparent border border-amber-200/60 shadow-sm">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-amber-500 to-teal-600 text-white flex items-center justify-center shadow-lg shadow-teal-500/20 shrink-0">
+                              <BookMarked size={24} />
+                            </div>
+                            <div>
+                              <h3 className="text-xl font-serif font-black text-stone-900 flex items-center gap-2">
+                                {isRTL
+                                  ? `كتب المنهج — الصف ${student.grade}`
+                                  : `Curriculum Textbooks — Grade ${student.grade}`}
+                              </h3>
+                              <p className="text-xs text-stone-500 font-semibold mt-0.5">
+                                {isRTL
+                                  ? "الكتب المدرسية والمناهج المعتمدة لصفك الدراسي — متاحة للقراءة والتحميل المباشر"
+                                  : "Prescribed curriculum textbooks and syllabus for your grade — ready for online reading and download"}
+                              </p>
+                            </div>
+                          </div>
+                          <Badge className="bg-amber-100 text-amber-800 border-none font-black text-xs px-3.5 py-1.5 rounded-xl self-start sm:self-auto">
+                            {isRTL ? `${gradeTextbooks.length} كتاب منهج` : `${gradeTextbooks.length} Textbooks`}
+                          </Badge>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
+                          {gradeTextbooks.map((book) => {
+                            const bookUrl = book.file_url || book.external_url;
+                            return (
+                              <Card
+                                key={book.id}
+                                className="p-5 bg-white border border-stone-200/90 rounded-2xl shadow-sm hover:shadow-md transition-all flex flex-col justify-between group"
+                              >
+                                <div className="space-y-3">
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div className="h-11 w-11 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                                      <BookMarked size={22} />
+                                    </div>
+                                    <div className="flex flex-wrap items-center gap-1.5 justify-end">
+                                      {book.subject_name && (
+                                        <Badge className="bg-teal-50 text-teal-700 border border-teal-200 text-[10px] font-bold px-2 py-0.5 rounded-lg">
+                                          {book.subject_name}
+                                        </Badge>
+                                      )}
+                                      <Badge className="bg-stone-100 text-stone-600 border-none text-[9px] font-bold px-2 py-0.5 rounded-md num-en">
+                                        {isRTL ? "الصف" : "Grade"} {book.grade}
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <h4 className="font-serif font-black text-stone-900 text-base leading-snug group-hover:text-teal-700 transition-colors line-clamp-1">
+                                      {book.title}
+                                    </h4>
+                                    {book.description ? (
+                                      <p className="text-xs text-stone-500 line-clamp-2 mt-1 leading-relaxed">
+                                        {book.description}
+                                      </p>
+                                    ) : (
+                                      <p className="text-xs text-stone-400 mt-1">
+                                        {book.teacher_name
+                                          ? (isRTL ? `المشرف/المعلم: ${book.teacher_name}` : `Teacher: ${book.teacher_name}`)
+                                          : (isRTL ? "كتاب منهجي رسمي معتمد" : "Official curriculum textbook")}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div className="mt-4 pt-3 border-t border-stone-100 flex items-center justify-between gap-2">
+                                  <span className="text-[10px] text-stone-400 font-bold">
+                                    {book.created_date ? new Date(book.created_date).toLocaleDateString(isRTL ? "ar-EG" : "en-US") : ""}
+                                  </span>
+                                  {bookUrl ? (
+                                    <a
+                                      href={bookUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold transition-all shadow-sm cursor-pointer"
+                                    >
+                                      <ExternalLink size={13} />
+                                      <span>{isRTL ? "قراءة / تحميل 📥" : "Read / Download 📥"}</span>
+                                    </a>
+                                  ) : (
+                                    <span className="text-[11px] text-stone-400 font-semibold">
+                                      {isRTL ? "غير متاح للتحميل" : "Unavailable"}
+                                    </span>
+                                  )}
+                                </div>
+                              </Card>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Enrolled Subjects Header */}
+                  <div>
+                    <h3 className="text-lg font-serif font-black text-stone-900 mb-4">
+                      {isRTL ? "المواد الدراسية المقررة" : "Enrolled Subjects"}
+                    </h3>
+                    {studentSubjects.length === 0 ? (
+                      <Card className="p-12 text-center bg-stone-50 border border-dashed border-stone-200 rounded-3xl">
+                        <BookOpen className="h-8 w-8 text-stone-300 mx-auto mb-2" />
+                        <p className="text-stone-400 text-xs font-bold">{isRTL ? "لا توجد مواد مخصصة لصفك الدراسي حالياً." : "No subjects assigned for your grade currently."}</p>
+                      </Card>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                       {studentSubjects.map((subject, idx) => (
                         <motion.div
                           key={subject.id || idx}
@@ -984,9 +1118,10 @@ export default function StudentPortal() {
                           </Card>
                         </motion.div>
                       ))}
-                    </div>
-                  )}
-                </>
+                      </div>
+                    )}
+                  </div>
+                </div>
               )}
             </div>
           ) : view === "badges" ? (
