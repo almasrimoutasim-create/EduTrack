@@ -44,6 +44,21 @@ function hashPassword(password) {
   return bcrypt.hashSync(password, 10);
 }
 
+/**
+ * Generate a secure random password for new user registrations.
+ * Uses crypto.randomBytes for cryptographically secure randomness.
+ * Format: 8 characters (mixed case alphanumeric) - easy to communicate but secure.
+ */
+function generateSecurePassword() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+  const bytes = randomBytes(8);
+  let password = '';
+  for (let i = 0; i < 8; i++) {
+    password += chars[bytes[i] % chars.length];
+  }
+  return password;
+}
+
 // ── Phase 1 security: real founder auth (JWT role=founder). No forgeable headers. ──
 function getBearerUser(req) {
   const h = req.headers.authorization;
@@ -684,9 +699,31 @@ if (process.env.DATABASE_URL) {
   }
   sql.query(`ALTER TABLE fee_structures ADD COLUMN IF NOT EXISTS academic_year TEXT DEFAULT '2025-2026'`).catch(()=>{});
   sql.query(`ALTER TABLE fee_structures ADD COLUMN IF NOT EXISTS branch_id UUID`).catch(()=>{});
+  // Fix column types for existing deployments where columns may have been created with wrong types
+  sql.query(`ALTER TABLE fee_structures ALTER COLUMN created_by TYPE TEXT USING created_by::text`).catch(err => console.error('[neon] fee_structures created_by type fix failed:', err.message));
+  sql.query(`ALTER TABLE fee_structures ALTER COLUMN school_id TYPE UUID USING school_id::uuid`).catch(err => console.error('[neon] fee_structures school_id type fix failed:', err.message));
+  sql.query(`ALTER TABLE fee_structures ALTER COLUMN branch_id TYPE UUID USING branch_id::uuid`).catch(err => console.error('[neon] fee_structures branch_id type fix failed:', err.message));
   sql.query(`ALTER TABLE student_fees ADD COLUMN IF NOT EXISTS branch_id UUID`).catch(()=>{});
   sql.query(`ALTER TABLE student_fees ADD COLUMN IF NOT EXISTS currency TEXT NOT NULL DEFAULT 'SDG'`).catch(()=>{});
+  sql.query(`ALTER TABLE student_fees ALTER COLUMN created_by TYPE TEXT USING created_by::text`).catch(err => console.error('[neon] student_fees created_by type fix failed:', err.message));
+  sql.query(`ALTER TABLE student_fees ALTER COLUMN school_id TYPE UUID USING school_id::uuid`).catch(err => console.error('[neon] student_fees school_id type fix failed:', err.message));
+  sql.query(`ALTER TABLE student_fees ALTER COLUMN branch_id TYPE UUID USING branch_id::uuid`).catch(err => console.error('[neon] student_fees branch_id type fix failed:', err.message));
   sql.query(`ALTER TABLE fee_payments ADD COLUMN IF NOT EXISTS branch_id UUID`).catch(()=>{});
+  sql.query(`ALTER TABLE fee_payments ALTER COLUMN paid_by TYPE TEXT USING paid_by::text`).catch(()=>{});
+  sql.query(`ALTER TABLE fee_payments ALTER COLUMN school_id TYPE UUID USING school_id::uuid`).catch(err => console.error('[neon] fee_payments school_id type fix failed:', err.message));
+  sql.query(`ALTER TABLE fee_payments ALTER COLUMN branch_id TYPE UUID USING branch_id::uuid`).catch(err => console.error('[neon] fee_payments branch_id type fix failed:', err.message));
+  // Fix column types for other financial tables with created_by/approved_by columns
+  const financialTablesWithCreatedBy = ['hall_rentals','other_revenue','expenses','salary_records','purchase_orders','activity_fees','donations'];
+  for (const tbl of financialTablesWithCreatedBy) {
+    sql.query(`ALTER TABLE ${tbl} ALTER COLUMN created_by TYPE TEXT USING created_by::text`).catch(err => console.error(`[neon] ${tbl} created_by type fix failed:`, err.message));
+    sql.query(`ALTER TABLE ${tbl} ALTER COLUMN school_id TYPE UUID USING school_id::uuid`).catch(err => console.error(`[neon] ${tbl} school_id type fix failed:`, err.message));
+    sql.query(`ALTER TABLE ${tbl} ALTER COLUMN branch_id TYPE UUID USING branch_id::uuid`).catch(err => console.error(`[neon] ${tbl} branch_id type fix failed:`, err.message));
+  }
+  // purchase_orders has approved_by column
+  sql.query(`ALTER TABLE purchase_orders ALTER COLUMN approved_by TYPE TEXT USING approved_by::text`).catch(err => console.error('[neon] purchase_orders approved_by type fix failed:', err.message));
+  // counseling_cases has created_by, closed_by
+  sql.query(`ALTER TABLE counseling_cases ALTER COLUMN created_by TYPE TEXT USING created_by::text`).catch(err => console.error('[neon] counseling_cases created_by type fix failed:', err.message));
+  sql.query(`ALTER TABLE counseling_cases ALTER COLUMN closed_by TYPE TEXT USING closed_by::text`).catch(err => console.error('[neon] counseling_cases closed_by type fix failed:', err.message));
   // Tuition receipt uploads from the parent portal (stored on financial_records)
   sql.query(`ALTER TABLE financial_records ADD COLUMN IF NOT EXISTS receipt_image TEXT`).catch(()=>{});
   sql.query(`ALTER TABLE financial_records ADD COLUMN IF NOT EXISTS receipt_filename TEXT`).catch(()=>{});
@@ -4482,7 +4519,7 @@ WHERE email = $10`,
               res.statusCode = 400;
               return res.end(JSON.stringify({ error: 'اسم الطالب واسم ولي الأمر ورقم الهاتف مطلوبة' }));
             }
-            const portalPassword = '12345678';
+            const portalPassword = generateSecurePassword();
             const hashedPassword = bcrypt.hashSync(portalPassword, 10);
             const studentId = await insertWithIdRetry(async () => {
               const sid = await nextPublicId('students', 'STU', school.id, 'student_id');
@@ -4557,7 +4594,7 @@ WHERE email = $10`,
             await dbQuery(`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS notes TEXT`).catch(()=>{});
             await dbQuery(`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS cv_document_url TEXT`).catch(()=>{});
             await dbQuery(`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS certificates_urls TEXT`).catch(()=>{});
-            const portalPassword = '12345678';
+            const portalPassword = generateSecurePassword();
             const hashedPassword = bcrypt.hashSync(portalPassword, 10);
             const certsValue = Array.isArray(certificates_urls) ? JSON.stringify(certificates_urls) : (certificates_urls || null);
             let empId;
@@ -4594,7 +4631,7 @@ WHERE email = $10`,
             await dbQuery(`ALTER TABLE staff_members ADD COLUMN IF NOT EXISTS specialty TEXT`).catch(()=>{});
             await dbQuery(`ALTER TABLE staff_members ADD COLUMN IF NOT EXISTS cv_document_url TEXT`).catch(()=>{});
             await dbQuery(`ALTER TABLE staff_members ADD COLUMN IF NOT EXISTS certificates_urls TEXT`).catch(()=>{});
-            const portalPassword = '12345678';
+            const portalPassword = generateSecurePassword();
             const hashedPassword = bcrypt.hashSync(portalPassword, 10);
             const certsValue = Array.isArray(certificates_urls) ? JSON.stringify(certificates_urls) : (certificates_urls || null);
             // A public link must never be able to mint an 'admin' role.
