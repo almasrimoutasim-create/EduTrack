@@ -253,7 +253,7 @@ export default function StudentDashboard() {
         { id: "homework", label: "الواجبات", icon: FileText },
         { id: "materials", label: "المواد الدراسية", icon: BookOpen },
         { id: "classroom", label: "الفصل الافتراضي", icon: Video },
-        { id: "videos", label: "الفيديوهات المسجلة", icon: PlayCircle },
+        { id: "videos", label: "المكتبة الرقمية", icon: PlayCircle },
         { id: "grades", label: "الدرجات", icon: Star },
         { id: "attendance", label: "سجل الحضور", icon: ClipboardCheck },
       ],
@@ -690,7 +690,7 @@ export default function StudentDashboard() {
           {/* ===== VIDEOS ===== */}
           {activeTab === "videos" && (
             <div className="max-w-4xl mx-auto space-y-3">
-              <h1 className="text-2xl font-black">الفيديوهات المسجلة</h1>
+              <h1 className="text-2xl font-black">المكتبة الرقمية</h1>
               {videosQuery.isLoading ? (<><Skeleton className="h-14" /><Skeleton className="h-14" /></>)
                 : videosQuery.error ? <ErrorBox message={videosQuery.error.message} onRetry={() => videosQuery.refetch()} />
                 : (videosQuery.data?.videos || []).length === 0 ? <p className="text-sm text-stone-500 bg-white rounded-2xl p-6">لا توجد فيديوهات متاحة لك حالياً.</p>

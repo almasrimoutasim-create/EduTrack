@@ -212,7 +212,7 @@ export default function RecordedVideosManager({ isRTL = true, teacherId, student
         <div>
           <h2 className="text-2xl font-black text-stone-900 flex items-center gap-2">
             <Clapperboard size={24} className="text-emerald-600" />
-            {isRTL ? "الفيديوهات المسجلة" : "Recorded Videos"}
+            {isRTL ? "المكتبة الرقمية" : "Digital Library"}
           </h2>
           <p className="text-sm text-stone-500 font-semibold mt-1">
             {isRTL

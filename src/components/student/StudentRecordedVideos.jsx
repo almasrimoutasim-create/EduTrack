@@ -91,7 +91,7 @@ export default function StudentRecordedVideos({ isRTL = true }) {
     <div className="space-y-1">
       <h2 className="text-2xl font-black text-stone-900 flex items-center gap-2">
         <Clapperboard size={24} className="text-emerald-600" />
-        {isRTL ? "الفيديوهات المسجلة" : "Recorded Videos"}
+        {isRTL ? "المكتبة الرقمية" : "Digital Library"}
       </h2>
       <p className="text-sm text-stone-500 font-semibold">
         {isRTL
@@ -122,7 +122,7 @@ export default function StudentRecordedVideos({ isRTL = true }) {
             {isRTL ? "يلزم تسجيل الدخول" : "Sign in required"}
           </p>
           <p className="text-sm text-stone-500 mt-1">
-            {isRTL ? "سجّل الدخول ببوابة الطالب لمشاهدة الفيديوهات المسجلة." : "Sign in to the student portal to watch recorded videos."}
+            {isRTL ? "سجّل الدخول ببوابة الطالب لمشاهدة المكتبة الرقمية." : "Sign in to the student portal to watch recorded videos."}
           </p>
         </Card>
       </div>

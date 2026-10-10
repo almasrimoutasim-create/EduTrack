@@ -20,7 +20,7 @@ export default function Materials() {
   const tabs = [
     { id: "textbooks", label: isRTL ? "كتب المنهج الدراسي" : "Curriculum Textbooks", icon: BookMarked },
     { id: "digital", label: isRTL ? "المواد الدراسية الرقمية" : "Digital Materials", icon: BookOpen },
-    { id: "videos", label: isRTL ? "الفيديوهات المسجلة" : "Recorded Videos", icon: Video },
+    { id: "videos", label: isRTL ? "المكتبة الرقمية" : "Digital Library", icon: Video },
   ];
 
   return (
@@ -28,7 +28,7 @@ export default function Materials() {
       <PageHeader
         title={isRTL ? "المواد والمناهج التعليمية" : "Learning Materials & Curricula"}
         subtitle={isRTL
-          ? "مكتبة المدرسة — كتب المنهج الدراسي والمواد الرقمية والفيديوهات المسجلة، تُدار مركزياً لتظهر للمعلمين والطلاب"
+          ? "مكتبة المدرسة — كتب المنهج الدراسي والمواد الرقمية والمكتبة الرقمية، تُدار مركزياً لتظهر للمعلمين والطلاب"
           : "School library — curriculum textbooks, digital materials and recorded videos, managed centrally for teachers and students"}
       />
       <div className="flex flex-wrap gap-2 p-1 rounded-2xl bg-stone-100 border border-stone-200 w-fit">

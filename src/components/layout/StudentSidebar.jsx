@@ -72,7 +72,7 @@ export default function StudentSidebar() {
         { label: isRTL ? "الواجبات" : "Homework", path: "/student-portal?view=homework", icon: FileText },
         { label: isRTL ? "المواد الدراسية" : "Materials", path: "/student-portal?view=materials", icon: BookOpen },
         { label: isRTL ? "الفصل الافتراضي" : "Virtual Classroom", path: "/virtual-classroom/demo", icon: Video },
-        { label: isRTL ? "الفيديوهات المسجلة" : "Recorded Videos", path: "/student-portal?view=videos", icon: Video },
+        { label: isRTL ? "المكتبة الرقمية" : "Digital Library", path: "/student-portal?view=videos", icon: Video },
         { label: isRTL ? "الدرجات" : "Grades", path: "/student-portal?view=grades", icon: Star },
         { label: isRTL ? "سجل الحضور" : "Attendance", path: "/student-portal?view=attendance", icon: ClipboardCheck }
       ]

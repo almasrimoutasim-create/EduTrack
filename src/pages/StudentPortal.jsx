@@ -1387,7 +1387,7 @@ export default function StudentPortal() {
           ) : view === "videos" ? (
             <div className="space-y-6">
               <PageHeader
-                title={isRTL ? "الفيديوهات المسجلة" : "Recorded Videos"}
+                title={isRTL ? "المكتبة الرقمية" : "Digital Library"}
                 subtitle={isRTL ? "حصص مسجلة من معلميك متاحة داخل بوابة الطالب" : "Lessons recorded by your teachers, available inside the student portal"}
               >
                 <button onClick={() => window.location.href = "/student-portal"} className={`${btnOutline} h-11 px-5 rounded-xl`}>
