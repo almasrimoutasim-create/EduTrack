@@ -9,7 +9,6 @@ import { UserPlus, CheckCircle, Building2, Phone, Mail, Shield, Loader2, FileTex
 
 const STAFF_ROLES = [
   { value: "staff", name: "موظف عام", nameEn: "General Staff" },
-  { value: "admin", name: "مدير", nameEn: "Administrator" },
   { value: "accountant", name: "محاسب", nameEn: "Accountant" },
   { value: "hr", name: "موارد بشرية", nameEn: "HR" },
   { value: "it", name: "تقنية المعلومات", nameEn: "IT" },

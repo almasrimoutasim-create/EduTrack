@@ -668,7 +668,11 @@ export default function Settings() {
       </div>
 
       {/* ── روابط التسجيل العام ── */}
-      {currentSchool?.slug && <RegistrationLinksSection slug={currentSchool.slug} isRTL={isRTL} />}
+      {/* fallback: slug → domain_subdomain → id حتى لا تختفي الروابط إن كان slug فارغاً */}
+      {(() => {
+        const regSlug = currentSchool?.slug || currentSchool?.domain_subdomain || currentSchool?.id;
+        return regSlug ? <RegistrationLinksSection slug={regSlug} isRTL={isRTL} /> : null;
+      })()}
 
       {/* ── حالة طلبات الترقية ── */}
       <MyReceiptStatus />

@@ -2182,7 +2182,7 @@ export function createApiHandler() {
                     s.country, s.plan, s.subscription_status, s.expires_at,
                     s.logo_url as school_logo, s.background_image as school_bg
              FROM school_branches b
-             JOIN schools s ON s.id = b.school_id
+             JOIN schools s ON s.id::text = b.school_id::text
              WHERE (b.slug = $1 OR b.id::text = $1)
              LIMIT 1`,
             [slug]
@@ -2274,7 +2274,7 @@ export function createApiHandler() {
           const bRows = await dbQuery(
             `SELECT b.id as branch_uuid, b.name as branch_name, s.* 
              FROM school_branches b
-             JOIN schools s ON s.id = b.school_id
+             JOIN schools s ON s.id::text = b.school_id::text
              WHERE (b.slug = $1 OR b.id::text = $1) LIMIT 1`,
             [slug.trim()]
           );
@@ -4412,15 +4412,56 @@ WHERE email = $10`,
       // ── Public Registration Links: handle BEFORE entity routing (no auth, school-scoped) ──
       if (path.match(/^\/neon-db\/public-register\//)) {
         async function resolveSchoolPublicEarly(slug) {
+          const key = String(slug || '').trim();
           const rows = await dbQuery(
             `SELECT id, name, name_ar, name_en, slug, domain_subdomain, logo_url, subscription_status 
              FROM schools 
              WHERE (slug = $1 OR domain_subdomain = $1 OR id::text = $1) 
              AND subscription_status = 'active' 
              LIMIT 1`,
-            [slug.trim()]
+            [key]
           );
-          return rows.length > 0 ? rows[0] : null;
+          if (rows.length > 0) return rows[0];
+          // Branch slug → parent school (public-school GET resolves branches the same way,
+          // otherwise the form loads but submit would 404)
+          const bRows = await dbQuery(
+            `SELECT s.id, s.name, s.name_ar, s.name_en, s.slug, s.domain_subdomain, s.logo_url, s.subscription_status
+             FROM school_branches b
+             JOIN schools s ON s.id::text = b.school_id::text
+             WHERE (b.slug = $1 OR b.id::text = $1)
+             AND s.subscription_status = 'active'
+             LIMIT 1`,
+            [key]
+          );
+          return bRows.length > 0 ? bRows[0] : null;
+        }
+        // Collision-safe sequential public ID.
+        // student_id / employee_id carry GLOBAL unique constraints, while the
+        // old COUNT(*) ran per school — so a school with 0 students always
+        // retried STU-0001 (already taken by another school) and every submit
+        // died with duplicate-key 500 'خطأ داخلي أثناء التسجيل'.
+        async function nextPublicId(table, prefix, schoolId, idCol) {
+          const rows = await dbQuery(`SELECT COUNT(*) AS c FROM ${table} WHERE school_id = $1`, [schoolId]);
+          let n = parseInt(rows[0]?.c || '0', 10) + 1;
+          for (let i = 0; i < 200; i++) {
+            const candidate = `${prefix}-${String(n).padStart(4, '0')}`;
+            // Global check (no school filter): the unique index is global.
+            const exists = await dbQuery(`SELECT 1 FROM ${table} WHERE ${idCol} = $1 LIMIT 1`, [candidate]);
+            if (exists.length === 0) return candidate;
+            n++;
+          }
+          return `${prefix}-${String(n).padStart(4, '0')}-${Date.now().toString(36)}`;
+        }
+        // INSERT with one retry on global-unique race (SQLSTATE 23505):
+        // two concurrent submits may pick the same free ID.
+        async function insertWithIdRetry(insertFn) {
+          try {
+            return await insertFn();
+          } catch (e) {
+            const msg = String(e?.message || '');
+            if (e?.code !== '23505' && !msg.includes('duplicate key')) throw e;
+            return await insertFn(true);
+          }
         }
         if (path.match(/^\/neon-db\/public-register\/student\/[^/]+$/) && req.method === 'POST') {
           res.setHeader('Content-Type', 'application/json');
@@ -4441,11 +4482,11 @@ WHERE email = $10`,
               res.statusCode = 400;
               return res.end(JSON.stringify({ error: 'اسم الطالب واسم ولي الأمر ورقم الهاتف مطلوبة' }));
             }
-            const empCount = await dbQuery(`SELECT COUNT(*) FROM students WHERE school_id = $1`, [school.id]);
-            const studentId = `STU-${String((parseInt(empCount[0]?.count || '0') + 1)).padStart(4, '0')}`;
             const portalPassword = '12345678';
             const hashedPassword = bcrypt.hashSync(portalPassword, 10);
-            await dbQuery(
+            const studentId = await insertWithIdRetry(async () => {
+              const sid = await nextPublicId('students', 'STU', school.id, 'student_id');
+              await dbQuery(
               `INSERT INTO students (
                 full_name, user_email, student_id, phone, grade, section, date_of_birth,
                 previous_school, last_result_document_url, national_id_document_url,
@@ -4468,7 +4509,7 @@ WHERE email = $10`,
               [
                 full_name.trim(),
                 (user_email || '').trim().toLowerCase() || null,
-                studentId,
+                sid,
                 (phone || '').trim() || null,
                 (grade || '').trim() || null,
                 (section || '').trim() || null,
@@ -4492,7 +4533,9 @@ WHERE email = $10`,
                 hashedPassword,
                 portalPassword
               ]
-            );
+              );
+              return sid;
+            });
             return res.end(JSON.stringify({ success: true, message: 'تم التسجيل بنجاح', student_id: studentId, portal_password: portalPassword, school_name: school.name_ar || school.name }));
           } catch (e) {
             console.error('[public-register] student error:', e.message);
@@ -4514,17 +4557,19 @@ WHERE email = $10`,
             await dbQuery(`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS notes TEXT`).catch(()=>{});
             await dbQuery(`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS cv_document_url TEXT`).catch(()=>{});
             await dbQuery(`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS certificates_urls TEXT`).catch(()=>{});
-            const empCount = await dbQuery(`SELECT COUNT(*) FROM teachers WHERE school_id = $1`, [school.id]);
-            const empId = `TCH-${String((parseInt(empCount[0]?.count || '0') + 1)).padStart(4, '0')}`;
             const portalPassword = '12345678';
             const hashedPassword = bcrypt.hashSync(portalPassword, 10);
             const certsValue = Array.isArray(certificates_urls) ? JSON.stringify(certificates_urls) : (certificates_urls || null);
-            await dbQuery(
+            let empId;
+            await insertWithIdRetry(async () => {
+              empId = await nextPublicId('teachers', 'TCH', school.id, 'employee_id');
+              await dbQuery(
               `INSERT INTO teachers (full_name, email, employee_id, phone, subjects, experience_years, bio, city, notes, cv_document_url, certificates_urls, school_id, portal_password, portal_password_plain, status)
                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, 'active')
                RETURNING id`,
               [full_name.trim(), (email || '').trim().toLowerCase() || null, empId, (phone || '').trim() || null, (subjects || '').trim() || null, experience_years ? parseInt(experience_years) : null, (bio || '').trim() || null, (city || '').trim() || null, (notes || '').trim() || null, cv_document_url || null, certsValue, school.id, hashedPassword, portalPassword]
             );
+            });
             return res.end(JSON.stringify({ success: true, message: 'تم التسجيل بنجاح', employee_id: empId, portal_password: portalPassword, school_name: school.name_ar || school.name }));
           } catch (e) {
             console.error('[public-register] teacher error:', e.message);
@@ -4541,23 +4586,30 @@ WHERE email = $10`,
             const body = await parseBody(req);
             const { full_name, email, phone, role, notes, date_of_birth, specialty, cv_document_url, certificates_urls } = body;
             if (!full_name) { res.statusCode = 400; return res.end(JSON.stringify({ error: 'الاسم الكامل مطلوب' })); }
-            await dbQuery(`ALTER TABLE system_admins ADD COLUMN IF NOT EXISTS phone TEXT`).catch(()=>{});
-            await dbQuery(`ALTER TABLE system_admins ADD COLUMN IF NOT EXISTS date_of_birth TEXT`).catch(()=>{});
-            await dbQuery(`ALTER TABLE system_admins ADD COLUMN IF NOT EXISTS specialty TEXT`).catch(()=>{});
-            await dbQuery(`ALTER TABLE system_admins ADD COLUMN IF NOT EXISTS notes TEXT`).catch(()=>{});
-            await dbQuery(`ALTER TABLE system_admins ADD COLUMN IF NOT EXISTS cv_document_url TEXT`).catch(()=>{});
-            await dbQuery(`ALTER TABLE system_admins ADD COLUMN IF NOT EXISTS certificates_urls TEXT`).catch(()=>{});
-            const staffCount = await dbQuery(`SELECT COUNT(*) FROM system_admins WHERE school_id = $1`, [school.id]);
-            const staffId = `STF-${String((parseInt(staffCount[0]?.count || '0') + 1)).padStart(4, '0')}`;
+            // Public staff registrations belong to staff_members (NOT system_admins):
+            // they show up in StaffControl immediately and log in via the staff
+            // portal. system_admins rows would get full-admin access via the
+            // admin login, which must never be granted through a public link.
+            await dbQuery(`ALTER TABLE staff_members ADD COLUMN IF NOT EXISTS date_of_birth TEXT`).catch(()=>{});
+            await dbQuery(`ALTER TABLE staff_members ADD COLUMN IF NOT EXISTS specialty TEXT`).catch(()=>{});
+            await dbQuery(`ALTER TABLE staff_members ADD COLUMN IF NOT EXISTS cv_document_url TEXT`).catch(()=>{});
+            await dbQuery(`ALTER TABLE staff_members ADD COLUMN IF NOT EXISTS certificates_urls TEXT`).catch(()=>{});
             const portalPassword = '12345678';
             const hashedPassword = bcrypt.hashSync(portalPassword, 10);
             const certsValue = Array.isArray(certificates_urls) ? JSON.stringify(certificates_urls) : (certificates_urls || null);
-            await dbQuery(
-              `INSERT INTO system_admins (full_name, email, username, password, portal_password, role, school_id, status, phone, date_of_birth, specialty, notes, cv_document_url, certificates_urls)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, 'active', $8, $9, $10, $11, $12, $13)
+            // A public link must never be able to mint an 'admin' role.
+            let staffRole = String(role || 'staff').trim().toLowerCase() || 'staff';
+            if (staffRole === 'admin') staffRole = 'staff';
+            let staffId;
+            await insertWithIdRetry(async () => {
+              staffId = await nextPublicId('staff_members', 'STF', school.id, 'employee_id');
+              await dbQuery(
+              `INSERT INTO staff_members (full_name, employee_id, email, phone, role, notes, date_of_birth, specialty, cv_document_url, certificates_urls, school_id, portal_password, status)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'active')
                RETURNING id`,
-              [full_name.trim(), (email || '').trim().toLowerCase() || null, staffId, hashedPassword, portalPassword, (role || 'staff').trim(), school.id, (phone || '').trim() || null, date_of_birth || null, (specialty || '').trim() || null, (notes || '').trim() || null, cv_document_url || null, certsValue]
+              [full_name.trim(), staffId, (email || '').trim().toLowerCase() || null, (phone || '').trim() || null, staffRole, (notes || '').trim() || null, date_of_birth || null, (specialty || '').trim() || null, cv_document_url || null, certsValue, school.id, hashedPassword]
             );
+            });
             return res.end(JSON.stringify({ success: true, message: 'تم التسجيل بنجاح', staff_id: staffId, portal_password: portalPassword, school_name: school.name_ar || school.name }));
           } catch (e) {
             console.error('[public-register] staff error:', e.message);
@@ -5905,224 +5957,6 @@ WHERE email = $10`,
           return res.end(JSON.stringify({ error: error.message }));
         }
       }
-
-    // ── Public Registration Links (school-scoped, no auth required) ──
-
-    // Helper: resolve school by slug/domain/id
-    async function resolveSchoolPublic(slug) {
-      const rows = await dbQuery(
-        `SELECT id, name, name_ar, name_en, slug, domain_subdomain, logo_url, subscription_status 
-         FROM schools 
-         WHERE (slug = $1 OR domain_subdomain = $1 OR id::text = $1) 
-         AND subscription_status = 'active' 
-         LIMIT 1`,
-        [slug.trim()]
-      );
-      return rows.length > 0 ? rows[0] : null;
-    }
-
-    // POST /neon-db/public-register/student/:slug
-    if (req.url.match(/^\/neon-db\/public-register\/student\/[^/]+$/) && req.method === 'POST') {
-      res.setHeader('Content-Type', 'application/json');
-      const slug = req.url.split('/').pop();
-      try {
-        const school = await resolveSchoolPublic(slug);
-        if (!school) { res.statusCode = 404; return res.end(JSON.stringify({ error: 'المدرسة غير موجودة أو غير نشطة' })); }
-
-        const body = await parseBody(req);
-        const { 
-              full_name, user_email, phone, grade, section, date_of_birth,
-              previous_school, last_result_document_url, national_id_document_url,
-              parent_name, parent_phone, parent_email, address, city, notes,
-              has_chronic_conditions, chronic_conditions_details,
-              has_surgeries, surgery_details,
-              has_regular_medications, medication_details
-            } = body;
-        if (!full_name || !parent_name || !parent_phone) {
-          res.statusCode = 400;
-          return res.end(JSON.stringify({ error: 'اسم الطالب واسم ولي الأمر ورقم الهاتف مطلوبة' }));
-        }
-
-        const empCount = await dbQuery(`SELECT COUNT(*) FROM students WHERE school_id = $1`, [school.id]);
-        const studentId = `STU-${String((parseInt(empCount[0]?.count || '0') + 1)).padStart(4, '0')}`;
-        const portalPassword = '12345678';
-        const hashedPassword = bcrypt.hashSync(portalPassword, 10);
-
-        await dbQuery(
-          `INSERT INTO students (
-                full_name, user_email, student_id, phone, grade, section, date_of_birth,
-                previous_school, last_result_document_url, national_id_document_url,
-                parent_name, parent_phone, parent_email, address, school_name, city, school_id,
-                has_chronic_conditions, chronic_conditions_details,
-                has_surgeries, surgery_details,
-                has_regular_medications, medication_details,
-                portal_password, portal_password_plain, status
-              )
-           VALUES (
-                $1, $2, $3, $4, $5, $6, $7,
-                $8, $9, $10,
-                $11, $12, $13, $14, $15, $16, $17,
-                $18, $19,
-                $20, $21,
-                $22, $23,
-                $24, $25, 'active'
-              )
-           RETURNING id`,
-          [
-            full_name.trim(),
-            (user_email || '').trim().toLowerCase() || null,
-            studentId,
-            (phone || '').trim() || null,
-            (grade || '').trim() || null,
-            parent_name.trim(),
-            parent_phone.trim(),
-            (parent_email || '').trim().toLowerCase() || null,
-            school.name_ar || school.name || school.name_en,
-            (city || '').trim() || null,
-            school.id,
-            hashedPassword,
-            portalPassword
-          ]
-        );
-
-        return res.end(JSON.stringify({
-          success: true,
-          message: 'تم التسجيل بنجاح',
-          student_id: studentId,
-          portal_password: portalPassword,
-          school_name: school.name_ar || school.name
-        }));
-      } catch (e) {
-        console.error('[public-register] student error:', e.message);
-        res.statusCode = 500;
-        return res.end(JSON.stringify({ error: 'خطأ داخلي أثناء التسجيل' }));
-      }
-    }
-
-    // POST /neon-db/public-register/teacher/:slug
-    if (req.url.match(/^\/neon-db\/public-register\/teacher\/[^/]+$/) && req.method === 'POST') {
-      res.setHeader('Content-Type', 'application/json');
-      const slug = req.url.split('/').pop();
-      try {
-        const school = await resolveSchoolPublic(slug);
-        if (!school) { res.statusCode = 404; return res.end(JSON.stringify({ error: 'المدرسة غير موجودة أو غير نشطة' })); }
-
-        const body = await parseBody(req);
-        const { full_name, email, phone, subjects, experience_years, bio, city, notes, cv_document_url, certificates_urls } = body;
-        if (!full_name) {
-          res.statusCode = 400;
-          return res.end(JSON.stringify({ error: 'الاسم الكامل مطلوب' }));
-        }
-
-        await dbQuery(`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS city TEXT`).catch(()=>{});
-        await dbQuery(`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS notes TEXT`).catch(()=>{});
-        await dbQuery(`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS cv_document_url TEXT`).catch(()=>{});
-        await dbQuery(`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS certificates_urls TEXT`).catch(()=>{});
-
-        const empCount = await dbQuery(`SELECT COUNT(*) FROM teachers WHERE school_id = $1`, [school.id]);
-        const empId = `TCH-${String((parseInt(empCount[0]?.count || '0') + 1)).padStart(4, '0')}`;
-        const portalPassword = '12345678';
-        const hashedPassword = bcrypt.hashSync(portalPassword, 10);
-        const certsValue = Array.isArray(certificates_urls) ? JSON.stringify(certificates_urls) : (certificates_urls || null);
-
-        await dbQuery(
-          `INSERT INTO teachers (full_name, email, employee_id, phone, subjects, experience_years, bio, city, notes, cv_document_url, certificates_urls, school_id, portal_password, portal_password_plain, status)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, 'active')
-           RETURNING id`,
-          [
-            full_name.trim(),
-            (email || '').trim().toLowerCase() || null,
-            empId,
-            (phone || '').trim() || null,
-            (subjects || '').trim() || null,
-            experience_years ? parseInt(experience_years) : null,
-            (bio || '').trim() || null,
-            (city || '').trim() || null,
-            (notes || '').trim() || null,
-            cv_document_url || null,
-            certsValue,
-            school.id,
-            hashedPassword,
-            portalPassword
-          ]
-        );
-
-        return res.end(JSON.stringify({
-          success: true,
-          message: 'تم التسجيل بنجاح',
-          employee_id: empId,
-          portal_password: portalPassword,
-          school_name: school.name_ar || school.name
-        }));
-      } catch (e) {
-        console.error('[public-register] teacher error:', e.message);
-        res.statusCode = 500;
-        return res.end(JSON.stringify({ error: 'خطأ داخلي أثناء التسجيل' }));
-      }
-    }
-
-    // POST /neon-db/public-register/staff/:slug
-    if (req.url.match(/^\/neon-db\/public-register\/staff\/[^/]+$/) && req.method === 'POST') {
-      res.setHeader('Content-Type', 'application/json');
-      const slug = req.url.split('/').pop();
-      try {
-        const school = await resolveSchoolPublic(slug);
-        if (!school) { res.statusCode = 404; return res.end(JSON.stringify({ error: 'المدرسة غير موجودة أو غير نشطة' })); }
-
-        const body = await parseBody(req);
-        const { full_name, email, phone, role, notes, date_of_birth, specialty, cv_document_url, certificates_urls } = body;
-        if (!full_name) {
-          res.statusCode = 400;
-          return res.end(JSON.stringify({ error: 'الاسم الكامل مطلوب' }));
-        }
-
-        await dbQuery(`ALTER TABLE system_admins ADD COLUMN IF NOT EXISTS phone TEXT`).catch(()=>{});
-        await dbQuery(`ALTER TABLE system_admins ADD COLUMN IF NOT EXISTS date_of_birth TEXT`).catch(()=>{});
-        await dbQuery(`ALTER TABLE system_admins ADD COLUMN IF NOT EXISTS specialty TEXT`).catch(()=>{});
-        await dbQuery(`ALTER TABLE system_admins ADD COLUMN IF NOT EXISTS notes TEXT`).catch(()=>{});
-        await dbQuery(`ALTER TABLE system_admins ADD COLUMN IF NOT EXISTS cv_document_url TEXT`).catch(()=>{});
-        await dbQuery(`ALTER TABLE system_admins ADD COLUMN IF NOT EXISTS certificates_urls TEXT`).catch(()=>{});
-
-        const staffCount = await dbQuery(`SELECT COUNT(*) FROM system_admins WHERE school_id = $1`, [school.id]);
-        const staffId = `STF-${String((parseInt(staffCount[0]?.count || '0') + 1)).padStart(4, '0')}`;
-        const portalPassword = '12345678';
-        const hashedPassword = bcrypt.hashSync(portalPassword, 10);
-        const certsValue = Array.isArray(certificates_urls) ? JSON.stringify(certificates_urls) : (certificates_urls || null);
-
-        await dbQuery(
-          `INSERT INTO system_admins (full_name, email, username, password, portal_password, role, school_id, status, phone, date_of_birth, specialty, notes, cv_document_url, certificates_urls)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, 'active', $8, $9, $10, $11, $12, $13)
-           RETURNING id`,
-          [
-            full_name.trim(),
-            (email || '').trim().toLowerCase() || null,
-            staffId,
-            hashedPassword,
-            portalPassword,
-            (role || 'staff').trim(),
-            school.id,
-            (phone || '').trim() || null,
-            date_of_birth || null,
-            (specialty || '').trim() || null,
-            (notes || '').trim() || null,
-            cv_document_url || null,
-            certsValue
-          ]
-        );
-
-        return res.end(JSON.stringify({
-          success: true,
-          message: 'تم التسجيل بنجاح',
-          staff_id: staffId,
-          portal_password: portalPassword,
-          school_name: school.name_ar || school.name
-        }));
-      } catch (e) {
-        console.error('[public-register] staff error:', e.message);
-        res.statusCode = 500;
-        return res.end(JSON.stringify({ error: 'خطأ داخلي أثناء التسجيل' }));
-      }
-    }
 
     // ══════════════════════════════════════════════════════════════
     // الدعم Tickets — الدعم الفني (unified across all portals)
