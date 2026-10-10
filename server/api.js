@@ -563,6 +563,7 @@ if (process.env.DATABASE_URL) {
       fee_name TEXT NOT NULL,
       amount NUMERIC NOT NULL,
       currency TEXT NOT NULL DEFAULT 'SDG',
+      payment_type TEXT NOT NULL DEFAULT 'one_time',
       academic_year TEXT DEFAULT '2025-2026',
       is_active BOOLEAN NOT NULL DEFAULT TRUE,
       created_by TEXT,
@@ -699,6 +700,9 @@ if (process.env.DATABASE_URL) {
   }
   sql.query(`ALTER TABLE fee_structures ADD COLUMN IF NOT EXISTS academic_year TEXT DEFAULT '2025-2026'`).catch(()=>{});
   sql.query(`ALTER TABLE fee_structures ADD COLUMN IF NOT EXISTS branch_id UUID`).catch(()=>{});
+  // Ensure payment_type has a default value for existing databases where column exists without default
+  sql.query(`ALTER TABLE fee_structures ALTER COLUMN payment_type SET DEFAULT 'one_time'`).catch(()=>{});
+  sql.query(`ALTER TABLE fee_structures ALTER COLUMN payment_type SET NOT NULL`).catch(()=>{});
   // Fix column types for existing deployments where columns may have been created with wrong types
   sql.query(`ALTER TABLE fee_structures ALTER COLUMN created_by TYPE TEXT USING created_by::text`).catch(err => console.error('[neon] fee_structures created_by type fix failed:', err.message));
   sql.query(`ALTER TABLE fee_structures ALTER COLUMN school_id TYPE UUID USING school_id::uuid`).catch(err => console.error('[neon] fee_structures school_id type fix failed:', err.message));
