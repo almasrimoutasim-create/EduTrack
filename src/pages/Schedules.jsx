@@ -1,3 +1,4 @@
+import { resolveFileUrl } from "@/lib/materialFile";
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { entities } from "@/api/dbClient";
@@ -602,7 +603,7 @@ export default function Schedules() {
                     <h5 className="text-xs font-bold text-stone-900 truncate">{book.title}</h5>
                     <p className="text-[10px] text-stone-400 mt-0.5">{book.author || (isRTL ? "مؤلف مجهول" : "Unknown Author")}</p>
                     <a 
-                      href={book.file_url}
+                      href={resolveFileUrl(book.file_url)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1 mt-2 text-[9px] font-extrabold text-teal-650 hover:underline"

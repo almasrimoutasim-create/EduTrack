@@ -1,3 +1,4 @@
+import { resolveFileUrl } from "@/lib/materialFile";
 import React, { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { entities } from "@/api/dbClient";
@@ -309,7 +310,7 @@ export default function Library() {
                         </div>
                         <div className="h-px bg-stone-100" />
                         <a 
-                          href={book.file_url} 
+                          href={resolveFileUrl(book.file_url)} 
                           target="_blank" 
                           rel="noopener noreferrer" 
                           className={`${btnPrimary.split(' ').filter(c => !c.includes('shadow')).join(' ')} w-full h-11 text-center justify-center items-center`}

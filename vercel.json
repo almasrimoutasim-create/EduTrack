@@ -11,6 +11,10 @@
       "destination": "https://edutrack-ey49.onrender.com/neon-db/:path*"
     },
     {
+      "source": "/uploads/:path*",
+      "destination": "https://edutrack-ey49.onrender.com/uploads/:path*"
+    },
+    {
       "source": "/((?!assets/|uploads/|manifest.json).*)",
       "destination": "/index.html"
     }

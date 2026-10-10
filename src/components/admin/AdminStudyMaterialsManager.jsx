@@ -20,10 +20,13 @@ const TYPE_META = {
   note: { icon: StickyNote, labelAr: "ملاحظة", labelEn: "Note", cls: "bg-amber-50 text-amber-700 border-amber-200" },
 };
 
+const GRADES = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"];
+
 export default function AdminStudyMaterialsManager({ isRTL = true, mode = "materials" }) {
   const qc = useQueryClient();
   const isTextbooks = mode === "textbooks";
   const [query, setQuery] = useState("");
+  const [selectedGrade, setSelectedGrade] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [pendingDelete, setPendingDelete] = useState(null);
@@ -44,15 +47,29 @@ export default function AdminStudyMaterialsManager({ isRTL = true, mode = "mater
     return rawMaterials.filter(m => m.type !== "textbook");
   }, [rawMaterials, isTextbooks]);
 
+  const gradeCounts = useMemo(() => {
+    const counts = {};
+    for (const g of GRADES) {
+      counts[g] = materials.filter(m => String(m.grade) === g).length;
+    }
+    return counts;
+  }, [materials]);
+
   const filtered = useMemo(() => {
+    let list = materials;
+    if (selectedGrade !== "all") {
+      list = list.filter(m => String(m.grade) === String(selectedGrade));
+    }
     const q = query.trim().toLowerCase();
-    if (!q) return materials;
-    return materials.filter(m =>
-      [m.title, m.subject_name, m.grade, m.teacher_name, m.description]
-        .filter(Boolean)
-        .some(v => String(v).toLowerCase().includes(q))
-    );
-  }, [materials, query]);
+    if (q) {
+      list = list.filter(m =>
+        [m.title, m.subject_name, m.grade, m.teacher_name, m.description]
+          .filter(Boolean)
+          .some(v => String(v).toLowerCase().includes(q))
+      );
+    }
+    return list;
+  }, [materials, query, selectedGrade]);
 
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ["admin-study-materials"] });
@@ -120,6 +137,11 @@ export default function AdminStudyMaterialsManager({ isRTL = true, mode = "mater
                 ? (isRTL ? `${materials.length} كتاب منهج · ${publishedCount} منشور` : `${materials.length} textbooks · ${publishedCount} published`)
                 : (isRTL ? `${materials.length} مادة · ${publishedCount} منشورة` : `${materials.length} items · ${publishedCount} published`)}
             </Badge>
+            {selectedGrade !== "all" && (
+              <Badge className="bg-teal-50 text-teal-700 border-teal-200 text-[11px] font-bold px-2.5 py-1">
+                {isRTL ? `الصف ${selectedGrade}: ${filtered.length} كتاب` : `Grade ${selectedGrade}: ${filtered.length} books`}
+              </Badge>
+            )}
           </div>
         </div>
         <button
@@ -128,21 +150,78 @@ export default function AdminStudyMaterialsManager({ isRTL = true, mode = "mater
         >
           <Plus size={18} />
           {isTextbooks
-            ? (isRTL ? "إضافة كتاب منهج" : "Add Textbook")
+            ? (selectedGrade !== "all"
+              ? (isRTL ? `إضافة كتاب للصف ${selectedGrade}` : `Add Book (Grade ${selectedGrade})`)
+              : (isRTL ? "إضافة كتاب منهج" : "Add Textbook"))
             : (isRTL ? "رفع مادة" : "Upload material")}
         </button>
       </div>
 
-      <div className="relative max-w-md">
-        <Search size={16} className="absolute top-1/2 -translate-y-1/2 text-stone-400 start-4" />
-        <Input
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          placeholder={isTextbooks
-            ? (isRTL ? "ابحث باسم الكتاب / المادة / الصف..." : "Search textbook / subject / grade...")
-            : (isRTL ? "ابحث بالعنوان / المادة / الصف..." : "Search title / subject / grade...")}
-          className="h-11 ps-11 rounded-2xl bg-white border-stone-200"
-        />
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+        <div className="relative max-w-md flex-1">
+          <Search size={16} className="absolute top-1/2 -translate-y-1/2 text-stone-400 start-4" />
+          <Input
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder={isTextbooks
+              ? (isRTL ? "ابحث باسم الكتاب / المادة / الصف..." : "Search textbook / subject / grade...")
+              : (isRTL ? "ابحث بالعنوان / المادة / الصف..." : "Search title / subject / grade...")}
+            className="h-11 ps-11 rounded-2xl bg-white border-stone-200"
+          />
+        </div>
+      </div>
+
+      {/* Grades 1 to 12 filter bar */}
+      <div className="space-y-2 pt-1">
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-bold text-stone-600">
+            {isRTL ? "فلترة حسب الصفوف الدراسية (Grades 1 - 12):" : "Filter by Grades (1 - 12):"}
+          </p>
+          {selectedGrade !== "all" && (
+            <button
+              onClick={() => setSelectedGrade("all")}
+              className="text-xs text-teal-600 font-bold hover:underline cursor-pointer"
+            >
+              {isRTL ? "إعادة تعيين (عرض كل الصفوف)" : "Reset (Show all)"}
+            </button>
+          )}
+        </div>
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 scrollbar-none">
+          <button
+            onClick={() => setSelectedGrade("all")}
+            className={`h-8 px-3.5 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer ${
+              selectedGrade === "all"
+                ? "bg-stone-900 text-white shadow-sm"
+                : "bg-white text-stone-600 border border-stone-200 hover:bg-stone-50"
+            }`}
+          >
+            {isRTL ? "الكل" : "All"} ({materials.length})
+          </button>
+          {GRADES.map(g => {
+            const count = gradeCounts[g] || 0;
+            const isSelected = selectedGrade === g;
+            return (
+              <button
+                key={g}
+                onClick={() => setSelectedGrade(g)}
+                className={`h-8 px-3 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer flex items-center gap-1.5 ${
+                  isSelected
+                    ? "bg-teal-600 text-white shadow-sm shadow-teal-600/20"
+                    : "bg-white text-stone-600 border border-stone-200 hover:bg-stone-50"
+                }`}
+              >
+                <span>{isRTL ? `الصف ${g}` : `G${g}`}</span>
+                {count > 0 && (
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
+                    isSelected ? "bg-white/25 text-white" : "bg-teal-50 text-teal-700"
+                  }`}>
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {isLoading ? (
@@ -159,22 +238,26 @@ export default function AdminStudyMaterialsManager({ isRTL = true, mode = "mater
           <HeaderIcon size={48} className="mx-auto text-stone-300 mb-3" />
           <p className="font-black text-lg text-stone-700">
             {query
-              ? (isRTL ? "لا توجد نتائج مطابقة" : "No matches")
-              : (isTextbooks
-                ? (isRTL ? "لا توجد كتب منهج دراسي بعد" : "No textbooks yet")
-                : (isRTL ? "لا توجد مواد رقمية بعد" : "No materials yet"))}
+              ? (isRTL ? "لا توجد نتائج مطابقة لبحثك" : "No matches found")
+              : (selectedGrade !== "all"
+                ? (isTextbooks
+                  ? (isRTL ? `لا توجد كتب منهج للصف (${selectedGrade}) بعد` : `No textbooks for Grade ${selectedGrade} yet`)
+                  : (isRTL ? `لا توجد مواد للصف (${selectedGrade}) بعد` : `No materials for Grade ${selectedGrade} yet`))
+                : (isTextbooks
+                  ? (isRTL ? "لا توجد كتب منهج دراسي بعد" : "No textbooks yet")
+                  : (isRTL ? "لا توجد مواد رقمية بعد" : "No materials yet")))}
           </p>
-          {!query && (
-            <button
-              onClick={openCreate}
-              className="mt-5 inline-flex items-center gap-2 h-10 px-5 rounded-2xl bg-teal-600 text-white text-sm font-bold hover:bg-teal-700 cursor-pointer"
-            >
-              <Plus size={16} />
-              {isTextbooks
-                ? (isRTL ? "إضافة كتاب منهج" : "Add Textbook")
-                : (isRTL ? "رفع مادة" : "Upload")}
-            </button>
-          )}
+          <button
+            onClick={openCreate}
+            className="mt-5 inline-flex items-center gap-2 h-10 px-5 rounded-2xl bg-teal-600 text-white text-sm font-bold hover:bg-teal-700 cursor-pointer"
+          >
+            <Plus size={16} />
+            {isTextbooks
+              ? (selectedGrade !== "all"
+                ? (isRTL ? `رفع كتاب لمنهج الصف ${selectedGrade}` : `Upload Textbook for Grade ${selectedGrade}`)
+                : (isRTL ? "إضافة كتاب منهج" : "Add Textbook"))
+              : (isRTL ? "رفع مادة" : "Upload")}
+          </button>
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -230,6 +313,7 @@ export default function AdminStudyMaterialsManager({ isRTL = true, mode = "mater
         onClose={() => { setDialogOpen(false); setEditing(null); refresh(); }}
         material={editing}
         defaultType={isTextbooks ? "textbook" : "document"}
+        defaultGrade={selectedGrade !== "all" ? selectedGrade : ""}
       />
 
       <Dialog open={!!pendingDelete} onOpenChange={open => !open && setPendingDelete(null)}>

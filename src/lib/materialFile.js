@@ -1,9 +1,26 @@
 const IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "avif"];
 const VIDEO_EXTENSIONS = ["mp4", "webm", "ogg", "ogv", "mov", "m4v"];
 
+/**
+ * Resolves a file URL to a fully-qualified URL if it's a relative /uploads path.
+ * In production, uploads live on the backend (Render).
+ */
+export function resolveFileUrl(url) {
+  if (!url) return "";
+  const trimmed = String(url).trim();
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://") || trimmed.startsWith("data:") || trimmed.startsWith("blob:")) {
+    return trimmed;
+  }
+  if (trimmed.startsWith("/uploads/")) {
+    const backend = (import.meta.env.VITE_BACKEND_URL || "https://edutrack-ey49.onrender.com").replace(/\/$/, "");
+    return `${backend}${trimmed}`;
+  }
+  return trimmed;
+}
+
 /** The address a material actually points at: uploaded file first, external link second. */
 export function getMaterialUrl(material) {
-  return (material?.file_url || material?.external_url || "").trim();
+  return resolveFileUrl(material?.file_url || material?.external_url || "");
 }
 
 function getUrlExtension(url) {

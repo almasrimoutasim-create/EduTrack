@@ -20,14 +20,14 @@ const types = [
 
 const grades = ["1","2","3","4","5","6","7","8","9","10","11","12"];
 
-export default function StudyMaterialFormDialog({ open, onClose, material, defaultType = "document" }) {
+export default function StudyMaterialFormDialog({ open, onClose, material, defaultType = "document", defaultGrade = "" }) {
   const isEdit = !!material;
   const qc = useQueryClient();
   const fileInputRef = useRef(null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [form, setForm] = useState(material || {
-    title: "", subject_name: "", grade: "", type: defaultType || "document",
+    title: "", subject_name: "", grade: defaultGrade || "", type: defaultType || "document",
     content: "", file_url: "", external_url: "",
     teacher_name: "", description: "", is_published: true
   });
@@ -42,12 +42,12 @@ export default function StudyMaterialFormDialog({ open, onClose, material, defau
       setForm(material);
     } else {
       setForm({
-        title: "", subject_name: "", grade: "", type: defaultType || "document",
+        title: "", subject_name: "", grade: defaultGrade || "", type: defaultType || "document",
         content: "", file_url: "", external_url: "",
         teacher_name: "", description: "", is_published: true
       });
     }
-  }, [material, defaultType, open]);
+  }, [material, defaultType, defaultGrade, open]);
 
   const update = (key, val) => setForm(f => ({ ...f, [key]: val }));
 

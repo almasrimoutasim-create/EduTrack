@@ -45,6 +45,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import PageHeader from "@/components/shared/PageHeader";
 import StudentLevelsXP from "@/components/student-dashboard/StudentLevelsXP";
 import StudentRecordedVideos from "@/components/student/StudentRecordedVideos";
+import { resolveFileUrl } from "@/lib/materialFile";
 
 const btnOutline = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-sm font-semibold transition-all border-2 border-stone-300 bg-white text-stone-800 hover:bg-stone-50 hover:border-stone-400 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
 const btnPrimary = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-sm font-semibold transition-all bg-stone-900 text-white hover:bg-black cursor-pointer shadow-lg shadow-stone-200 disabled:opacity-50 disabled:cursor-not-allowed";
@@ -552,7 +553,7 @@ export default function StudentPortal() {
                     title: m.title,
                     author: m.teacher_name || m.author || (isRTL ? "منهج دراسي رسمي" : "Official Curriculum"),
                     description: m.description,
-                    file_url: m.file_url || m.external_url,
+                    file_url: resolveFileUrl(m.file_url || m.external_url),
                     thumbnail_url: m.thumbnail_url || null,
                     subject_code: selectedSubject.code,
                     subject_name: m.subject_name || selectedSubject.name,
@@ -662,7 +663,7 @@ export default function StudentPortal() {
                                       </div>
                                     </div>
                                     <a 
-                                      href={mat.file_url || "#"} 
+                                      href={resolveFileUrl(mat.file_url) || "#"} 
                                       target="_blank" 
                                       rel="noopener noreferrer"
                                       className={`${btnOutline} h-9 px-4 rounded-xl text-xs gap-1.5`}
@@ -908,7 +909,7 @@ export default function StudentPortal() {
                                               </Badge>
                                             )}
                                             <a
-                                              href={activeBook.file_url}
+                                              href={resolveFileUrl(activeBook.file_url)}
                                               target="_blank"
                                               rel="noopener noreferrer"
                                               className="inline-flex items-center gap-1 text-[10px] font-bold text-teal-600 hover:text-teal-700 hover:underline transition-colors"
@@ -934,7 +935,7 @@ export default function StudentPortal() {
                                           </div>
                                         </div>
                                         <a
-                                          href={activeBook.file_url}
+                                          href={resolveFileUrl(activeBook.file_url)}
                                           download
                                           className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-white/10 hover:bg-white/20 text-white text-[10px] font-bold transition-colors cursor-pointer border-none"
                                         >
@@ -944,7 +945,7 @@ export default function StudentPortal() {
                                       </div>
                                       <div className="relative w-full" style={{ height: "75vh", minHeight: "500px" }}>
                                         <iframe
-                                          src={activeBook.file_url}
+                                          src={resolveFileUrl(activeBook.file_url)}
                                           title={activeBook.title}
                                           className="absolute inset-0 w-full h-full border-none"
                                           style={{ background: "#f5f5f4" }}
@@ -1001,7 +1002,7 @@ export default function StudentPortal() {
 
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
                           {gradeTextbooks.map((book) => {
-                            const bookUrl = book.file_url || book.external_url;
+                            const bookUrl = resolveFileUrl(book.file_url || book.external_url);
                             return (
                               <Card
                                 key={book.id}

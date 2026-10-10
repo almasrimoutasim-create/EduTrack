@@ -811,6 +811,24 @@ if (process.env.DATABASE_URL) {
     console.error('[neon] failed to alter library_books table:', err.message);
   });
 
+
+  // Alter study_materials table to add subject_name, subject_id, teacher_name, content, external_url, is_published, author, thumbnail_url
+  sql`
+    ALTER TABLE study_materials
+    ADD COLUMN IF NOT EXISTS subject_name TEXT,
+    ADD COLUMN IF NOT EXISTS subject_id UUID,
+    ADD COLUMN IF NOT EXISTS teacher_name TEXT,
+    ADD COLUMN IF NOT EXISTS content TEXT,
+    ADD COLUMN IF NOT EXISTS external_url TEXT,
+    ADD COLUMN IF NOT EXISTS is_published BOOLEAN DEFAULT TRUE,
+    ADD COLUMN IF NOT EXISTS author TEXT,
+    ADD COLUMN IF NOT EXISTS thumbnail_url TEXT;
+  `.then(() => {
+    console.log('[neon] study_materials table altered successfully');
+  }).catch(err => {
+    console.error('[neon] failed to alter study_materials table:', err.message);
+  });
+
   // Alter staff_members table to add salary column
   sql`
     ALTER TABLE staff_members
