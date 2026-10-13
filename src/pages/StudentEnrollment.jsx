@@ -11,13 +11,31 @@ import { motion, AnimatePresence } from "framer-motion";
 
 /**
  * Generate a sequential student ID (الرقم المدرسي) in format STU-0001, STU-0002, etc.
- * Fetches existing students from the backend to determine the next number.
+ * النطاق: داخل المدرسة الحالية فقط — كل مدرسة لها تسلسلها المستقل.
  */
 async function generateNextStudentId() {
+  const schoolId = (() => { try { return localStorage.getItem('portal_school_id') || null; } catch { return null; } })();
+  // 1) المصدر الموثوق: الخادم يحسب التالي ضمن نفس المدرسة
+  try {
+    const apiBase = (import.meta.env.VITE_BACKEND_URL || '').replace(/\/$/, '');
+    const url = apiBase ? `${apiBase}/neon-db/next-student-id` : '/neon-db/next-student-id';
+    const headers = {};
+    try {
+      const token = localStorage.getItem('portal_jwt_token') || localStorage.getItem('jwt_token') || localStorage.getItem('auth_token') || localStorage.getItem('token');
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+    } catch { /* ignore */ }
+    const res = await fetch(url, { headers });
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.student_id) return data.student_id;
+    }
+  } catch { /* fallback below */ }
+  // 2) احتياطي: احسب من قائمة المدرسة الحالية فقط
   try {
     const students = await entities.Student.list();
+    const scoped = schoolId ? students.filter(s => s.school_id != null && String(s.school_id) === String(schoolId)) : students;
     let maxNum = 0;
-    students.forEach(s => {
+    scoped.forEach(s => {
       const match = String(s.student_id || '').match(/STU-(\d+)/i);
       if (match) {
         const num = parseInt(match[1], 10);

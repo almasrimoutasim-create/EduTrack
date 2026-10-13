@@ -22,14 +22,24 @@ export function formatStudentId(studentId) {
 }
 
 /**
- * Extract next sequential student ID
- * @param {Array} students - Array of student objects with student_id field
+ * Extract next sequential student ID — scoped per school.
+ * كل مدرسة لها تسلسلها الخاص: يُحتسب الأقصى داخل نفس school_id فقط.
+ * @param {Array} students - Array of student objects with student_id (+ school_id) field
+ * @param {string|null} schoolId - current school id; when provided, only matching rows count
  * @returns {string} Next student ID in format "STU-0001", "STU-0002", etc.
  */
-export function getNextStudentId(students = []) {
+export function getNextStudentId(students = [], schoolId = null) {
   let maxNum = 0;
-  
+  const scope = schoolId !== null && schoolId !== undefined && schoolId !== ''
+    ? String(schoolId)
+    : null;
+
   students.forEach(s => {
+    // عند تمرير schoolId: تُحتسب صفوف نفس المدرسة فقط (مطابق لمنطق الخادم
+    // WHERE school_id = $1) — تُتجاهل صفوف المدارس الأخرى والمستقلة (NULL) نهائياً
+    if (scope !== null) {
+      if (s?.school_id === undefined || s?.school_id === null || String(s.school_id) !== scope) return;
+    }
     // Extract numeric part from student_id (format: STU-0001)
     const match = String(s.student_id || '0').match(/STU-(\d+)/i);
     const num = match ? parseInt(match[1], 10) : 0;
@@ -37,8 +47,51 @@ export function getNextStudentId(students = []) {
       maxNum = num;
     }
   });
-  
+
   return `STU-${String(maxNum + 1).padStart(4, '0')}`;
+}
+
+/**
+ * Current school id for scoping (portal_school_id / user school).
+ */
+export function getCurrentSchoolId(user = null) {
+  try {
+    if (user?.school_id) return user.school_id;
+    if (typeof localStorage !== 'undefined') {
+      return localStorage.getItem('portal_school_id') || null;
+    }
+  } catch { /* ignore */ }
+  return null;
+}
+
+/**
+ * Fetch next scoped student ID from the server (source of truth per school),
+ * with client-side fallback.
+ */
+export async function fetchNextSchoolStudentId(listFn, schoolId = null) {
+  const scopedSchoolId = schoolId ?? getCurrentSchoolId();
+  // 1) Server endpoint — يحسب التالي داخل نفس المدرسة فقط
+  try {
+    const apiBase = (import.meta?.env?.VITE_BACKEND_URL || '').replace(/\/$/, '');
+    const url = apiBase ? `${apiBase}/neon-db/next-student-id` : '/neon-db/next-student-id';
+    const headers = {};
+    try {
+      const token = localStorage.getItem('portal_jwt_token') || localStorage.getItem('jwt_token') || localStorage.getItem('auth_token') || localStorage.getItem('token');
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+    } catch { /* ignore */ }
+    const res = await fetch(url, { headers });
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.student_id) return data.student_id;
+    }
+  } catch { /* fall through to client calc */ }
+  // 2) Fallback: احسب من القائمة (مفلترة بنطاق المدرسة)
+  try {
+    const students = listFn ? await listFn() : [];
+    return getNextStudentId(Array.isArray(students) ? students : [], scopedSchoolId);
+  } catch {
+    return `STU-0001`;
+  }
 }
 
 /**

@@ -280,7 +280,7 @@ export default function Dashboard() {
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {[
-                  { label_ar: "إضافة طالب", label_en: "Add Student", icon: UserPlus, color: "text-blue-600", bg: "hover:bg-blue-50/80", path: "/students?new=1" },
+                  { label_ar: "إضافة طالب", label_en: "Add Student", icon: UserPlus, color: "text-blue-600", bg: "hover:bg-blue-50/80", path: "/students?add=true" },
                   { label_ar: "إضافة معلم", label_en: "Add Teacher", icon: GraduationCap, color: "text-indigo-600", bg: "hover:bg-indigo-50/80", path: "/teachers?new=1" },
                   { label_ar: "تسجيل الحضور", label_en: "Take Attendance", icon: ClipboardPlus, color: "text-emerald-600", bg: "hover:bg-emerald-50/80", path: "/attendance" },
                   { label_ar: "إدارة الموظفين", label_en: "Manage Staff", icon: UserCog, color: "text-purple-600", bg: "hover:bg-purple-50/80", path: "/settings", badge: pendingRequests.length }

@@ -8,7 +8,7 @@ import { entities } from "@/api/dbClient";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useLanguage } from "@/lib/LanguageContext";
 import { motion } from "framer-motion";
-import { getNextStudentId, formatStudentId, isValidStudentId } from "@/utils/studentIdFormatter";
+import { getNextStudentId } from "@/utils/studentIdFormatter";
 import { 
   ArrowLeft, 
   ArrowRight, 
@@ -55,12 +55,26 @@ export default function StudentForm({ student, onClose }) {
   const fileInputRef = useRef(null);
   const lastResultInputRef = useRef(null);
   const nationalIdInputRef = useRef(null);
+  // Tracks whether the school ID field still holds an auto-generated value
+  // (so it can be refined) or was typed by the user (so it must not be overwritten).
+  const studentIdAutoRef = useRef(true);
   
-  const [saving, setSaving] = useState(false);
-  const [uploadingDoc, setUploadingDoc] = useState({});
-  const [errorMsg, setErrorMsg] = useState("");
-  const [form, setForm] = useState(student || {
-    full_name: "", student_id: "", user_email: "", portal_password: "", parent_password: "", grade: "1", section: "A",
+  // Build the next available school ID from every cached ["students"] list so a
+  // new form always opens with a value (the dedicated query refines it later).
+  // النطاق: المدرسة الحالية فقط — كل مدرسة لها تسلسلها المستقل.
+  const currentSchoolIdForId = (() => { try { return localStorage.getItem('portal_school_id') || null; } catch { return null; } })();
+  const resolveNextStudentId = (extra = []) => {
+    const pool = [];
+    qc.getQueriesData({ queryKey: ["students"] }).forEach(([, data]) => {
+      if (Array.isArray(data)) pool.push(...data);
+      else if (data && Array.isArray(data.rows)) pool.push(...data.rows);
+    });
+    if (Array.isArray(extra)) pool.push(...extra);
+    return getNextStudentId(pool, currentSchoolIdForId);
+  };
+
+  const buildNewStudentForm = () => ({
+    full_name: "", student_id: resolveNextStudentId(), user_email: "", portal_password: "", parent_password: "", grade: "1", section: "A",
     date_of_birth: "", parent_name: "", parent_phone: "", parent_email: "",
     address: "", card_balance: 0, bus_registered: false, bus_route: "", status: "active", photo_url: "",
     tuition_total: 0, tuition_paid: 0,
@@ -71,6 +85,11 @@ export default function StudentForm({ student, onClose }) {
     last_result_document_url: "",
     national_id_document_url: ""
   });
+
+  const [saving, setSaving] = useState(false);
+  const [uploadingDoc, setUploadingDoc] = useState({});
+  const [errorMsg, setErrorMsg] = useState("");
+  const [form, setForm] = useState(() => student || buildNewStudentForm());
 
   // Fetch all fee structures to calculate total fees based on selected grade
   const { data: feeStructures = [] } = useQuery({
@@ -96,18 +115,8 @@ export default function StudentForm({ student, onClose }) {
         parent_password: ""
       });
     } else {
-      setForm({
-        full_name: "", student_id: "", user_email: "", portal_password: "", parent_password: "", grade: "1", section: "A",
-        date_of_birth: "", parent_name: "", parent_phone: "", parent_email: "",
-        address: "", card_balance: 0, bus_registered: false, bus_route: "", status: "active", photo_url: "",
-        tuition_total: 0, tuition_paid: 0,
-        has_chronic_conditions: false, chronic_conditions_details: "",
-        has_surgeries: false, surgery_details: "",
-        has_regular_medications: false, medication_details: "",
-        previous_school: "",
-        last_result_document_url: "",
-        national_id_document_url: ""
-      });
+      studentIdAutoRef.current = true;
+      setForm(buildNewStudentForm());
     }
     setErrorMsg("");
   }, [student]);
@@ -133,7 +142,24 @@ export default function StudentForm({ student, onClose }) {
     }
   }, [form.grade, feeStructures, isEdit, student]);
 
-  // Auto-generate next sequential school ID (0001, 0002, ...) for new students
+  // Auto-generate next sequential school ID (STU-0001, STU-0002, ...) for new students.
+  // The form is seeded synchronously from cache; this query refines the value once the
+  // authoritative list resolves, and falls back to the cached/placeholder value on error.
+  // المصدر الموثوق: الخادم (نطاق المدرسة الحالية فقط).
+  const { data: serverNextId } = useQuery({
+    queryKey: ["students-next-id", currentSchoolIdForId],
+    queryFn: async () => {
+      try {
+        const apiBase = (import.meta.env.VITE_BACKEND_URL || '').replace(/\/$/, '');
+        const url = apiBase ? `${apiBase}/neon-db/next-student-id` : '/neon-db/next-student-id';
+        const token = (() => { try { return localStorage.getItem('portal_jwt_token') || localStorage.getItem('jwt_token') || localStorage.getItem('auth_token') || localStorage.getItem('token'); } catch { return null; } })();
+        const res = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+        if (res.ok) { const d = await res.json(); if (d?.student_id) return d.student_id; }
+      } catch { /* fallback */ }
+      return null;
+    },
+    enabled: !isEdit
+  });
   const { data: allStudentsForId, isLoading: isLoadingId } = useQuery({
     queryKey: ["students-for-id-gen"],
     queryFn: () => entities.Student.list(),
@@ -141,11 +167,35 @@ export default function StudentForm({ student, onClose }) {
   });
 
   useEffect(() => {
-    if (!isEdit && !isLoadingId && allStudentsForId && !form.student_id) {
-      const nextId = getNextStudentId(allStudentsForId);
-      setForm(f => ({ ...f, student_id: nextId }));
+    if (isEdit) return;
+
+    // الأولوية للخادم (نطاق المدرسة مضمون)
+    if (serverNextId) {
+      setForm((f) => {
+        if (!studentIdAutoRef.current) return f;
+        return f.student_id === serverNextId ? f : { ...f, student_id: serverNextId };
+      });
+      return;
     }
-  }, [isEdit, allStudentsForId, isLoadingId, form.student_id]);
+
+    const cachedLists = qc.getQueriesData({ queryKey: ["students"] });
+    const pool = [];
+    cachedLists.forEach(([, data]) => {
+      if (Array.isArray(data)) pool.push(...data);
+      else if (data && Array.isArray(data.rows)) pool.push(...data.rows);
+    });
+    const hasQueryData = Array.isArray(allStudentsForId);
+    // Keep the synchronous seed while the list is loading with nothing cached yet.
+    if (!hasQueryData && isLoadingId && pool.length === 0) return;
+    if (hasQueryData) pool.push(...allStudentsForId);
+
+    setForm((f) => {
+      // Never overwrite an ID the user typed themselves.
+      if (!studentIdAutoRef.current) return f;
+      const nextId = getNextStudentId(pool, currentSchoolIdForId);
+      return f.student_id === nextId ? f : { ...f, student_id: nextId };
+    });
+  }, [isEdit, allStudentsForId, isLoadingId, qc, serverNextId, currentSchoolIdForId]);
 
   const update = (key, val) => setForm(f => ({ ...f, [key]: val }));
 
@@ -522,11 +572,13 @@ gradeItem: (g) => {
                 <Label className="text-stone-700 font-bold text-xs">{t.studentId}</Label>
                 <Input 
                   value={form.student_id} 
-                  onChange={e => update("student_id", e.target.value)} 
-                  disabled
-                  className="rounded-xl border-stone-200 h-11 focus-visible:ring-primary/20 num-en font-mono bg-stone-50/50 disabled:opacity-75"
+                  onChange={e => { studentIdAutoRef.current = false; update("student_id", e.target.value); }} 
+                  className="rounded-xl border-stone-200 h-11 focus-visible:ring-primary/20 num-en font-mono"
                   placeholder={isRTL ? "يتم إنشاؤه تلقائياً" : "Auto-generated"} 
                 />
+                <p className="text-[10px] text-stone-400">
+                  {isRTL ? "يتم إنشاؤه تلقائياً عند فتح الاستمارة، ويمكن تعديله عند الحاجة." : "Auto-generated on open; editable if needed."}
+                </p>
               </div>
             </div>
 

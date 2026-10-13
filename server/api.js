@@ -117,8 +117,7 @@ async function loadVideoForWrite(entityId) {
   const rows = await dbQuery(`SELECT teacher_id, school_id FROM teacher_youtube_videos WHERE id = $1`, [entityId]);
   return rows.length > 0 ? rows[0] : null;
 }
-async function canManageVideo(req, row, tenantId) {
-  const role = req.user?.role;
+async function canManageVideo(req, row, tenantId) {  const role = req.user?.role;
   if (role === 'founder') return true;
   if (role === 'teacher') {
     const ownerUuid = await resolveTeacherUuid(req.user);
@@ -128,6 +127,39 @@ async function canManageVideo(req, row, tenantId) {
     return !tenantId || !row.school_id || String(row.school_id) === String(tenantId);
   }
   return false;
+}
+// ── الرقم المدرسي: تسلسل مستقل لكل مدرسة ──
+// كل مدرسة لها أرقامها الخاصة (STU-0001, STU-0002, ...) ولا يؤثر عليها طلاب المدارس الأخرى.
+function parseSchoolStudentNum(studentId) {
+  const m = String(studentId || '').match(/(\d+)/);
+  if (!m) return 0;
+  const n = parseInt(m[1], 10);
+  return isNaN(n) ? 0 : n;
+}
+async function getNextSchoolStudentId(schoolId) {
+  try {
+    const rows = schoolId
+      ? await dbQuery(`SELECT student_id FROM students WHERE school_id = $1`, [schoolId])
+      : await dbQuery(`SELECT student_id FROM students WHERE school_id IS NULL`);
+    let maxNum = 0;
+    for (const r of rows || []) {
+      const n = parseSchoolStudentNum(r.student_id);
+      if (n > maxNum) maxNum = n;
+    }
+    return `STU-${String(maxNum + 1).padStart(4, '0')}`;
+  } catch { return `STU-0001`; }
+}
+async function isSchoolStudentIdTaken(schoolId, studentId, excludeId = null) {
+  try {
+    const sid = String(studentId || '').trim();
+    if (!sid) return false;
+    const rows = schoolId
+      ? await dbQuery(`SELECT id FROM students WHERE school_id = $1 AND student_id = $2 LIMIT 1`, [schoolId, sid])
+      : await dbQuery(`SELECT id FROM students WHERE school_id IS NULL AND student_id = $1 LIMIT 1`, [sid]);
+    if (rows.length === 0) return false;
+    if (excludeId && String(rows[0].id) === String(excludeId)) return false;
+    return true;
+  } catch { return false; }
 }
 // Constant-time string compare (avoids timing leaks on env secrets)
 function safeEqualStr(a, b) {
@@ -1141,6 +1173,9 @@ if (process.env.DATABASE_URL) {
   // Migration: student dashboard profile extras (avatar + gamification cache)
   sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS profile_image TEXT;`.catch(() => {});
   sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS avatar_url TEXT;`.catch(() => {});
+  // الرقم المدرسي: فريد داخل كل مدرسة فقط (يسمح بتكرار نفس الرقم بين مدارس مختلفة)
+  sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_students_school_studentid ON students(school_id, student_id);`.catch(() => {});
+  sql`CREATE INDEX IF NOT EXISTS idx_students_school_id ON students(school_id);`.catch(() => {});
   // Ensure NFC attendance table exists with the columns used by /api/attendance/scan
   sql`
     CREATE TABLE IF NOT EXISTS attendance (
@@ -4664,6 +4699,16 @@ WHERE email = $10`,
       }
       
       const entityMatch = path.match(/^\/neon-db\/entities\/([^\/]+)(?:\/(.+))?$/);
+
+      // الرقم المدرسي: التالي المتاح ضمن نطاق المدرسة الحالية فقط
+      // (يجب أن يسبق حارس 404 لمسارات /neon-db/ غير المطابقة للكيانات)
+      if ((path === '/neon-db/next-student-id' || path === '/api/next-student-id') && req.method === 'GET') {
+        res.setHeader('Content-Type', 'application/json');
+        const effSchool = req.user?.school_id || new URL(req.url, 'http://localhost').searchParams.get('school_id') || null;
+        const nextId = await getNextSchoolStudentId(effSchool);
+        return res.end(JSON.stringify({ student_id: nextId, school_id: effSchool }));
+      }
+
       // Only /neon-db/* paths are subject to entity routing; /api/* paths must
       // fall through to the route handlers below. An unmatched /api/* path used
       // to be rejected here with 404, which is what made every route after this
@@ -5216,8 +5261,34 @@ WHERE email = $10`,
             body.remaining = body.amount;
           }
 
+          // الرقم المدرسي: تسلسل مستقل لكل مدرسة — يُولّد تلقائياً ضمن نطاق school_id فقط
+          if (table === 'students' && body.student_type !== 'independent') {
+            const effectiveSchoolId = body.school_id || tenantIdFromUser || null;
+            const rawSid = body.student_id !== undefined && body.student_id !== null ? String(body.student_id).trim() : '';
+            // IND-… هو معرّف المستقل وليس رقماً مدرسياً — لا نولّد فوقه
+            const isIndependentMarker = rawSid.startsWith('IND-');
+            if (!isIndependentMarker) {
+              if (!rawSid) {
+                body.student_id = await getNextSchoolStudentId(effectiveSchoolId);
+              } else if (await isSchoolStudentIdTaken(effectiveSchoolId, rawSid)) {
+                // الرقم مكرر داخل نفس المدرسة → امنح التالي المتاح تلقائياً (نفس الرقم مسموح في مدرسة أخرى)
+                let candidate = await getNextSchoolStudentId(effectiveSchoolId);
+                let guard = 0;
+                while (await isSchoolStudentIdTaken(effectiveSchoolId, candidate) && guard < 20) {
+                  const n = parseSchoolStudentNum(candidate) + 1;
+                  candidate = `STU-${String(n).padStart(4, '0')}`;
+                  guard++;
+                }
+                body.student_id = candidate;
+              }
+            }
+          }
+
           // Sanitize: convert empty strings to null for UUID/ID columns to avoid PostgreSQL type errors
-          const UUID_COLUMNS = ['subject_id', 'session_id', 'student_id', 'teacher_id', 'expense_id', 'parent_id', 'case_id', 'target_student_id'];
+          // ملاحظة: student_id في جدول students هو الرقم المدرسي (TEXT) وليس UUID — لا نصفّره هنا
+          const UUID_COLUMNS = table === 'students'
+            ? ['subject_id', 'session_id', 'teacher_id', 'expense_id', 'parent_id', 'case_id', 'target_student_id']
+            : ['subject_id', 'session_id', 'student_id', 'teacher_id', 'expense_id', 'parent_id', 'case_id', 'target_student_id'];
           for (const col of UUID_COLUMNS) {
             if (body[col] !== undefined && body[col] === '') {
               body[col] = null;
@@ -5229,11 +5300,29 @@ WHERE email = $10`,
             res.statusCode = 400;
             return res.end(JSON.stringify({ error: 'Empty body' }));
           }
-          const columns = keys.map(k => sanitizeColumn(k)).join(', ');
-          const placeholders = keys.map((_, i) => `$${i + 1}`).join(', ');
-          const values = keys.map(k => body[k]);
-          const q = `INSERT INTO ${table} (${columns}) VALUES (${placeholders}) RETURNING *`;
-          const rows = await dbQuery(q, values);
+          const buildInsert = (payload) => {
+            const ks = Object.keys(payload).filter(k => payload[k] !== undefined && sanitizeColumn(k));
+            return {
+              ks,
+              columns: ks.map(k => sanitizeColumn(k)).join(', '),
+              placeholders: ks.map((_, i) => `$${i + 1}`).join(', '),
+              values: ks.map(k => payload[k])
+            };
+          };
+          let ins = buildInsert(body);
+          let rows;
+          try {
+            rows = await dbQuery(`INSERT INTO ${table} (${ins.columns}) VALUES (${ins.placeholders}) RETURNING *`, ins.values);
+          } catch (e) {
+            // سباق توليد الرقم المدرسي: أعد التوليد ضمن نفس المدرسة وحاول مرة واحدة
+            const msg = String(e?.message || '');
+            if (table === 'students' && (msg.includes('idx_students_school_studentid') || msg.includes('duplicate key') || e?.code === '23505')) {
+              const effectiveSchoolId = body.school_id || tenantIdFromUser || null;
+              body.student_id = await getNextSchoolStudentId(effectiveSchoolId);
+              ins = buildInsert(body);
+              rows = await dbQuery(`INSERT INTO ${table} (${ins.columns}) VALUES (${ins.placeholders}) RETURNING *`, ins.values);
+            } else { throw e; }
+          }
 
           if (!rows || rows.length === 0) {
             console.error(`[neon] INSERT into ${table} returned no rows — DATABASE_URL may be missing or query failed`);
@@ -5344,6 +5433,17 @@ WHERE email = $10`,
           // Multi-tenant: CRITICAL - force school_id in SET to prevent cross-school record tampering
           if (isTenantTable && tenantId) {
             body.school_id = tenantId;
+          }
+          // الرقم المدرسي: منع التكرار داخل نفس المدرسة عند التعديل (مسموح بين مدارس مختلفة)
+          if (table === 'students' && body.student_id !== undefined && body.student_id !== null) {
+            const newSid = String(body.student_id).trim();
+            if (newSid && !newSid.startsWith('IND-')) {
+              const effSchool = body.school_id || tenantId || null;
+              if (await isSchoolStudentIdTaken(effSchool, newSid, entityId)) {
+                res.statusCode = 409;
+                return res.end(JSON.stringify({ error: 'الرقم المدرسي مستخدم بالفعل داخل هذه المدرسة', code: 'DUPLICATE_SCHOOL_STUDENT_ID' }));
+              }
+            }
           }
           const sets = keys.map((k, i) => `${sanitizeColumn(k)} = $${i + 1}`);
           const values = keys.map(k => {
