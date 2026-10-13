@@ -30,6 +30,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/lib/LanguageContext";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/AuthContext";
 import { goToSchoolPortals } from "@/lib/portalNavigation";
@@ -268,27 +269,7 @@ export default function StaffPortal() {
   };
 
   const handlePortalClick = (_path, _id) => {
-    // If user is already authenticated as admin, allow direct access
-    const storedAuth = localStorage.getItem("portal_is_auth");
-    const storedUser = localStorage.getItem("portal_user");
-    let isAdmin = false;
-    try {
-      const parsed = storedUser ? JSON.parse(storedUser) : null;
-      isAdmin = parsed?.role === "admin";
-    } catch { /* ignore */ }
-
-    if (storedAuth === "true" && isAdmin) {
-      // Admins can directly access any department
-      localStorage.setItem("portal_role", _id);
-      if (_id === "security") {
-        window.location.reload();
-      } else {
-        window.location.href = _path;
-      }
-      return;
-    }
-
-    // Otherwise, open the login modal
+    // Always open the credentials login modal for the clicked department
     const portal = subPortals.find(p => p.id === _id);
     if (portal) {
       openLoginModal(portal);
@@ -642,16 +623,22 @@ export default function StaffPortal() {
                 <h3 className="text-lg font-serif font-black text-stone-900 mb-1.5 group-hover:text-primary transition-colors">
                   {isRTL ? portal.label.ar : portal.label.en}
                 </h3>
-                <p className="text-stone-400 text-xs font-medium mb-4">
-                  {isRTL ? "تسجيل الدخول للقسم" : "Access department dashboard"}
+                <p className="text-stone-400 text-xs font-medium mb-3">
+                  {isRTL ? "يتطلب إدخال بيانات الاعتماد" : "Requires credentials"}
                 </p>
                 
-                <div className="mt-auto flex items-center gap-2">
-                  <Lock size={12} className="text-stone-300" />
-                  <div className={`h-8 w-8 rounded-full border-2 border-stone-50 flex items-center justify-center text-stone-200 group-hover:border-primary group-hover:text-primary transition-all duration-500`}>
-                    {isRTL ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
-                  </div>
-                </div>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handlePortalClick(portal.path, portal.id);
+                  }}
+                  className="w-full mt-auto h-11 rounded-xl bg-stone-900 hover:bg-primary text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer group-hover:bg-primary"
+                >
+                  <Lock size={14} />
+                  <span>{isRTL ? "تسجيل الدخول للقسم" : "Access Department"}</span>
+                  {isRTL ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
+                </button>
 
                 {/* Hover Background Pattern */}
                 <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-5 transition-opacity pointer-events-none">
@@ -737,153 +724,117 @@ export default function StaffPortal() {
       </div>
 
       {/* ============================================ */}
-      {/*   DEPARTMENT LOGIN POPUP MODAL               */}
+      {/*   DEPARTMENT LOGIN POPUP MODAL (Radix Dialog) */}
       {/* ============================================ */}
-      <AnimatePresence>
-        {loginPortal && (
-          <>
-            {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.25 }}
-              className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm"
-              onClick={closeLoginModal}
-            />
+      <Dialog open={!!loginPortal} onOpenChange={(open) => { if (!open) closeLoginModal(); }}>
+        <DialogContent 
+          className="max-w-md w-[92vw] sm:w-full rounded-[28px] bg-white shadow-2xl border border-stone-100 p-0 overflow-hidden"
+          dir={isRTL ? "rtl" : "ltr"}
+        >
+          {loginPortal && (
+            <div>
+              {/* Modal Header */}
+              <div className="relative p-6 pb-4">
+                <div className="flex items-center gap-4">
+                  <div className={`h-14 w-14 rounded-[16px] ${loginPortal.color} flex items-center justify-center shadow-lg shrink-0`}>
+                    <loginPortal.icon size={28} />
+                  </div>
+                  <div className="min-w-0">
+                    <h2 className="text-lg font-black text-stone-900 font-sans leading-tight">
+                      {isRTL ? loginPortal.label.ar : loginPortal.label.en}
+                    </h2>
+                    <p className="text-stone-400 text-xs font-medium mt-0.5">
+                      {isRTL ? "أدخل بيانات الاعتماد الآمنة للدخول لهذا القسم" : "Enter your secure credentials to access this department"}
+                    </p>
+                  </div>
+                </div>
+              </div>
 
-            {/* Modal */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.92, y: 30 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.92, y: 30 }}
-              transition={{ type: "spring", stiffness: 400, damping: 30 }}
-              className="fixed inset-0 z-[101] flex items-center justify-center p-4"
-              onClick={(e) => { if (e.target === e.currentTarget) closeLoginModal(); }}
-            >
-              <div
-                className="w-full max-w-md rounded-[28px] bg-white shadow-[0_25px_80px_rgba(0,0,0,0.25)] border border-stone-100 overflow-hidden relative"
-                dir={isRTL ? "rtl" : "ltr"}
-              >
-                {/* Modal Header */}
-                <div className="relative p-6 pb-4">
-                  {/* Close Button */}
-                  <button
-                    onClick={closeLoginModal}
-                    className="absolute top-4 end-4 h-8 w-8 rounded-full bg-stone-100 hover:bg-stone-200 flex items-center justify-center text-stone-400 hover:text-stone-700 transition-all cursor-pointer z-10"
-                  >
-                    <X size={16} />
-                  </button>
+              {/* Divider */}
+              <div className="h-px bg-stone-100 mx-6" />
 
-                  <div className="flex items-center gap-4">
-                    <div className={`h-14 w-14 rounded-[16px] ${loginPortal.color} flex items-center justify-center shadow-lg shrink-0`}>
-                      <loginPortal.icon size={28} />
-                    </div>
-                    <div className="min-w-0">
-                      <h2 className="text-lg font-black text-stone-900 font-sans leading-tight">
-                        {isRTL ? loginPortal.label.ar : loginPortal.label.en}
-                      </h2>
-                      <p className="text-stone-400 text-xs font-medium mt-0.5">
-                        {isRTL ? "أدخل بيانات الاعتماد الآمنة للدخول لهذا القسم" : "Enter your secure credentials to access this department"}
-                      </p>
-                    </div>
+              {/* Login Form */}
+              <form onSubmit={handleDeptLogin} className="p-6 space-y-4">
+                {/* Error Alert */}
+                {loginError && (
+                  <div className="flex items-start gap-2.5 p-3.5 rounded-2xl bg-rose-50 border border-rose-100 text-rose-600">
+                    <AlertCircle className="shrink-0 mt-0.5" size={15} />
+                    <p className="text-xs font-bold leading-relaxed">{loginError}</p>
+                  </div>
+                )}
+
+                {/* Identifier Field */}
+                <div className="space-y-1.5">
+                  <label htmlFor="field-staff-dept-identifier" className="block text-[11px] font-black uppercase tracking-wider text-stone-500">
+                    {isRTL ? "البريد الإلكتروني / الرقم الوظيفي" : "Email / Employee ID"}
+                  </label>
+                  <input id="field-staff-dept-identifier"
+                    type="text"
+                    required
+                    autoFocus
+                    value={loginIdentifier}
+                    onChange={(e) => setLoginIdentifier(e.target.value)}
+                    placeholder={isRTL ? "أدخل البريد الإلكتروني أو الرقم الوظيفي" : "Enter email or employee ID"}
+                    className="w-full h-12 rounded-xl border border-stone-200 bg-stone-50 text-sm font-semibold text-stone-900 px-4 placeholder-stone-300 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all font-sans text-start"
+                  />
+                </div>
+
+                {/* Password Field */}
+                <div className="space-y-1.5">
+                  <label htmlFor="field-staff-dept-password" className="block text-[11px] font-black uppercase tracking-wider text-stone-500">
+                    {isRTL ? "كلمة المرور" : "Password"}
+                  </label>
+                  <div className="relative">
+                    <input id="field-staff-dept-password"
+                      type={loginShowPassword ? "text" : "password"}
+                      required
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full h-12 rounded-xl border border-stone-200 bg-stone-50 text-sm font-semibold text-stone-900 px-4 placeholder-stone-300 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all font-sans text-start"
+                      style={{ paddingInlineEnd: '3rem' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setLoginShowPassword(!loginShowPassword)}
+                      className={`absolute inset-y-0 flex items-center justify-center text-stone-400 hover:text-stone-600 w-10 h-10 my-auto cursor-pointer ${isRTL ? "left-1" : "right-1"}`}
+                    >
+                      {loginShowPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
                   </div>
                 </div>
 
-                {/* Divider */}
-                <div className="h-px bg-stone-100 mx-6" />
+                {/* Submit Button */}
+                <button
+                  type="submit"
+                  disabled={loginLoading}
+                  className="w-full h-12 rounded-xl bg-primary text-white font-black text-sm tracking-wide shadow-lg shadow-primary/20 hover:bg-primary/90 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:scale-100 transition-all cursor-pointer flex items-center justify-center gap-2 mt-2"
+                >
+                  {loginLoading ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                      <span>{isRTL ? "جاري التحقق..." : "Verifying..."}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Lock size={15} />
+                      <span>{isRTL ? "تسجيل دخول آمن" : "Secure Sign In"}</span>
+                    </>
+                  )}
+                </button>
 
-                {/* Login Form */}
-                <form onSubmit={handleDeptLogin} className="p-6 space-y-5">
-
-                  {/* Error Alert */}
-                  <AnimatePresence mode="wait">
-                    {loginError && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -8 }}
-                        className="flex items-start gap-2.5 p-3.5 rounded-2xl bg-rose-50 border border-rose-100 text-rose-600"
-                      >
-                        <AlertCircle className="shrink-0 mt-0.5" size={15} />
-                        <p className="text-xs font-bold leading-relaxed">{loginError}</p>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-
-                  {/* Identifier Field */}
-                  <div className="space-y-2">
-                    <label htmlFor="field-staff-dept-identifier" className="block text-[11px] font-black uppercase tracking-wider text-stone-500">
-                      {isRTL ? "البريد الإلكتروني / الرقم الوظيفي" : "Email / Employee ID"}
-                    </label>
-                    <input id="field-staff-dept-identifier"
-                      type="text"
-                      required
-                      autoFocus
-                      value={loginIdentifier}
-                      onChange={(e) => setLoginIdentifier(e.target.value)}
-                      placeholder={isRTL ? "أدخل البريد الإلكتروني أو الرقم الوظيفي" : "Enter email or employee ID"}
-                      className="w-full h-12 rounded-xl border border-stone-200 bg-stone-50 text-sm font-semibold text-stone-900 px-4 placeholder-stone-300 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all font-sans text-start"
-                    />
-                  </div>
-
-                  {/* Password Field */}
-                  <div className="space-y-2">
-                    <label htmlFor="field-staff-dept-password" className="block text-[11px] font-black uppercase tracking-wider text-stone-500">
-                      {isRTL ? "كلمة المرور" : "Password"}
-                    </label>
-                    <div className="relative">
-                      <input id="field-staff-dept-password"
-                        type={loginShowPassword ? "text" : "password"}
-                        required
-                        value={loginPassword}
-                        onChange={(e) => setLoginPassword(e.target.value)}
-                        placeholder="••••••••"
-                        className="w-full h-12 rounded-xl border border-stone-200 bg-stone-50 text-sm font-semibold text-stone-900 px-4 placeholder-stone-300 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all font-sans text-start"
-                        style={{ paddingInlineEnd: '3rem' }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setLoginShowPassword(!loginShowPassword)}
-                        className={`absolute inset-y-0 flex items-center justify-center text-stone-400 hover:text-stone-600 w-10 h-10 my-auto cursor-pointer ${isRTL ? "left-1" : "right-1"}`}
-                      >
-                        {loginShowPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Submit Button */}
-                  <button
-                    type="submit"
-                    disabled={loginLoading}
-                    className="w-full h-12 rounded-xl bg-primary text-white font-black text-sm tracking-wide shadow-lg shadow-primary/20 hover:bg-primary/90 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:scale-100 transition-all cursor-pointer flex items-center justify-center gap-2"
-                  >
-                    {loginLoading ? (
-                      <>
-                        <div className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                        <span>{isRTL ? "جاري التحقق..." : "Verifying..."}</span>
-                      </>
-                    ) : (
-                      <>
-                        <Lock size={15} />
-                        <span>{isRTL ? "تسجيل دخول آمن" : "Secure Sign In"}</span>
-                      </>
-                    )}
-                  </button>
-
-                  {/* Security Badge */}
-                  <div className="text-center pt-2">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-stone-300 flex items-center justify-center gap-1.5">
-                      <Lock size={9} />
-                      {isRTL ? "اتصال مشفر وآمن" : "Encrypted & Secure Connection"}
-                    </p>
-                  </div>
-                </form>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+                {/* Security Badge */}
+                <div className="text-center pt-1">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-stone-300 flex items-center justify-center gap-1.5">
+                    <Lock size={9} />
+                    {isRTL ? "اتصال مشفر وآمن" : "Encrypted & Secure Connection"}
+                  </p>
+                </div>
+              </form>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
