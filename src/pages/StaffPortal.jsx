@@ -19,9 +19,14 @@ import {
   HeartHandshake,
   Megaphone,
   Clock,
-  ShieldAlert
+  ShieldAlert,
+  Lock,
+  Eye,
+  EyeOff,
+  AlertCircle,
+  X
 } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/lib/LanguageContext";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -33,6 +38,17 @@ import SupportWidget from "@/components/shared/SupportWidget";
 const btnOutline = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full text-sm font-semibold transition-all border-2 border-stone-200 bg-white/50 backdrop-blur-md text-stone-800 hover:bg-stone-100 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
 const btnPrimary = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full text-sm font-semibold transition-all bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed";
 
+// Map department IDs to the role values the server returns
+const DEPT_ROLE_MAP = {
+  registrar: ["registrar"],
+  bus_supervisor: ["bus_supervisor", "bus"],
+  store_keeper: ["store_keeper", "store"],
+  security: ["security"],
+  hr: ["hr"],
+  accountant: ["accountant"],
+  counselor: ["counselor", "counseling"],
+};
+
 export default function StaffPortal() {
   const navigate = useNavigate();
   const { language } = useLanguage();
@@ -42,6 +58,14 @@ export default function StaffPortal() {
   const currentRole = localStorage.getItem("portal_role") || user?.role || "staff";
   const currentUserStr = localStorage.getItem("portal_user");
   const currentUser = currentUserStr ? JSON.parse(currentUserStr) : null;
+
+  // ─── Login Modal State ───
+  const [loginPortal, setLoginPortal] = useState(null);     // The portal object being logged into
+  const [loginIdentifier, setLoginIdentifier] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loginShowPassword, setLoginShowPassword] = useState(false);
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [loginError, setLoginError] = useState("");
 
   // Security View state (Mock Visitor log data)
   const [visitorName, setVisitorName] = useState("");
@@ -138,18 +162,138 @@ export default function StaffPortal() {
     }
   ];
 
-  const handlePortalClick = (path, id) => {
-    if (id === "security") {
-      localStorage.setItem("portal_role", id);
-      window.location.reload();
-    } else {
-      localStorage.setItem("portal_role", id);
-      window.location.href = path;
+  // ─── Secure Login Flow ───
+  const openLoginModal = (portal) => {
+    setLoginPortal(portal);
+    setLoginIdentifier("");
+    setLoginPassword("");
+    setLoginShowPassword(false);
+    setLoginError("");
+    setLoginLoading(false);
+  };
+
+  const closeLoginModal = () => {
+    setLoginPortal(null);
+    setLoginIdentifier("");
+    setLoginPassword("");
+    setLoginShowPassword(false);
+    setLoginError("");
+    setLoginLoading(false);
+  };
+
+  const handleDeptLogin = async (e) => {
+    e.preventDefault();
+    if (!loginPortal) return;
+    setLoginError("");
+    setLoginLoading(true);
+
+    try {
+      const apiBase = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/$/, "");
+      const schoolId = localStorage.getItem("portal_school_id") || user?.school_id || null;
+
+      const response = await fetch(`${apiBase}/neon-db/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          role: "staff",
+          identifier: loginIdentifier.trim(),
+          password: loginPassword,
+          schoolId,
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        if (response.status === 429) {
+          const mins = Math.max(1, Math.ceil((data.retry_after || 0) / 60));
+          throw new Error(
+            isRTL
+              ? `محاولات فاشلة كثيرة. يرجى المحاولة بعد ${mins} دقيقة.`
+              : `Too many failed attempts. Try again in ${mins} minute(s).`
+          );
+        }
+        throw new Error(
+          data.error_ar || data.error ||
+          (isRTL ? "بيانات الدخول غير صحيحة" : "Invalid credentials")
+        );
+      }
+
+      // ─── Verify the returned role matches the selected department ───
+      const returnedRole = (data.user?.role || "").toLowerCase();
+      const allowedRoles = DEPT_ROLE_MAP[loginPortal.id] || [loginPortal.id];
+
+      // Admin override: admins may access any department
+      if (returnedRole !== "admin" && !allowedRoles.includes(returnedRole)) {
+        const deptName = isRTL ? loginPortal.label.ar : loginPortal.label.en;
+        throw new Error(
+          isRTL
+            ? `هذا الحساب غير مخصص لقسم «${deptName}». دورك الحالي: ${getDeptLabel(returnedRole)}`
+            : `This account is not assigned to "${deptName}". Your role: ${getDeptLabel(returnedRole)}`
+        );
+      }
+
+      // ─── Success: store session and navigate ───
+      const loggedUser = data.user;
+      const effectiveRole = returnedRole === "admin" ? loginPortal.id : returnedRole;
+
+      localStorage.setItem("portal_role", effectiveRole);
+      localStorage.setItem("portal_user", JSON.stringify(loggedUser));
+      localStorage.setItem("portal_user_id", loggedUser.id);
+      localStorage.setItem("portal_user_name", loggedUser.full_name || "");
+      localStorage.setItem("portal_is_auth", "true");
+      localStorage.setItem("portal_gateway_passed", "true");
+      if (loggedUser.school_id) {
+        localStorage.setItem("portal_school_id", loggedUser.school_id);
+      }
+      if (data.token) {
+        localStorage.setItem("portal_jwt_token", data.token);
+      }
+
+      closeLoginModal();
+
+      if (loginPortal.id === "security") {
+        window.location.reload();
+      } else {
+        window.location.href = loginPortal.path;
+      }
+    } catch (err) {
+      setLoginError(
+        err.message ||
+        (isRTL ? "فشل تسجيل الدخول. تحقق من البيانات." : "Login failed.")
+      );
+    } finally {
+      setLoginLoading(false);
     }
   };
 
+  const handlePortalClick = (_path, _id) => {
+    // If user is already authenticated as admin, allow direct access
+    const storedAuth = localStorage.getItem("portal_is_auth");
+    const storedUser = localStorage.getItem("portal_user");
+    let isAdmin = false;
+    try {
+      const parsed = storedUser ? JSON.parse(storedUser) : null;
+      isAdmin = parsed?.role === "admin";
+    } catch { /* ignore */ }
 
+    if (storedAuth === "true" && isAdmin) {
+      // Admins can directly access any department
+      localStorage.setItem("portal_role", _id);
+      if (_id === "security") {
+        window.location.reload();
+      } else {
+        window.location.href = _path;
+      }
+      return;
+    }
 
+    // Otherwise, open the login modal
+    const portal = subPortals.find(p => p.id === _id);
+    if (portal) {
+      openLoginModal(portal);
+    }
+  };
 
   const handleBack = () => {
     localStorage.removeItem("portal_role");
@@ -502,7 +646,8 @@ export default function StaffPortal() {
                   {isRTL ? "تسجيل الدخول للقسم" : "Access department dashboard"}
                 </p>
                 
-                <div className="mt-auto">
+                <div className="mt-auto flex items-center gap-2">
+                  <Lock size={12} className="text-stone-300" />
                   <div className={`h-8 w-8 rounded-full border-2 border-stone-50 flex items-center justify-center text-stone-200 group-hover:border-primary group-hover:text-primary transition-all duration-500`}>
                     {isRTL ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
                   </div>
@@ -590,6 +735,155 @@ export default function StaffPortal() {
           </p>
         </footer>
       </div>
+
+      {/* ============================================ */}
+      {/*   DEPARTMENT LOGIN POPUP MODAL               */}
+      {/* ============================================ */}
+      <AnimatePresence>
+        {loginPortal && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.25 }}
+              className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm"
+              onClick={closeLoginModal}
+            />
+
+            {/* Modal */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.92, y: 30 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.92, y: 30 }}
+              transition={{ type: "spring", stiffness: 400, damping: 30 }}
+              className="fixed inset-0 z-[101] flex items-center justify-center p-4"
+              onClick={(e) => { if (e.target === e.currentTarget) closeLoginModal(); }}
+            >
+              <div
+                className="w-full max-w-md rounded-[28px] bg-white shadow-[0_25px_80px_rgba(0,0,0,0.25)] border border-stone-100 overflow-hidden relative"
+                dir={isRTL ? "rtl" : "ltr"}
+              >
+                {/* Modal Header */}
+                <div className="relative p-6 pb-4">
+                  {/* Close Button */}
+                  <button
+                    onClick={closeLoginModal}
+                    className="absolute top-4 end-4 h-8 w-8 rounded-full bg-stone-100 hover:bg-stone-200 flex items-center justify-center text-stone-400 hover:text-stone-700 transition-all cursor-pointer z-10"
+                  >
+                    <X size={16} />
+                  </button>
+
+                  <div className="flex items-center gap-4">
+                    <div className={`h-14 w-14 rounded-[16px] ${loginPortal.color} flex items-center justify-center shadow-lg shrink-0`}>
+                      <loginPortal.icon size={28} />
+                    </div>
+                    <div className="min-w-0">
+                      <h2 className="text-lg font-black text-stone-900 font-sans leading-tight">
+                        {isRTL ? loginPortal.label.ar : loginPortal.label.en}
+                      </h2>
+                      <p className="text-stone-400 text-xs font-medium mt-0.5">
+                        {isRTL ? "أدخل بيانات الاعتماد الآمنة للدخول لهذا القسم" : "Enter your secure credentials to access this department"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Divider */}
+                <div className="h-px bg-stone-100 mx-6" />
+
+                {/* Login Form */}
+                <form onSubmit={handleDeptLogin} className="p-6 space-y-5">
+
+                  {/* Error Alert */}
+                  <AnimatePresence mode="wait">
+                    {loginError && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -8 }}
+                        className="flex items-start gap-2.5 p-3.5 rounded-2xl bg-rose-50 border border-rose-100 text-rose-600"
+                      >
+                        <AlertCircle className="shrink-0 mt-0.5" size={15} />
+                        <p className="text-xs font-bold leading-relaxed">{loginError}</p>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  {/* Identifier Field */}
+                  <div className="space-y-2">
+                    <label htmlFor="field-staff-dept-identifier" className="block text-[11px] font-black uppercase tracking-wider text-stone-500">
+                      {isRTL ? "البريد الإلكتروني / الرقم الوظيفي" : "Email / Employee ID"}
+                    </label>
+                    <input id="field-staff-dept-identifier"
+                      type="text"
+                      required
+                      autoFocus
+                      value={loginIdentifier}
+                      onChange={(e) => setLoginIdentifier(e.target.value)}
+                      placeholder={isRTL ? "أدخل البريد الإلكتروني أو الرقم الوظيفي" : "Enter email or employee ID"}
+                      className="w-full h-12 rounded-xl border border-stone-200 bg-stone-50 text-sm font-semibold text-stone-900 px-4 placeholder-stone-300 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all font-sans text-start"
+                    />
+                  </div>
+
+                  {/* Password Field */}
+                  <div className="space-y-2">
+                    <label htmlFor="field-staff-dept-password" className="block text-[11px] font-black uppercase tracking-wider text-stone-500">
+                      {isRTL ? "كلمة المرور" : "Password"}
+                    </label>
+                    <div className="relative">
+                      <input id="field-staff-dept-password"
+                        type={loginShowPassword ? "text" : "password"}
+                        required
+                        value={loginPassword}
+                        onChange={(e) => setLoginPassword(e.target.value)}
+                        placeholder="••••••••"
+                        className="w-full h-12 rounded-xl border border-stone-200 bg-stone-50 text-sm font-semibold text-stone-900 px-4 placeholder-stone-300 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all font-sans text-start"
+                        style={{ paddingInlineEnd: '3rem' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setLoginShowPassword(!loginShowPassword)}
+                        className={`absolute inset-y-0 flex items-center justify-center text-stone-400 hover:text-stone-600 w-10 h-10 my-auto cursor-pointer ${isRTL ? "left-1" : "right-1"}`}
+                      >
+                        {loginShowPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Submit Button */}
+                  <button
+                    type="submit"
+                    disabled={loginLoading}
+                    className="w-full h-12 rounded-xl bg-primary text-white font-black text-sm tracking-wide shadow-lg shadow-primary/20 hover:bg-primary/90 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:scale-100 transition-all cursor-pointer flex items-center justify-center gap-2"
+                  >
+                    {loginLoading ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                        <span>{isRTL ? "جاري التحقق..." : "Verifying..."}</span>
+                      </>
+                    ) : (
+                      <>
+                        <Lock size={15} />
+                        <span>{isRTL ? "تسجيل دخول آمن" : "Secure Sign In"}</span>
+                      </>
+                    )}
+                  </button>
+
+                  {/* Security Badge */}
+                  <div className="text-center pt-2">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-stone-300 flex items-center justify-center gap-1.5">
+                      <Lock size={9} />
+                      {isRTL ? "اتصال مشفر وآمن" : "Encrypted & Secure Connection"}
+                    </p>
+                  </div>
+                </form>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

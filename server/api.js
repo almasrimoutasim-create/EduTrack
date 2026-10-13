@@ -882,6 +882,7 @@ if (process.env.DATABASE_URL) {
   // Migration: staff document uploads (CV + certificates, mirrors teachers/system_admins)
   sql`ALTER TABLE staff_members ADD COLUMN IF NOT EXISTS cv_document_url TEXT;`.catch(() => {});
   sql`ALTER TABLE staff_members ADD COLUMN IF NOT EXISTS certificates_urls TEXT;`.catch(() => {});
+  sql`ALTER TABLE staff_members ADD COLUMN IF NOT EXISTS portal_password_plain TEXT;`.catch(() => {});
   // Auto-create gateway_accounts table
   sql`
     CREATE TABLE IF NOT EXISTS gateway_accounts (
@@ -2848,7 +2849,7 @@ const rows = await dbQuery(
               `SELECT * FROM staff_members
                WHERE (LOWER(email) = LOWER($1)
                    OR LOWER(employee_id) = LOWER($1))
-                 AND school_id IS NULL AND status = 'active'`,
+                 AND status = 'active'`,
               [identifier]
             );
           }
@@ -5161,6 +5162,9 @@ WHERE email = $10`,
             if (body.portal_password === '') {
               delete body.portal_password;
             } else {
+              if (table === 'teachers' || table === 'students' || table === 'staff_members') {
+                body.portal_password_plain = String(body.portal_password);
+              }
               body.portal_password = hashPassword(body.portal_password);
             }
           }
@@ -5286,6 +5290,9 @@ WHERE email = $10`,
             if (body.portal_password === '') {
               delete body.portal_password;
             } else {
+              if (table === 'teachers' || table === 'students' || table === 'staff_members') {
+                body.portal_password_plain = String(body.portal_password);
+              }
               body.portal_password = hashPassword(body.portal_password);
             }
           }

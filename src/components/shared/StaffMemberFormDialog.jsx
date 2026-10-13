@@ -8,7 +8,8 @@ import { entities } from "@/api/dbClient";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLanguage } from "@/lib/LanguageContext";
 import { toast } from "sonner";
-import { FileText, Upload, Eye, Trash2, Award, Loader2 } from "lucide-react";
+import { useAuth } from "@/lib/AuthContext";
+import { FileText, Upload, Eye, EyeOff, Trash2, Award, Loader2, Key, RefreshCw, Copy, Check, ShieldCheck } from "lucide-react";
 
 function parseStaffCertificates(raw) {
   if (!raw) return [];
@@ -33,11 +34,17 @@ export default function StaffMemberFormDialog({ open, onClose, member }) {
   const qc = useQueryClient();
   const { language } = useLanguage();
   const isRTL = language === "ar";
+  const { user } = useAuth();
+  const currentSchoolId = user?.school_id || localStorage.getItem("portal_school_id") || null;
+
   const [saving, setSaving] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [uploadingCv, setUploadingCv] = useState(false);
   const [uploadingCert, setUploadingCert] = useState(false);
   const cvInputRef = useRef(null);
   const certInputRef = useRef(null);
+
   const [form, setForm] = useState(member ? {
     ...member,
     salary: member.salary !== undefined && member.salary !== null ? Number(member.salary) : 4000,
@@ -68,6 +75,37 @@ export default function StaffMemberFormDialog({ open, onClose, member }) {
   }, [member]);
 
   const update = (key, val) => setForm(f => ({ ...f, [key]: val }));
+
+  const generateRandomPassword = () => {
+    const chars = "abcdefghijkmnpqrstuvwxyz23456789";
+    let rand = "";
+    for (let i = 0; i < 4; i++) rand += chars.charAt(Math.floor(Math.random() * chars.length));
+    const pass = `Staff@${rand}`;
+    update("portal_password", pass);
+    setShowPassword(true);
+    toast.info(isRTL ? `تم توليد كلمة مرور: ${pass}` : `Password generated: ${pass}`);
+  };
+
+  const generateAutoEmployeeId = () => {
+    const randId = `STF-${Math.floor(1000 + Math.random() * 9000)}`;
+    update("employee_id", randId);
+  };
+
+  const copyCredentials = () => {
+    const id = form.employee_id || form.email || "";
+    const pass = form.portal_password || "";
+    if (!id) {
+      toast.error(isRTL ? "يرجى إدخال الرقم الوظيفي أو البريد أولاً" : "Please enter employee ID or email first");
+      return;
+    }
+    const text = isRTL 
+      ? `بيانات الدخول للبوابة:\nالمعرف / الرقم الوظيفي: ${id}\nكلمة المرور: ${pass || "(المعينة في النظام)"}`
+      : `Department Portal Credentials:\nLogin ID: ${id}\nPassword: ${pass || "(as set in system)"}`;
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    toast.success(isRTL ? "تم نسخ بيانات الدخول إلى الحافظة" : "Credentials copied to clipboard");
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   const uploadFileToServer = async (file) => {
     const reader = new FileReader();
@@ -143,6 +181,14 @@ export default function StaffMemberFormDialog({ open, onClose, member }) {
       toast.error(isRTL ? "يرجى تحديد دور الموظف" : "Please select the employee's role");
       return;
     }
+    if (!form.employee_id && !form.email) {
+      toast.error(isRTL ? "يرجى إدخال الرقم الوظيفي أو البريد الإلكتروني ليتمكن الموظف من تسجيل الدخول" : "Please enter employee ID or email so the employee can log in");
+      return;
+    }
+    if (!isEdit && (!form.portal_password || form.portal_password.trim().length < 4)) {
+      toast.error(isRTL ? "يرجى تعيين كلمة مرور للبوابة للموظف الجديد (4 خانات على الأقل)" : "Please set a portal password for the new employee (at least 4 chars)");
+      return;
+    }
     if (form.salary === "" || form.salary === undefined || form.salary === null) {
       toast.error(isRTL ? "يرجى تحديد الراتب للموظف" : "Please specify the employee's salary");
       return;
@@ -152,6 +198,7 @@ export default function StaffMemberFormDialog({ open, onClose, member }) {
       const certs = parseStaffCertificates(form.certificates_urls);
       const payload = {
         ...form,
+        school_id: form.school_id || currentSchoolId,
         certificates_urls: certs.length > 0 ? JSON.stringify(certs) : null,
         cv_document_url: form.cv_document_url || null
       };
@@ -198,14 +245,14 @@ export default function StaffMemberFormDialog({ open, onClose, member }) {
     titleAdd: isRTL ? "إضافة موظف جديد" : "Add Staff Member",
     titleEdit: isRTL ? "تعديل بيانات الموظف" : "Edit Staff Member",
     fullName: isRTL ? "الاسم الكامل *" : "Full Name *",
-    employeeId: isRTL ? "الرقم الوظيفي" : "Employee ID",
+    employeeId: isRTL ? "الرقم الوظيفي / اسم المستخدم *" : "Employee ID / Username *",
     role: isRTL ? "الدور / المسمى الوظيفي *" : "Role *",
     email: isRTL ? "البريد الإلكتروني" : "Email",
     phone: isRTL ? "رقم الهاتف" : "Phone",
-    password: isRTL ? "كلمة مرور البوابة" : "Portal Password",
+    password: isRTL ? (isEdit ? "كلمة مرور البوابة (لإعادة التعيين)" : "كلمة مرور البوابة *") : (isEdit ? "Portal Password (to reset)" : "Portal Password *"),
     passwordPlaceholder: isRTL 
-      ? (isEdit ? "اتركه فارغاً للاحتفاظ بالحالي" : "تعيين كلمة مرور البوابة") 
-      : (isEdit ? "Leave blank to keep current" : "Set portal password"),
+      ? (isEdit ? "اتركه فارغاً للاحتفاظ بكلمة المرور الحالية" : "عيّن كلمة مرور دخول للبوابة") 
+      : (isEdit ? "Leave blank to keep current password" : "Set portal login password"),
     status: isRTL ? "الحالة" : "Status",
     notes: isRTL ? "ملاحظات" : "Notes",
     saving: isRTL ? "جاري الحفظ..." : "Saving...",
@@ -221,31 +268,52 @@ export default function StaffMemberFormDialog({ open, onClose, member }) {
             {isEdit ? t.titleEdit : t.titleAdd}
           </DialogTitle>
         </DialogHeader>
-        <div className="space-y-4 mt-4">
+
+        {/* School affiliation notice */}
+        <div className="flex items-center gap-2.5 p-3 rounded-xl bg-amber-50/80 border border-amber-200 text-amber-900 text-xs font-semibold leading-relaxed">
+          <ShieldCheck size={16} className="text-amber-600 shrink-0" />
+          <span>
+            {isRTL 
+              ? "يتم إنشاء هذا الحساب وضبط بيانات اعتماده حصرياً لمدرستكم الحالية. سيستخدم الموظف الرقم الوظيفي/البريد وكلمة المرور لدخول لوحة تحكم قسمه."
+              : "This staff account is created and bound exclusively to your current school. The employee will use these credentials to log in to their department portal."}
+          </span>
+        </div>
+
+        <div className="space-y-4 mt-2">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label className="text-stone-700 font-medium">{t.fullName}</Label>
+              <Label className="text-stone-700 font-medium mb-1 block">{t.fullName}</Label>
               <Input 
                 value={form.full_name} 
                 onChange={e => update("full_name", e.target.value)} 
                 placeholder={isRTL ? "مثال: عمر خالد" : "e.g. Omar Khalid"} 
-                className="mt-1 rounded-lg border-stone-200"
+                className="rounded-lg border-stone-200"
               />
             </div>
             <div>
-              <Label className="text-stone-700 font-medium">{t.employeeId}</Label>
+              <div className="flex items-center justify-between mb-1">
+                <Label className="text-stone-700 font-medium">{t.employeeId}</Label>
+                <button
+                  type="button"
+                  onClick={generateAutoEmployeeId}
+                  className="text-[10px] text-primary hover:underline font-bold flex items-center gap-1 cursor-pointer"
+                >
+                  <RefreshCw size={10} />
+                  {isRTL ? "توليد تلقائي" : "Auto"}
+                </button>
+              </div>
               <Input 
                 value={form.employee_id} 
                 onChange={e => update("employee_id", e.target.value)} 
-                placeholder={isRTL ? "مثال: STF-001" : "e.g. STF-001"} 
-                className="mt-1 rounded-lg border-stone-200 num-en"
+                placeholder={isRTL ? "مثال: STF-1024" : "e.g. STF-1024"} 
+                className="rounded-lg border-stone-200 num-en"
               />
             </div>
           </div>
           <div>
-            <Label className="text-stone-700 font-medium">{t.role}</Label>
+            <Label className="text-stone-700 font-medium mb-1 block">{t.role}</Label>
             <Select value={form.role} onValueChange={v => update("role", v)}>
-              <SelectTrigger className="mt-1 rounded-lg border-stone-200"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="rounded-lg border-stone-200"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {roles.map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
               </SelectContent>
@@ -253,34 +321,71 @@ export default function StaffMemberFormDialog({ open, onClose, member }) {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label className="text-stone-700 font-medium">{t.email}</Label>
+              <Label className="text-stone-700 font-medium mb-1 block">{t.email}</Label>
               <Input 
                 type="email" 
                 value={form.email} 
                 onChange={e => update("email", e.target.value)} 
-                className="mt-1 rounded-lg border-stone-200 num-en"
+                className="rounded-lg border-stone-200 num-en"
                 placeholder="staff@edutrack.com"
               />
             </div>
             <div>
-              <Label className="text-stone-700 font-medium">{t.phone}</Label>
+              <Label className="text-stone-700 font-medium mb-1 block">{t.phone}</Label>
               <Input 
                 value={form.phone} 
                 onChange={e => update("phone", e.target.value)} 
-                className="mt-1 rounded-lg border-stone-200 num-en"
+                className="rounded-lg border-stone-200 num-en"
                 placeholder="+971 50 000 0000"
               />
             </div>
           </div>
           <div>
-            <Label className="text-stone-700 font-medium">{t.password}</Label>
-            <Input 
-              type="password" 
-              value={form.portal_password || ""} 
-              onChange={e => update("portal_password", e.target.value)} 
-              placeholder={t.passwordPlaceholder} 
-              className="mt-1 rounded-lg border-stone-200 num-en"
-            />
+            <div className="flex items-center justify-between mb-1">
+              <Label className="text-stone-700 font-medium">{t.password}</Label>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={generateRandomPassword}
+                  className="text-[10px] text-primary hover:underline font-bold flex items-center gap-1 cursor-pointer"
+                >
+                  <Key size={10} />
+                  {isRTL ? "توليد كلمة مرور" : "Generate Password"}
+                </button>
+                {(form.employee_id || form.email) && (
+                  <button
+                    type="button"
+                    onClick={copyCredentials}
+                    className="text-[10px] text-emerald-600 hover:underline font-bold flex items-center gap-1 cursor-pointer"
+                  >
+                    {copied ? <Check size={10} /> : <Copy size={10} />}
+                    {isRTL ? "نسخ البيانات" : "Copy"}
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="relative">
+              <Input 
+                type={showPassword ? "text" : "password"} 
+                value={form.portal_password || ""} 
+                onChange={e => update("portal_password", e.target.value)} 
+                placeholder={t.passwordPlaceholder} 
+                className="rounded-lg border-stone-200 num-en"
+                style={{ paddingInlineEnd: '2.5rem' }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className={`absolute inset-y-0 ${isRTL ? "left-2" : "right-2"} flex items-center text-stone-400 hover:text-stone-600 cursor-pointer`}
+              >
+                {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+              </button>
+            </div>
+            <p className="text-[10px] text-stone-400 mt-1">
+              {isRTL 
+                ? "يستطيع الموظف تسجيل الدخول باستخدام الرقم الوظيفي أو البريد الإلكتروني مع كلمة المرور هذه." 
+                : "Employee can sign in using either Employee ID or Email along with this password."}
+            </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>

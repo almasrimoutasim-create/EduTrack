@@ -23,7 +23,8 @@ import {
   ChevronDown,
   FileText,
   Award,
-  Eye
+  Eye,
+  Key
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -390,6 +391,21 @@ export default function StaffControl() {
                             <DropdownMenuItem onClick={() => handleEdit(member)} className="flex items-center gap-2 cursor-pointer text-stone-700">
                               <Edit2 size={14} />
                               <span>{isRTL ? "تعديل البيانات" : "Edit"}</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => {
+                                const id = member.employee_id || member.email || "";
+                                const pass = member.portal_password_plain ? member.portal_password_plain : "(كلمة المرور مسجلة مسبقاً)";
+                                const credText = isRTL 
+                                  ? `بيانات الدخول للبوابة:\nالمعرف: ${id}\nكلمة المرور: ${pass}`
+                                  : `Portal Credentials:\nLogin ID: ${id}\nPassword: ${member.portal_password_plain || "(previously set)"}`;
+                                navigator.clipboard.writeText(credText);
+                                toast.success(isRTL ? "تم نسخ بيانات الدخول للموظف" : "Staff credentials copied");
+                              }} 
+                              className="flex items-center gap-2 cursor-pointer text-stone-700"
+                            >
+                              <Key size={14} />
+                              <span>{isRTL ? "نسخ بيانات الدخول" : "Copy Login Info"}</span>
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleEdit(member)} className="flex items-center gap-2 cursor-pointer text-stone-700">
                               <Shield size={14} />
