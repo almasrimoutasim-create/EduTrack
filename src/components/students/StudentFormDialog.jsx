@@ -8,8 +8,30 @@ import { entities } from "@/api/dbClient";
 import { useQueryClient } from "@tanstack/react-query";
 import { Switch } from "@/components/ui/switch";
 import { useLanguage } from "@/lib/LanguageContext";
+import { Loader2 } from "lucide-react";
 
 const grades = ["1","2","3","4","5","6","7","8","9","10","11","12"];
+
+/**
+ * Generate a sequential student ID (الرقم المدرسي) in format STU-0001, STU-0002, etc.
+ */
+async function generateNextStudentId() {
+  try {
+    const students = await entities.Student.list();
+    let maxNum = 0;
+    students.forEach(s => {
+      const match = String(s.student_id || '').match(/STU-(\d+)/i);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (!isNaN(num) && num > maxNum) maxNum = num;
+      }
+    });
+    return `STU-${String(maxNum + 1).padStart(4, '0')}`;
+  } catch (e) {
+    console.warn('Could not fetch students for ID generation, using fallback:', e);
+    return `STU-${String(Date.now()).slice(-4)}`;
+  }
+}
 
 export default function StudentFormDialog({ open, onClose, student }) {
   const isEdit = !!student;
@@ -17,12 +39,14 @@ export default function StudentFormDialog({ open, onClose, student }) {
   const { language } = useLanguage();
   const isRTL = language === "ar";
   const [saving, setSaving] = useState(false);
+  const [isGeneratingId, setIsGeneratingId] = useState(false);
   const [form, setForm] = useState(student || {
     full_name: "", student_id: "", user_email: "", portal_password: "", parent_password: "", grade: "1", section: "أبو بكر",
     date_of_birth: "", parent_name: "", parent_phone: "", parent_email: "",
     address: "", card_balance: 0, bus_registered: false, bus_route: "", status: "active"
   });
 
+  // Auto-generate student_id (الرقم المدرسي) when opening dialog for new student
   useEffect(() => {
     if (student) {
       setForm({
@@ -31,14 +55,20 @@ export default function StudentFormDialog({ open, onClose, student }) {
         portal_password: "",
         parent_password: ""
       });
+      setIsGeneratingId(false);
     } else {
+      setIsGeneratingId(true);
       setForm({
-        full_name: "", student_id: "", user_email: student?.user_email || "", portal_password: "", parent_password: "", grade: "1", section: "أبو بكر",
+        full_name: "", student_id: "", user_email: "", portal_password: "", parent_password: "", grade: "1", section: "أبو بكر",
         date_of_birth: "", parent_name: "", parent_phone: "", parent_email: "",
         address: "", card_balance: 0, bus_registered: false, bus_route: "", status: "active"
       });
+      generateNextStudentId().then(id => {
+        setForm(prev => ({ ...prev, student_id: id }));
+        setIsGeneratingId(false);
+      }).catch(() => setIsGeneratingId(false));
     }
-  }, [student]);
+  }, [student, open]);
 
   const update = (key, val) => setForm(f => ({ ...f, [key]: val }));
 
@@ -108,7 +138,10 @@ export default function StudentFormDialog({ open, onClose, student }) {
             {isEdit ? t.titleEdit : t.titleAdd}
           </DialogTitle>
         </DialogHeader>
-        <div className="space-y-4 mt-4">
+        <div className="space-y-4 mt-4" autoComplete="off">
+          {/* حقول وهمية لخداع الإكمال التلقائي للمتصفح ومنعه من تعبئة بيانات المدير */}
+          <input type="text" name="fake-username-trap" autoComplete="username" tabIndex={-1} aria-hidden="true" className="hidden" />
+          <input type="password" name="fake-password-trap" autoComplete="new-password" tabIndex={-1} aria-hidden="true" className="hidden" />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label className="text-stone-700 font-medium">{t.fullName}</Label>
@@ -120,13 +153,20 @@ export default function StudentFormDialog({ open, onClose, student }) {
               />
             </div>
             <div>
-              <Label className="text-stone-700 font-medium">{t.studentId}</Label>
-              <Input 
-                value={form.student_id} 
-                onChange={e => update("student_id", e.target.value)} 
-                className="mt-1 rounded-lg border-stone-200 num-en"
-                placeholder={isRTL ? "مثال: STU-2026" : "e.g. STU-2026"} 
-              />
+              <Label className="text-stone-700 font-medium">{t.studentId} {isRTL ? "(تلقائي)" : "(Auto)"}</Label>
+              {isGeneratingId ? (
+                <div className="mt-1 rounded-lg border border-stone-200 bg-stone-50/50 h-10 flex items-center gap-2 px-3">
+                  <Loader2 className="animate-spin text-primary" size={14} />
+                  <span className="text-stone-500 text-sm">{isRTL ? "جاري إنشاء الرقم المدرسي..." : "Generating School ID..."}</span>
+                </div>
+              ) : (
+                <Input 
+                  value={form.student_id} 
+                  readOnly
+                  className="mt-1 rounded-lg border-stone-200 bg-stone-50/50 font-mono text-primary font-bold num-en cursor-default"
+                  placeholder={isRTL ? "يتم إنشاؤه تلقائياً" : "Auto-generated"}
+                />
+              )}
             </div>
           </div>
           <div className="grid grid-cols-3 gap-4">
@@ -184,20 +224,25 @@ placeholder="رقم الهاتف مع مفتاح الدولة"
             <div>
               <Label className="text-stone-700 font-medium">{t.studentEmail}</Label>
               <Input 
+                type="email"
+                name="new-student-email"
+                autoComplete="off"
                 value={form.user_email || ""} 
                 onChange={e => update("user_email", e.target.value)} 
                 className="mt-1 rounded-lg border-stone-200 num-en"
-                placeholder="student@example.com" 
+                placeholder={isRTL ? "أدخل البريد الإلكتروني للطالب (مثال: student@school.com)" : "Enter student email (e.g. student@school.com)"} 
               />
             </div>
             <div>
               <Label className="text-stone-700 font-medium">{t.studentPassword}</Label>
               <Input 
                 type="password"
+                name="new-student-portal-password"
+                autoComplete="new-password"
                 value={form.portal_password || ""} 
                 onChange={e => update("portal_password", e.target.value)} 
                 className="mt-1 rounded-lg border-stone-200"
-                placeholder={isEdit ? t.passwordPlaceholder : "••••••••"} 
+                placeholder={isEdit ? t.passwordPlaceholder : (isRTL ? "أدخل كلمة مرور جديدة للطالب" : "Enter a new password for the student")} 
               />
             </div>
           </div>
@@ -205,20 +250,25 @@ placeholder="رقم الهاتف مع مفتاح الدولة"
             <div>
               <Label className="text-stone-700 font-medium">{t.parentEmail}</Label>
               <Input 
+                type="email"
+                name="new-parent-email"
+                autoComplete="off"
                 value={form.parent_email} 
                 onChange={e => update("parent_email", e.target.value)} 
                 className="mt-1 rounded-lg border-stone-200 num-en"
-                placeholder="parent@example.com" 
+                placeholder={isRTL ? "أدخل البريد الإلكتروني لولي الأمر (مثال: parent@school.com)" : "Enter parent email (e.g. parent@school.com)"} 
               />
             </div>
             <div>
               <Label className="text-stone-700 font-medium">{t.parentPassword}</Label>
               <Input 
                 type="password"
+                name="new-parent-portal-password"
+                autoComplete="new-password"
                 value={form.parent_password || ""} 
                 onChange={e => update("parent_password", e.target.value)} 
                 className="mt-1 rounded-lg border-stone-200"
-                placeholder={isEdit ? t.passwordPlaceholder : "••••••••"} 
+                placeholder={isEdit ? t.passwordPlaceholder : (isRTL ? "أدخل كلمة مرور جديدة لولي الأمر" : "Enter a new password for the parent")} 
               />
             </div>
           </div>

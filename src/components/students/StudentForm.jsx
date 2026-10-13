@@ -97,7 +97,7 @@ export default function StudentForm({ student, onClose }) {
       });
     } else {
       setForm({
-        full_name: "", student_id: "", user_email: student?.user_email || "", portal_password: "", parent_password: "", grade: "1", section: "A",
+        full_name: "", student_id: "", user_email: "", portal_password: "", parent_password: "", grade: "1", section: "A",
         date_of_birth: "", parent_name: "", parent_phone: "", parent_email: "",
         address: "", card_balance: 0, bus_registered: false, bus_route: "", status: "active", photo_url: "",
         tuition_total: 0, tuition_paid: 0,
@@ -351,6 +351,7 @@ gradeItem: (g) => {
       exit={{ opacity: 0, y: -15 }}
       className="space-y-6 max-w-5xl mx-auto pb-16"
       dir={isRTL ? "rtl" : "ltr"}
+      autoComplete="off"
     >
       {/* Top action header bar */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-stone-200/80 pb-5">
@@ -716,11 +717,15 @@ gradeItem: (g) => {
           </div>
 
           {/* Card 2: Portal Accounts */}
-          <div className="bg-white border border-stone-200/80 rounded-2xl p-6 shadow-sm space-y-5">
+          <div className="bg-white border border-stone-200/80 rounded-2xl p-6 shadow-sm space-y-5" autoComplete="off">
             <div className="flex items-center gap-2 border-b border-stone-100 pb-3">
               <Lock className="text-primary stroke-[1.8]" size={20} />
               <h3 className="font-display font-bold text-stone-800 text-base">{t.secPortals}</h3>
             </div>
+
+            {/* حقول وهمية لخداع الإكمال التلقائي للمتصفح ومنعه من تعبئة بيانات المدير */}
+            <input type="text" name="fake-username-trap" autoComplete="username" tabIndex={-1} aria-hidden="true" className="hidden" />
+            <input type="password" name="fake-password-trap" autoComplete="new-password" tabIndex={-1} aria-hidden="true" className="hidden" />
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {/* Student Portal */}
@@ -732,10 +737,13 @@ gradeItem: (g) => {
                     <div className="relative">
                       <Mail className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 text-stone-400`} size={14} />
                       <Input 
+                        type="email"
+                        name="new-student-email"
+                        autoComplete="off"
                         value={form.user_email || ""} 
                         onChange={e => update("user_email", e.target.value)} 
                         className={`rounded-lg border-stone-200 h-9 text-xs focus-visible:ring-primary/20 num-en ${isRTL ? 'pr-9' : 'pl-9'}`}
-                        placeholder="student@school.edu" 
+                        placeholder={isRTL ? "أدخل البريد الإلكتروني للطالب (مثال: student@school.com)" : "Enter student email (e.g. student@school.com)"} 
                       />
                     </div>
                   </div>
@@ -743,10 +751,12 @@ gradeItem: (g) => {
                     <Label className="text-stone-600 font-semibold text-[11px]">{t.studentPassword}</Label>
                     <Input 
                       type="password"
+                      name="new-student-portal-password"
+                      autoComplete="new-password"
                       value={form.portal_password || ""} 
                       onChange={e => update("portal_password", e.target.value)} 
                       className="rounded-lg border-stone-200 h-9 text-xs focus-visible:ring-primary/20"
-                      placeholder={isEdit ? t.passwordPlaceholder : "••••••••"} 
+                      placeholder={isEdit ? t.passwordPlaceholder : (isRTL ? "أدخل كلمة مرور جديدة للطالب" : "Enter a new password for the student")} 
                     />
                   </div>
                 </div>
@@ -761,10 +771,13 @@ gradeItem: (g) => {
                     <div className="relative">
                       <Mail className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 text-stone-400`} size={14} />
                       <Input 
+                        type="email"
+                        name="new-parent-email"
+                        autoComplete="off"
                         value={form.parent_email || ""} 
                         onChange={e => update("parent_email", e.target.value)} 
                         className={`rounded-lg border-stone-200 h-9 text-xs focus-visible:ring-primary/20 num-en ${isRTL ? 'pr-9' : 'pl-9'}`}
-                        placeholder="parent@example.com" 
+                        placeholder={isRTL ? "أدخل البريد الإلكتروني لولي الأمر (مثال: parent@school.com)" : "Enter parent email (e.g. parent@school.com)"} 
                       />
                     </div>
                   </div>
@@ -772,10 +785,12 @@ gradeItem: (g) => {
                     <Label className="text-stone-600 font-semibold text-[11px]">{t.parentPassword}</Label>
                     <Input 
                       type="password"
+                      name="new-parent-portal-password"
+                      autoComplete="new-password"
                       value={form.parent_password || ""} 
                       onChange={e => update("parent_password", e.target.value)} 
                       className="rounded-lg border-stone-200 h-9 text-xs focus-visible:ring-primary/20"
-                      placeholder={isEdit ? t.passwordPlaceholder : "••••••••"} 
+                      placeholder={isEdit ? t.passwordPlaceholder : (isRTL ? "أدخل كلمة مرور جديدة لولي الأمر" : "Enter a new password for the parent")} 
                     />
                   </div>
                 </div>

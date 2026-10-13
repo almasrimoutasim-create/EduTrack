@@ -1,13 +1,35 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { entities } from "@/api/dbClient";
 import { useLanguage } from "@/lib/LanguageContext";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { UserCheck, CheckCircle2, ChevronRight, ChevronLeft, UploadCloud, UserCircle2, MapPin, Phone } from "lucide-react";
+import { UserCheck, CheckCircle2, ChevronRight, ChevronLeft, UploadCloud, UserCircle2, MapPin, Phone, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
+
+/**
+ * Generate a sequential student ID (الرقم المدرسي) in format STU-0001, STU-0002, etc.
+ * Fetches existing students from the backend to determine the next number.
+ */
+async function generateNextStudentId() {
+  try {
+    const students = await entities.Student.list();
+    let maxNum = 0;
+    students.forEach(s => {
+      const match = String(s.student_id || '').match(/STU-(\d+)/i);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (!isNaN(num) && num > maxNum) maxNum = num;
+      }
+    });
+    return `STU-${String(maxNum + 1).padStart(4, '0')}`;
+  } catch (e) {
+    console.warn('Could not fetch students for ID generation, using fallback:', e);
+    return `STU-${String(Date.now()).slice(-4)}`;
+  }
+}
 
 export default function StudentEnrollment() {
   const { language } = useLanguage();
@@ -16,7 +38,6 @@ export default function StudentEnrollment() {
 
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
-    id: "",
     full_name: "",
     gender: "ذكر",
     dob: "",
@@ -24,24 +45,45 @@ export default function StudentEnrollment() {
     parent_email: "",
     parent_phone: "",
     grade_level: "الصف الأول",
-    address: ""
+    address: "",
+    national_id: "", // رقم الهوية الوطنية / الإقامة
+    student_id: "", // الرقم المدرسي (يتم إنشاؤه تلقائياً)
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGeneratingId, setIsGeneratingId] = useState(true);
+
+  // Auto-generate student_id (الرقم المدرسي) on component mount
+  useEffect(() => {
+    generateNextStudentId().then(id => {
+      setFormData(prev => ({ ...prev, student_id: id }));
+      setIsGeneratingId(false);
+    }).catch(() => {
+      setIsGeneratingId(false);
+    });
+  }, []);
 
   const handleNext = () => setStep(prev => Math.min(prev + 1, 4));
   const handleBack = () => setStep(prev => Math.max(prev - 1, 1));
 
   const handleSubmit = async () => {
-    if (!formData.full_name || !formData.id) {
-      toast.error(isRTL ? "الاسم الرباعي ورقم الهوية مطلوبان" : "Full name and ID are required");
+    // Validate required fields: full_name and national_id
+    if (!formData.full_name || !formData.national_id) {
+      toast.error(isRTL ? "الاسم الرباعي ورقم الهوية الوطنية مطلوبان" : "Full name and National ID are required");
       return;
     }
     
     setIsSubmitting(true);
     try {
       await entities.Student.create({
-        ...formData,
-        student_id: formData.id,
+        full_name: formData.full_name,
+        gender: formData.gender,
+        date_of_birth: formData.dob || null,
+        nationality: formData.nationality,
+        parent_email: formData.parent_email,
+        parent_phone: formData.parent_phone,
+        grade: formData.grade_level,
+        address: formData.address,
+        student_id: formData.student_id, // Auto-generated الرقم المدرسي
         enrollment_date: new Date().toISOString().split('T')[0],
         status: "active"
       });
@@ -123,10 +165,28 @@ export default function StudentEnrollment() {
                   />
                 </div>
                 <div className="space-y-2">
+                  <label className="text-sm font-bold text-stone-700">{isRTL ? "الرقم المدرسي (تلقائي)" : "School ID (Auto-generated)"}</label>
+                  <div className="relative">
+                    {isGeneratingId ? (
+                      <div className="h-12 rounded-xl border border-stone-200 bg-stone-50/50 flex items-center gap-2 px-4">
+                        <Loader2 className="animate-spin text-primary" size={16} />
+                        <span className="text-stone-500 text-sm">{isRTL ? "جاري إنشاء الرقم المدرسي..." : "Generating School ID..."}</span>
+                      </div>
+                    ) : (
+                      <Input 
+                        value={formData.student_id} 
+                        readOnly
+                        className="h-12 rounded-xl border-stone-200 bg-stone-50/50 font-mono text-primary font-bold num-en cursor-default"
+                        placeholder={isRTL ? "يتم إنشاؤه تلقائياً" : "Auto-generated"}
+                      />
+                    )}
+                  </div>
+                </div>
+                <div className="space-y-2">
                   <label className="text-sm font-bold text-stone-700">{isRTL ? "رقم الهوية الوطنية / الإقامة" : "National ID / Iqama"}</label>
                   <Input 
-                    value={formData.id} 
-                    onChange={(e) => setFormData({...formData, id: e.target.value})}
+                    value={formData.national_id} 
+                    onChange={(e) => setFormData({...formData, national_id: e.target.value})}
                     placeholder="100..."
                     className="h-12 rounded-xl num-en"
                   />
@@ -242,8 +302,20 @@ export default function StudentEnrollment() {
               </div>
               <h2 className="text-3xl font-black text-stone-900">{isRTL ? "اكتمل التسجيل بنجاح!" : "Enrollment Completed!"}</h2>
               <p className="text-stone-500 font-medium max-w-md mx-auto">
-                {isRTL ? `تم إنشاء ملف الطالب "${formData.full_name}" بنجاح وإصدار رقم الهوية الأكاديمية له. يمكنك الآن التوجه لملفه الشخصي.` : `Student profile for "${formData.full_name}" has been created. You can now view their academic profile.`}
+                {isRTL ? `تم إنشاء ملف الطالب "${formData.full_name}" بنجاح وإصدار الرقم المدرسي له. يمكنك الآن التوجه لملفه الشخصي.` : `Student profile for "${formData.full_name}" has been created with School ID. You can now view their academic profile.`}
               </p>
+              <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 mb-4 text-start text-sm space-y-1.5">
+                <p className="font-bold text-emerald-900 mb-2">{isRTL ? "بيانات الدخول للبوابة:" : "Login Credentials:"}</p>
+                <p className="text-stone-700 flex justify-between">
+                  <span>{isRTL ? "الرقم المدرسي:" : "School ID:"}</span>
+                  <span className="font-mono font-bold text-stone-900">{formData.student_id}</span>
+                </p>
+                <p className="text-stone-700 flex justify-between">
+                  <span>{isRTL ? "الاسم:" : "Name:"}</span>
+                  <span className="font-bold text-stone-900">{formData.full_name}</span>
+                </p>
+              </div>
+              <p className="text-xs text-stone-400">{isRTL ? "يرجى حفظ هذه البيانات لاستخدامها عند تسجيل الدخول" : "Please keep these credentials for logging in"}</p>
               <div className="pt-8">
                 <Button onClick={() => window.location.href = "/student-directory"} className="h-12 px-8 rounded-xl font-bold bg-stone-900 hover:bg-stone-800 text-white">
                   {isRTL ? "الانتقال لقائمة الطلاب" : "Go to Students Directory"}
