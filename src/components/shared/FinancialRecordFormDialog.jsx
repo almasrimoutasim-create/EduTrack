@@ -42,6 +42,7 @@ export default function FinancialRecordFormDialog({ open, onClose, record, prefi
 
   const handleSave = async () => {
     if (!form.recipient_name || form.amount <= 0) return;
+    if (form.payment_method === "bank_transfer" && !(form.reference_no || "").trim()) return;
     setSaving(true);
     try {
       let res;
@@ -124,10 +125,10 @@ export default function FinancialRecordFormDialog({ open, onClose, record, prefi
     recipientId: isRTL ? "الرقم التعريفي للمستلم" : "Recipient ID",
     amount: isRTL ? "المبلغ ($) *" : "Amount ($) *",
     month: isRTL ? "الشهر" : "Month",
-    paymentMethod: isRTL ? "طريقة الدفع" : "Payment Method",
+    paymentMethod: isRTL ? "نوع السداد" : "Payment Method",
     status: isRTL ? "الحالة" : "Status",
     paymentDate: isRTL ? "تاريخ الدفع" : "Payment Date",
-    referenceNo: isRTL ? "رقم المرجع" : "Reference No.",
+    referenceNo: isRTL ? "رقم العملية" : "Transaction No.",
     description: isRTL ? "التفاصيل / البيان" : "Description",
     notes: isRTL ? "ملاحظات" : "Notes",
     saving: isRTL ? "جاري الحفظ..." : "Saving...",
@@ -207,7 +208,7 @@ export default function FinancialRecordFormDialog({ open, onClose, record, prefi
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label className="text-stone-600 dark:text-stone-400 font-bold text-xs block mb-1.5">{t.paymentMethod}</Label>
-              <Select value={form.payment_method} onValueChange={v => update("payment_method", v)}>
+              <Select value={form.payment_method} onValueChange={v => { update("payment_method", v); if (v !== "bank_transfer") update("reference_no", ""); }}>
                 <SelectTrigger className="h-11 rounded-xl border-stone-200 bg-white dark:bg-stone-900 focus:ring-primary/20 font-semibold transition-all"><SelectValue /></SelectTrigger>
                 <SelectContent className="rounded-xl">
                   {paymentMethods.map(p => <SelectItem key={p.value} value={p.value} className="font-semibold">{p.label}</SelectItem>)}
@@ -233,15 +234,17 @@ export default function FinancialRecordFormDialog({ open, onClose, record, prefi
                 className="num-en border-stone-200"
               />
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-stone-600 dark:text-stone-400 font-bold text-xs block mb-1.5">{t.referenceNo}</Label>
-              <Input 
-                value={form.reference_no || ""} 
-                onChange={e => update("reference_no", e.target.value)} 
-                placeholder={isRTL ? "مثال: TXN-9823" : "e.g. TXN-9823"}
-                className="h-11 rounded-xl border-stone-200 bg-white dark:bg-stone-900 focus-visible:ring-primary/20 num-en font-semibold transition-all"
-              />
-            </div>
+            {form.payment_method === "bank_transfer" && (
+              <div className="space-y-1.5">
+                <Label className="text-stone-600 dark:text-stone-400 font-bold text-xs block mb-1.5">{t.referenceNo} *</Label>
+                <Input 
+                  value={form.reference_no || ""} 
+                  onChange={e => update("reference_no", e.target.value)} 
+                  placeholder={isRTL ? "أدخل رقم العملية البنكية" : "Enter bank transaction number"}
+                  className="h-11 rounded-xl border-stone-200 bg-white dark:bg-stone-900 focus-visible:ring-primary/20 num-en font-semibold transition-all"
+                />
+              </div>
+            )}
           </div>
           <div className="space-y-1.5">
             <Label className="text-stone-600 dark:text-stone-400 font-bold text-xs block mb-1.5">{t.description}</Label>

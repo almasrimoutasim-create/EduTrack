@@ -644,6 +644,7 @@ if (process.env.DATABASE_URL) {
       amount NUMERIC NOT NULL,
       currency TEXT NOT NULL DEFAULT 'SDG',
       payment_method TEXT,
+      transfer_reference TEXT,
       paid_by TEXT,
       notes TEXT,
       created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -653,6 +654,41 @@ if (process.env.DATABASE_URL) {
     console.log('[neon] fee_payments table verified/created');
   }).catch(err => {
     console.error('[neon] failed to verify/create fee_payments table:', err.message);
+  });
+
+  // Canonical trigger: a single atomic updater of student_fees when a payment is recorded.
+  // (Previously the app hook did this read-then-write, which double-counted on DBs
+  // that already had the trigger, and crashed on GENERATED remaining columns.)
+  sql`
+    CREATE OR REPLACE FUNCTION update_fee_status() RETURNS trigger LANGUAGE plpgsql AS $func$
+    DECLARE is_gen BOOLEAN;
+    BEGIN
+      SELECT (is_generated = 'ALWAYS') INTO is_gen FROM information_schema.columns
+        WHERE table_name = 'student_fees' AND column_name = 'remaining';
+      UPDATE student_fees SET
+        amount_paid = amount_paid + NEW.amount,
+        status = CASE
+          WHEN (amount_paid + NEW.amount) >= amount THEN 'paid'
+          WHEN (amount_paid + NEW.amount) > 0 THEN 'partial'
+          ELSE 'pending'
+        END,
+        updated_at = NOW()
+      WHERE id = NEW.student_fee_id;
+      IF NOT COALESCE(is_gen, FALSE) THEN
+        UPDATE student_fees SET remaining = GREATEST(amount - amount_paid, 0)
+        WHERE id = NEW.student_fee_id;
+      END IF;
+      RETURN NEW;
+    END; $func$
+  `.then(() => {
+    console.log('[neon] update_fee_status function verified/created');
+    return sql.query(`DROP TRIGGER IF EXISTS trigger_update_fee_status ON fee_payments`);
+  }).then(() => {
+    return sql.query(`CREATE TRIGGER trigger_update_fee_status AFTER INSERT ON fee_payments FOR EACH ROW EXECUTE FUNCTION update_fee_status()`);
+  }).then(() => {
+    console.log('[neon] trigger_update_fee_status verified/created');
+  }).catch(err => {
+    console.error('[neon] failed to verify/create fee status trigger:', err.message);
   });
 
   sql`
@@ -745,6 +781,7 @@ if (process.env.DATABASE_URL) {
   sql.query(`ALTER TABLE student_fees ALTER COLUMN school_id TYPE UUID USING school_id::uuid`).catch(err => console.error('[neon] student_fees school_id type fix failed:', err.message));
   sql.query(`ALTER TABLE student_fees ALTER COLUMN branch_id TYPE UUID USING branch_id::uuid`).catch(err => console.error('[neon] student_fees branch_id type fix failed:', err.message));
   sql.query(`ALTER TABLE fee_payments ADD COLUMN IF NOT EXISTS branch_id UUID`).catch(()=>{});
+  sql.query(`ALTER TABLE fee_payments ADD COLUMN IF NOT EXISTS transfer_reference TEXT`).catch(()=>{});
   sql.query(`ALTER TABLE fee_payments ALTER COLUMN paid_by TYPE TEXT USING paid_by::text`).catch(()=>{});
   sql.query(`ALTER TABLE fee_payments ALTER COLUMN school_id TYPE UUID USING school_id::uuid`).catch(err => console.error('[neon] fee_payments school_id type fix failed:', err.message));
   sql.query(`ALTER TABLE fee_payments ALTER COLUMN branch_id TYPE UUID USING branch_id::uuid`).catch(err => console.error('[neon] fee_payments branch_id type fix failed:', err.message));
@@ -5349,31 +5386,9 @@ WHERE email = $10`,
             return res.end(JSON.stringify({ error: 'Database not configured or INSERT failed. Check DATABASE_URL in Render env vars.' }));
           }
 
-          // Hook: Update corresponding student_fees row when a fee_payment is recorded
-          if (rows.length > 0 && table === 'fee_payments') {
-            const feeId = body.student_fee_id;
-            const payAmt = parseFloat(body.amount) || 0;
-            if (feeId) {
-              const feeRows = await dbQuery('SELECT * FROM student_fees WHERE id = $1 AND school_id = $2', [feeId, tenantId]);
-              if (feeRows.length > 0) {
-                const currentPaid = parseFloat(feeRows[0].amount_paid) || 0;
-                const totalAmt = parseFloat(feeRows[0].amount) || 0;
-                const newPaid = currentPaid + payAmt;
-                const remaining = Math.max(0, totalAmt - newPaid);
-                let status = 'pending';
-                if (newPaid >= totalAmt) {
-                  status = 'paid';
-                } else if (newPaid > 0) {
-                  status = 'partial';
-                }
-                await dbQuery(
-                  'UPDATE student_fees SET amount_paid = $1, remaining = $2, status = $3, updated_at = NOW() WHERE id = $4',
-                  [newPaid, remaining, status, feeId]
-                );
-                console.log(`[neon] Automatically updated student_fees ID ${feeId}: paid=${newPaid}, remaining=${remaining}, status=${status}`);
-              }
-            }
-          }
+          // student_fees balances are maintained atomically by the
+          // trigger_update_fee_status DB trigger (see boot SQL) — no app-level
+          // update here to avoid double-counting and GENERATED-column errors.
 
           res.statusCode = 201;
           if (table === 'registration_requests') {

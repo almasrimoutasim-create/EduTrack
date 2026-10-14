@@ -291,6 +291,7 @@ export default function Finance() {
   const [selectedFeeId, setSelectedFeeId] = useState("");
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("cash");
+  const [paymentTransferRef, setPaymentTransferRef] = useState("");
   const [paymentNotes, setPaymentNotes] = useState("");
   
   const [selectedStructureId, setSelectedStructureId] = useState("");
@@ -349,6 +350,7 @@ export default function Finance() {
       setRecordPaymentOpen(false);
       setSelectedFeeId("");
       setPaymentAmount("");
+      setPaymentTransferRef("");
       setPaymentNotes("");
     },
     onError: () => toast.error('فشل في تسجيل الدفعة'),
@@ -456,14 +458,23 @@ export default function Finance() {
     if (!fee || isNaN(amt) || amt <= 0) return toast.error("يرجى إدخال مبلغ صحيح");
     const remainingVal = parseFloat(fee.remaining !== null && fee.remaining !== undefined ? fee.remaining : (fee.amount - (fee.amount_paid || 0)));
     if (amt > remainingVal) return toast.error("المبلغ المدخل يتجاوز المبلغ المتبقي المستحق");
+    if (paymentMethod === "bank_transfer" && !paymentTransferRef.trim()) {
+      return toast.error("يرجى إدخال رقم العملية للتحويل البنكي");
+    }
+
+    const transferRef = paymentMethod === "bank_transfer" ? paymentTransferRef.trim() : "";
+    const combinedNotes = transferRef
+      ? `رقم العملية: ${transferRef}${paymentNotes.trim() ? ` — ${paymentNotes.trim()}` : ""}`
+      : paymentNotes;
     
     recordPaymentMutation.mutate({
       student_fee_id: fee.id,
       student_id: selectedStudent.id,
       amount: amt,
       payment_method: paymentMethod,
+      transfer_reference: transferRef || undefined,
       paid_by: user.id,
-      notes: paymentNotes
+      notes: combinedNotes
     });
   };
 
@@ -1416,20 +1427,35 @@ export default function Finance() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label>طريقة الدفع</Label>
+                  <Label>نوع السداد</Label>
                   <select id="field-finance-select-20" name="select_20" aria-label="select 20"
                     value={paymentMethod}
-                    onChange={e => setPaymentMethod(e.target.value)}
+                    onChange={e => {
+                      setPaymentMethod(e.target.value);
+                      if (e.target.value !== "bank_transfer") setPaymentTransferRef("");
+                    }}
                     className="w-full bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 focus:outline-none"
                   >
-                    <option value="cash">نقداً (كاش)</option>
+                    <option value="cash">كاش</option>
                     <option value="bank_transfer">تحويل بنكي</option>
                   </select>
                 </div>
 
+                {paymentMethod === "bank_transfer" && (
+                  <div className="space-y-1.5">
+                    <Label>رقم العملية</Label>
+                    <Input
+                      value={paymentTransferRef}
+                      onChange={e => setPaymentTransferRef(e.target.value)}
+                      placeholder="أدخل رقم العملية البنكية"
+                      required
+                    />
+                  </div>
+                )}
+
                 <div className="space-y-1.5">
                   <Label>ملاحظات وسند المقبوضات</Label>
-                  <Input value={paymentNotes} onChange={e => setPaymentNotes(e.target.value)} placeholder="تفاصيل الإيداع أو رقم التحويل" />
+                  <Input value={paymentNotes} onChange={e => setPaymentNotes(e.target.value)} placeholder="تفاصيل إضافية (اختياري)" />
                 </div>
 
                 <div className="flex gap-3 pt-3 justify-end">
