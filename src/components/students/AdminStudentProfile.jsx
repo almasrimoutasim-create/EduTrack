@@ -1068,7 +1068,7 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
                             </div>
                             <div className="flex justify-between items-center">
                               <span className="text-stone-500 font-semibold">{isRTL ? "تاريخ الميلاد:" : "Date of Birth:"}</span>
-                              <span className="font-bold text-stone-700 num-en">{student.date_of_birth ? student.date_of_birth.substring(0, 10) : "-"}</span>
+                              <span className="font-bold text-stone-700 num-en">{student.date_of_birth ? student.date_of_birth.substring(0, 10).replaceAll("-", "/") : "-"}</span>
                             </div>
                             <div className="flex justify-between items-center">
                               <span className="text-stone-500 font-semibold">{isRTL ? "المسار:" : "Track:"}</span>
@@ -1884,7 +1884,7 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
               </div>
               <div>
                 <span className="text-slate-400 block text-[9px] font-bold uppercase">{isRTL ? "تاريخ الميلاد" : "Date of Birth"}</span>
-                <span className="font-bold text-slate-800 num-en">{student.date_of_birth ? student.date_of_birth.substring(0, 10) : "-"}</span>
+                <span className="font-bold text-slate-800 num-en">{student.date_of_birth ? student.date_of_birth.substring(0, 10).replaceAll("-", "/") : "-"}</span>
               </div>
             </div>
           </div>

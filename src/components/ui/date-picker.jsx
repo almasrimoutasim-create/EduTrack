@@ -44,7 +44,7 @@ class DatePickerErrorBoundary extends React.Component {
 
 // 1. Full Date Picker Component (based on react-tailwindcss-datepicker)
 export function DatePicker(props) {
-  const { value, onChange, className, disabled, placeholder = "اختر تاريخاً" } = props;
+  const { value, onChange, className, disabled, placeholder = "اختر تاريخاً", displayFormat = "YYYY/MM/DD" } = props;
   
   // Format the date properly for react-tailwindcss-datepicker.
   // It expects { startDate, endDate }, which can be strings (YYYY-MM-DD), Date objects, or null.
@@ -68,7 +68,7 @@ export function DatePicker(props) {
           disabled={disabled}
           placeholder={placeholder}
           i18n="ar"
-          displayFormat={"YYYY-MM-DD"}
+          displayFormat={displayFormat}
           inputClassName="w-full bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-xl h-11 text-sm font-medium focus:ring-2 focus:ring-primary/20 transition-all rtl:pr-10 ltr:pl-10 text-right"
           toggleClassName="absolute right-0 h-full px-3 text-stone-400 focus:outline-none disabled:opacity-40 disabled:cursor-not-allowed"
         />
