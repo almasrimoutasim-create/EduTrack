@@ -108,6 +108,19 @@ export default function StudentFormDialog({ open, onClose, student }) {
       if (payload.date_of_birth === "") {
         payload.date_of_birth = null;
       }
+      // الأعمدة الصحيحة في قاعدة البيانات ترفض السلسلة الفارغة — نحوّلها إلى null/0
+      if (payload.sibling_order === "" || payload.sibling_order === undefined) {
+        payload.sibling_order = null;
+      } else {
+        const n = parseInt(payload.sibling_order, 10);
+        payload.sibling_order = isNaN(n) ? null : n;
+      }
+      if (payload.siblings_count === "" || payload.siblings_count === undefined) {
+        payload.siblings_count = 0;
+      } else {
+        const n = parseInt(payload.siblings_count, 10);
+        payload.siblings_count = isNaN(n) ? 0 : n;
+      }
 
       if (isEdit) {
         await entities.Student.update(student.id, payload);

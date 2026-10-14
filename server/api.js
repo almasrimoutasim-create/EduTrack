@@ -5305,6 +5305,14 @@ WHERE email = $10`,
               body[col] = null;
             }
           }
+          // Sanitize: convert empty strings for INTEGER columns (Postgres يرفض "" للأعمدة الصحيحة)
+          if (table === 'students') {
+            for (const col of ['siblings_count', 'sibling_order']) {
+              if (body[col] !== undefined && body[col] === '') {
+                body[col] = col === 'siblings_count' ? 0 : null;
+              }
+            }
+          }
 
           const keys = Object.keys(body).filter(k => body[k] !== undefined && sanitizeColumn(k));
           if (keys.length === 0) {
@@ -5383,6 +5391,14 @@ WHERE email = $10`,
           for (const col of UUID_COLUMNS) {
             if (body[col] !== undefined && body[col] === '') {
               body[col] = null;
+            }
+          }
+          // Sanitize: convert empty strings for INTEGER columns (Postgres يرفض "" للأعمدة الصحيحة)
+          if (table === 'students') {
+            for (const col of ['siblings_count', 'sibling_order']) {
+              if (body[col] !== undefined && body[col] === '') {
+                body[col] = col === 'siblings_count' ? 0 : null;
+              }
             }
           }
 
