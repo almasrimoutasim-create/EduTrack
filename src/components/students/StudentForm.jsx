@@ -76,6 +76,9 @@ export default function StudentForm({ student, onClose }) {
   const buildNewStudentForm = () => ({
     full_name: "", student_id: resolveNextStudentId(), user_email: "", portal_password: "", parent_password: "", grade: "1", section: "A",
     date_of_birth: "", parent_name: "", parent_phone: "", parent_email: "",
+    father_occupation: "", father_workplace: "",
+    mother_name: "", mother_occupation: "", mother_workplace: "", mother_phone: "",
+    siblings_count: 0, siblings_classes: "",
     address: "", card_balance: 0, bus_registered: false, bus_route: "", status: "active", photo_url: "",
     tuition_total: 0, tuition_paid: 0,
     has_chronic_conditions: false, chronic_conditions_details: "",
@@ -101,6 +104,14 @@ export default function StudentForm({ student, onClose }) {
     if (student) {
       setForm({
         ...student,
+        father_occupation: student.father_occupation || "",
+        father_workplace: student.father_workplace || "",
+        mother_name: student.mother_name || "",
+        mother_occupation: student.mother_occupation || "",
+        mother_workplace: student.mother_workplace || "",
+        mother_phone: student.mother_phone || "",
+        siblings_count: student.siblings_count ?? 0,
+        siblings_classes: student.siblings_classes || "",
         has_chronic_conditions: student.has_chronic_conditions || false,
         chronic_conditions_details: student.chronic_conditions_details || "",
         has_surgeries: student.has_surgeries || false,
@@ -345,6 +356,15 @@ gradeItem: (g) => {
     parentName: isRTL ? "اسم ولي الأمر" : "Parent Name",
     parentPhone: isRTL ? "رقم هاتف ولي الأمر" : "Parent Phone",
     parentEmail: isRTL ? "البريد الإلكتروني لولي الأمر" : "Parent Email",
+    fatherOccupation: isRTL ? "مهنة الوالد" : "Father's Occupation",
+    fatherWorkplace: isRTL ? "مكان عمل الوالد" : "Father's Workplace",
+    motherName: isRTL ? "اسم الوالدة" : "Mother's Name",
+    motherOccupation: isRTL ? "مهنة الوالدة" : "Mother's Occupation",
+    motherWorkplace: isRTL ? "مكان عمل الوالدة" : "Mother's Workplace",
+    motherPhone: isRTL ? "رقم هاتف الوالدة" : "Mother's Phone",
+    siblingsSection: isRTL ? "الإخوة في المدرسة" : "Siblings in School",
+    siblingsCount: isRTL ? "عددهم" : "Number of Siblings",
+    siblingsClasses: isRTL ? "فصولهم" : "Their Classes",
     address: isRTL ? "العنوان السكني" : "Residential Address",
     cardBalance: isRTL ? "رصيد البطاقة المدرسية ($)" : "School Card Balance ($)",
     status: isRTL ? "الحالة الدراسية" : "Academic Status",
@@ -894,6 +914,98 @@ placeholder="رقم الهاتف مع مفتاح الدولة"
                   className={`rounded-xl border-stone-200 h-11 focus-visible:ring-primary/20 ${isRTL ? 'pr-10' : 'pl-10'}`}
                   placeholder={isRTL ? "الشارع، المنطقة، المدينة" : "e.g. Sheikh Zayed Road, Dubai"} 
                 />
+              </div>
+            </div>
+
+            {/* بيانات الوالد المهنية */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3 border-t border-stone-100">
+              <div className="space-y-1.5 pt-3">
+                <Label className="text-stone-700 font-bold text-xs">{t.fatherOccupation}</Label>
+                <Input
+                  value={form.father_occupation || ""}
+                  onChange={e => update("father_occupation", e.target.value)}
+                  className="rounded-xl border-stone-200 h-11 focus-visible:ring-primary/20"
+                  placeholder={isRTL ? "مثال: مهندس، طبيب، تاجر..." : "e.g. Engineer, Doctor..."}
+                />
+              </div>
+              <div className="space-y-1.5 pt-3">
+                <Label className="text-stone-700 font-bold text-xs">{t.fatherWorkplace}</Label>
+                <Input
+                  value={form.father_workplace || ""}
+                  onChange={e => update("father_workplace", e.target.value)}
+                  className="rounded-xl border-stone-200 h-11 focus-visible:ring-primary/20"
+                  placeholder={isRTL ? "مثال: شركة النيل، مستشفى..." : "e.g. Company name..."}
+                />
+              </div>
+            </div>
+
+            {/* بيانات الوالدة */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label className="text-stone-700 font-bold text-xs">{t.motherName}</Label>
+                <Input
+                  value={form.mother_name || ""}
+                  onChange={e => update("mother_name", e.target.value)}
+                  className="rounded-xl border-stone-200 h-11 focus-visible:ring-primary/20"
+                  placeholder={isRTL ? "اسم الوالدة الثلاثي" : "Mother's full name"}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-stone-700 font-bold text-xs">{t.motherPhone}</Label>
+                <div className="relative">
+                  <Phone className={`absolute ${isRTL ? 'right-3.5' : 'left-3.5'} top-1/2 -translate-y-1/2 text-stone-400`} size={16} />
+                  <Input
+                    value={form.mother_phone || ""}
+                    onChange={e => update("mother_phone", e.target.value)}
+                    className={`rounded-xl border-stone-200 h-11 focus-visible:ring-primary/20 num-en ${isRTL ? 'pr-10' : 'pl-10'}`}
+                    placeholder={isRTL ? "رقم الهاتف مع مفتاح الدولة" : "Phone with country code"}
+                  />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-stone-700 font-bold text-xs">{t.motherOccupation}</Label>
+                <Input
+                  value={form.mother_occupation || ""}
+                  onChange={e => update("mother_occupation", e.target.value)}
+                  className="rounded-xl border-stone-200 h-11 focus-visible:ring-primary/20"
+                  placeholder={isRTL ? "مثال: معلمة، طبيبة، ربة منزل..." : "e.g. Teacher..."}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-stone-700 font-bold text-xs">{t.motherWorkplace}</Label>
+                <Input
+                  value={form.mother_workplace || ""}
+                  onChange={e => update("mother_workplace", e.target.value)}
+                  className="rounded-xl border-stone-200 h-11 focus-visible:ring-primary/20"
+                  placeholder={isRTL ? "مكان العمل" : "Workplace"}
+                />
+              </div>
+            </div>
+
+            {/* الإخوة في المدرسة */}
+            <div className="pt-3 border-t border-stone-100 space-y-4">
+              <h4 className="text-xs font-bold text-stone-500">{t.siblingsSection}</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-stone-700 font-bold text-xs">{t.siblingsCount}</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={form.siblings_count ?? 0}
+                    onChange={e => update("siblings_count", parseInt(e.target.value) || 0)}
+                    className="rounded-xl border-stone-200 h-11 focus-visible:ring-primary/20 num-en"
+                    placeholder="0"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-stone-700 font-bold text-xs">{t.siblingsClasses}</Label>
+                  <Input
+                    value={form.siblings_classes || ""}
+                    onChange={e => update("siblings_classes", e.target.value)}
+                    className="rounded-xl border-stone-200 h-11 focus-visible:ring-primary/20"
+                    placeholder={isRTL ? "مثال: الصف 3 - أ، الصف 5 - ب" : "e.g. Grade 3-A, Grade 5-B"}
+                  />
+                </div>
               </div>
             </div>
 

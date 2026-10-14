@@ -1097,6 +1097,38 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
                               <span className="text-stone-500 font-semibold">{isRTL ? "العنوان الفعلي:" : "Residential Address:"}</span>
                               <span className="font-semibold text-stone-700 truncate max-w-[200px]" title={student.address}>{student.address || "-"}</span>
                             </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-stone-500 font-semibold">{isRTL ? "مهنة الوالد:" : "Father's Occupation:"}</span>
+                              <span className="font-bold text-stone-700">{student.father_occupation || "-"}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-stone-500 font-semibold">{isRTL ? "مكان عمل الوالد:" : "Father's Workplace:"}</span>
+                              <span className="font-bold text-stone-700">{student.father_workplace || "-"}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-stone-500 font-semibold">{isRTL ? "اسم الوالدة:" : "Mother's Name:"}</span>
+                              <span className="font-bold text-stone-700">{student.mother_name || "-"}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-stone-500 font-semibold">{isRTL ? "مهنة الوالدة:" : "Mother's Occupation:"}</span>
+                              <span className="font-bold text-stone-700">{student.mother_occupation || "-"}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-stone-500 font-semibold">{isRTL ? "مكان عمل الوالدة:" : "Mother's Workplace:"}</span>
+                              <span className="font-bold text-stone-700">{student.mother_workplace || "-"}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-stone-500 font-semibold">{isRTL ? "رقم هاتف الوالدة:" : "Mother's Phone:"}</span>
+                              <span className="font-bold text-stone-700 num-en">{student.mother_phone || "-"}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-stone-500 font-semibold">{isRTL ? "الإخوة في المدرسة (العدد):" : "Siblings in School:"}</span>
+                              <span className="font-bold text-stone-700 num-en">{student.siblings_count ?? 0}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-stone-500 font-semibold">{isRTL ? "فصول الإخوة:" : "Siblings' Classes:"}</span>
+                              <span className="font-bold text-stone-700">{student.siblings_classes || "-"}</span>
+                            </div>
                           </div>
                         </div>
                       </div>

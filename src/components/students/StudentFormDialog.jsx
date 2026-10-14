@@ -60,6 +60,9 @@ export default function StudentFormDialog({ open, onClose, student }) {
   const [form, setForm] = useState(student || {
     full_name: "", student_id: "", user_email: "", portal_password: "", parent_password: "", grade: "1", section: "أبو بكر",
     date_of_birth: "", parent_name: "", parent_phone: "", parent_email: "",
+    father_occupation: "", father_workplace: "",
+    mother_name: "", mother_occupation: "", mother_workplace: "", mother_phone: "",
+    siblings_count: 0, siblings_classes: "",
     address: "", card_balance: 0, bus_registered: false, bus_route: "", status: "active"
   });
 
@@ -78,6 +81,9 @@ export default function StudentFormDialog({ open, onClose, student }) {
       setForm({
         full_name: "", student_id: "", user_email: "", portal_password: "", parent_password: "", grade: "1", section: "أبو بكر",
         date_of_birth: "", parent_name: "", parent_phone: "", parent_email: "",
+        father_occupation: "", father_workplace: "",
+        mother_name: "", mother_occupation: "", mother_workplace: "", mother_phone: "",
+        siblings_count: 0, siblings_classes: "",
         address: "", card_balance: 0, bus_registered: false, bus_route: "", status: "active"
       });
       generateNextStudentId().then(id => {
@@ -129,6 +135,15 @@ export default function StudentFormDialog({ open, onClose, student }) {
     parentName: isRTL ? "اسم ولي الأمر" : "Parent Name",
     parentPhone: isRTL ? "رقم هاتف ولي الأمر" : "Parent Phone",
     parentEmail: isRTL ? "البريد الإلكتروني لولي الأمر" : "Parent Email",
+    fatherOccupation: isRTL ? "مهنة الوالد" : "Father's Occupation",
+    fatherWorkplace: isRTL ? "مكان عمل الوالد" : "Father's Workplace",
+    motherName: isRTL ? "اسم الوالدة" : "Mother's Name",
+    motherOccupation: isRTL ? "مهنة الوالدة" : "Mother's Occupation",
+    motherWorkplace: isRTL ? "مكان عمل الوالدة" : "Mother's Workplace",
+    motherPhone: isRTL ? "رقم هاتف الوالدة" : "Mother's Phone",
+    siblingsSection: isRTL ? "الإخوة في المدرسة" : "Siblings in School",
+    siblingsCount: isRTL ? "عددهم" : "Number",
+    siblingsClasses: isRTL ? "فصولهم" : "Their Classes",
     address: isRTL ? "العنوان" : "Address",
     cardBalance: isRTL ? "رصيد البطاقة ($)" : "Card Balance ($)",
     status: isRTL ? "الحالة" : "Status",
@@ -224,7 +239,7 @@ export default function StudentFormDialog({ open, onClose, student }) {
                 value={form.parent_name} 
                 onChange={e => update("parent_name", e.target.value)} 
                 className="mt-1 rounded-lg border-stone-200"
-                placeholder={isRTL ? "اسم ولي الأمر الكامل" : "e.g. Omar Khalid"} 
+                placeholder={isRTL ? "اسم ولي الأمر الثلاثي" : "e.g. Omar Khalid"} 
               />
             </div>
             <div>
@@ -295,8 +310,85 @@ placeholder="رقم الهاتف مع مفتاح الدولة"
               value={form.address} 
               onChange={e => update("address", e.target.value)} 
               className="mt-1 rounded-lg border-stone-200"
-              placeholder={isRTL ? "مثال: دبي، شارع الشيخ زايد" : "e.g. Dubai, Sheikh Zayed Rd"} 
+              placeholder={isRTL ? "الشارع، المنطقة، المدينة" : "e.g. Dubai, Sheikh Zayed Rd"} 
             />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label className="text-stone-700 font-medium">{t.fatherOccupation}</Label>
+              <Input
+                value={form.father_occupation || ""}
+                onChange={e => update("father_occupation", e.target.value)}
+                className="mt-1 rounded-lg border-stone-200"
+                placeholder={isRTL ? "مثال: مهندس، طبيب..." : "e.g. Engineer..."}
+              />
+            </div>
+            <div>
+              <Label className="text-stone-700 font-medium">{t.fatherWorkplace}</Label>
+              <Input
+                value={form.father_workplace || ""}
+                onChange={e => update("father_workplace", e.target.value)}
+                className="mt-1 rounded-lg border-stone-200"
+                placeholder={isRTL ? "مكان العمل" : "Workplace"}
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label className="text-stone-700 font-medium">{t.motherName}</Label>
+              <Input
+                value={form.mother_name || ""}
+                onChange={e => update("mother_name", e.target.value)}
+                className="mt-1 rounded-lg border-stone-200"
+                placeholder={isRTL ? "اسم الوالدة" : "Mother's name"}
+              />
+            </div>
+            <div>
+              <Label className="text-stone-700 font-medium">{t.motherPhone}</Label>
+              <Input
+                value={form.mother_phone || ""}
+                onChange={e => update("mother_phone", e.target.value)}
+                className="mt-1 rounded-lg border-stone-200 num-en"
+                placeholder={isRTL ? "رقم الهاتف مع مفتاح الدولة" : "Phone with country code"}
+              />
+            </div>
+            <div>
+              <Label className="text-stone-700 font-medium">{t.motherOccupation}</Label>
+              <Input
+                value={form.mother_occupation || ""}
+                onChange={e => update("mother_occupation", e.target.value)}
+                className="mt-1 rounded-lg border-stone-200"
+                placeholder={isRTL ? "مهنة الوالدة" : "Mother's occupation"}
+              />
+            </div>
+            <div>
+              <Label className="text-stone-700 font-medium">{t.motherWorkplace}</Label>
+              <Input
+                value={form.mother_workplace || ""}
+                onChange={e => update("mother_workplace", e.target.value)}
+                className="mt-1 rounded-lg border-stone-200"
+                placeholder={isRTL ? "مكان العمل" : "Workplace"}
+              />
+            </div>
+          </div>
+          <div>
+            <Label className="text-stone-700 font-medium">{t.siblingsSection}</Label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-1">
+              <Input
+                type="number"
+                min="0"
+                value={form.siblings_count ?? 0}
+                onChange={e => update("siblings_count", parseInt(e.target.value) || 0)}
+                className="rounded-lg border-stone-200 num-en"
+                placeholder={t.siblingsCount}
+              />
+              <Input
+                value={form.siblings_classes || ""}
+                onChange={e => update("siblings_classes", e.target.value)}
+                className="rounded-lg border-stone-200"
+                placeholder={t.siblingsClasses}
+              />
+            </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>

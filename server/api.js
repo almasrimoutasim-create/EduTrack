@@ -1170,6 +1170,15 @@ if (process.env.DATABASE_URL) {
   sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS section TEXT;`.catch(() => {});
   sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS date_of_birth DATE;`.catch(() => {});
   sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS address TEXT;`.catch(() => {});
+  // Migration: extended parent/guardian details (مهنة الوالد، بيانات الوالدة، الإخوة)
+  sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS father_occupation TEXT;`.catch(() => {});
+  sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS father_workplace TEXT;`.catch(() => {});
+  sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS mother_name TEXT;`.catch(() => {});
+  sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS mother_occupation TEXT;`.catch(() => {});
+  sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS mother_workplace TEXT;`.catch(() => {});
+  sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS mother_phone TEXT;`.catch(() => {});
+  sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS siblings_count INTEGER DEFAULT 0;`.catch(() => {});
+  sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS siblings_classes TEXT;`.catch(() => {});
   // Migration: student dashboard profile extras (avatar + gamification cache)
   sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS profile_image TEXT;`.catch(() => {});
   sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS avatar_url TEXT;`.catch(() => {});
