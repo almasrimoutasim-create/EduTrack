@@ -53,6 +53,7 @@ export default function Gateway() {
   const [schoolData, setSchoolData] = useState(null);
   const [loadingSchool, setLoadingSchool] = useState(Boolean(slug));
   const [schoolError, setSchoolError] = useState(null);
+  const [serverDown, setServerDown] = useState(false);
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -156,6 +157,7 @@ export default function Gateway() {
     let isMounted = true;
     setLoadingSchool(true);
     setSchoolError(null);
+    setServerDown(false);
 
     const apiBase = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/$/, "");
 
@@ -189,6 +191,11 @@ export default function Gateway() {
         .then(async (res) => {
           const data = await res.json().catch(() => ({}));
           if (!res.ok) {
+            if (res.status >= 500) {
+              const err = new Error(data.error || "Server error");
+              err.isServerDown = true;
+              throw err;
+            }
             throw new Error(data.error || (isRTL ? "المدرسة غير مسجلة أو الرابط غير صالح" : "School not found"));
           }
           return data;
@@ -210,7 +217,12 @@ export default function Gateway() {
         })
         .catch((err) => {
           if (isMounted) {
-            setSchoolError(err.message || (isRTL ? "تعذر جلب بيانات المدرسة" : "Failed to load school"));
+            // فشل الاتصال بالخادم (شبكة/سيرفر متوقف) ≠ مدرسة غير موجودة
+            const unreachable = err?.isServerDown || err instanceof TypeError;
+            setServerDown(unreachable);
+            setSchoolError(unreachable
+              ? (isRTL ? "تعذر الاتصال بخادم المنصة. تحقق من الاتصال وحاول مجدداً." : "Cannot reach the platform server. Check your connection and retry.")
+              : (err.message || (isRTL ? "تعذر جلب بيانات المدرسة" : "Failed to load school")));
             setLoadingSchool(false);
           }
         });
@@ -407,18 +419,32 @@ export default function Gateway() {
             </div>
 
             <h2 className="text-xl font-black text-stone-900 mb-2">
-              {isRTL ? "المدرسة غير موجودة أو الرابط غير صالح" : "School Gateway Not Found"}
+              {serverDown
+                ? (isRTL ? "الخادم غير متاح حالياً" : "Server Unavailable")
+                : (isRTL ? "المدرسة غير موجودة أو الرابط غير صالح" : "School Gateway Not Found")}
             </h2>
             <p className="text-xs text-stone-500 mb-2 font-mono bg-stone-100 py-1.5 px-3 rounded-lg inline-block" dir="ltr">
               /gateway/{schoolSlug}
             </p>
             <p className="text-stone-600 text-xs leading-relaxed mb-6">
-              {isRTL
-                ? "لم نتمكن من العثور على مدرسة مسجلة بهذا الرابط. يرجى مراجعة الرابط الذي وصلكم من إدارة منصة EduTrack أو التواصل مع الدعم الفني."
-                : "We could not find an active school with this gateway link. Please check the URL or contact EduTrack support."}
+              {serverDown
+                ? (isRTL
+                  ? "تعذر الاتصال بخادم المنصة (قد تكون الخدمة متوقفة مؤقتاً). تحقق من اتصالك بالإنترنت ثم أعد المحاولة، أو تواصل مع الدعم الفني."
+                  : "Could not reach the platform server (it may be temporarily down). Check your connection, retry, or contact support.")
+                : (isRTL
+                  ? "لم نتمكن من العثور على مدرسة مسجلة بهذا الرابط. يرجى مراجعة الرابط الذي وصلكم من إدارة منصة EduTrack أو التواصل مع الدعم الفني."
+                  : "We could not find an active school with this gateway link. Please check the URL or contact EduTrack support.")}
             </p>
 
             <div className="space-y-2">
+              {serverDown && (
+                <button
+                  onClick={() => window.location.reload()}
+                  className="w-full h-12 rounded-xl bg-emerald-600 text-white font-bold text-xs hover:bg-emerald-700 inline-flex items-center justify-center gap-2 shadow-md cursor-pointer"
+                >
+                  {isRTL ? "إعادة المحاولة" : "Retry"}
+                </button>
+              )}
               <Link
                 to="/register"
                 className="w-full h-12 rounded-xl bg-stone-900 text-white font-bold text-xs hover:bg-black inline-flex items-center justify-center gap-2 shadow-md"

@@ -25,8 +25,8 @@ export default function FinancialRecordFormDialog({ open, onClose, record, prefi
   };
 
   const getInitialForm = () => {
-    if (record) return record;
-    if (prefill) return { ...defaultForm, ...prefill };
+    if (record) return { ...defaultForm, ...record, reference_no: record.reference_no || record.transfer_reference || "" };
+    if (prefill) return { ...defaultForm, ...prefill, reference_no: prefill.reference_no || prefill.transfer_reference || "" };
     return defaultForm;
   };
 
@@ -48,9 +48,12 @@ export default function FinancialRecordFormDialog({ open, onClose, record, prefi
       let res;
       // Derive the required database 'type' column (income vs expense)
       const derivedType = (form.record_type === "income" || form.record_type === "fine_payment" || form.record_type === "tuition") ? "income" : "expense";
+      const refVal = (form.reference_no || form.transfer_reference || "").trim();
       
       // Clean payload: send only fields that belong to the database schema
       // Strips read-only fields like _type, created_date, and id to prevent neon postgres validation failures.
+      // NOTE: reference_no + transfer_reference are kept in sync so the value
+      // appears regardless of which column the UI/backend reads.
       const payload = {
         record_type: form.record_type,
         recipient_type: form.recipient_type,
@@ -61,7 +64,8 @@ export default function FinancialRecordFormDialog({ open, onClose, record, prefi
         payment_method: form.payment_method,
         status: form.status,
         payment_date: form.payment_date,
-        reference_no: form.reference_no || "",
+        reference_no: refVal,
+        transfer_reference: refVal,
         description: form.description || "",
         notes: form.notes || "",
         type: derivedType
@@ -208,7 +212,7 @@ export default function FinancialRecordFormDialog({ open, onClose, record, prefi
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label className="text-stone-600 dark:text-stone-400 font-bold text-xs block mb-1.5">{t.paymentMethod}</Label>
-              <Select value={form.payment_method} onValueChange={v => { update("payment_method", v); if (v !== "bank_transfer") update("reference_no", ""); }}>
+              <Select value={form.payment_method} onValueChange={v => { update("payment_method", v); }}>
                 <SelectTrigger className="h-11 rounded-xl border-stone-200 bg-white dark:bg-stone-900 focus:ring-primary/20 font-semibold transition-all"><SelectValue /></SelectTrigger>
                 <SelectContent className="rounded-xl">
                   {paymentMethods.map(p => <SelectItem key={p.value} value={p.value} className="font-semibold">{p.label}</SelectItem>)}
@@ -234,9 +238,9 @@ export default function FinancialRecordFormDialog({ open, onClose, record, prefi
                 className="num-en border-stone-200"
               />
             </div>
-            {form.payment_method === "bank_transfer" && (
+            {(
               <div className="space-y-1.5">
-                <Label className="text-stone-600 dark:text-stone-400 font-bold text-xs block mb-1.5">{t.referenceNo} *</Label>
+                <Label className="text-stone-600 dark:text-stone-400 font-bold text-xs block mb-1.5">{t.referenceNo} {form.payment_method === "bank_transfer" ? "*" : (isRTL ? "(اختياري)" : "(optional)")}</Label>
                 <Input 
                   value={form.reference_no || ""} 
                   onChange={e => update("reference_no", e.target.value)} 

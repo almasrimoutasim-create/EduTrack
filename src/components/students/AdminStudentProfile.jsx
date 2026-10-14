@@ -529,6 +529,7 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
             : `Tuition Fee Payment - ${studentFees.find(f => f.id === p.student_fee_id)?.fee_name || "Payment"}`,
           amount: parseFloat(p.amount) || 0,
           method: getPaymentMethodLabel(p.payment_method),
+          ref: p.transfer_reference || "",
           status: "completed"
         })),
         ...walletTx.map(t => ({
@@ -539,6 +540,7 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
             : (isRTL ? "مشتريات المتجر" : "Store Purchase"),
           amount: parseFloat(t.amount) || 0,
           method: getPaymentMethodLabel(t.payment_method || "bank_transfer"),
+          ref: t.transfer_reference || "",
           status: "completed"
         })),
         ...dbFinancialRecords.map(r => ({
@@ -547,6 +549,7 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
           type: getRecordTypeLabel(r),
           amount: parseFloat(r.amount) || 0,
           method: getPaymentMethodLabel(r.payment_method),
+          ref: r.transfer_reference || r.reference_no || "",
           status: r.status || "completed"
         }))
       ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -587,6 +590,7 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
               student_id: student.id,
               amount: Math.min(studentAmount, parseFloat(targetFee.remaining || targetFee.amount)),
               payment_method: newRecord.payment_method || "bank_transfer",
+              transfer_reference: newRecord.transfer_reference || newRecord.reference_no || undefined,
               notes: desc || "تسجيل دفعة من لوحة الإدارة"
             });
           }
@@ -690,8 +694,9 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
             student_id: student.id,
             amount: Math.min(amount, Math.max(0, remainingVal)),
             payment_method: "bank_transfer",
+            transfer_reference: rec.transfer_reference || rec.reference_no || undefined,
             paid_by: user?.id,
-            notes: `اعتماد إيصال مرفوع من ولي الأمر — ${rec.transfer_reference || rec.receipt_filename || ""}`.trim()
+            notes: `اعتماد إيصال مرفوع من ولي الأمر — ${rec.transfer_reference || rec.reference_no || rec.receipt_filename || ""}`.trim()
           });
         }
       }
@@ -1344,6 +1349,7 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
                               <th className="py-2.5 px-3 text-start">{isRTL ? "نوع المعاملة" : "Transaction Type"}</th>
                               <th className="py-2.5 px-3 text-center">{isRTL ? "المبلغ" : "Amount"}</th>
                               <th className="py-2.5 px-3 text-start">{isRTL ? "طريقة الدفع" : "Payment Method"}</th>
+                              <th className="py-2.5 px-3 text-start">{isRTL ? "رقم العملية" : "Reference No."}</th>
                               <th className="py-2.5 px-3 text-center">{isRTL ? "الحالة" : "Status"}</th>
                             </tr>
                           </thead>
@@ -1354,6 +1360,7 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
                                 <td className="py-3 px-3 font-bold text-stone-800">{t.type}</td>
                                 <td className="py-3 px-3 text-center font-bold text-stone-900 num-en">${t.amount.toFixed(2)}</td>
                                 <td className="py-3 px-3 text-stone-600 text-xs">{t.method}</td>
+                                <td className="py-3 px-3 text-stone-800 text-xs font-mono num-en">{t.ref || "—"}</td>
                                 <td className="py-3 px-3 text-center">
                                   <Badge className={`border-none shadow-none font-bold rounded ${
                                     t.status === "pending" ? "bg-amber-500/15 text-amber-700" :
@@ -1955,6 +1962,7 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
                 <th className="py-2 px-2 text-start">{isRTL ? "نوع المعاملة والبيان" : "Description"}</th>
                 <th className="py-2 px-2 text-center">{isRTL ? "المبلغ المالي" : "Amount"}</th>
                 <th className="py-2 px-2 text-start">{isRTL ? "طريقة السداد" : "Method"}</th>
+                <th className="py-2 px-2 text-start">{isRTL ? "رقم العملية" : "Reference No."}</th>
                 <th className="py-2 px-2 text-center">{isRTL ? "حالة الدفع" : "Status"}</th>
               </tr>
             </thead>
@@ -1965,6 +1973,7 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
                   <td className="py-2 px-2 font-extrabold text-slate-800">{t.type}</td>
                   <td className="py-2 px-2 text-center font-bold num-en">${t.amount.toFixed(2)}</td>
                   <td className="py-2 px-2 text-slate-650">{t.method}</td>
+                  <td className="py-2 px-2 font-mono num-en">{t.ref || "—"}</td>
                   <td className="py-2 px-2 text-center text-emerald-600 font-bold">{isRTL ? "معتمد" : "Settled"}</td>
                 </tr>
               ))}

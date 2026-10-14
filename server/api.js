@@ -801,6 +801,7 @@ if (process.env.DATABASE_URL) {
   sql.query(`ALTER TABLE financial_records ADD COLUMN IF NOT EXISTS receipt_image TEXT`).catch(()=>{});
   sql.query(`ALTER TABLE financial_records ADD COLUMN IF NOT EXISTS receipt_filename TEXT`).catch(()=>{});
   sql.query(`ALTER TABLE financial_records ADD COLUMN IF NOT EXISTS transfer_reference TEXT`).catch(()=>{});
+  sql.query(`ALTER TABLE financial_records ADD COLUMN IF NOT EXISTS reference_no TEXT`).catch(()=>{});
 
   // Auto-create counseling_cases table
   sql`
@@ -2286,7 +2287,16 @@ export function createApiHandler() {
       res.setHeader('Content-Type', 'application/json');
       try {
         const rawSlug = req.url.replace(/^\/(neon-db|api)\/public-school\//, '').split('?')[0];
-        const slug = decodeURIComponent(rawSlug).trim();
+        // فك الترميز حتى الاستقرار (البروكسيات قد ترمّز الرابط العربي مرتين)
+        let slug = rawSlug.trim();
+        for (let i = 0; i < 3; i++) {
+          try {
+            const decoded = decodeURIComponent(slug);
+            if (decoded === slug) break;
+            slug = decoded;
+          } catch { break; }
+        }
+        slug = slug.trim();
         if (!slug) {
           res.statusCode = 400;
           return res.end(JSON.stringify({ error: 'Slug is required' }));

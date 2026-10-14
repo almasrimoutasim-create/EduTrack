@@ -387,8 +387,9 @@ export default function Finance() {
             student_id: st.id,
             amount: Math.min(amount, Math.max(0, remainingVal)),
             payment_method: 'bank_transfer',
+            transfer_reference: rec.transfer_reference || rec.reference_no || undefined,
             paid_by: user?.id,
-            notes: `اعتماد إيصال مرفوع من ولي الأمر — ${rec.transfer_reference || rec.receipt_filename || ''}`.trim()
+            notes: `اعتماد إيصال مرفوع من ولي الأمر — ${rec.transfer_reference || rec.reference_no || rec.receipt_filename || ''}`.trim()
           });
         }
       }
@@ -480,15 +481,21 @@ export default function Finance() {
 
   const printStudentStatement = (student) => {
     const sFees = studentFees.filter(f => f.student_id === student.id);
-    const rows = sFees.map(f => [
-      f.fee_name,
-      `$${parseFloat(f.amount).toFixed(2)}`,
-      `$${parseFloat(f.amount_paid || 0).toFixed(2)}`,
-      `$${parseFloat(f.remaining || 0).toFixed(2)}`,
-      { paid: 'مسدد', partial: 'جزئي', pending: 'معلق', overdue: 'متأخر' }[f.status] || f.status,
-      f.due_date
-    ]);
-    printReport(`كشف حساب الطالب: ${student.full_name}`, `الصف: ${student.grade || 'غير محدد'}`, ['البند', 'المبلغ الكلي', 'المدفوع', 'المتبقي', 'الحالة', 'تاريخ الاستحقاق'], rows);
+    const sPayments = feePayments.filter(p => String(p.student_id) === String(student.id));
+    const rows = sFees.map(f => {
+      const pay = sPayments.filter(p => String(p.student_fee_id) === String(f.id));
+      const opNos = [...new Set(pay.map(p => p.transfer_reference).filter(Boolean))].join("، ") || "—";
+      return [
+        f.fee_name,
+        `$${parseFloat(f.amount).toFixed(2)}`,
+        `$${parseFloat(f.amount_paid || 0).toFixed(2)}`,
+        `$${parseFloat(f.remaining || 0).toFixed(2)}`,
+        { paid: 'مسدد', partial: 'جزئي', pending: 'معلق', overdue: 'متأخر' }[f.status] || f.status,
+        opNos,
+        f.due_date
+      ];
+    });
+    printReport(`كشف حساب الطالب: ${student.full_name}`, `الصف: ${student.grade || 'غير محدد'}`, ['البند', 'المبلغ الكلي', 'المدفوع', 'المتبقي', 'الحالة', 'رقم العملية', 'تاريخ الاستحقاق'], rows);
   };
 
   // ── Tab 3: تسعيرة الصفوف ──────────────────────────────────────────────────
@@ -1326,6 +1333,45 @@ export default function Finance() {
             </table>
           </div>
 
+          {/* سجل المدفوعات الأخيرة — يعرض رقم العملية لكل دفعة */}
+          <div className="border-t border-stone-100 pt-5">
+            <h4 className="font-serif text-base font-bold text-stone-900 mb-1">سجل المدفوعات الأخيرة</h4>
+            <p className="text-[11px] text-stone-400 font-semibold mb-3">يعرض رقم العملية المدخل عند تسجيل كل دفعة (تحويل بنكي أو غيره)</p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-right border-collapse">
+                <thead>
+                  <tr className="border-b border-stone-100 text-stone-400 text-xs font-bold">
+                    <th className="pb-3">التاريخ</th>
+                    <th className="pb-3">الطالب</th>
+                    <th className="pb-3">البند</th>
+                    <th className="pb-3">المبلغ</th>
+                    <th className="pb-3">طريقة الدفع</th>
+                    <th className="pb-3">رقم العملية</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...feePayments].sort((a, b) => new Date(b.created_at || b.payment_date).getTime() - new Date(a.created_at || a.payment_date).getTime()).slice(0, 20).map(p => {
+                    const st = students.find(s => String(s.id) === String(p.student_id));
+                    const fee = studentFees.find(f => String(f.id) === String(p.student_fee_id));
+                    return (
+                      <tr key={p.id} className="border-b border-stone-50 text-sm hover:bg-stone-50/30">
+                        <td className="py-3 text-stone-500 num-en">{(p.created_at || p.payment_date || "").split("T")[0]}</td>
+                        <td className="py-3 font-bold text-stone-900">{st?.full_name || "—"}</td>
+                        <td className="py-3 text-stone-600">{fee?.fee_name || "—"}</td>
+                        <td className="py-3 num-en font-black">${parseFloat(p.amount || 0).toFixed(2)}</td>
+                        <td className="py-3 text-stone-500">{p.payment_method === "bank_transfer" ? "تحويل بنكي" : (p.payment_method || "—")}</td>
+                        <td className="py-3 num-en font-bold text-stone-800">{p.transfer_reference || "—"}</td>
+                      </tr>
+                    );
+                  })}
+                  {feePayments.length === 0 && (
+                    <tr><td colSpan={6} className="py-6 text-center text-stone-400 text-xs font-bold">لا توجد مدفوعات مسجلة بعد.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
           {/* Dialog: إضافة رسوم لطالب */}
           <Dialog open={addFeeOpen} onOpenChange={setAddFeeOpen}>
             <DialogContent className="max-w-md text-right">
@@ -1432,7 +1478,6 @@ export default function Finance() {
                     value={paymentMethod}
                     onChange={e => {
                       setPaymentMethod(e.target.value);
-                      if (e.target.value !== "bank_transfer") setPaymentTransferRef("");
                     }}
                     className="w-full bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 focus:outline-none"
                   >
@@ -1441,17 +1486,15 @@ export default function Finance() {
                   </select>
                 </div>
 
-                {paymentMethod === "bank_transfer" && (
-                  <div className="space-y-1.5">
-                    <Label>رقم العملية</Label>
+                <div className="space-y-1.5">
+                    <Label>رقم العملية {paymentMethod === "bank_transfer" ? "*" : "(اختياري)"}</Label>
                     <Input
                       value={paymentTransferRef}
                       onChange={e => setPaymentTransferRef(e.target.value)}
                       placeholder="أدخل رقم العملية البنكية"
-                      required
+                      required={paymentMethod === "bank_transfer"}
                     />
                   </div>
-                )}
 
                 <div className="space-y-1.5">
                   <Label>ملاحظات وسند المقبوضات</Label>
