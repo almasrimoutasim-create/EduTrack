@@ -62,7 +62,7 @@ export default function StudentFormDialog({ open, onClose, student }) {
     date_of_birth: "", parent_name: "", parent_phone: "", parent_email: "",
     father_occupation: "", father_workplace: "",
     mother_name: "", mother_occupation: "", mother_workplace: "", mother_phone: "",
-    siblings_count: 0, siblings_classes: "",
+    siblings_count: 0, siblings_classes: "", sibling_order: "", track: "",
     address: "", card_balance: 0, bus_registered: false, bus_route: "", status: "active"
   });
 
@@ -83,7 +83,7 @@ export default function StudentFormDialog({ open, onClose, student }) {
         date_of_birth: "", parent_name: "", parent_phone: "", parent_email: "",
         father_occupation: "", father_workplace: "",
         mother_name: "", mother_occupation: "", mother_workplace: "", mother_phone: "",
-        siblings_count: 0, siblings_classes: "",
+        siblings_count: 0, siblings_classes: "", sibling_order: "", track: "",
         address: "", card_balance: 0, bus_registered: false, bus_route: "", status: "active"
       });
       generateNextStudentId().then(id => {
@@ -144,6 +144,10 @@ export default function StudentFormDialog({ open, onClose, student }) {
     siblingsSection: isRTL ? "الإخوة في المدرسة" : "Siblings in School",
     siblingsCount: isRTL ? "عددهم" : "Number",
     siblingsClasses: isRTL ? "فصولهم" : "Their Classes",
+    siblingOrder: isRTL ? "ترتيب الطالب بين أشقائه" : "Birth Order Among Siblings",
+    track: isRTL ? "المسار" : "Track",
+    trackScience: isRTL ? "مسار علمي" : "Science Track",
+    trackLiterary: isRTL ? "مسار أدبي" : "Literary Track",
     address: isRTL ? "العنوان" : "Address",
     cardBalance: isRTL ? "رصيد البطاقة ($)" : "Card Balance ($)",
     status: isRTL ? "الحالة" : "Status",
@@ -231,6 +235,18 @@ export default function StudentFormDialog({ open, onClose, student }) {
                 className="mt-1 rounded-lg border-stone-200"
               />
             </div>
+          </div>
+          <div>
+            <Label className="text-stone-700 font-medium">{t.track}</Label>
+            <Select value={form.track || ""} onValueChange={v => update("track", v)}>
+              <SelectTrigger className="mt-1 rounded-lg border-stone-200 bg-white">
+                <SelectValue placeholder={isRTL ? "اختر المسار..." : "Select Track..."} />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl">
+                <SelectItem value="علمي" className="font-semibold">{t.trackScience}</SelectItem>
+                <SelectItem value="أدبي" className="font-semibold">{t.trackLiterary}</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -387,6 +403,14 @@ placeholder="رقم الهاتف مع مفتاح الدولة"
                 onChange={e => update("siblings_classes", e.target.value)}
                 className="rounded-lg border-stone-200"
                 placeholder={t.siblingsClasses}
+              />
+              <Input
+                type="number"
+                min="1"
+                value={form.sibling_order ?? ""}
+                onChange={e => update("sibling_order", e.target.value === "" ? "" : parseInt(e.target.value) || "")}
+                className="rounded-lg border-stone-200 num-en"
+                placeholder={t.siblingOrder}
               />
             </div>
           </div>

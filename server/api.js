@@ -1179,6 +1179,8 @@ if (process.env.DATABASE_URL) {
   sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS mother_phone TEXT;`.catch(() => {});
   sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS siblings_count INTEGER DEFAULT 0;`.catch(() => {});
   sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS siblings_classes TEXT;`.catch(() => {});
+  sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS sibling_order INTEGER;`.catch(() => {});
+  sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS track TEXT;`.catch(() => {});
   // Migration: student dashboard profile extras (avatar + gamification cache)
   sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS profile_image TEXT;`.catch(() => {});
   sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS avatar_url TEXT;`.catch(() => {});

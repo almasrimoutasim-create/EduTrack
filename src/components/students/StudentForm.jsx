@@ -78,7 +78,7 @@ export default function StudentForm({ student, onClose }) {
     date_of_birth: "", parent_name: "", parent_phone: "", parent_email: "",
     father_occupation: "", father_workplace: "",
     mother_name: "", mother_occupation: "", mother_workplace: "", mother_phone: "",
-    siblings_count: 0, siblings_classes: "",
+    siblings_count: 0, siblings_classes: "", sibling_order: "", track: "",
     address: "", card_balance: 0, bus_registered: false, bus_route: "", status: "active", photo_url: "",
     tuition_total: 0, tuition_paid: 0,
     has_chronic_conditions: false, chronic_conditions_details: "",
@@ -111,6 +111,8 @@ export default function StudentForm({ student, onClose }) {
         mother_workplace: student.mother_workplace || "",
         mother_phone: student.mother_phone || "",
         siblings_count: student.siblings_count ?? 0,
+        sibling_order: student.sibling_order ?? "",
+        track: student.track || "",
         siblings_classes: student.siblings_classes || "",
         has_chronic_conditions: student.has_chronic_conditions || false,
         chronic_conditions_details: student.chronic_conditions_details || "",
@@ -365,6 +367,10 @@ gradeItem: (g) => {
     siblingsSection: isRTL ? "الإخوة في المدرسة" : "Siblings in School",
     siblingsCount: isRTL ? "عددهم" : "Number of Siblings",
     siblingsClasses: isRTL ? "فصولهم" : "Their Classes",
+    siblingOrder: isRTL ? "ترتيب الطالب بين أشقائه" : "Birth Order Among Siblings",
+    track: isRTL ? "المسار" : "Track",
+    trackScience: isRTL ? "مسار علمي" : "Science Track",
+    trackLiterary: isRTL ? "مسار أدبي" : "Literary Track",
     address: isRTL ? "العنوان السكني" : "Residential Address",
     cardBalance: isRTL ? "رصيد البطاقة المدرسية ($)" : "School Card Balance ($)",
     status: isRTL ? "الحالة الدراسية" : "Academic Status",
@@ -631,6 +637,21 @@ gradeItem: (g) => {
                   onChange={val => update("date_of_birth", val)} 
                   className="rounded-xl border-stone-200 h-11 focus-visible:ring-primary/20 num-en"
                 />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-1.5">
+                <Label className="text-stone-700 font-bold text-xs">{t.track}</Label>
+                <Select value={form.track || ""} onValueChange={v => update("track", v)}>
+                  <SelectTrigger className="rounded-xl border-stone-200 h-11 focus:ring-primary/20 font-semibold bg-white">
+                    <SelectValue placeholder={isRTL ? "اختر المسار..." : "Select Track..."} />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl">
+                    <SelectItem value="علمي" className="font-semibold">{t.trackScience}</SelectItem>
+                    <SelectItem value="أدبي" className="font-semibold">{t.trackLiterary}</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -1004,6 +1025,17 @@ placeholder="رقم الهاتف مع مفتاح الدولة"
                     onChange={e => update("siblings_classes", e.target.value)}
                     className="rounded-xl border-stone-200 h-11 focus-visible:ring-primary/20"
                     placeholder={isRTL ? "مثال: الصف 3 - أ، الصف 5 - ب" : "e.g. Grade 3-A, Grade 5-B"}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-stone-700 font-bold text-xs">{t.siblingOrder}</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={form.sibling_order ?? ""}
+                    onChange={e => update("sibling_order", e.target.value === "" ? "" : parseInt(e.target.value) || "")}
+                    className="rounded-xl border-stone-200 h-11 focus-visible:ring-primary/20 num-en"
+                    placeholder={isRTL ? "مثال: 1 (الأول)، 2 (الثاني)..." : "e.g. 1st, 2nd..."}
                   />
                 </div>
               </div>

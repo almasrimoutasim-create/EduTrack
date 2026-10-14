@@ -1071,6 +1071,10 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
                               <span className="font-bold text-stone-700 num-en">{student.date_of_birth ? student.date_of_birth.substring(0, 10) : "-"}</span>
                             </div>
                             <div className="flex justify-between items-center">
+                              <span className="text-stone-500 font-semibold">{isRTL ? "المسار:" : "Track:"}</span>
+                              <span className="font-bold text-stone-700">{student.track ? (student.track === "علمي" ? (isRTL ? "مسار علمي" : "Science") : student.track === "أدبي" ? (isRTL ? "مسار أدبي" : "Literary") : student.track) : "-"}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
                               <span className="text-stone-500 font-semibold">{isRTL ? "حالة القيد الدراسية:" : "Enrolment Status:"}</span>
                               <Badge className={`${getStatusColor(student.status)} border-none shadow-none`}>{getStatusLabel(student.status)}</Badge>
                             </div>
@@ -1128,6 +1132,10 @@ export default function AdminStudentProfile({ student: initialStudent, onClose, 
                             <div className="flex justify-between items-center">
                               <span className="text-stone-500 font-semibold">{isRTL ? "فصول الإخوة:" : "Siblings' Classes:"}</span>
                               <span className="font-bold text-stone-700">{student.siblings_classes || "-"}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-stone-500 font-semibold">{isRTL ? "ترتيب الطالب بين أشقائه:" : "Birth Order:"}</span>
+                              <span className="font-bold text-stone-700 num-en">{student.sibling_order || "-"}</span>
                             </div>
                           </div>
                         </div>
