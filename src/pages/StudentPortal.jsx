@@ -27,6 +27,7 @@ import {
   ExternalLink,
   Download
 } from "lucide-react";
+import { formatDrivePreviewUrl } from "@/utils/driveUrlHelper";
 import PortalGrades from "@/components/portal/PortalGrades";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -553,8 +554,8 @@ export default function StudentPortal() {
                     title: m.title,
                     author: m.teacher_name || m.author || (isRTL ? "منهج دراسي رسمي" : "Official Curriculum"),
                     description: m.description,
-                    file_url: resolveFileUrl(m.file_url || m.external_url),
-                    thumbnail_url: m.thumbnail_url || null,
+                    file_url: formatDrivePreviewUrl(m.file_url || m.external_url) || resolveFileUrl(m.file_url || m.external_url),
+                    thumbnail_url: m.cover_image_url || m.thumbnail_url || null,
                     subject_code: selectedSubject.code,
                     subject_name: m.subject_name || selectedSubject.name,
                     isStudyMaterial: true
@@ -1002,65 +1003,77 @@ export default function StudentPortal() {
 
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
                           {gradeTextbooks.map((book) => {
-                            const bookUrl = resolveFileUrl(book.file_url || book.external_url);
+                            const rawUrl = book.file_url || book.external_url;
+                            const bookUrl = formatDrivePreviewUrl(rawUrl) || resolveFileUrl(rawUrl);
+                            const coverImg = book.cover_image_url || book.thumbnail_url;
                             return (
                               <Card
                                 key={book.id}
-                                className="p-5 bg-white border border-stone-200/90 rounded-2xl shadow-sm hover:shadow-md transition-all flex flex-col justify-between group"
+                                className="bg-white border border-stone-200/90 rounded-[24px] shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col justify-between overflow-hidden group"
                               >
-                                <div className="space-y-3">
-                                  <div className="flex items-start justify-between gap-3">
-                                    <div className="h-11 w-11 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                                      <BookMarked size={22} />
-                                    </div>
-                                    <div className="flex flex-wrap items-center gap-1.5 justify-end">
-                                      {book.subject_name && (
-                                        <Badge className="bg-teal-50 text-teal-700 border border-teal-200 text-[10px] font-bold px-2 py-0.5 rounded-lg">
-                                          {book.subject_name}
-                                        </Badge>
-                                      )}
-                                      <Badge className="bg-stone-100 text-stone-600 border-none text-[9px] font-bold px-2 py-0.5 rounded-md num-en">
-                                        {isRTL ? "الصف" : "Grade"} {book.grade}
+                                {coverImg && (
+                                  <div className="relative aspect-[16/10] w-full bg-stone-100 overflow-hidden border-b border-stone-100">
+                                    <img
+                                      src={coverImg}
+                                      alt={book.title}
+                                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                    />
+                                    <div className="absolute top-2.5 start-2.5">
+                                      <Badge className="bg-stone-900/80 backdrop-blur-md text-white border-white/20 text-[10px] font-black px-2.5 py-1 rounded-lg">
+                                        {isRTL ? `الصف ${book.grade}` : `Grade ${book.grade}`}
                                       </Badge>
                                     </div>
                                   </div>
-                                  <div>
-                                    <h4 className="font-serif font-black text-stone-900 text-base leading-snug group-hover:text-teal-700 transition-colors line-clamp-1">
+                                )}
+                                <div className="p-5 space-y-3 flex-1 flex flex-col justify-between">
+                                  <div className="space-y-2">
+                                    <div className="flex items-start justify-between gap-2">
+                                      {!coverImg && (
+                                        <div className="h-10 w-10 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center shrink-0">
+                                          <BookMarked size={20} />
+                                        </div>
+                                      )}
+                                      <div className="flex flex-wrap items-center gap-1.5 justify-end">
+                                        {book.subject_name && (
+                                          <Badge className="bg-teal-50 text-teal-700 border border-teal-200 text-[10px] font-bold px-2 py-0.5 rounded-lg">
+                                            {book.subject_name}
+                                          </Badge>
+                                        )}
+                                        {!coverImg && (
+                                          <Badge className="bg-stone-100 text-stone-600 border-none text-[9px] font-bold px-2 py-0.5 rounded-md num-en">
+                                            {isRTL ? "الصف" : "Grade"} {book.grade}
+                                          </Badge>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <h4 className="font-serif font-black text-stone-900 text-base leading-snug group-hover:text-teal-700 transition-colors line-clamp-2">
                                       {book.title}
                                     </h4>
-                                    {book.description ? (
-                                      <p className="text-xs text-stone-500 line-clamp-2 mt-1 leading-relaxed">
-                                        {book.description}
-                                      </p>
+                                    <p className="text-xs text-stone-500 line-clamp-2 leading-relaxed">
+                                      {book.description || (book.teacher_name
+                                        ? (isRTL ? `المشرف/المعلم: ${book.teacher_name}` : `Teacher: ${book.teacher_name}`)
+                                        : (isRTL ? "كتاب منهجي رسمي معتمد" : "Official curriculum textbook"))}
+                                    </p>
+                                  </div>
+
+                                  <div className="mt-4 pt-3 border-t border-stone-100">
+                                    {bookUrl ? (
+                                      <a
+                                        href={bookUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="w-full h-10 px-4 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-black transition-all shadow-md shadow-teal-600/20 flex items-center justify-center gap-2 cursor-pointer"
+                                      >
+                                        <BookOpen size={15} />
+                                        <span>{isRTL ? "قراءة الكتاب" : "Read Book"}</span>
+                                        <ExternalLink size={12} className="opacity-75" />
+                                      </a>
                                     ) : (
-                                      <p className="text-xs text-stone-400 mt-1">
-                                        {book.teacher_name
-                                          ? (isRTL ? `المشرف/المعلم: ${book.teacher_name}` : `Teacher: ${book.teacher_name}`)
-                                          : (isRTL ? "كتاب منهجي رسمي معتمد" : "Official curriculum textbook")}
-                                      </p>
+                                      <span className="text-[11px] text-stone-400 font-semibold text-center block w-full py-2">
+                                        {isRTL ? "غير متاح للقراءة" : "Unavailable"}
+                                      </span>
                                     )}
                                   </div>
-                                </div>
-
-                                <div className="mt-4 pt-3 border-t border-stone-100 flex items-center justify-between gap-2">
-                                  <span className="text-[10px] text-stone-400 font-bold">
-                                    {book.created_date ? new Date(book.created_date).toLocaleDateString(isRTL ? "ar-EG" : "en-US") : ""}
-                                  </span>
-                                  {bookUrl ? (
-                                    <a
-                                      href={bookUrl}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold transition-all shadow-sm cursor-pointer"
-                                    >
-                                      <ExternalLink size={13} />
-                                      <span>{isRTL ? "قراءة / تحميل 📥" : "Read / Download 📥"}</span>
-                                    </a>
-                                  ) : (
-                                    <span className="text-[11px] text-stone-400 font-semibold">
-                                      {isRTL ? "غير متاح للتحميل" : "Unavailable"}
-                                    </span>
-                                  )}
                                 </div>
                               </Card>
                             );

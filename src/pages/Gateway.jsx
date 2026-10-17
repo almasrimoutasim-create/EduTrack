@@ -6,6 +6,54 @@ import { Eye, EyeOff, AlertCircle, Building2, ArrowRight, ArrowLeft, Sparkles, C
 import { Card } from "@/components/ui/card";
 import { entities } from "@/api/dbClient";
 
+// Render free-tier sleeps when idle: the first request can hang or answer
+// 502/503/504 while the instance wakes (~30-60s). Retry across the known
+// backends instead of failing immediately.
+const API_BASES = (() => {
+  const env = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/$/, "");
+  const list = [];
+  if (env) list.push(env);
+  list.push(""); // same-origin -> Vercel rewrite to the primary backend
+  for (const h of ["https://edutrack-2689.onrender.com", "https://edutrack-ey49.onrender.com"]) {
+    if (!list.includes(h)) list.push(h);
+  }
+  return list;
+})();
+
+const isRetryableStatus = (s) => s === 502 || s === 503 || s === 504;
+
+async function fetchJsonWithRetry(path, { attempts = 5, timeoutMs = 25000, onRetry } = {}) {
+  let lastErr = null;
+  for (let a = 1; a <= attempts; a++) {
+    for (const base of API_BASES) {
+      try {
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), timeoutMs);
+        let res;
+        try {
+          res = await fetch(`${base}${path}`, { signal: ctrl.signal });
+        } finally {
+          clearTimeout(t);
+        }
+        if (isRetryableStatus(res.status)) {
+          lastErr = new Error(`HTTP ${res.status}`);
+          lastErr.isRetryable = true;
+          break; // waking up — wait, then retry all bases
+        }
+        const data = await res.json().catch(() => ({}));
+        return { res, data };
+      } catch (e) {
+        lastErr = e?.name === "AbortError" ? new TypeError("timeout") : e;
+      }
+    }
+    if (a < attempts) {
+      onRetry?.(a);
+      await new Promise((r) => setTimeout(r, 3000 * a));
+    }
+  }
+  throw lastErr;
+}
+
 export default function Gateway() {
   const { schoolSlug: routeSlug } = useParams();
   const navigate = useNavigate();
@@ -54,6 +102,7 @@ export default function Gateway() {
   const [loadingSchool, setLoadingSchool] = useState(Boolean(slug));
   const [schoolError, setSchoolError] = useState(null);
   const [serverDown, setServerDown] = useState(false);
+  const [wakingServer, setWakingServer] = useState(false);
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -152,83 +201,61 @@ export default function Gateway() {
 
   const FALLBACK_BG = "https://images.unsplash.com/photo-1510519138101-570d1dcb3d8e?q=80&w=2000&auto=format&fit=crop";
 
-  // Fetch school details by slug or branch
+  // Fetch school details by slug or branch (resilient to Render cold starts)
   useEffect(() => {
     let isMounted = true;
     setLoadingSchool(true);
     setSchoolError(null);
     setServerDown(false);
+    setWakingServer(false);
 
-    const apiBase = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/$/, "");
+    const targetSlug = (isBranchSlug && branchData?.school_id ? branchData.slug : schoolSlug);
+    if (!targetSlug) {
+      setLoadingSchool(false);
+      return () => { isMounted = false; };
+    }
 
-    // If branch slug, use branch data to load school
-    if (isBranchSlug && branchData?.school_id) {
-      const schoolUrl = `${apiBase}/neon-db/public-school/${encodeURIComponent(branchData.slug)}`;
-      fetch(schoolUrl)
-        .then(async (res) => {
-          const data = await res.json().catch(() => ({}));
-          if (!res.ok) throw new Error(data.error || "School not found");
-          return data;
-        })
-        .then((data) => {
-          if (isMounted && data.school) {
-            setSchoolData(data.school);
+    const path = `/neon-db/public-school/${encodeURIComponent(targetSlug)}`;
+    fetchJsonWithRetry(path, { attempts: 5, onRetry: () => { if (isMounted) setWakingServer(true); } })
+      .then(({ res, data }) => {
+        if (!isMounted) return;
+        if (!res.ok) {
+          if (res.status >= 500) {
+            const err = new Error(data.error || "Server error");
+            err.isServerDown = true;
+            throw err;
+          }
+          throw new Error(data.error || (isRTL ? "المدرسة غير مسجلة أو الرابط غير صالح" : "School not found"));
+        }
+        if (data.school) {
+          setSchoolData(data.school);
+          if (isBranchSlug && branchData) {
             localStorage.setItem("portal_branch_id", branchData.id);
             localStorage.setItem("portal_branch_name", branchData.name);
             localStorage.setItem("active_branch_id", branchData.id);
-          }
-          setLoadingSchool(false);
-        })
-        .catch((err) => {
-          if (isMounted) {
-            setSchoolError(err.message);
-            setLoadingSchool(false);
-          }
-        });
-    } else if (schoolSlug) {
-      const schoolUrl = `${apiBase}/neon-db/public-school/${encodeURIComponent(schoolSlug)}`;
-      fetch(schoolUrl)
-        .then(async (res) => {
-          const data = await res.json().catch(() => ({}));
-          if (!res.ok) {
-            if (res.status >= 500) {
-              const err = new Error(data.error || "Server error");
-              err.isServerDown = true;
-              throw err;
-            }
-            throw new Error(data.error || (isRTL ? "المدرسة غير مسجلة أو الرابط غير صالح" : "School not found"));
-          }
-          return data;
-        })
-        .then((data) => {
-          if (isMounted && data.school) {
-            setSchoolData(data.school);
-            if (data.school.branch_id) {
-              localStorage.setItem("portal_branch_id", data.school.branch_id);
-              localStorage.setItem("portal_branch_name", data.school.branch_name || data.school.name);
-            } else {
-              localStorage.removeItem("portal_branch_id");
-              localStorage.removeItem("portal_branch_name");
-            }
+          } else if (data.school.branch_id) {
+            localStorage.setItem("portal_branch_id", data.school.branch_id);
+            localStorage.setItem("portal_branch_name", data.school.branch_name || data.school.name);
           } else {
-            throw new Error(isRTL ? "تعذر العثور على بيانات المدرسة" : "School data not found");
+            localStorage.removeItem("portal_branch_id");
+            localStorage.removeItem("portal_branch_name");
           }
+        } else {
+          throw new Error(isRTL ? "تعذر العثور على بيانات المدرسة" : "School data not found");
+        }
+        setLoadingSchool(false);
+      })
+      .catch((err) => {
+        if (isMounted) {
+          // فشل الاتصال بالخادم (شبكة/سيرفر متوقف) ≠ مدرسة غير موجودة
+          const unreachable = err?.isServerDown || err?.isRetryable || err instanceof TypeError;
+          setServerDown(unreachable);
+          setSchoolError(unreachable
+            ? (isRTL ? "تعذر الاتصال بخادم المنصة. تحقق من الاتصال وحاول مجدداً." : "Cannot reach the platform server. Check your connection and retry.")
+            : (err.message || (isRTL ? "تعذر جلب بيانات المدرسة" : "Failed to load school")));
           setLoadingSchool(false);
-        })
-        .catch((err) => {
-          if (isMounted) {
-            // فشل الاتصال بالخادم (شبكة/سيرفر متوقف) ≠ مدرسة غير موجودة
-            const unreachable = err?.isServerDown || err instanceof TypeError;
-            setServerDown(unreachable);
-            setSchoolError(unreachable
-              ? (isRTL ? "تعذر الاتصال بخادم المنصة. تحقق من الاتصال وحاول مجدداً." : "Cannot reach the platform server. Check your connection and retry.")
-              : (err.message || (isRTL ? "تعذر جلب بيانات المدرسة" : "Failed to load school")));
-            setLoadingSchool(false);
-          }
-        });
-    } else {
-      setLoadingSchool(false);
-    }
+        }
+      });
 
     return () => { isMounted = false; };
   }, [schoolSlug, isBranchSlug, branchData, isRTL]);
@@ -398,6 +425,11 @@ export default function Gateway() {
           <p className="text-sm font-bold tracking-wide">
             {isRTL ? "جاري تهيئة بوابة المدرسة..." : "Loading school gateway..."}
           </p>
+          {wakingServer && (
+            <p className="text-xs text-amber-300 mt-2 font-bold">
+              {isRTL ? "الخادم في وضع السكون، جاري إيقاظه — قد يستغرق ذلك دقيقة..." : "Server is waking up — this may take a minute..."}
+            </p>
+          )}
           <p className="text-xs text-slate-400 mt-1 font-mono">{schoolSlug}</p>
         </div>
       </div>

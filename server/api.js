@@ -933,7 +933,8 @@ if (process.env.DATABASE_URL) {
     ADD COLUMN IF NOT EXISTS external_url TEXT,
     ADD COLUMN IF NOT EXISTS is_published BOOLEAN DEFAULT TRUE,
     ADD COLUMN IF NOT EXISTS author TEXT,
-    ADD COLUMN IF NOT EXISTS thumbnail_url TEXT;
+    ADD COLUMN IF NOT EXISTS thumbnail_url TEXT,
+    ADD COLUMN IF NOT EXISTS cover_image_url TEXT;
   `.then(() => {
     console.log('[neon] study_materials table altered successfully');
   }).catch(err => {
