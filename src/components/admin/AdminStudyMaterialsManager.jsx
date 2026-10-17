@@ -13,6 +13,52 @@ import {
   GraduationCap
 } from "lucide-react";
 import { formatDrivePreviewUrl } from "@/utils/driveUrlHelper";
+import { resolveFileUrl } from "@/lib/materialFile";
+
+function BookCoverImage({ coverUrl, title, subjectName, grade, isRTL }) {
+  const [hasError, setHasError] = useState(false);
+  const resolved = resolveFileUrl(coverUrl);
+
+  if (resolved && !hasError) {
+    return (
+      <img
+        src={resolved}
+        alt={title}
+        loading="lazy"
+        onError={() => setHasError(true)}
+        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+      />
+    );
+  }
+
+  return (
+    <div className="w-full h-full bg-gradient-to-br from-teal-800 via-teal-900 to-stone-900 p-6 flex flex-col justify-between text-white relative select-none">
+      <div className="absolute top-0 bottom-0 start-0 w-3 bg-white/10 border-e border-white/15" />
+      <div className="ps-3 pt-2">
+        <span className="text-[10px] uppercase font-black tracking-widest text-teal-300/90 block">
+          {isRTL ? "كتاب مدرسي معتمد" : "Official Textbook"}
+        </span>
+        <p className="text-xs font-bold text-teal-100/90 mt-1 line-clamp-1">
+          {subjectName || (isRTL ? "منهج دراسي" : "Curriculum")}
+        </p>
+      </div>
+
+      <div className="ps-3 my-auto text-center py-4">
+        <div className="h-14 w-14 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center mx-auto mb-3 border border-white/15 shadow-inner">
+          <BookMarked size={28} className="text-teal-200" />
+        </div>
+        <h4 className="font-serif font-black text-sm text-white line-clamp-2 px-1 leading-snug">
+          {title}
+        </h4>
+      </div>
+
+      <div className="ps-3 flex items-center justify-between text-[11px] text-teal-200/80 border-t border-white/15 pt-2">
+        <span>{isRTL ? "الصف" : "Grade"} {grade || "—"}</span>
+        <span>{isRTL ? "وزارة التربية" : "Ministry of Edu"}</span>
+      </div>
+    </div>
+  );
+}
 
 const TYPE_META = {
   document: { icon: FileText, labelAr: "مستند", labelEn: "Document", cls: "bg-rose-50 text-rose-700 border-rose-200" },
@@ -289,43 +335,13 @@ export default function AdminStudyMaterialsManager({ isRTL = true, mode = "mater
               >
                 {/* 1. Book Cover Image Container */}
                 <div className="relative aspect-[3/4] w-full bg-stone-100 overflow-hidden border-b border-stone-100">
-                  {coverUrl ? (
-                    <img
-                      src={coverUrl}
-                      alt={m.title}
-                      loading="lazy"
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                    />
-                  ) : (
-                    /* Fallback Stylized Book Cover when no image is uploaded */
-                    <div className="w-full h-full bg-gradient-to-br from-teal-800 via-teal-900 to-stone-900 p-6 flex flex-col justify-between text-white relative select-none">
-                      {/* Spine highlight */}
-                      <div className="absolute top-0 bottom-0 start-0 w-3 bg-white/10 border-e border-white/15" />
-                      
-                      <div className="ps-3 pt-2">
-                        <span className="text-[10px] uppercase font-black tracking-widest text-teal-300/90 block">
-                          {isRTL ? "كتاب مدرسي معتمد" : "Official Textbook"}
-                        </span>
-                        <p className="text-xs font-bold text-teal-100/90 mt-1 line-clamp-1">
-                          {m.subject_name || (isRTL ? "منهج دراسي" : "Curriculum")}
-                        </p>
-                      </div>
-
-                      <div className="ps-3 my-auto text-center py-4">
-                        <div className="h-14 w-14 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center mx-auto mb-3 border border-white/15 shadow-inner">
-                          <BookMarked size={28} className="text-teal-200" />
-                        </div>
-                        <h4 className="font-serif font-black text-sm text-white line-clamp-2 px-1 leading-snug">
-                          {m.title}
-                        </h4>
-                      </div>
-
-                      <div className="ps-3 flex items-center justify-between text-[11px] text-teal-200/80 border-t border-white/15 pt-2">
-                        <span>{isRTL ? "الصف" : "Grade"} {m.grade || "—"}</span>
-                        <span>{isRTL ? "وزارة التربية" : "Ministry of Edu"}</span>
-                      </div>
-                    </div>
-                  )}
+                  <BookCoverImage
+                    coverUrl={m.cover_image_url || m.thumbnail_url}
+                    title={m.title}
+                    subjectName={m.subject_name}
+                    grade={m.grade}
+                    isRTL={isRTL}
+                  />
 
                   {/* Floating Badges on top of cover */}
                   <div className="absolute top-3 start-3 z-10">

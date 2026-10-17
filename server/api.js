@@ -2116,6 +2116,54 @@ export function createApiHandler() {
       }));
     }
 
+    // Serve uploaded files directly or from persistent Neon database storage
+    if (req.method === 'GET' && (req.url.startsWith('/uploads/') || req.url.startsWith('/neon-db/uploads/'))) {
+      try {
+        const parsedUrl = new URL(req.url, 'http://localhost');
+        const pathParts = parsedUrl.pathname.split('/');
+        const filename = pathParts[pathParts.length - 1];
+        if (filename) {
+          const fs = await import('fs');
+          const path = await import('path');
+          const uploadDir = path.join(process.cwd(), 'public', 'uploads');
+          const filePath = path.join(uploadDir, filename);
+
+          if (fs.existsSync(filePath)) {
+            const ext = path.extname(filename).toLowerCase();
+            let mimeType = 'application/octet-stream';
+            if (ext === '.png') mimeType = 'image/png';
+            else if (ext === '.jpg' || ext === '.jpeg') mimeType = 'image/jpeg';
+            else if (ext === '.webp') mimeType = 'image/webp';
+            else if (ext === '.gif') mimeType = 'image/gif';
+            else if (ext === '.pdf') mimeType = 'application/pdf';
+
+            res.setHeader('Content-Type', mimeType);
+            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+            return res.end(fs.readFileSync(filePath));
+          }
+
+          // Fallback to PostgreSQL system_uploaded_files
+          const rows = await sql`SELECT mime_type, file_data FROM system_uploaded_files WHERE filename = ${filename} LIMIT 1`;
+          if (rows && rows.length > 0) {
+            const mime = rows[0].mime_type || 'image/png';
+            const cleanData = String(rows[0].file_data).replace(/^data:[^;]+;base64,/, '');
+            const buffer = Buffer.from(cleanData, 'base64');
+
+            try {
+              if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+              fs.writeFileSync(filePath, buffer);
+            } catch (_) {}
+
+            res.setHeader('Content-Type', mime);
+            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+            return res.end(buffer);
+          }
+        }
+      } catch (err) {
+        console.error('[neon] Error serving upload:', err.message);
+      }
+    }
+
     // Intercept file upload endpoint
     if (req.url === '/neon-db/upload' && req.method === 'POST') {
       res.setHeader('Content-Type', 'application/json');
@@ -2138,10 +2186,28 @@ export function createApiHandler() {
           fs.mkdirSync(uploadDir, { recursive: true });
         }
 
-        // Save file
+        // Save file to disk
         const safeName = `${Date.now()}_${fileName.replace(/[^a-zA-Z0-9.\-_]/g, '_')}`;
         const filePath = path.join(uploadDir, safeName);
         fs.writeFileSync(filePath, buffer);
+
+        // Persistent database storage in Neon PostgreSQL (survives container restarts)
+        let mimeType = 'application/octet-stream';
+        if (/\.png$/i.test(fileName)) mimeType = 'image/png';
+        else if (/\.jpe?g$/i.test(fileName)) mimeType = 'image/jpeg';
+        else if (/\.webp$/i.test(fileName)) mimeType = 'image/webp';
+        else if (/\.gif$/i.test(fileName)) mimeType = 'image/gif';
+        else if (/\.pdf$/i.test(fileName)) mimeType = 'application/pdf';
+
+        try {
+          await sql`
+            INSERT INTO system_uploaded_files (filename, mime_type, file_data, file_size)
+            VALUES (${safeName}, ${mimeType}, ${fileData}, ${buffer.length})
+            ON CONFLICT (filename) DO UPDATE SET file_data = EXCLUDED.file_data, file_size = EXCLUDED.file_size
+          `;
+        } catch (dbErr) {
+          console.warn('[neon] Failed to persist file to DB:', dbErr.message);
+        }
 
         return res.end(JSON.stringify({
           success: true,

@@ -242,7 +242,7 @@ export default function Library() {
                     {/* Book Cover */}
                     <div className="h-56 bg-gradient-to-br from-stone-100 to-stone-200 relative overflow-hidden group-hover:scale-105 transition-transform duration-500 flex items-center justify-center">
                       {book.thumbnail_url ? (
-                        <img src={book.thumbnail_url} alt={book.title} className="w-full h-full object-cover" />
+                        <img src={resolveFileUrl(book.thumbnail_url)} alt={book.title} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} />
                       ) : (
                         <div className="absolute inset-0 flex items-center justify-center text-stone-300">
                           <Book size={64} className="group-hover:scale-110 transition-transform duration-500 opacity-20" />

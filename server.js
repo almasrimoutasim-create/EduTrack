@@ -40,8 +40,44 @@ app.use(cors({
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
+import fs from 'fs';
+import sql from './server/db.js';
+
 // Serve built frontend static files FIRST (before API handler)
 app.use(express.static(path.join(__dirname, 'dist')));
+
+// Serve persistent uploads (from disk or Neon PostgreSQL database fallback)
+app.get('/uploads/:filename', async (req, res, next) => {
+  const filename = path.basename(req.params.filename);
+  const filePath = path.join(__dirname, 'public', 'uploads', filename);
+
+  if (fs.existsSync(filePath)) {
+    return res.sendFile(filePath);
+  }
+
+  // Fallback to Neon database storage if ephemeral disk was wiped on restart
+  try {
+    const rows = await sql`SELECT mime_type, file_data FROM system_uploaded_files WHERE filename = ${filename} LIMIT 1`;
+    if (rows && rows.length > 0) {
+      const mime = rows[0].mime_type || 'image/png';
+      const cleanData = String(rows[0].file_data).replace(/^data:[^;]+;base64,/, '');
+      const buf = Buffer.from(cleanData, 'base64');
+      try {
+        const uploadDir = path.join(__dirname, 'public', 'uploads');
+        if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+        fs.writeFileSync(filePath, buf);
+      } catch (_) {}
+      res.setHeader('Content-Type', mime);
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      return res.end(buf);
+    }
+  } catch (err) {
+    console.warn('[EduTrack] Error querying system_uploaded_files for', filename, err.message);
+  }
+
+  next();
+});
+
 app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
 
 // Serve STUN configuration for WebRTC

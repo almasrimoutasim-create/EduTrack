@@ -13,6 +13,7 @@ import {
   BookOpen, ExternalLink, X, BookMarked, Sparkles
 } from "lucide-react";
 import { formatDrivePreviewUrl, isGoogleDriveUrl } from "@/utils/driveUrlHelper";
+import { optimizeImageToDataUrl } from "@/utils/imageOptimizer";
 
 const types = [
   { value: "textbook", label: "Textbook (كتاب منهج)" },
@@ -97,7 +98,7 @@ export default function StudyMaterialFormDialog({
   const isValid = Boolean(form.title && (isTextbook || form.subject_name) && form.grade);
 
   // Upload book cover image (JPG, PNG, WEBP)
-  const handleCoverUpload = (e) => {
+  const handleCoverUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -107,48 +108,68 @@ export default function StudyMaterialFormDialog({
     }
 
     setUploadingCover(true);
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      try {
-        const fileBase64 = event.target.result.split(",")[1];
-        const apiBase = import.meta.env.VITE_API_URL || import.meta.env.VITE_BACKEND_URL || "";
-        const uploadUrl = apiBase ? `${apiBase.replace(/\/$/, "")}/neon-db/upload` : "/neon-db/upload";
+    try {
+      // 1. Optimize cover image to a crisp, compact Data URL (WebP/JPEG ~40KB)
+      // This is 100% self-contained in PostgreSQL and never vanishes on server restart/logout!
+      const optimizedDataUrl = await optimizeImageToDataUrl(file, 600, 800, 0.85);
 
-        const res = await fetch(uploadUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            fileName: `cover_${Date.now()}_${file.name}`,
-            fileData: fileBase64,
-          }),
-        });
+      // 2. Also send to /neon-db/upload (backed by system_uploaded_files in Neon DB)
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        try {
+          const rawBase64 = (optimizedDataUrl || event.target.result).split(",")[1];
+          const apiBase = import.meta.env.VITE_API_URL || import.meta.env.VITE_BACKEND_URL || "";
+          const uploadUrl = apiBase ? `${apiBase.replace(/\/$/, "")}/neon-db/upload` : "/neon-db/upload";
 
-        if (!res.ok) {
-          throw new Error("Failed to upload cover image");
+          const res = await fetch(uploadUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              fileName: `cover_${Date.now()}_${file.name.replace(/\.[^/.]+$/, "")}.webp`,
+              fileData: rawBase64,
+            }),
+          });
+
+          let finalUrl = optimizedDataUrl || event.target.result;
+          if (res.ok) {
+            const data = await res.json();
+            // If the optimized data URL is compact (<= 120KB), prefer it directly for zero-latency instant loading;
+            // otherwise use the server /uploads/ path.
+            if (optimizedDataUrl && optimizedDataUrl.length < 150000) {
+              finalUrl = optimizedDataUrl;
+            } else if (data.fileUrl) {
+              finalUrl = data.fileUrl;
+            }
+          }
+
+          setForm(f => ({
+            ...f,
+            cover_image_url: finalUrl,
+            thumbnail_url: finalUrl
+          }));
+          toast.success("تم رفع وحفظ صورة غلاف الكتاب بنجاح");
+        } catch (err) {
+          console.error("Cover upload API error:", err);
+          // Still keep optimizedDataUrl so user doesn't lose their cover
+          if (optimizedDataUrl) {
+            setForm(f => ({
+              ...f,
+              cover_image_url: optimizedDataUrl,
+              thumbnail_url: optimizedDataUrl
+            }));
+            toast.success("تم اعتماد صورة الغلاف بنجاح");
+          }
+        } finally {
+          setUploadingCover(false);
+          if (coverInputRef.current) coverInputRef.current.value = "";
         }
-
-        const data = await res.json();
-        const uploadedUrl = data.fileUrl || data.url;
-
-        setForm(f => ({
-          ...f,
-          cover_image_url: uploadedUrl,
-          thumbnail_url: uploadedUrl
-        }));
-        toast.success("تم رفع صورة غلاف الكتاب بنجاح");
-      } catch (err) {
-        console.error("Cover upload error:", err);
-        toast.error("فشل رفع صورة الغلاف");
-      } finally {
-        setUploadingCover(false);
-        if (coverInputRef.current) coverInputRef.current.value = "";
-      }
-    };
-    reader.onerror = () => {
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.error("Cover processing error:", err);
       setUploadingCover(false);
-      toast.error("فشل قراءة ملف الصورة");
-    };
-    reader.readAsDataURL(file);
+      toast.error("فشل معالجة صورة الغلاف");
+    }
   };
 
   // Upload main book PDF or file
