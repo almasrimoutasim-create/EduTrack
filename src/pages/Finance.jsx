@@ -527,11 +527,13 @@ export default function Finance() {
   const [newStructName, setNewStructName] = useState("");
   const [newStructAmt, setNewStructAmt] = useState("");
   const [newStructCurrency, setNewStructCurrency] = useState("SDG");
+  const [newStructPaymentType, setNewStructPaymentType] = useState("yearly");
 
   const [editStructGrade, setEditStructGrade] = useState("");
   const [editStructName, setEditStructName] = useState("");
   const [editStructAmt, setEditStructAmt] = useState("");
   const [editStructCurrency, setEditStructCurrency] = useState("SDG");
+  const [editStructPaymentType, setEditStructPaymentType] = useState("yearly");
 
   const createStructureMutation = useMutation({
     /** @param {any} data */
@@ -543,6 +545,7 @@ export default function Finance() {
       setNewStructName("");
       setNewStructAmt("");
       setNewStructCurrency("SDG");
+      setNewStructPaymentType("yearly");
     },
     onError: (err) => toast.error(`فشل في إضافة التسعيرة: ${err?.message || 'خطأ غير معروف'}`),
   });
@@ -575,8 +578,9 @@ export default function Finance() {
       fee_name: newStructName.trim(),
       amount: amt,
       currency: newStructCurrency,
+      payment_type: newStructPaymentType || 'yearly',
       is_active: true,
-      created_by: user.id
+      created_by: user?.id || null
     });
   };
 
@@ -592,6 +596,7 @@ export default function Finance() {
       fee_name: editStructName.trim(),
       amount: amt,
       currency: editStructCurrency,
+      payment_type: editStructPaymentType || 'yearly',
     });
   };
 
@@ -1557,7 +1562,12 @@ export default function Finance() {
                         {FEE_CURRENCIES.find(c => c.code === (st.currency || 'SDG'))?.label || st.currency || 'جنيه سوداني'}
                       </Badge>
                     </td>
-                    <td className="py-4 text-stone-500 font-medium">سنوي</td>
+                    <td className="py-4 text-stone-500 font-medium">
+                      {st.payment_type === 'monthly' ? 'شهري' :
+                       st.payment_type === 'termly' ? 'فصلي' :
+                       st.payment_type === 'custom' ? 'مخصص' :
+                       st.payment_type === 'one_time' ? 'دفعة واحدة' : 'سنوي'}
+                    </td>
                     <td className="py-4">
                       <Badge className={st.is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-stone-100 text-stone-500'}>
                         {st.is_active ? 'نشط' : 'معطل'}
@@ -1571,6 +1581,7 @@ export default function Finance() {
                           setEditStructName(st.fee_name);
                           setEditStructAmt(st.amount.toString());
                           setEditStructCurrency(st.currency || 'SDG');
+                          setEditStructPaymentType(st.payment_type || 'yearly');
                           setEditStructureOpen(true);
                         }}
                         className="text-xs bg-amber-600 hover:bg-amber-700 text-white px-3 py-1.5 rounded-lg cursor-pointer font-bold"
@@ -1630,6 +1641,15 @@ export default function Finance() {
                     </select>
                   </div>
                 </div>
+                <div className="space-y-1.5">
+                  <Label>نوع الدفع</Label>
+                  <select value={newStructPaymentType} onChange={e => setNewStructPaymentType(e.target.value)} className="w-full bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 focus:outline-none font-bold">
+                    <option value="yearly">سنوي (دفعة واحدة)</option>
+                    <option value="termly">فصلي (حسب الفصول)</option>
+                    <option value="monthly">شهري</option>
+                    <option value="custom">مخصص</option>
+                  </select>
+                </div>
                 <div className="flex gap-3 justify-end pt-3">
                   <button type="submit" disabled={createStructureMutation.isPending} className="bg-stone-900 text-white font-bold px-5 h-11 rounded-xl hover:bg-black cursor-pointer disabled:opacity-50">
                     {createStructureMutation.isPending ? 'جارٍ الحفظ...' : 'حفظ'}
@@ -1675,6 +1695,15 @@ export default function Finance() {
                       ))}
                     </select>
                   </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>نوع الدفع</Label>
+                  <select value={editStructPaymentType} onChange={e => setEditStructPaymentType(e.target.value)} className="w-full bg-stone-50 border border-stone-200 rounded-xl h-11 px-3 focus:outline-none font-bold">
+                    <option value="yearly">سنوي (دفعة واحدة)</option>
+                    <option value="termly">فصلي (حسب الفصول)</option>
+                    <option value="monthly">شهري</option>
+                    <option value="custom">مخصص</option>
+                  </select>
                 </div>
                 <div className="flex gap-3 justify-end pt-3">
                   <button type="submit" disabled={editStructureMutation.isPending} className="bg-amber-600 hover:bg-amber-700 text-white font-bold px-5 h-11 rounded-xl cursor-pointer disabled:opacity-50">

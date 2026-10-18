@@ -769,10 +769,12 @@ if (process.env.DATABASE_URL) {
   sql.query(`ALTER TABLE fee_structures ADD COLUMN IF NOT EXISTS academic_year TEXT DEFAULT '2025-2026'`).catch(()=>{});
   sql.query(`ALTER TABLE fee_structures ADD COLUMN IF NOT EXISTS branch_id UUID`).catch(()=>{});
   // Ensure payment_type has a default value for existing databases where column exists without default
-  sql.query(`ALTER TABLE fee_structures ALTER COLUMN payment_type SET DEFAULT 'one_time'`).catch(()=>{});
-  sql.query(`ALTER TABLE fee_structures ALTER COLUMN payment_type SET NOT NULL`).catch(()=>{});
+  sql.query(`ALTER TABLE fee_structures DROP CONSTRAINT IF EXISTS fee_structures_payment_type_check`).catch(()=>{});
+  sql.query(`ALTER TABLE fee_structures ALTER COLUMN payment_type SET DEFAULT 'yearly'`).catch(()=>{});
+  sql.query(`ALTER TABLE fee_structures ADD COLUMN IF NOT EXISTS payment_type TEXT NOT NULL DEFAULT 'yearly'`).catch(()=>{});
   // Fix column types for existing deployments where columns may have been created with wrong types
   sql.query(`ALTER TABLE fee_structures ALTER COLUMN created_by TYPE TEXT USING created_by::text`).catch(err => console.error('[neon] fee_structures created_by type fix failed:', err.message));
+  sql.query(`ALTER TABLE fee_structures ALTER COLUMN created_by DROP NOT NULL`).catch(()=>{});
   sql.query(`ALTER TABLE fee_structures ALTER COLUMN school_id TYPE UUID USING school_id::uuid`).catch(err => console.error('[neon] fee_structures school_id type fix failed:', err.message));
   sql.query(`ALTER TABLE fee_structures ALTER COLUMN branch_id TYPE UUID USING branch_id::uuid`).catch(err => console.error('[neon] fee_structures branch_id type fix failed:', err.message));
   sql.query(`ALTER TABLE student_fees ADD COLUMN IF NOT EXISTS branch_id UUID`).catch(()=>{});
@@ -5384,6 +5386,11 @@ WHERE email = $10`,
           // Hook: Automatically default remaining to amount for student_fees
           if (table === 'student_fees' && body.remaining === undefined) {
             body.remaining = body.amount;
+          }
+
+          // Hook: Automatically default payment_type to 'yearly' for fee_structures
+          if (table === 'fee_structures' && !body.payment_type) {
+            body.payment_type = 'yearly';
           }
 
           // الرقم المدرسي: تسلسل مستقل لكل مدرسة — يُولّد تلقائياً ضمن نطاق school_id فقط
