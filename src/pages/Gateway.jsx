@@ -61,8 +61,28 @@ export default function Gateway() {
   const isRTL = language === "ar";
 
   // Check URL query param fallback (?school=...)
-  const querySlug = new URLSearchParams(window.location.search).get("school");
-  const slug = (routeSlug || querySlug || "").trim();
+  // ── معالجة الـ slug: فك التشفير + تحويل الشرطات إلى مسافات للمطابقة المرنة ──
+  const rawQuerySlug = new URLSearchParams(window.location.search).get("school") || "";
+  const querySlug = (() => {
+    try {
+      // decodeURIComponent يفك تشفير %-encoding (مثل %D9%85 → م)
+      const decoded = decodeURIComponent(rawQuerySlug);
+      // تحويل الشرطات إلى مسافات لتسهيل المطابقة
+      const normalized = decoded.replace(/-/g, " ").trim();
+      console.log("[Gateway] 📌 Raw query param  :", rawQuerySlug);
+      console.log("[Gateway] ✅ Decoded slug      :", decoded);
+      console.log("[Gateway] 🔄 Normalized slug   :", normalized);
+      // نُعيد الـ decoded (بالشرطات) لأن الـ API يقبل الـ slug بالشرطات
+      // والـ normalized يُستخدم فقط للمطابقة المرئية في الـ console
+      return decoded.trim();
+    } catch (e) {
+      console.warn("[Gateway] ⚠️ Failed to decode school param:", rawQuerySlug, e);
+      return rawQuerySlug.trim();
+    }
+  })();
+  const rawSlug = routeSlug || querySlug || "";
+  const slug = rawSlug.trim();
+  console.log("[Gateway] 🏫 Final slug used    :", slug);
 
   // Determine if this is a branch slug or school slug
   const [isBranchSlug, setIsBranchSlug] = useState(false);

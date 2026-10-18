@@ -40,12 +40,21 @@ export default function RoleLogin() {
   const getCachedBrand = () => {
     try {
       const storedSlug = (localStorage.getItem("portal_school_slug") || "").trim();
-      const querySlug = (new URLSearchParams(window.location.search).get("school") || "").trim();
+      // فك تشفير الـ query param بأمان قبل المقارنة مع الـ cache
+      const rawParam = new URLSearchParams(window.location.search).get("school") || "";
+      let querySlug = "";
+      try {
+        querySlug = decodeURIComponent(rawParam).trim();
+      } catch {
+        querySlug = rawParam.trim();
+      }
       const slug = querySlug || storedSlug;
       const cached = localStorage.getItem("portal_cached_school_brand");
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (!slug || !parsed.slug || parsed.slug === slug || parsed.id === slug) {
+        // مطابقة مرنة: تجاهل الفرق بين المسافات والشرطات
+        const normalize = (s) => (s || "").replace(/-/g, " ").toLowerCase().trim();
+        if (!slug || !parsed.slug || normalize(parsed.slug) === normalize(slug) || parsed.id === slug) {
           return parsed;
         }
       }
@@ -55,17 +64,59 @@ export default function RoleLogin() {
 
   const [schoolBrand, setSchoolBrand] = useState(getCachedBrand);
   useEffect(() => {
-    // مصدر بيانات المدرسة: localStorage أولاً، ثم معامل ?school= (نفس نهج صفحة البوابة)
+    // ── مصدر بيانات المدرسة: localStorage أولاً، ثم معامل ?school= ──
+    // ── مع فك التشفير ومعالجة الشرطات للمطابقة المرنة ──
     const storedSlug = (localStorage.getItem("portal_school_slug") || "").trim();
-    const querySlug = (new URLSearchParams(window.location.search).get("school") || "").trim();
+
+    // فك تشفير الـ query param بأمان
+    const rawQueryParam = new URLSearchParams(window.location.search).get("school") || "";
+    const querySlug = (() => {
+      try {
+        const decoded = decodeURIComponent(rawQueryParam);
+        const normalized = decoded.replace(/-/g, " ").trim();
+        console.log("[RoleLogin] 📌 Raw school param  :", rawQueryParam);
+        console.log("[RoleLogin] ✅ Decoded slug       :", decoded);
+        console.log("[RoleLogin] 🔄 Normalized (spaces):", normalized);
+        // نُعيد الـ decoded (بالشرطات) — الـ API يقبله
+        return decoded.trim();
+      } catch (e) {
+        console.warn("[RoleLogin] ⚠️ Failed to decode school param:", rawQueryParam, e);
+        return rawQueryParam.trim();
+      }
+    })();
+
     const slug = storedSlug || querySlug;
+    console.log("[RoleLogin] 🏫 Stored slug      :", storedSlug || "(none)");
+    console.log("[RoleLogin] 🏫 Final slug used   :", slug || "(none)");
+
     if (!slug) return;
     let alive = true;
     const apiBase = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/$/, "");
-    fetch(`${apiBase}/neon-db/public-school/${encodeURIComponent(slug)}`)
-      .then(r => r.json().catch(() => ({})))
+
+    // مطابقة مرنة: نحاول الـ slug أولاً، ثم النسخة بالمسافات إذا فشل الأول
+    const tryFetch = (s) =>
+      fetch(`${apiBase}/neon-db/public-school/${encodeURIComponent(s)}`)
+        .then(r => r.json().catch(() => ({})));
+
+    const slugWithSpaces = slug.replace(/-/g, " ").trim();
+    const slugWithDashes = slug.replace(/\s+/g, "-").trim();
+
+    console.log("[RoleLogin] 🔍 Trying slug variants:", { slugWithDashes, slugWithSpaces });
+
+    // نُحاول الـ slug الأصلي أولاً، ثم البديل إذا لم تُوجد نتيجة
+    tryFetch(slugWithDashes)
       .then(d => {
         if (alive && d?.school) {
+          console.log("[RoleLogin] ✅ Matched school (dash slug):", d.school.name || d.school.name_ar);
+          return d;
+        }
+        // جرب الـ slug بالمسافات
+        console.log("[RoleLogin] 🔄 Retrying with space slug:", slugWithSpaces);
+        return tryFetch(slugWithSpaces);
+      })
+      .then(d => {
+        if (alive && d?.school) {
+          console.log("[RoleLogin] ✅ Final matched school:", d.school.name || d.school.name_ar);
           setSchoolBrand(d.school);
           try {
             localStorage.setItem("portal_cached_school_brand", JSON.stringify(d.school));
@@ -77,6 +128,8 @@ export default function RoleLogin() {
             localStorage.setItem("portal_branch_id", d.school.branch_id);
             localStorage.setItem("portal_branch_name", d.school.branch_name || d.school.name);
           }
+        } else if (alive) {
+          console.warn("[RoleLogin] ❌ No school matched for slug:", slug);
         }
       })
       .catch(() => {})
