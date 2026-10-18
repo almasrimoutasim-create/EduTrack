@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { entities } from "@/api/dbClient";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
-import { FileText, Upload, Eye, Trash2, Award, Loader2 } from "lucide-react";
+import { FileText, Upload, Eye, Trash2, Award, Loader2, RefreshCw } from "lucide-react";
 
 function parseCertificates(raw) {
   if (!raw) return [];
@@ -41,6 +41,12 @@ export default function TeacherFormDialog({ open, onClose, teacher }) {
     queryFn: () => entities.Subject.list()
   });
 
+  // ── توليد رقم وظيفي فريد بصيغة TCH-XXXX ──
+  const generateEmployeeId = () => {
+    const rand = Math.floor(1000 + Math.random() * 9000);
+    return `TCH-${rand}`;
+  };
+
   const [form, setForm] = useState({
     full_name: "", employee_id: "", email: "", phone: "",
     subject: "", subjects: "", photo_url: "", bio: "", salary: 0, status: "active", portal_password: "",
@@ -56,13 +62,15 @@ export default function TeacherFormDialog({ open, onClose, teacher }) {
         certificates_urls: parseCertificates(teacher.certificates_urls)
       });
     } else {
+      // توليد رقم وظيفي تلقائي عند إضافة معلم جديد
       setForm({
-        full_name: "", employee_id: "", email: "", phone: "",
+        full_name: "", employee_id: generateEmployeeId(), email: "", phone: "",
         subject: "", subjects: "", photo_url: "", bio: "", salary: 0, status: "active", portal_password: "",
         cv_document_url: "", certificates_urls: []
       });
     }
   }, [teacher, open]);
+
 
   const update = (key, val) => setForm(f => ({ ...f, [key]: val }));
 
@@ -187,7 +195,31 @@ export default function TeacherFormDialog({ open, onClose, teacher }) {
             </div>
             <div>
               <Label>الرقم الوظيفي / Employee ID *</Label>
-              <Input value={form.employee_id} onChange={e => update("employee_id", e.target.value)} placeholder="مثال: TCH-001" className="text-right" />
+              <div className="relative mt-1">
+                <Input
+                  value={form.employee_id}
+                  onChange={e => update("employee_id", e.target.value)}
+                  placeholder="مثال: TCH-001"
+                  className="text-right pr-3 pl-10 font-mono"
+                  dir="ltr"
+                />
+                {/* زر توليد رقم وظيفي جديد */}
+                <button
+                  type="button"
+                  title="توليد رقم وظيفي جديد"
+                  onClick={() => update("employee_id", generateEmployeeId())}
+                  className="absolute inset-y-0 left-0 w-9 flex items-center justify-center text-stone-400 hover:text-primary transition-colors"
+                >
+                  <RefreshCw size={14} />
+                </button>
+              </div>
+              {/* بادج "مولّد تلقائياً" يظهر فقط عند الإضافة */}
+              {!isEdit && (
+                <p className="text-[10px] text-emerald-600 font-semibold mt-1 flex items-center gap-1">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                  تم التوليد تلقائياً — يمكنك التعديل أو الضغط على 🔄 لتوليد رقم جديد
+                </p>
+              )}
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
