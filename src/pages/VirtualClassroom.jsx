@@ -274,6 +274,8 @@ export default function VirtualClassroom() {
 
     const toggle = async () => {
       if (screenSharing) {
+        // Show the teacher's own screen in the main black frame
+        setPinnedParticipantId(userId);
         try {
           currentScreenStream = await navigator.mediaDevices.getDisplayMedia({
             video: { frameRate: { ideal: 30, max: 30 }, width: { ideal: 1920 }, height: { ideal: 1080 } },
@@ -327,6 +329,7 @@ export default function VirtualClassroom() {
           screenStream.getTracks().forEach((t) => t.stop());
           setScreenStream(null);
         }
+        setPinnedParticipantId((prev) => (prev === userId ? null : prev));
         sendSignal("SCREEN_SHARE", "all", { active: false, sharerId: userId });
       }
     };
@@ -478,35 +481,50 @@ export default function VirtualClassroom() {
       if (canvas) canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
 
     } else if (type === "PRESENTATION_MODE") {
-      setPresentationMode(data.mode);
+      if (data?.mode) setPresentationMode(data.mode);
 
     } else if (type === "PRESENTATION_DATA") {
       setPresentationData(data);
+      if (data?.imageUrl) setPresentationMode("file");
+      else if (data?.videoUrl) setPresentationMode("video");
 
     } else if (type === "SCREEN_SHARE") {
       if (data.active) {
         // Auto-pin the screen sharer and show their stream as screen-share
         setPinnedParticipantId(peerId);
         setRemoteScreenSharing((prev) => ({ ...prev, [peerId]: true }));
-        // The current remoteStreams[peerId] now contains the screen track
-        // (via replaceTrack), so mark it as screen stream too
-        setRemoteScreenStreams((prev) => ({
-          ...prev,
-          [peerId]: pcsRef.current[peerId]
-            ? (() => {
-                const receivers = pcsRef.current[peerId].getReceivers();
-                const videoReceiver = receivers.find((r) => r.track?.kind === "video");
-                if (videoReceiver?.track) {
-                  const s = new MediaStream([videoReceiver.track]);
-                  // also grab audio if available
-                  const audioReceiver = receivers.find((r) => r.track?.kind === "audio");
-                  if (audioReceiver?.track) s.addTrack(audioReceiver.track);
-                  return s;
-                }
-                return prev[peerId] || null;
-              })()
-            : prev[peerId] || null,
-        }));
+        // Build a fresh MediaStream from the receiver's (now screen) track
+        const pc = pcsRef.current[peerId];
+        let screenStream = null;
+        if (pc) {
+          const receivers = pc.getReceivers();
+          const videoReceiver = receivers.find((r) => r.track?.kind === "video");
+          if (videoReceiver?.track) {
+            screenStream = new MediaStream([videoReceiver.track]);
+            const audioReceiver = receivers.find((r) => r.track?.kind === "audio");
+            if (audioReceiver?.track) screenStream.addTrack(audioReceiver.track);
+          }
+        }
+        if (screenStream) {
+          setRemoteScreenStreams((prev) => ({ ...prev, [peerId]: screenStream }));
+          // Also update remoteStreams so the main black frame displays it
+          setRemoteStreams((prev) => ({ ...prev, [peerId]: screenStream }));
+        } else {
+          setRemoteScreenStreams((prev) => ({ ...prev, [peerId]: prev[peerId] || remoteStreams[peerId] || null }));
+        }
+        // Retry once after a short delay in case replaceTrack hasn't propagated yet
+        setTimeout(() => {
+          const pc2 = pcsRef.current[peerId];
+          if (!pc2) return;
+          const r2 = pc2.getReceivers().find((r) => r.track?.kind === "video");
+          if (r2?.track) {
+            const s2 = new MediaStream([r2.track]);
+            const a2 = pc2.getReceivers().find((r) => r.track?.kind === "audio");
+            if (a2?.track) s2.addTrack(a2.track);
+            setRemoteScreenStreams((prev) => ({ ...prev, [peerId]: s2 }));
+            setRemoteStreams((prev) => ({ ...prev, [peerId]: s2 }));
+          }
+        }, 1000);
       } else {
         setPinnedParticipantId((prev) => (prev === peerId ? null : prev));
         setRemoteScreenSharing((prev) => ({ ...prev, [peerId]: false }));
@@ -1077,16 +1095,20 @@ export default function VirtualClassroom() {
                     <div className="text-stone-500 font-bold text-xs">{isRTL ? "الكاميرا مغلقة" : "Camera Off"}</div>
                   )
                 ) : (
-                  /* Remote: always show remoteStreams (replaceTrack keeps same stream for screen share too) */
-                  remoteStreams[pinnedParticipantId] ? (
+                  /* Remote: prefer screen-share stream when sharing, else camera stream */
+                  ((remoteScreenSharing[pinnedParticipantId] && remoteScreenStreams[pinnedParticipantId]) || remoteStreams[pinnedParticipantId]) ? (
                     <video
                       ref={(el) => {
+                        const stream = (remoteScreenSharing[pinnedParticipantId] && remoteScreenStreams[pinnedParticipantId])
+                          ? remoteScreenStreams[pinnedParticipantId]
+                          : remoteStreams[pinnedParticipantId];
                         remoteVideoRefs.current[`pinned-${pinnedParticipantId}`] = el;
-                        if (el && remoteStreams[pinnedParticipantId]) {
-                          if (el.srcObject !== remoteStreams[pinnedParticipantId]) {
-                            el.srcObject = remoteStreams[pinnedParticipantId];
+                        if (el && stream) {
+                          if (el.srcObject !== stream) {
+                            el.srcObject = stream;
                           }
                           el.volume = remoteVolume;
+                          el.muted = false;
                           el.play().catch(() => {});
                         }
                       }}
@@ -1160,7 +1182,17 @@ export default function VirtualClassroom() {
                 )}
                 {presentationMode === "file" && (
                   <div className="w-full h-full flex flex-col items-center justify-center p-6 relative">
-                    <img src={presentationData.imageUrl} alt="Slide" className="max-h-[85%] max-w-[95%] object-contain rounded-xl shadow-2xl" />
+                    {/\.(png|jpg|jpeg|gif|webp|svg)(\?|$)/i.test(presentationData.imageUrl || "") ? (
+                      <img src={presentationData.imageUrl} alt="Slide" className="max-h-[85%] max-w-[95%] object-contain rounded-xl shadow-2xl" />
+                    ) : (
+                      <div className="w-full h-full flex flex-col items-center justify-center gap-4">
+                        <FileText size={48} className="text-teal-400" />
+                        <a href={presentationData.imageUrl} target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-teal-500 text-stone-950 rounded-xl text-xs font-black">
+                          {isRTL ? "فتح الملف" : "Open File"}
+                        </a>
+                        <iframe src={presentationData.imageUrl} className="w-full h-[70%] rounded-xl border border-white/10" title="shared-file" />
+                      </div>
+                    )}
                     {isTeacher && (
                       <div className="absolute bottom-4 right-4 bg-stone-900/90 p-2 rounded-xl border border-white/10 flex items-center gap-3 z-10">
                         <button onClick={() => { const u = prompt(isRTL ? "أدخل رابط الصورة:" : "Enter Image URL:", presentationData.imageUrl); if (u) { const upd = { ...presentationData, imageUrl: u }; setPresentationData(upd); sendSignal("PRESENTATION_DATA", "all", upd); } }} className="px-3 py-1.5 bg-teal-500 text-stone-950 rounded-lg text-[10px] font-black">{isRTL ? "تغيير" : "Change"}</button>
