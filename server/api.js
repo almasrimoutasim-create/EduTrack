@@ -3179,7 +3179,7 @@ const rows = await dbQuery(
           res.statusCode = 401;
           return res.end(JSON.stringify({ error: 'Invalid founder credentials' }));
         }
-        const token = jwt.sign({ role: 'founder', email: FE }, JWT_SECRET, { expiresIn: '12h' });
+        const token = jwt.sign({ role: 'founder', email: FE }, JWT_SECRET, { expiresIn: '24h' });
         return res.end(JSON.stringify({ success: true, token, user: { role: 'founder', email: FE } }));
       } catch (error) {
         res.statusCode = 500;

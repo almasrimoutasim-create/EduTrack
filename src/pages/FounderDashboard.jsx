@@ -986,6 +986,13 @@ const FounderDashboard = () => {
     ["founder_token", "founder_auth", "founder_email", "founder_login_time"].forEach((k) => localStorage.removeItem(k));
     window.location.href = "/founder-login";
   };
+  // Auto-redirect to login once the session is known to be expired, so the
+  // founder never stares at an empty schools/requests dashboard.
+  useEffect(() => {
+    if (!authExpired) return;
+    const t = setTimeout(() => { forceRelogin(); }, 4000);
+    return () => clearTimeout(t);
+  }, [authExpired]);
 
   // ── Teacher Approval Modal ──
   const [teacherApproval, setTeacherApproval] = useState(null); // { requestId, fullName, email, data }
@@ -1192,7 +1199,10 @@ const FounderDashboard = () => {
   const { data: schools = [], isLoading: schoolsLoading } = useQuery({
     queryKey: ["founder-schools"],
     queryFn: async () => {
-      try { return await entities.School.list("-created_at", 1000); }
+      try {
+        const list = await entities.School.list("-created_at", 1000);
+        return Array.isArray(list) ? list : (list?.schools || list?.data || []);
+      }
       catch (err) { console.error("[FounderDashboard] School.list failed:", err); markAuthErr(err); return []; }
     },
   });
