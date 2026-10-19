@@ -30,7 +30,13 @@ class EntityClient {
     // because of a missed pathname check. School/portal sessions do not set
     // founder_auth, so their requests stay unprivileged.
     const FOUNDER_ENTITIES = new Set(['School', 'SchoolBranch', 'RegistrationRequest', 'SystemAdmin', 'Teacher', 'Student']);
-    const isFounderSession = typeof window !== 'undefined'
+    // Founder token is attached ONLY when actually browsing the founder dashboard.
+    // Otherwise a leftover founder session in the same browser would make
+    // school/portal pages fetch ALL records (cross-school leak).
+    const isFounderRoute = typeof window !== 'undefined'
+      && (window.location.pathname.startsWith('/founder') || window.location.pathname.startsWith('/founder-dashboard'));
+    const isFounderSession = isFounderRoute
+      && typeof window !== 'undefined'
       && localStorage.getItem('founder_auth') === 'true'
       && FOUNDER_ENTITIES.has(this.entityName);
     const founderToken = isFounderSession ? localStorage.getItem('founder_token') : null;

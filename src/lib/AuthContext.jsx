@@ -232,6 +232,8 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('portal_user_id', loggedUser.id);
       localStorage.setItem('portal_user_name', loggedUser.full_name);
       localStorage.setItem('portal_is_auth', 'true');
+      // عزل جلسة المؤسس عن جلسة المدرسة/البوابة لمنع خلط البيانات (founder token لا يجب أن يُستخدم في صفحات المدرسة)
+      ['founder_token', 'founder_auth', 'founder_email', 'founder_login_time', 'founder_custom_password'].forEach(k => localStorage.removeItem(k));
       localStorage.setItem('portal_gateway_passed', 'true');
       if (loggedUser.school_id) {
         localStorage.setItem('portal_school_id', loggedUser.school_id);
