@@ -19,8 +19,16 @@ class EntityClient {
   getHeaders() {
     const token = localStorage.getItem('portal_jwt_token') || localStorage.getItem('jwt_token') || localStorage.getItem('auth_token') || localStorage.getItem('token');
     // Founder JWT is attached ONLY on founder routes — never leaks into school/portal sessions sharing a browser
-    const isFounderRoute = typeof window !== 'undefined' && window.location.pathname.startsWith('/founder');
-    const founderToken = isFounderRoute ? localStorage.getItem('founder_token') : null;
+    // Founder-only entities are managed exclusively from the founder dashboard.
+    // Attach the founder JWT for these whenever a founder session exists, so
+    // the lists (Schools, RegistrationRequests, ...) never come back empty
+    // because of a missed pathname check. School/portal sessions do not set
+    // founder_auth, so their requests stay unprivileged.
+    const FOUNDER_ENTITIES = new Set(['School', 'SchoolBranch', 'RegistrationRequest', 'SystemAdmin', 'Teacher', 'Student']);
+    const isFounderSession = typeof window !== 'undefined'
+      && localStorage.getItem('founder_auth') === 'true'
+      && FOUNDER_ENTITIES.has(this.entityName);
+    const founderToken = isFounderSession ? localStorage.getItem('founder_token') : null;
     /** @type {Record<string, string>} */
     const headers = {};
     if (founderToken) {
