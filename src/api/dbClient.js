@@ -10,6 +10,11 @@ const API_BASE = BACKEND
   ? `${BACKEND.replace(/\/$/, '')}/neon-db/entities`
   : '/neon-db/entities';
 
+// Warn once in dev if backend URL is missing (common cause of "Failed to fetch")
+if (typeof window !== 'undefined' && !BACKEND && import.meta.env.DEV) {
+  console.warn('[dbClient] VITE_BACKEND_URL is not set; API calls will use relative /neon-db/entities (requires Vite dev server).');
+}
+
 class EntityClient {
   constructor(entityName) {
     this.entityName = entityName;
@@ -69,7 +74,13 @@ class EntityClient {
     params.set('limit', limit.toString());
     params.set('offset', finalOffset.toString());
 
-    const response = await fetch(`${this.baseUrl}?${params.toString()}`, { headers: this.getHeaders() });
+    let response;
+    try {
+      response = await fetch(`${this.baseUrl}?${params.toString()}`, { headers: this.getHeaders() });
+    } catch (netErr) {
+      console.error(`[dbClient] Network error listing ${this.entityName}:`, netErr);
+      throw new Error('تعذر الاتصال بالخادم (Network/CORS). تحقق من VITE_BACKEND_URL وحالة الـ backend.');
+    }
 
     if (!response.ok) {
       const err = await response.json().catch(() => ({ error: response.statusText }));
@@ -79,7 +90,7 @@ class EntityClient {
         return [];
       }
 
-      throw new Error(err.error || 'Failed to list entities');
+      throw new Error(err.error || `Failed to list ${this.entityName} (HTTP ${response.status})`);
     }
     try {
       return await response.json();

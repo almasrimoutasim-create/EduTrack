@@ -14,6 +14,7 @@ import LandingContentEditor from "@/components/LandingContentEditor";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useAuth } from "@/lib/AuthContext";
 import { buildPortalDeepLink } from "@/lib/portalNavigation";
+import { checkBackendHealth } from "@/lib/healthCheck";
 import { enhanceResponsiveTables } from "@/lib/responsiveTables";
 
 class TierFeaturesErrorBoundary extends React.Component {
@@ -978,6 +979,12 @@ const FounderDashboard = () => {
   // ── Session health: if the founder JWT is rejected (401) the lists come back
   // empty — surface a visible banner instead of a confusing blank dashboard ──
   const [authExpired, setAuthExpired] = useState(false);
+  const [backendDown, setBackendDown] = useState(false);
+  useEffect(() => {
+    checkBackendHealth().then(({ ok }) => {
+      if (!ok) setBackendDown(true);
+    });
+  }, []);
   const markAuthErr = (err) => {
     const msg = String(err?.message || err || "");
     if (/401|Unauthorized|Invalid or expired token|Invalid token/i.test(msg)) setAuthExpired(true);
@@ -2083,6 +2090,20 @@ const FounderDashboard = () => {
           </p>
         </header>
 
+        {backendDown && (
+          <div className="mb-6 rounded-2xl border border-rose-300 bg-rose-50 p-4 flex flex-col sm:flex-row items-start sm:items-center gap-3 shadow-sm">
+            <div className="flex items-center gap-2 text-rose-800 font-extrabold text-sm">
+              <AlertTriangle size={18} />
+              تعذر الاتصال بالخادم (Backend)
+            </div>
+            <p className="text-xs text-rose-700 leading-relaxed flex-1">
+              تحقق من VITE_BACKEND_URL (Vercel) وحالة Render، وكذلك CORS. حاول إعادة تحميل الصفحة.
+            </p>
+            <button onClick={() => window.location.reload()} className="px-4 py-2 rounded-xl bg-rose-600 text-white text-xs font-black hover:bg-rose-700 shrink-0">
+              إعادة تحميل
+            </button>
+          </div>
+        )}
         {authExpired && (
           <div className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 p-4 flex flex-col sm:flex-row items-start sm:items-center gap-3 shadow-sm">
             <div className="flex items-center gap-2 text-amber-800 font-extrabold text-sm">

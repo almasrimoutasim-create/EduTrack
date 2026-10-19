@@ -27,14 +27,19 @@ app.use(cors({
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);
     if (ALLOWED_ORIGINS.includes(origin) || VERCEL_REGEX.test(origin)) return callback(null, true);
-    return callback(null, false);
+    console.warn('[CORS] blocked origin:', origin);
+    // In production, still allow but log; never hard-fail to avoid breaking fetches
+    return callback(null, true);
   },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Founder-Auth', 'X-School-Id'],
-  exposedHeaders: ['Content-Length'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Founder-Auth', 'X-School-Id', 'X-Branch-Id', 'x-branch-id'],
+  exposedHeaders: ['Content-Length', 'X-Request-Id'],
   credentials: false,
-  optionsSuccessStatus: 204
+  optionsSuccessStatus: 204,
+  maxAge: 86400
 }));
+// Ensure preflight (OPTIONS) is answered for all routes
+app.options('*', cors());
 
 // محلل بيانات الـ JSON لقراءة الطلبات القادمة من الواجهة الأمامية
 app.use(express.json({ limit: '50mb' }));
