@@ -263,6 +263,7 @@ if (process.env.DATABASE_URL) {
     )
   `.then(() => {
     console.log('[neon] virtual_sessions table verified/created');
+    sql`ALTER TABLE virtual_sessions ADD COLUMN IF NOT EXISTS grade TEXT`.catch(() => {});
   }).catch(err => {
     console.error('[neon] failed to verify/create virtual_sessions table:', err.message);
   });

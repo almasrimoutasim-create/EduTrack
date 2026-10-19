@@ -877,7 +877,7 @@ export default function VirtualClassroom() {
                         setTimeout(() => navigate(`/virtual-classroom/${res.id}`), 800);
                       } catch (err) {
                         console.error("Failed to start session:", err);
-                        toast.error(isRTL ? "فشل بدء الحصة. تحقق من الاتصال." : "Failed to start session. Check your connection.");
+                        toast.error((isRTL ? "فشل بدء الحصة: " : "Failed to start session: ") + (err?.message || ""));
                       }
                     }}
                     className="w-full h-11 bg-teal-500 hover:bg-teal-400 text-stone-950 font-black rounded-xl text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"

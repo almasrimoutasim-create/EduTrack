@@ -861,22 +861,25 @@ export default function TeacherPortal() {
                             onClick={async (e) => {
                               e.stopPropagation();
                               const teacherName = portalUser?.full_name || portalUser?.name || "معلم";
+                              const gradeVal = cls.grade || cls.grade_level || "";
+                              const isUUID = (v) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(v || ""));
                               try {
                                 const newSession = await entities.VirtualSession.create({
-                                  title: `${cls.name || ""} - ${cls.grade || ""}`,
-                                  teacher_id: teacherId,
+                                  title: `${cls.name || ""} - ${gradeVal}`,
+                                  teacher_id: isUUID(teacherId) ? teacherId : undefined,
                                   teacher_name: teacherName,
-                                  subject_id: cls.id,
+                                  subject_id: isUUID(cls.id) ? cls.id : undefined,
                                   subject_name: cls.name || "",
-                                  grade: cls.grade || "",
+                                  grade: gradeVal,
                                   room_name: `room-${Math.random().toString(36).substr(2, 9)}`,
                                   scheduled_at: new Date().toISOString(),
                                   started_at: new Date().toISOString(),
                                   status: "active",
                                 });
+                                toast.success(isRTL ? "تم بدء الحصة!" : "Session started!");
                                 // Notify assigned students
                                 try {
-                                  const grade = cls.grade;
+                                  const grade = gradeVal;
                                   if (grade) {
                                     const students = await entities.Student.filter({ grade: String(grade) });
                                     const notifications = (students || []).map((st) => ({
@@ -898,6 +901,7 @@ export default function TeacherPortal() {
                                 window.location.href = `/virtual-classroom/${newSession.id}`;
                               } catch (err) {
                                 console.error("Failed to start virtual class:", err);
+                                toast.error(isRTL ? "فشل بدء الحصة" : "Failed to start session");
                                 window.location.href = `/virtual-classroom/${cls.id}`;
                               }
                             }}
