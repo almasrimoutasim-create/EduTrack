@@ -229,8 +229,18 @@ export default function RoleLogin() {
       }
       if (err.message.includes("Failed to fetch")) {
         message = isRTL ? "عذراً، تعذر الاتصال بالخادم. يرجى التحقق من الشبكة." : "Connection failed. Please check your network.";
-      } else if (err.message.includes("Admin account not found") || err.message.includes("account not found")) {
+      } else if (err.message.includes("Admin account not found") || (resolvedRole === 'admin' && err.message.includes("account not found"))) {
         message = isRTL ? "لم يتم العثور على حسابك كمدير نظام. تأكد من أنك تستخدم البريد الصحيح." : "Admin account not found. Make sure you're using the correct admin email.";
+      } else if (err.message.includes("Teacher account not found") || (resolvedRole === 'teacher' && err.message.includes("account not found"))) {
+        message = isRTL ? "لم يتم العثور على حساب المعلم أو أن الحساب غير نشط حالياً. تأكد من استخدام البريد أو الرقم الوظيفي الصحيح." : "Teacher account not found or inactive. Make sure you're using the correct email or ID.";
+      } else if (err.message.includes("Student account not found") || (resolvedRole === 'student' && err.message.includes("account not found"))) {
+        message = isRTL ? "لم يتم العثور على حساب الطالب أو أن الحساب غير نشط حالياً. تأكد من استخدام البريد أو الرقم الأكاديمي الصحيح." : "Student account not found or inactive.";
+      } else if (err.message.includes("Staff account not found") || (resolvedRole === 'staff' && err.message.includes("account not found"))) {
+        message = isRTL ? "لم يتم العثور على حساب الموظف أو أن الحساب غير نشط حالياً." : "Staff account not found or inactive.";
+      } else if (err.message.includes("Bus supervisor account not found") || (resolvedRole === 'bus' && err.message.includes("account not found"))) {
+        message = isRTL ? "لم يتم العثور على حساب مشرف الحافلة أو أن الحساب غير نشط حالياً." : "Bus supervisor account not found or inactive.";
+      } else if (err.message.includes("No student accounts found") || (resolvedRole === 'parent' && err.message.includes("account not found"))) {
+        message = isRTL ? "لم يتم العثور على حساب ولي الأمر المرتبط بهذا البريد." : "No student accounts found linked to this parent email.";
       } else if (err.message.toLowerCase().includes("invalid password") || err.message.toLowerCase().includes("credentials")) {
         message = isRTL ? "كلمة المرور غير صحيحة، يرجى المحاولة مرة أخرى." : "Incorrect password. Please try again.";
       } else if (err.message.toLowerCase().includes("not found")) {

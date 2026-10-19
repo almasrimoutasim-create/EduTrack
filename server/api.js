@@ -2798,13 +2798,19 @@ const user = {
           }
           if (rows.length === 0) {
             res.statusCode = 401;
-            return res.end(JSON.stringify({ error: 'Admin account not found' }));
+            return res.end(JSON.stringify({
+              error: 'Admin account not found',
+              error_ar: 'لم يتم العثور على حسابك كمدير نظام. تأكد من أنك تستخدم البريد الصحيح.'
+            }));
           }
           const adminRow = rows[0];
           const adminPassword = adminRow.password || adminRow.portal_password;
           if (!adminPassword || !bcrypt.compareSync(password, adminPassword)) {
             res.statusCode = 401;
-            return res.end(JSON.stringify({ error: 'Invalid admin credentials' }));
+            return res.end(JSON.stringify({
+              error: 'Invalid admin credentials',
+              error_ar: 'كلمة المرور غير صحيحة، يرجى المحاولة مرة أخرى.'
+            }));
           }
           // ── Security: bind session to school_id ──
           if (schoolId && adminRow.school_id && String(adminRow.school_id) !== String(schoolId)) {
@@ -2827,7 +2833,7 @@ const user = {
         }
 
         // 2. Teacher login
-if (role === 'teacher') {
+        if (role === 'teacher') {
            let rows;
            if (schoolId) {
              rows = await dbQuery(
@@ -2838,6 +2844,16 @@ if (role === 'teacher') {
                   AND school_id = $2 AND status = 'active'`,
                [identifier, schoolId]
              );
+             if (rows.length === 0) {
+               rows = await dbQuery(
+                 `SELECT * FROM teachers
+                  WHERE (LOWER(email) = LOWER($1)
+                      OR LOWER(employee_id) = LOWER($1)
+                      OR LOWER(username) = LOWER($1))
+                    AND school_id IS NULL AND status = 'active'`,
+                 [identifier]
+               );
+             }
            } else {
              rows = await dbQuery(
                `SELECT * FROM teachers
@@ -2846,16 +2862,33 @@ if (role === 'teacher') {
                     OR LOWER(username) = LOWER($1))
                   AND school_id IS NULL AND status = 'active'`,
                [identifier]
-);
+             );
+             if (rows.length === 0) {
+               rows = await dbQuery(
+                 `SELECT * FROM teachers
+                  WHERE (LOWER(email) = LOWER($1)
+                      OR LOWER(employee_id) = LOWER($1)
+                      OR LOWER(username) = LOWER($1))
+                    AND status = 'active'
+                  LIMIT 1`,
+                 [identifier]
+               );
+             }
            }
            if (rows.length === 0) {
             res.statusCode = 401;
-            return res.end(JSON.stringify({ error: 'Teacher account not found or inactive' }));
+            return res.end(JSON.stringify({
+              error: 'Teacher account not found or inactive',
+              error_ar: 'لم يتم العثور على حساب المعلم أو أن الحساب غير نشط حالياً. تأكد من استخدام البريد أو الرقم الوظيفي الصحيح.'
+            }));
           }
           const teacher = rows[0];
           if (!bcrypt.compareSync(password, teacher.portal_password)) {
             res.statusCode = 401;
-            return res.end(JSON.stringify({ error: 'Invalid password' }));
+            return res.end(JSON.stringify({
+              error: 'Invalid password',
+              error_ar: 'كلمة المرور غير صحيحة، يرجى المحاولة مرة أخرى.'
+            }));
           }
 const user = {
                id: teacher.id,
@@ -2874,7 +2907,7 @@ const user = {
         }
 
         // 3. Student login
-if (role === 'student') {
+        if (role === 'student') {
            let rows;
            if (schoolId) {
              rows = await dbQuery(
@@ -2885,6 +2918,16 @@ if (role === 'student') {
                   AND school_id = $2 AND status = 'active'`,
                [identifier, schoolId]
              );
+             if (rows.length === 0) {
+               rows = await dbQuery(
+                 `SELECT * FROM students
+                  WHERE (LOWER(user_email) = LOWER($1)
+                      OR LOWER(student_id) = LOWER($1)
+                      OR LOWER(username) = LOWER($1))
+                    AND school_id IS NULL AND status = 'active'`,
+                 [identifier]
+               );
+             }
            } else {
              rows = await dbQuery(
                `SELECT * FROM students
@@ -2894,17 +2937,34 @@ if (role === 'student') {
                   AND school_id IS NULL AND status = 'active'`,
                [identifier]
              );
+             if (rows.length === 0) {
+               rows = await dbQuery(
+                 `SELECT * FROM students
+                  WHERE (LOWER(user_email) = LOWER($1)
+                      OR LOWER(student_id) = LOWER($1)
+                      OR LOWER(username) = LOWER($1))
+                    AND status = 'active'
+                  LIMIT 1`,
+                 [identifier]
+               );
+             }
            }
           if (rows.length === 0) {
             res.statusCode = 401;
-            return res.end(JSON.stringify({ error: 'Student account not found or inactive' }));
+            return res.end(JSON.stringify({
+              error: 'Student account not found or inactive',
+              error_ar: 'لم يتم العثور على حساب الطالب أو أن الحساب غير نشط حالياً. تأكد من استخدام البريد أو الرقم الأكاديمي الصحيح.'
+            }));
           }
           const student = rows[0];
           if (!bcrypt.compareSync(password, student.portal_password)) {
             res.statusCode = 401;
-            return res.end(JSON.stringify({ error: 'Invalid password' }));
+            return res.end(JSON.stringify({
+              error: 'Invalid password',
+              error_ar: 'كلمة المرور غير صحيحة، يرجى المحاولة مرة أخرى.'
+            }));
           }
-const user = {
+          const user = {
                id: student.id,
                full_name: student.full_name,
                email: student.user_email,
@@ -2930,6 +2990,14 @@ const user = {
                  AND school_id = $2 AND status = 'active'`,
               [identifier, schoolId]
             );
+            if (rows.length === 0) {
+              rows = await dbQuery(
+                `SELECT * FROM students
+                 WHERE (LOWER(parent_email) = LOWER($1) OR LOWER(parent_name) = LOWER($1))
+                   AND school_id IS NULL AND status = 'active'`,
+                [identifier]
+              );
+            }
           } else {
             rows = await dbQuery(
               `SELECT * FROM students
@@ -2937,15 +3005,30 @@ const user = {
                  AND school_id IS NULL AND status = 'active'`,
               [identifier]
             );
+            if (rows.length === 0) {
+              rows = await dbQuery(
+                `SELECT * FROM students
+                 WHERE (LOWER(parent_email) = LOWER($1) OR LOWER(parent_name) = LOWER($1))
+                   AND status = 'active'
+                 LIMIT 1`,
+                [identifier]
+              );
+            }
           }
           if (rows.length === 0) {
             res.statusCode = 401;
-            return res.end(JSON.stringify({ error: 'No student accounts found linked to this parent email' }));
+            return res.end(JSON.stringify({
+              error: 'No student accounts found linked to this parent email',
+              error_ar: 'لم يتم العثور على أي حساب طالب مرتبط بهذا البريد لولي الأمر.'
+            }));
           }
           const student = rows[0];
           if (!bcrypt.compareSync(password, student.parent_password)) {
             res.statusCode = 401;
-            return res.end(JSON.stringify({ error: 'Invalid password' }));
+            return res.end(JSON.stringify({
+              error: 'Invalid password',
+              error_ar: 'كلمة المرور غير صحيحة، يرجى المحاولة مرة أخرى.'
+            }));
           }
           const user = {
               id: 'parent-' + student.id,
@@ -2973,12 +3056,18 @@ const rows = await dbQuery(
             );
           if (rows.length === 0) {
             res.statusCode = 401;
-            return res.end(JSON.stringify({ error: 'Bus supervisor account not found or inactive' }));
+            return res.end(JSON.stringify({
+              error: 'Bus supervisor account not found or inactive',
+              error_ar: 'لم يتم العثور على حساب مشرف الحافلة أو أن الحساب غير نشط حالياً.'
+            }));
           }
           const supervisor = rows[0];
           if (!bcrypt.compareSync(password, supervisor.portal_password)) {
             res.statusCode = 401;
-            return res.end(JSON.stringify({ error: 'Invalid password' }));
+            return res.end(JSON.stringify({
+              error: 'Invalid password',
+              error_ar: 'كلمة المرور غير صحيحة، يرجى المحاولة مرة أخرى.'
+            }));
           }
           const user = {
               id: supervisor.id,
@@ -3017,12 +3106,18 @@ const rows = await dbQuery(
           }
           if (rows.length === 0) {
             res.statusCode = 401;
-            return res.end(JSON.stringify({ error: 'Staff account not found or inactive' }));
+            return res.end(JSON.stringify({
+              error: 'Staff account not found or inactive',
+              error_ar: 'لم يتم العثور على حساب الموظف أو أن الحساب غير نشط حالياً.'
+            }));
           }
           const staff = rows[0];
           if (!bcrypt.compareSync(password, staff.portal_password)) {
             res.statusCode = 401;
-            return res.end(JSON.stringify({ error: 'Invalid password' }));
+            return res.end(JSON.stringify({
+              error: 'Invalid password',
+              error_ar: 'كلمة المرور غير صحيحة، يرجى المحاولة مرة أخرى.'
+            }));
           }
           
           let staffRole = staff.role || 'staff';
