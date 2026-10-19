@@ -38,8 +38,9 @@ app.use(cors({
   optionsSuccessStatus: 204,
   maxAge: 86400
 }));
-// Ensure preflight (OPTIONS) is answered for all routes
-app.options('*', cors());
+// Preflight (OPTIONS) is handled by the cors() middleware above for all routes.
+// (Express 5 does not accept the '*' wildcard in app.options(), so we rely on
+// the middleware which responds to OPTIONS automatically.)
 
 // محلل بيانات الـ JSON لقراءة الطلبات القادمة من الواجهة الأمامية
 app.use(express.json({ limit: '50mb' }));
