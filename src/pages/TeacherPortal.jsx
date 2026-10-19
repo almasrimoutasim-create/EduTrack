@@ -735,7 +735,21 @@ export default function TeacherPortal() {
               {[
                 { value: "classes", label: isRTL ? "فصولي" : "My Classes", icon: LayoutGrid },
                 { value: "students", label: isRTL ? "طلابي" : "My Students", icon: Users },
-                { value:             <TabsContent value="classes" className="m-0 space-y-6">
+                { value: "grading", label: isRTL ? "التصحيح" : "Grading", icon: ClipboardCheck },
+                { value: "materials", label: isRTL ? "المواد" : "Materials", icon: BookOpen }
+              ].map(tab => (
+                <TabsTrigger 
+                  key={tab.value}
+                  value={tab.value} 
+                  className={`rounded-2xl px-6 h-12 gap-2 font-black text-xs transition-all data-[state=active]:bg-stone-900 data-[state=active]:text-white data-[state=inactive]:text-stone-400 data-[state=inactive]:hover:bg-stone-100`}
+                >
+                  <tab.icon size={16} />
+                  {tab.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+
+            <TabsContent value="classes" className="m-0 space-y-6">
               <div className="flex items-center justify-between mb-2">
                 <div>
                   <h3 className="text-2xl font-serif font-black text-stone-900">
