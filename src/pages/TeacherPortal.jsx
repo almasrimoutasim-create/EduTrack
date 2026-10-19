@@ -860,6 +860,7 @@ export default function TeacherPortal() {
                           <button 
                             onClick={async (e) => {
                               e.stopPropagation();
+                              toast.info(isRTL ? "جارٍ بدء الحصة..." : "Starting session...");
                               const teacherName = portalUser?.full_name || portalUser?.name || "معلم";
                               const gradeVal = cls.grade || cls.grade_level || "";
                               const isUUID = (v) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(v || ""));
@@ -901,7 +902,7 @@ export default function TeacherPortal() {
                                 window.location.href = `/virtual-classroom/${newSession.id}`;
                               } catch (err) {
                                 console.error("Failed to start virtual class:", err);
-                                toast.error(isRTL ? "فشل بدء الحصة" : "Failed to start session");
+                                toast.error((isRTL ? "فشل بدء الحصة: " : "Failed to start session: ") + (err?.message || ""));
                                 window.location.href = `/virtual-classroom/${cls.id}`;
                               }
                             }}

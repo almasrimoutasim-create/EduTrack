@@ -381,7 +381,7 @@ export default function VirtualClassroom() {
       setRemoteStreams((prev) => ({ ...prev, [peerId]: stream }));
       // Apply current volume to newly connected remote video element
       const el = remoteVideoRefs.current[peerId];
-      if (el) el.volume = remoteVolume;
+      if (el) { el.volume = remoteVolume; el.muted = false; el.play().catch(() => {}); }
     };
 
     // Add currently active tracks (camera or screen share) immediately if available
@@ -1090,7 +1090,7 @@ export default function VirtualClassroom() {
                           el.play().catch(() => {});
                         }
                       }}
-                      autoPlay playsInline
+                      autoPlay playsInline muted={false}
                       className="w-full h-full object-contain"
                     />
                   ) : (
@@ -1293,7 +1293,7 @@ export default function VirtualClassroom() {
                       el.play().catch(() => {});
                     }
                   }}
-                  autoPlay playsInline
+                  autoPlay playsInline muted={false}
                   className={`w-full h-full object-cover transition-opacity duration-300 ${
                     p.video ? "opacity-100" : "opacity-0 absolute pointer-events-none"
                   }`}
