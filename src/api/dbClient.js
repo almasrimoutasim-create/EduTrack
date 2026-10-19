@@ -42,7 +42,10 @@ class EntityClient {
       headers['Authorization'] = `Bearer ${token}`;
     }
     const activeBranchId = typeof window !== 'undefined' ? localStorage.getItem('active_branch_id') : null;
-    if (activeBranchId && activeBranchId !== 'all') {
+    // Founder sessions must never be scoped by a leftover branch id from a
+    // previous school/portal session sharing the same browser — otherwise the
+    // teacher/student/requests lists come back empty.
+    if (!isFounderSession && activeBranchId && activeBranchId !== 'all') {
       headers['x-branch-id'] = activeBranchId;
     }
     if (this.entityName === 'SystemSetting' || this.entityName === 'RegistrationRequest' || this.entityName === 'School' || this.entityName === 'SchoolBranch') {

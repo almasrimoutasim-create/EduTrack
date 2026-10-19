@@ -966,6 +966,7 @@ const FounderDashboard = () => {
     enhanceResponsiveTables(document);
   }, [section]);
   const [reqFilter, setReqFilter] = useState("all"); // "all" | "schools" | "students" | "teachers"
+  const [reqSchoolFilter, setReqSchoolFilter] = useState("all");
   const [showSchoolWizard, setShowSchoolWizard] = useState(false);
   // ── Filter states (declared early: used by pre-computed .filter() blocks below ── TDZ safety) ──
   const [teacherSearch, setTeacherSearch] = useState("");
@@ -1218,7 +1219,10 @@ const FounderDashboard = () => {
   const { data: requests = [], isLoading: reqLoading } = useQuery({
     queryKey: ["founder-registrations"],
     queryFn: async () => {
-      try { return await entities.RegistrationRequest.list("-created_at", 200); }
+      try {
+        const list = await entities.RegistrationRequest.list("-created_at", 200);
+        return Array.isArray(list) ? list : (list?.registrationRequests || list?.data || []);
+      }
       catch (err) { console.error("[FounderDashboard] RegistrationRequest.list failed:", err); markAuthErr(err); return []; }
     },
   });
@@ -1227,7 +1231,10 @@ const FounderDashboard = () => {
   const { data: allTeachers = [], isLoading: teachersLoading } = useQuery({
     queryKey: ["founder-teachers"],
     queryFn: async () => {
-      try { return await entities.Teacher.list("-created_at", 1000); }
+      try {
+        const list = await entities.Teacher.list("-created_at", 1000);
+        return Array.isArray(list) ? list : (list?.teachers || list?.data || []);
+      }
       catch (err) { console.error("[FounderDashboard] Teacher.list failed:", err); markAuthErr(err); return []; }
     },
   });
@@ -1236,7 +1243,10 @@ const FounderDashboard = () => {
   const { data: allStudents = [], isLoading: studentsLoading } = useQuery({
     queryKey: ["founder-students"],
     queryFn: async () => {
-      try { return await entities.Student.list("-created_at", 1000); }
+      try {
+        const list = await entities.Student.list("-created_at", 1000);
+        return Array.isArray(list) ? list : (list?.students || list?.data || []);
+      }
       catch (err) { console.error("[FounderDashboard] Student.list failed:", err); markAuthErr(err); return []; }
     },
   });
@@ -1510,13 +1520,22 @@ const FounderDashboard = () => {
   // صفحة طلبات التسجيل: عرض الطلبات الجديدة قيد الانتظار فقط — إخفاء المقبولة/المرفوضة
   const isPendingStatus = (s) => !s || s === "pending" || s === "on_hold";
   const pendingBase = requests.filter((r) => isPendingStatus(r.status));
-  const filteredReqs = pendingBase.filter((r) => {
+  // Show every registration request (pending + approved + rejected + on_hold)
+  // so the page is never empty just because all requests were already processed.
+  const reqSchoolOptions = [...new Set(requests.map(r => r.school_name).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"ar"));
+  const reqNoSchoolCount = requests.filter(r => !r.school_name).length;
+  const filteredReqs = requests.filter((r) => {
     const isStudent = r.role_requested === "student" || r.plan === "student_free";
     const isTeacher = r.role_requested === "teacher" || r.plan === "teacher_free";
     const isSchool = !isStudent && !isTeacher;
     if (reqFilter === "schools") return isSchool;
     if (reqFilter === "students") return isStudent;
     if (reqFilter === "teachers") return isTeacher;
+    // فلتر حسب المدرسة
+    if (reqSchoolFilter !== "all") {
+      if (reqSchoolFilter === "__none__") return !r.school_name;
+      return r.school_name === reqSchoolFilter;
+    }
     return true;
   });
 
@@ -1592,10 +1611,22 @@ const FounderDashboard = () => {
   });
 
   const deleteSchool = useMutation({
-    mutationFn: async (id) => entities.School.delete(id),
+    mutationFn: async (id) => {
+      const token = localStorage.getItem("founder_token") || "";
+      const apiBase = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/$/, "");
+      const url = apiBase ? `${apiBase}/api/delete-school/${id}` : `/api/delete-school/${id}`;
+      const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` } });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "فشل حذف المدرسة");
+      return data;
+    },
     onSuccess: () => {
-      toast.success("تم حذف المدرسة بنجاح");
+      toast.success("تم حذف المدرسة وجميع بياناتها بنجاح");
       queryClient.invalidateQueries({ queryKey: ["founder-schools"] });
+      queryClient.invalidateQueries({ queryKey: ["founder-students"] });
+      queryClient.invalidateQueries({ queryKey: ["founder-teachers"] });
+      queryClient.invalidateQueries({ queryKey: ["founder-registrations"] });
+      queryClient.invalidateQueries({ queryKey: ["school-branches"] });
     },
     onError: (e) => toast.error(e.message || "فشل حذف المدرسة"),
   });
@@ -2460,7 +2491,7 @@ const FounderDashboard = () => {
                   </div>
                   <h3 className="text-center font-extrabold text-lg text-slate-900">تأكيد حذف المدرسة</h3>
                   <p className="text-center text-sm text-slate-500 mt-1 mb-4">
-                    سيتم حذف مدرسة <b className="text-slate-900">{confirmDeleteSchool.name}</b> بشكل نهائي. هذا الإجراء لا يمكن التراجع عنه.
+                    سيتم حذف مدرسة <b className="text-slate-900">{confirmDeleteSchool.name}</b> وجميع بياناتها (فروع، طلاب، معلمين، موظفين، طلبات) بشكل نهائي. هذا الإجراء لا يمكن التراجع عنه.
                   </p>
                   <div className="flex gap-2">
                     <button
@@ -2515,15 +2546,42 @@ const FounderDashboard = () => {
                   onClick={() => setReqFilter("all")}
                   className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${reqFilter === "all" ? "bg-slate-900 text-white shadow" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
                 >
-                  جميع الطلبات قيد الانتظار ({pendingBase.length})
+                  جميع الطلبات ({requests.length})
                 </button>
                 <button
                   onClick={() => setReqFilter("schools")}
                   className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1 ${reqFilter === "schools" ? "bg-blue-600 text-white shadow" : "bg-blue-50 text-blue-700 hover:bg-blue-100"}`}
                 >
-                  <Building2 size={13}/> طلبات المدارس ({pendingBase.filter(r => r.role_requested !== 'student' && r.role_requested !== 'teacher' && r.plan !== 'student_free' && r.plan !== 'teacher_free').length})
+                  <Building2 size={13}/> طلبات المدارس ({requests.filter(r => r.role_requested !== 'student' && r.role_requested !== 'teacher' && r.plan !== 'student_free' && r.plan !== 'teacher_free').length})
+                </button>
+                <button
+                  onClick={() => setReqFilter("students")}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1 ${reqFilter === "students" ? "bg-emerald-600 text-white shadow" : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"}`}
+                >
+                  <Users size={13}/> طلبات الطلاب ({requests.filter(r => r.role_requested === 'student' || r.plan === 'student_free').length})
+                </button>
+                <button
+                  onClick={() => setReqFilter("teachers")}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1 ${reqFilter === "teachers" ? "bg-indigo-600 text-white shadow" : "bg-indigo-50 text-indigo-700 hover:bg-indigo-100"}`}
+                >
+                  <GraduationCap size={13}/> طلبات المعلمين ({requests.filter(r => r.role_requested === 'teacher' || r.plan === 'teacher_free').length})
                 </button>
               </div>
+              <select
+                value={reqSchoolFilter}
+                onChange={(e) => setReqSchoolFilter(e.target.value)}
+                className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold max-w-[220px]"
+                aria-label="فلترة حسب المدرسة"
+              >
+                <option value="all">كل المدارس ({requests.length})</option>
+                {reqSchoolOptions.map((name) => (
+                  <option key={name} value={name}>{name} ({requests.filter(r => r.school_name === name).length})</option>
+                ))}
+                {reqNoSchoolCount > 0 && <option value="__none__">بدون مدرسة ({reqNoSchoolCount})</option>}
+              </select>
+              {reqSchoolFilter !== "all" && (
+                <button onClick={() => setReqSchoolFilter("all")} className="px-2 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold" title="إلغاء فلتر المدرسة">✕ إلغاء</button>
+              )}
               <button
                 onClick={() => {
                   queryClient.invalidateQueries({ queryKey: ["founder-registrations"] });

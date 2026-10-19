@@ -4940,6 +4940,35 @@ WHERE email = $10`,
         return res.end(JSON.stringify({ error: 'Route not found' }));
       }
 
+      // ── Delete School (Founder action) — حذف المدرسة وجميع بياناتها ──
+      const deleteSchoolMatch = path.match(/^\/(api|neon-db)\/delete-school\/([^/]+)$/);
+      if (deleteSchoolMatch && req.method === 'POST') {
+        res.setHeader('Content-Type', 'application/json');
+        if (!isFounderUser(req)) { res.statusCode = 401; return res.end(JSON.stringify({ error: 'Founder auth required' })); }
+        const schoolId = deleteSchoolMatch[2];
+        try {
+          const schoolRows = await dbQuery('SELECT name FROM schools WHERE id = $1', [schoolId]);
+          const schoolName = schoolRows.length ? schoolRows[0].name : null;
+          // حذف جميع السجلات التي تحتوي على school_id في أي جدول
+          const cols = await dbQuery(`SELECT table_name FROM information_schema.columns WHERE column_name = 'school_id' AND table_schema = 'public'`);
+          for (const c of cols) {
+            const t = c.table_name;
+            if (!/^[a-z_]+$/.test(t)) continue;
+            await dbQuery(`DELETE FROM ${t} WHERE school_id = $1`, [schoolId]);
+          }
+          // حذف طلبات التسجيل المرتبطة باسم المدرسة (إن وُجد)
+          if (schoolName) {
+            await dbQuery('DELETE FROM registration_requests WHERE school_name = $1', [schoolName]);
+          }
+          // حذف المدرسة نفسها
+          await dbQuery('DELETE FROM schools WHERE id = $1', [schoolId]);
+          return res.end(JSON.stringify({ success: true }));
+        } catch (e) {
+          res.statusCode = 500;
+          return res.end(JSON.stringify({ error: e.message || 'Delete failed' }));
+        }
+      }
+
       // Entity dispatch (/neon-db/entities/* only). Its body also issues a batch
       // of CREATE TABLE IF NOT EXISTS statements, so it must not run for /api/*.
       if (entityMatch) {
