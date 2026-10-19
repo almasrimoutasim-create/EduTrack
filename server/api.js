@@ -1142,6 +1142,8 @@ if (process.env.DATABASE_URL) {
 
   // Migration: add experience_years if missing
   sql`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS experience_years INTEGER;`.catch(() => {});
+  // Migration: add school_name if missing (prevent mixing between schools)
+  sql`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS school_name TEXT;`.catch(() => {});
   // Migration: store plain portal password for founder credentials display (login still uses bcrypt hash in portal_password)
   sql`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS portal_password_plain TEXT;`.catch(() => {});
   // Migration: complete teachers columns on older production tables (approve-teacher writes all of these)
@@ -1390,22 +1392,28 @@ if (process.env.DATABASE_URL) {
 
   // ── Independent vs school separation: discriminator + repair (idempotent, runs every boot) ──
   // Independent = approved founder request (landing self-registration). They must keep school_id NULL.
-  (async () => {
+  setTimeout(() => { (async () => {
     try {
       await sql.query(`ALTER TABLE students ADD COLUMN IF NOT EXISTS student_type TEXT DEFAULT 'school'`).catch(()=>{});
       await sql.query(`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS teacher_type TEXT DEFAULT 'school'`).catch(()=>{});
       // Repair wrongly-absorbed independents (matched via their approved registration request)
       await sql.query(`
-        UPDATE students SET school_id = NULL, student_type = 'independent'
-        WHERE EXISTS (
+        UPDATE students SET school_id = (SELECT id FROM schools WHERE name = students.school_name)::uuid, student_type = 'school'
+        WHERE school_id IS NULL
+          AND school_name IS NOT NULL
+          AND EXISTS (SELECT 1 FROM schools WHERE name = students.school_name)
+          AND EXISTS (
           SELECT 1 FROM registration_requests r
           WHERE r.status = 'approved'
             AND LOWER(r.username_generated) = LOWER(students.user_email)
             AND (r.role_requested = 'student' OR r.plan = 'student_free')
         )`).catch(()=>{});
       await sql.query(`
-        UPDATE teachers SET school_id = NULL, teacher_type = 'independent'
-        WHERE EXISTS (
+        UPDATE teachers SET school_id = (SELECT id FROM schools WHERE name = teachers.school_name)::uuid, teacher_type = 'school'
+        WHERE school_id IS NULL
+          AND school_name IS NOT NULL
+          AND EXISTS (SELECT 1 FROM schools WHERE name = teachers.school_name)
+          AND EXISTS (
           SELECT 1 FROM registration_requests r
           WHERE r.status = 'approved'
             AND LOWER(r.username_generated) = LOWER(teachers.email)
@@ -1416,7 +1424,7 @@ if (process.env.DATABASE_URL) {
       await sql.query(`UPDATE teachers SET teacher_type = 'school' WHERE teacher_type IS NULL OR teacher_type NOT IN ('school','independent')`).catch(()=>{});
       console.log('[neon] independent/school separation verified');
     } catch (e) { console.error('[neon] separation repair error:', e.message); }
-  })();
+  })(); }, 8000);
 
   // ── Payments / Subscriptions tables ──
   sql`
@@ -3212,6 +3220,13 @@ const rows = await dbQuery(
         const hashedPassword = hashPassword(password);
         const studentId = `STU-${Date.now().toString().slice(-6)}`;
         const indStudentId = `IND-${Date.now().toString().slice(-6)}-${Math.random().toString(36).slice(2, 6)}`;
+        // Resolve school from registration request (لا طلاب مستقلون — كل طالب تحت مدرسة)
+        let resolvedSchoolId = school_id || null;
+        if (!resolvedSchoolId && reg.school_name) {
+          const schRows = await dbQuery('SELECT id FROM schools WHERE name = ', [reg.school_name]);
+          if (schRows.length > 0) resolvedSchoolId = schRows[0].id;
+        }
+
 
         // Founder approval is ALWAYS the independent flow: force school detachment + independent type
         // Check if student already exists with this user_email
@@ -3219,8 +3234,8 @@ const rows = await dbQuery(
         if (existing.length > 0) {
           await dbQuery(
             `UPDATE students
-             SET full_name = $1, phone = $2, grade = $3, parent_name = $4, parent_phone = $5, parent_email = $6, school_name = $7, city = $8, portal_password = $9, portal_password_plain = $10, student_type = 'independent', status = 'active', school_id = NULL, username = $11, independent_student_id = $12
-             WHERE user_email = $13`,
+             SET full_name = $1, phone = $2, grade = $3, parent_name = $4, parent_phone = $5, parent_email = $6, school_name = $7, city = $8, portal_password = $9, portal_password_plain = $10, student_type = 'school', status = 'active', school_id = $11, username = $12, independent_student_id = $13
+             WHERE user_email = $14`,
             [
               reg.full_name || 'طالب',
               reg.phone || null,
@@ -3232,6 +3247,7 @@ const rows = await dbQuery(
               reg.country || null,
               hashedPassword,
               password,
+              resolvedSchoolId,
               username.trim().toLowerCase(),
               indStudentId,
               username.trim().toLowerCase()
@@ -3240,7 +3256,7 @@ const rows = await dbQuery(
         } else {
           await dbQuery(
             `INSERT INTO students (full_name, user_email, student_id, phone, grade, parent_name, parent_phone, parent_email, school_name, city, status, portal_password, portal_password_plain, student_type, school_id, username, independent_student_id)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'active', $11, $12, 'independent', NULL, $13, $14)`,
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'active', $11, $12, 'school', $13, $14, $15)`,
             [
               reg.full_name || 'طالب جديد',
               username.trim().toLowerCase(),
@@ -3254,6 +3270,7 @@ const rows = await dbQuery(
               reg.country || null,
               hashedPassword,
               password,
+              resolvedSchoolId,
               username.trim().toLowerCase(),
               indStudentId
             ]
@@ -3307,7 +3324,7 @@ const rows = await dbQuery(
         if (existing.length > 0) {
           await dbQuery(
             `UPDATE teachers
-             SET full_name = $1, phone = $2, subjects = $3, experience_years = $4, bio = $5, portal_password = $6, portal_password_plain = $7, teacher_type = 'independent', status = 'active', school_id = NULL, username = $8, independent_teacher_id = $9
+             SET full_name = $1, phone = $2, subjects = $3, experience_years = $4, bio = $5, portal_password = $6, portal_password_plain = $7, teacher_type = 'school', status = 'active', school_id = $8, username = $9, independent_teacher_id = $10
 WHERE email = $10`,
              [
                reg.full_name || 'معلم',
@@ -4947,21 +4964,21 @@ WHERE email = $10`,
         if (!isFounderUser(req)) { res.statusCode = 401; return res.end(JSON.stringify({ error: 'Founder auth required' })); }
         const schoolId = deleteSchoolMatch[2];
         try {
-          const schoolRows = await dbQuery('SELECT name FROM schools WHERE id = $1', [schoolId]);
+          const schoolRows = await dbQuery('SELECT name FROM schools WHERE id::text = $1', [schoolId]);
           const schoolName = schoolRows.length ? schoolRows[0].name : null;
           // حذف جميع السجلات التي تحتوي على school_id في أي جدول
           const cols = await dbQuery(`SELECT table_name FROM information_schema.columns WHERE column_name = 'school_id' AND table_schema = 'public'`);
           for (const c of cols) {
             const t = c.table_name;
             if (!/^[a-z_]+$/.test(t)) continue;
-            await dbQuery(`DELETE FROM ${t} WHERE school_id = $1`, [schoolId]);
+            await dbQuery(`DELETE FROM ${t} WHERE school_id::text = $1`, [schoolId]);
           }
           // حذف طلبات التسجيل المرتبطة باسم المدرسة (إن وُجد)
           if (schoolName) {
             await dbQuery('DELETE FROM registration_requests WHERE school_name = $1', [schoolName]);
           }
           // حذف المدرسة نفسها
-          await dbQuery('DELETE FROM schools WHERE id = $1', [schoolId]);
+          await dbQuery('DELETE FROM schools WHERE id::text = $1', [schoolId]);
           return res.end(JSON.stringify({ success: true }));
         } catch (e) {
           res.statusCode = 500;
@@ -5436,6 +5453,13 @@ WHERE email = $10`,
           const tenantIdFromUser = req.user?.school_id;
           if (isTenantTable && tenantIdFromUser) {
             body.school_id = tenantIdFromUser;
+          }
+          // تعبئة school_name تلقائياً من جدول schools لمنع الخلط بين المدارس
+          if ((table === 'students' || table === 'teachers') && body.school_id && !body.school_name) {
+            try {
+              const sch = await dbQuery('SELECT name FROM schools WHERE id::text = $1', [body.school_id]);
+              if (sch.length > 0) body.school_name = sch[0].name;
+            } catch (e) { /* ignore */ }
           }
           // Gateway lock accounts: scope to the admin's school automatically (Option A shared credential)
           // Multi-branch: حقن branch_id إن وُجد في الطلب أو الترويسة
@@ -6582,6 +6606,17 @@ WHERE email = $10`,
 export function setupApiRoutes(server) {
   server.middlewares.use(createApiHandler());
 }
+
+// ── تطبيع school_name لمنع الخلط بين المدارس (مرة عند الإقلاع، بعد جاهزية DB) ──
+setTimeout(() => {
+  (async () => {
+    try {
+      await dbQuery(`UPDATE students SET school_name = (SELECT name FROM schools WHERE id::text = students.school_id::text) WHERE school_id IS NOT NULL AND (school_name IS NULL OR school_name = '' OR school_name <> (SELECT name FROM schools WHERE id::text = students.school_id::text))`);
+      await dbQuery(`UPDATE teachers SET school_name = (SELECT name FROM schools WHERE id::text = teachers.school_id::text) WHERE school_id IS NOT NULL AND (school_name IS NULL OR school_name = '' OR school_name <> (SELECT name FROM schools WHERE id::text = teachers.school_id::text))`);
+      console.log('[neon] normalized school_name for students/teachers');
+    } catch (e) { console.error('[neon] normalize school_name:', e.message); }
+  })();
+}, 5000);
 
 export function setupWebSocket(server) {
   const io = new SocketIOServer(server, {

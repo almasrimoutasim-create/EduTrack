@@ -1484,9 +1484,10 @@ const FounderDashboard = () => {
       } else {
         const schoolObj = schools.find(sc => String(sc.id) === String(studentSchoolFilter));
         if (schoolObj) {
-          matchSchool = String(s.school_id) === String(schoolObj.id) || (s.school_name && schoolObj.name && s.school_name === schoolObj.name);
+          // فقط school_id — منع خلط الطلاب المستقلين (school_id=null) مع المدارس
+          matchSchool = String(s.school_id) === String(schoolObj.id);
         } else {
-          matchSchool = String(s.school_id) === String(studentSchoolFilter) || s.school_name === studentSchoolFilter;
+          matchSchool = String(s.school_id) === String(studentSchoolFilter);
         }
       }
     }
