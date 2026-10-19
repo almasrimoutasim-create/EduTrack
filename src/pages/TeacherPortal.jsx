@@ -858,9 +858,48 @@ export default function TeacherPortal() {
                             </button>
                           </div>
                           <button 
-                            onClick={(e) => {
+                            onClick={async (e) => {
                               e.stopPropagation();
-                              window.location.href = `/virtual-classroom/${cls.id}`;
+                              const teacherName = portalUser?.full_name || portalUser?.name || "معلم";
+                              try {
+                                const newSession = await entities.VirtualSession.create({
+                                  title: `${cls.name || ""} - ${cls.grade || ""}`,
+                                  teacher_id: teacherId,
+                                  teacher_name: teacherName,
+                                  subject_id: cls.id,
+                                  subject_name: cls.name || "",
+                                  grade: cls.grade || "",
+                                  room_name: `room-${Math.random().toString(36).substr(2, 9)}`,
+                                  scheduled_at: new Date().toISOString(),
+                                  started_at: new Date().toISOString(),
+                                  status: "active",
+                                });
+                                // Notify assigned students
+                                try {
+                                  const grade = cls.grade;
+                                  if (grade) {
+                                    const students = await entities.Student.filter({ grade: String(grade) });
+                                    const notifications = (students || []).map((st) => ({
+                                      recipient_id: st.id,
+                                      user_id: st.id,
+                                      type: "class_started",
+                                      title: isRTL ? `بدأت الحصة: ${cls.name}` : `Class started: ${cls.name}`,
+                                      message: isRTL
+                                        ? `${teacherName} بدأ حصة ${cls.name}. انضم الآن!`
+                                        : `${teacherName} started a ${cls.name} class. Join now!`,
+                                      link: `/virtual-classroom/${newSession.id}`,
+                                      is_read: false,
+                                    }));
+                                    if (notifications.length > 0) {
+                                      await entities.PortalNotification.bulkCreate(notifications).catch(() => {});
+                                    }
+                                  }
+                                } catch (notifErr) { console.error("Notify students failed:", notifErr); }
+                                window.location.href = `/virtual-classroom/${newSession.id}`;
+                              } catch (err) {
+                                console.error("Failed to start virtual class:", err);
+                                window.location.href = `/virtual-classroom/${cls.id}`;
+                              }
                             }}
                             className="w-full inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-xs font-black transition-all bg-teal-50 text-teal-700 border border-teal-200 hover:bg-teal-100 h-11"
                           >

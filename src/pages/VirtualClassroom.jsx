@@ -709,6 +709,30 @@ export default function VirtualClassroom() {
     try {
       await entities.VirtualSession.update(sessionItem.id, { status: "active", started_at: new Date().toISOString() });
       toast.success(isRTL ? "تم بدء الحصة!" : "Session started!");
+      // Notify assigned students that the lesson has started
+      try {
+        const selectedSub = teacherSubjects.find((s) => s.id === sessionItem.subject_id);
+        const grade = selectedSub?.grade || sessionItem.grade;
+        if (grade) {
+          const students = await entities.Student.filter({ grade: String(grade) });
+          const notifications = (students || []).map((st) => ({
+            recipient_id: st.id,
+            user_id: st.id,
+            type: "class_started",
+            title: isRTL ? `بدأت الحصة: ${sessionItem.title}` : `Class started: ${sessionItem.title}`,
+            message: isRTL
+              ? `${userName} بدأ حصة ${sessionItem.subject_name || ""}. انضم الآن!`
+              : `${userName} started a ${sessionItem.subject_name || ""} class. Join now!`,
+            link: `/virtual-classroom/${sessionItem.id}`,
+            is_read: false,
+          }));
+          if (notifications.length > 0) {
+            await entities.PortalNotification.bulkCreate(notifications).catch(() => {});
+          }
+        }
+      } catch (notifErr) {
+        console.error("Notify students failed:", notifErr);
+      }
       navigate(`/virtual-classroom/${sessionItem.id}`);
     } catch { toast.error(isRTL ? "فشل بدء الحصة" : "Failed to start session"); }
   };
@@ -728,6 +752,7 @@ export default function VirtualClassroom() {
         teacher_name: userName,
         subject_id: newSession.subject_id,
         subject_name: selectedSub?.name || "",
+        grade: selectedSub?.grade || "",
         room_name: roomName,
         scheduled_at: scheduledDateTime,
         status: "scheduled",
@@ -821,12 +846,34 @@ export default function VirtualClassroom() {
                           teacher_name: userName,
                           subject_id: newSession.subject_id,
                           subject_name: selectedSub?.name || "",
+                          grade: selectedSub?.grade || "",
                           room_name: roomName,
                           scheduled_at: new Date().toISOString(),
                           started_at: new Date().toISOString(),
                           status: "active"
                         });
                         toast.success(isRTL ? "تم بدء الحصة! جارٍ الانتقال للبث المباشر..." : "Session started! Redirecting to live stream...");
+                        // Notify assigned students
+                        try {
+                          const grade = selectedSub?.grade;
+                          if (grade) {
+                            const students = await entities.Student.filter({ grade: String(grade) });
+                            const notifications = (students || []).map((st) => ({
+                              recipient_id: st.id,
+                              user_id: st.id,
+                              type: "class_started",
+                              title: isRTL ? `بدأت الحصة: ${newSession.title}` : `Class started: ${newSession.title}`,
+                              message: isRTL
+                                ? `${userName} بدأ حصة ${selectedSub?.name || ""}. انضم الآن!`
+                                : `${userName} started a ${selectedSub?.name || ""} class. Join now!`,
+                              link: `/virtual-classroom/${res.id}`,
+                              is_read: false,
+                            }));
+                            if (notifications.length > 0) {
+                              await entities.PortalNotification.bulkCreate(notifications).catch(() => {});
+                            }
+                          }
+                        } catch (notifErr) { console.error("Notify students failed:", notifErr); }
                         setTimeout(() => navigate(`/virtual-classroom/${res.id}`), 800);
                       } catch (err) {
                         console.error("Failed to start session:", err);

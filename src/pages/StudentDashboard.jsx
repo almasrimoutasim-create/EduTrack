@@ -225,10 +225,20 @@ export default function StudentDashboard() {
     queryFn: () => entities.Subject.filter({ grade }),
     enabled: activeTab === "materials" && !!grade,
   });
-  const { data: sessionsList = [], isLoading: loadingSess, error: errSess, refetch: refetchSess } = useQuery({
+  const { data: sessionsListRaw = [], isLoading: loadingSess, error: errSess, refetch: refetchSess } = useQuery({
     queryKey: ["dash-sessions"],
     queryFn: () => entities.VirtualSession.list("-created_at", 20),
     enabled: activeTab === "classroom",
+    refetchInterval: 15000,
+  });
+  // Only show sessions directed to this student (by grade). Backward-compat: sessions without grade are shown.
+  const sessionsList = (sessionsListRaw || []).filter((s) => !grade || !s.grade || String(s.grade) === String(grade));
+
+  const { data: portalNotifications = [], refetch: refetchPortalNotifs } = useQuery({
+    queryKey: ["dash-portal-notifications", studentUuid],
+    queryFn: () => entities.PortalNotification.filter({ recipient_id: studentUuid }),
+    enabled: !!studentUuid,
+    refetchInterval: 30000,
   });
   const videosQuery = useQuery({
     queryKey: ["dash-videos"],
@@ -639,9 +649,20 @@ export default function StudentDashboard() {
           {activeTab === "notifications" && (
             <div className="max-w-3xl mx-auto space-y-3">
               <h1 className="text-2xl font-black">الإشعارات والتعميمات</h1>
+              {portalNotifications.length > 0 && (
+                <div className="space-y-2 mb-3">
+                  {portalNotifications.map((n) => (
+                    <div key={n.id} className="bg-white rounded-2xl border border-teal-100 p-4">
+                      <p className="font-black text-sm">{n.title || "إشعار"}</p>
+                      <p className="text-xs text-stone-600 mt-1 whitespace-pre-line">{n.message}</p>
+                      {n.link && <button onClick={() => navigate(n.link)} className="mt-2 text-xs font-black text-teal-700 underline cursor-pointer">انضمام للحصة</button>}
+                    </div>
+                  ))}
+                </div>
+              )}
               {loadingAnn ? (<><Skeleton className="h-20" /><Skeleton className="h-20" /></>)
                 : errAnn ? <ErrorBox message="تعذر تحميل الإشعارات" onRetry={() => refetchAnn()} />
-                : myAnnouncements.length === 0 ? <p className="text-sm text-stone-500 bg-white rounded-2xl p-6">لا توجد إشعارات موجهة إليك حالياً.</p>
+                : (myAnnouncements.length === 0 && portalNotifications.length === 0) ? <p className="text-sm text-stone-500 bg-white rounded-2xl p-6">لا توجد إشعارات موجهة إليك حالياً.</p>
                 : myAnnouncements.map((a) => (
                   <div key={a.id} className="bg-white rounded-2xl border border-stone-100 p-4">
                     <p className="font-black text-sm">{a.title}</p>
