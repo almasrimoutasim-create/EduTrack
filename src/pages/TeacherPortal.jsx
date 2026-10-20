@@ -22,7 +22,9 @@ import {
   Megaphone,
   Search,
   Trophy,
-  Award
+  Award,
+  Copy,
+  Send
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useLanguage } from "@/lib/LanguageContext";
@@ -33,7 +35,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import TeacherSidebar from "@/components/layout/TeacherSidebar";
 import SupportWidget from "@/components/shared/SupportWidget";
 import VisualSchedule from "@/components/schedule/VisualSchedule";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import PageHeader from "@/components/shared/PageHeader";
 import AssignmentsGradingTab from "@/components/teacher/AssignmentsGradingTab";
 import ParentTeacherChat from "@/components/portal/ParentTeacherChat";
@@ -117,6 +119,12 @@ export default function TeacherPortal() {
   const [newClassGrade, setNewClassGrade] = useState("1");
   const [newClassSection, setNewClassSection] = useState("");
   const [isCreatingClass, setIsCreatingClass] = useState(false);
+
+  // ── Live virtual class initiation (teacher as host) ──
+  const [liveClass, setLiveClass] = useState(null);
+  const [meetingLink, setMeetingLink] = useState("");
+  const [notifying, setNotifying] = useState(false);
+  const [notifiedCount, setNotifiedCount] = useState(null);
 
   const [studentSearch, setStudentSearch] = useState("");
   const [selectedStudentForProfile, setSelectedStudentForProfile] = useState(null);
@@ -405,6 +413,78 @@ export default function TeacherPortal() {
       toast.error(isRTL ? "تعذر إنشاء الفصل" : "Failed to create class");
     } finally {
       setIsCreatingClass(false);
+    }
+  };
+
+  // ── Start a live class: open a fresh Google Meet where the teacher is the
+  //    host, then let them copy the link or save it and notify the class. ──
+  const openLiveClass = (cls) => {
+    setLiveClass(cls);
+    setMeetingLink("https://meet.google.com/new");
+    setNotifiedCount(null);
+    // Teacher-created meeting → the teacher is the host (full controls).
+    window.open("https://meet.google.com/new", "_blank", "noopener,noreferrer");
+  };
+
+  const copyMeetingLink = async () => {
+    const link = meetingLink.trim() || "https://meet.google.com/new";
+    try {
+      await navigator.clipboard.writeText(link);
+      toast.success(isRTL ? "تم نسخ رابط الاجتماع" : "Meeting link copied");
+    } catch {
+      toast.error(isRTL ? "تعذر النسخ" : "Copy failed");
+    }
+  };
+
+  const notifyClassStudents = async () => {
+    if (!liveClass) return;
+    const link = meetingLink.trim() || "https://meet.google.com/new";
+    const classStudents = (students || []).filter((s) => studentBelongsToClass(s, liveClass));
+    if (classStudents.length === 0) {
+      toast.error(isRTL ? "لا يوجد طلاب مسجلين في هذا الفصل" : "No students in this class");
+      return;
+    }
+    setNotifying(true);
+    try {
+      const teacherName = portalUser?.full_name || portalUser?.name || (isRTL ? "المعلم" : "Teacher");
+
+      // Save the live class (with its link) so it appears in the virtual-classrooms list.
+      await entities.VirtualSession.create({
+        title: `${liveClass.name} - ${isRTL ? "حصة مباشرة" : "live class"}`,
+        teacher_id: teacherId,
+        teacher_name: teacherName,
+        subject_name: liveClass.name,
+        grade: liveClass.grade_level,
+        room_name: `meet-${Math.random().toString(36).slice(2, 10)}`,
+        scheduled_at: new Date().toISOString(),
+        started_at: new Date().toISOString(),
+        status: "active",
+        meet_link: link,
+      }).catch((e) => console.warn("Failed to save live session:", e));
+
+      // Notify every student in this specific class (portal notification).
+      const results = await Promise.allSettled(
+        classStudents.map((s) =>
+          entities.PortalNotification.create({
+            user_id: s.id,
+            type: "class_started",
+            title: isRTL ? `بدأت الحصة المباشرة: ${liveClass.name}` : `Live class started: ${liveClass.name}`,
+            message: isRTL
+              ? `${teacherName} بدأ حصة مباشرة في ${liveClass.name}. انضم من الرابط: ${link}`
+              : `${teacherName} started a live ${liveClass.name} class. Join: ${link}`,
+            link: "/virtual-classroom/demo",
+            is_read: false,
+          }).catch(() => null)
+        )
+      );
+      const sent = results.filter((r) => r.status === "fulfilled" && r.value).length;
+      setNotifiedCount(sent);
+      toast.success(isRTL ? `تم إرسال الإشعار إلى ${sent} طالب` : `Notified ${sent} students`);
+    } catch (err) {
+      console.error("Failed to notify students:", err);
+      toast.error(isRTL ? "تعذر إرسال الإشعارات" : "Failed to notify students");
+    } finally {
+      setNotifying(false);
     }
   };
 
@@ -858,17 +938,18 @@ export default function TeacherPortal() {
                               <ChevronRight size={20} className={isRTL ? "rotate-180" : ""} />
                             </button>
                           </div>
-                          <a
-                            href={cls?.meet_link || cls?.meeting_link || cls?.virtual_class_url || cls?.class_link || "https://meet.google.com/wdk-nuyw-tja"}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openLiveClass(cls);
+                            }}
                             className="w-full inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-xs font-black transition-all bg-teal-50 text-teal-700 border border-teal-200 hover:bg-teal-600 hover:text-white hover:border-teal-600 h-11 cursor-pointer shadow-sm hover:shadow-md active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-teal-400/40"
                           >
                             <Video size={14} />
                             {isRTL ? "بدء حصة افتراضية مباشر" : "Start Live Virtual Class"}
                             <ExternalLink size={12} className="opacity-70" />
-                          </a>
+                          </button>
                         </div>
                       </Card>
                     </motion.div>
@@ -1305,6 +1386,80 @@ export default function TeacherPortal() {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Live virtual class — host confirmation + share/notify */}
+      <Dialog open={!!liveClass} onOpenChange={(open) => !open && setLiveClass(null)}>
+        <DialogContent className="max-w-md rounded-[32px] p-6" dir={isRTL ? "rtl" : "ltr"}>
+          <DialogHeader>
+            <DialogTitle className="font-serif font-black text-xl text-stone-900 flex items-center gap-2">
+              <Video className="text-teal-600 h-5 w-5" />
+              {isRTL ? "بدء حصة افتراضية مباشرة" : "Start Live Virtual Class"}
+            </DialogTitle>
+            <DialogDescription className="text-stone-400 text-xs leading-relaxed">
+              {isRTL
+                ? `تم فتح نافذة جديدة لإنشاء اجتماع Google Meet باسمك — ستدخل كمُنظِّم (Host) تلقائيًا، ما يمنحك كامل صلاحيات التحكم: الميكروفون، مشاركة الشاشة، وإدارة انضمام الطلاب.`
+                : `A new tab opened to create a Google Meet as you — you'll join as the host automatically, with full controls: microphone, screen sharing, and participant management.`}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 pt-3">
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-stone-700">
+                {isRTL ? "رابط الاجتماع" : "Meeting link"}
+              </label>
+              <div className="flex gap-2">
+                <Input
+                  value={meetingLink}
+                  onChange={(e) => setMeetingLink(e.target.value)}
+                  placeholder="https://meet.google.com/..."
+                  className="h-11 rounded-xl text-xs bg-stone-50/50 border-stone-200"
+                  dir="ltr"
+                />
+                <button
+                  type="button"
+                  onClick={copyMeetingLink}
+                  className="inline-flex items-center gap-1.5 h-11 px-4 rounded-xl border-2 border-stone-200 bg-white text-stone-700 text-xs font-bold hover:bg-stone-50 cursor-pointer shrink-0"
+                >
+                  <Copy size={14} />
+                  {isRTL ? "نسخ" : "Copy"}
+                </button>
+              </div>
+              <p className="text-[11px] text-stone-400 leading-relaxed">
+                {isRTL
+                  ? "الصق رابط الاجتماع الفعلي من تبويب Google Meet المفتوح، ثم احفظه لإشعار طلاب هذا الفصل."
+                  : "Paste the actual meeting link from the opened Google Meet tab, then save it to notify this class's students."}
+              </p>
+            </div>
+
+            {notifiedCount !== null && (
+              <div className="flex items-center gap-2 text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-2">
+                <CheckCircle2 size={14} />
+                {isRTL ? `تم إرسال الإشعار إلى ${notifiedCount} طالب` : `Notified ${notifiedCount} students`}
+              </div>
+            )}
+
+            <DialogFooter className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => window.open("https://meet.google.com/new", "_blank", "noopener,noreferrer")}
+                className="inline-flex items-center gap-1.5 h-11 px-4 rounded-xl border-2 border-stone-200 bg-white text-stone-700 text-xs font-bold hover:bg-stone-50 cursor-pointer"
+              >
+                <ExternalLink size={14} />
+                {isRTL ? "فتح اجتماع جديد" : "Open new meeting"}
+              </button>
+              <button
+                type="button"
+                onClick={notifyClassStudents}
+                disabled={notifying}
+                className="inline-flex items-center gap-1.5 h-11 px-5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-black cursor-pointer disabled:opacity-50"
+              >
+                <Send size={14} />
+                {notifying ? (isRTL ? "جارٍ الإرسال..." : "Sending...") : (isRTL ? "حفظ وإشعار الطلاب" : "Save & notify students")}
+              </button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
 
     </div>
   );

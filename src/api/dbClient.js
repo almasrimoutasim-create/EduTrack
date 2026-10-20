@@ -210,5 +210,37 @@ for (const name of entityNames) {
   entities[name] = new EntityClient(name);
 }
 
+// Root for /neon-db/* routes (API_BASE points at the entities sub-path).
+const NEON_DB_BASE = BACKEND
+  ? `${BACKEND.replace(/\/$/, '')}/neon-db`
+  : '/neon-db';
+
+/**
+ * Delete a virtual class by id.
+ *
+ * Uses the dedicated server route (which enforces teacher-owner / admin
+ * permission) instead of the generic entity DELETE, which only scopes by
+ * school_id and would let a teacher remove any class in the school.
+ */
+export async function deleteVirtualClass(id) {
+  const token = localStorage.getItem('portal_jwt_token') || localStorage.getItem('jwt_token') || localStorage.getItem('auth_token') || localStorage.getItem('token');
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const response = await fetch(`${NEON_DB_BASE}/virtual-classes/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers,
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ error: response.statusText }));
+    throw new Error(err.error || 'Failed to delete virtual class');
+  }
+  try {
+    return await response.json();
+  } catch {
+    return { success: true };
+  }
+}
+
 export { entities };
 export default entities;

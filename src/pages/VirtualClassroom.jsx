@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { entities } from "@/api/dbClient";
+import { entities, deleteVirtualClass } from "@/api/dbClient";
 import {
   Video, VideoOff, Mic, MicOff, Hand, MessageSquare,
   Send, Users, PhoneOff, Info, Copy,
   ShieldAlert, ScreenShare, Sparkles, AlertCircle, FileText,
   Clock, Calendar, Maximize2, Minimize2, ChevronLeft, ChevronRight,
-  StopCircle
+  StopCircle, Trash2
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/lib/LanguageContext";
@@ -15,6 +15,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useDrawingSocket } from "@/hooks/useDrawingSocket";
 import { useWebRTCSignaling } from "@/hooks/useWebRTCSignaling";
@@ -37,7 +38,7 @@ export default function VirtualClassroom() {
   const userId = user?.id || fallbackId;
   const userName = user?.full_name || (role === "teacher" ? "أ. أحمد" : "طالب زائر");
   const isTeacher = role === "teacher";
-  const isAdmin = role === "admin";
+  const isAdmin = role === "admin" || role === "school_admin";
 
   // ── UI State ──────────────────────────────────────────────────────────────
   const [micActive, setMicActive] = useState(true);
@@ -167,6 +168,122 @@ export default function VirtualClassroom() {
     scheduled_at: "",
     scheduled_time: "",
   });
+
+  // Delete flow state: the session pending confirmation + the one being deleted.
+  const [confirmDelete, setConfirmDelete] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
+
+  // Live-class start: open Google Meet as host + copy link / notify students.
+  const [liveModal, setLiveModal] = useState(null);
+  const [liveLink, setLiveLink] = useState("");
+  const [liveNotifying, setLiveNotifying] = useState(false);
+  const [liveNotified, setLiveNotified] = useState(null);
+
+  // A class can be deleted by the school admin/founder (any class in the
+  // school) or by the teacher who owns it. Ended/old classes are the main
+  // target, but the backend guard is the real authorisation.
+  const canDeleteSession = (si) => {
+    if (role === "founder") return true;
+    if (isAdmin) return true;
+    if (isTeacher) return String(si?.teacher_id || "") === String(userId);
+    return false;
+  };
+
+  const handleDeleteSession = async (session) => {
+    if (!session?.id) return;
+    setDeletingId(session.id);
+    try {
+      await deleteVirtualClass(session.id);
+      // Immediate UI update: drop the row from the cached list (no reload).
+      qc.setQueryData(["virtual-sessions"], (old = []) =>
+        (Array.isArray(old) ? old : []).filter((s) => s.id !== session.id)
+      );
+      setConfirmDelete(null);
+      toast.success(isRTL ? "تم حذف الحصة الافتراضية بنجاح" : "Virtual class deleted successfully");
+    } catch (err) {
+      console.error("Failed to delete virtual class:", err);
+      toast.error((isRTL ? "تعذر حذف الحصة: " : "Failed to delete class: ") + (err?.message || ""));
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  // ── Start a live class: create the session, open Google Meet as host, then
+  //    let the teacher copy the link or save it and notify the class. ──
+  const openLiveClass = async () => {
+    if (!newSession.title) { toast.error(isRTL ? "أدخل عنوان الحصة" : "Enter session title"); return; }
+    if (!newSession.subject_id) { toast.error(isRTL ? "اختر المادة الدراسية" : "Select a subject"); return; }
+    const selectedSub = teacherSubjects.find((s) => s.id === newSession.subject_id);
+    try {
+      const res = await entities.VirtualSession.create({
+        title: newSession.title,
+        teacher_id: userId,
+        teacher_name: userName,
+        subject_id: newSession.subject_id,
+        subject_name: selectedSub?.name || "",
+        grade: selectedSub?.grade || "",
+        room_name: `room-${Math.random().toString(36).substr(2, 9)}`,
+        scheduled_at: new Date().toISOString(),
+        started_at: new Date().toISOString(),
+        status: "active",
+        meet_link: "https://meet.google.com/new",
+      });
+      setLiveModal({ session: res, title: newSession.title, subjectName: selectedSub?.name || "", grade: selectedSub?.grade || "" });
+      setLiveLink("https://meet.google.com/new");
+      setLiveNotified(null);
+      // Teacher-created meeting → the teacher is the host (full controls).
+      window.open("https://meet.google.com/new", "_blank", "noopener,noreferrer");
+    } catch (err) {
+      console.error("Failed to start session:", err);
+      toast.error((isRTL ? "فشل بدء الحصة: " : "Failed to start session: ") + (err?.message || ""));
+    }
+  };
+
+  const copyLiveLink = async () => {
+    const link = liveLink.trim() || "https://meet.google.com/new";
+    try {
+      await navigator.clipboard.writeText(link);
+      toast.success(isRTL ? "تم نسخ رابط الاجتماع" : "Meeting link copied");
+    } catch {
+      toast.error(isRTL ? "تعذر النسخ" : "Copy failed");
+    }
+  };
+
+  const notifyLiveStudents = async () => {
+    if (!liveModal?.session) return;
+    const link = liveLink.trim() || "https://meet.google.com/new";
+    setLiveNotifying(true);
+    try {
+      await entities.VirtualSession.update(liveModal.session.id, { meet_link: link }).catch(() => {});
+      let sent = 0;
+      if (liveModal.grade) {
+        const students = await entities.Student.filter({ grade: String(liveModal.grade) }).catch(() => []);
+        const results = await Promise.allSettled(
+          (students || []).map((st) =>
+            entities.PortalNotification.create({
+              user_id: st.id,
+              type: "class_started",
+              title: isRTL ? `بدأت الحصة: ${liveModal.title}` : `Class started: ${liveModal.title}`,
+              message: isRTL
+                ? `${userName} بدأ حصة ${liveModal.subjectName || ""}. انضم من الرابط: ${link}`
+                : `${userName} started a ${liveModal.subjectName || ""} class. Join: ${link}`,
+              link: `/virtual-classroom/${liveModal.session.id}`,
+              is_read: false,
+            }).catch(() => null)
+          )
+        );
+        sent = results.filter((r) => r.status === "fulfilled" && r.value).length;
+      }
+      setLiveNotified(sent);
+      qc.invalidateQueries({ queryKey: ["virtual-sessions"] });
+      toast.success(isRTL ? `تم حفظ الحصة وإشعار ${sent} طالب` : `Class saved, notified ${sent} students`);
+    } catch (err) {
+      console.error("Notify students failed:", err);
+      toast.error(isRTL ? "تعذر إرسال الإشعارات" : "Failed to notify students");
+    } finally {
+      setLiveNotifying(false);
+    }
+  };
 
   // ─────────────────────────────────────────────────────────────────────────
   //  Participants list from DB
@@ -732,21 +849,21 @@ export default function VirtualClassroom() {
         const selectedSub = teacherSubjects.find((s) => s.id === sessionItem.subject_id);
         const grade = selectedSub?.grade || sessionItem.grade;
         if (grade) {
-          const students = await entities.Student.filter({ grade: String(grade) });
-          const notifications = (students || []).map((st) => ({
-            recipient_id: st.id,
-            user_id: st.id,
-            type: "class_started",
-            title: isRTL ? `بدأت الحصة: ${sessionItem.title}` : `Class started: ${sessionItem.title}`,
-            message: isRTL
-              ? `${userName} بدأ حصة ${sessionItem.subject_name || ""}. انضم الآن!`
-              : `${userName} started a ${sessionItem.subject_name || ""} class. Join now!`,
-            link: `/virtual-classroom/${sessionItem.id}`,
-            is_read: false,
-          }));
-          if (notifications.length > 0) {
-            await entities.PortalNotification.bulkCreate(notifications).catch(() => {});
-          }
+          const students = await entities.Student.filter({ grade: String(grade) }).catch(() => []);
+          await Promise.allSettled(
+            (students || []).map((st) =>
+              entities.PortalNotification.create({
+                user_id: st.id,
+                type: "class_started",
+                title: isRTL ? `بدأت الحصة: ${sessionItem.title}` : `Class started: ${sessionItem.title}`,
+                message: isRTL
+                  ? `${userName} بدأ حصة ${sessionItem.subject_name || ""}. انضم الآن!`
+                  : `${userName} started a ${sessionItem.subject_name || ""} class. Join now!`,
+                link: `/virtual-classroom/${sessionItem.id}`,
+                is_read: false,
+              }).catch(() => null)
+            )
+          );
         }
       } catch (notifErr) {
         console.error("Notify students failed:", notifErr);
@@ -852,52 +969,7 @@ export default function VirtualClassroom() {
                     </select>
                   </div>
                   <button
-                    onClick={async () => {
-                      if (!newSession.title) { toast.error(isRTL ? "أدخل عنوان الحصة" : "Enter session title"); return; }
-                      if (!newSession.subject_id) { toast.error(isRTL ? "اختر المادة الدراسية" : "Select a subject"); return; }
-                      const selectedSub = teacherSubjects.find((s) => s.id === newSession.subject_id);
-                      const roomName = `room-${Math.random().toString(36).substr(2, 9)}`;
-                      try {
-                        const res = await entities.VirtualSession.create({
-                          title: newSession.title,
-                          teacher_id: userId,
-                          teacher_name: userName,
-                          subject_id: newSession.subject_id,
-                          subject_name: selectedSub?.name || "",
-                          grade: selectedSub?.grade || "",
-                          room_name: roomName,
-                          scheduled_at: new Date().toISOString(),
-                          started_at: new Date().toISOString(),
-                          status: "active"
-                        });
-                        toast.success(isRTL ? "تم بدء الحصة! جارٍ الانتقال للبث المباشر..." : "Session started! Redirecting to live stream...");
-                        // Notify assigned students
-                        try {
-                          const grade = selectedSub?.grade;
-                          if (grade) {
-                            const students = await entities.Student.filter({ grade: String(grade) });
-                            const notifications = (students || []).map((st) => ({
-                              recipient_id: st.id,
-                              user_id: st.id,
-                              type: "class_started",
-                              title: isRTL ? `بدأت الحصة: ${newSession.title}` : `Class started: ${newSession.title}`,
-                              message: isRTL
-                                ? `${userName} بدأ حصة ${selectedSub?.name || ""}. انضم الآن!`
-                                : `${userName} started a ${selectedSub?.name || ""} class. Join now!`,
-                              link: `/virtual-classroom/${res.id}`,
-                              is_read: false,
-                            }));
-                            if (notifications.length > 0) {
-                              await entities.PortalNotification.bulkCreate(notifications).catch(() => {});
-                            }
-                          }
-                        } catch (notifErr) { console.error("Notify students failed:", notifErr); }
-                        setTimeout(() => navigate(`/virtual-classroom/${res.id}`), 800);
-                      } catch (err) {
-                        console.error("Failed to start session:", err);
-                        toast.error((isRTL ? "فشل بدء الحصة: " : "Failed to start session: ") + (err?.message || ""));
-                      }
-                    }}
+                    onClick={openLiveClass}
                     className="w-full h-11 bg-teal-500 hover:bg-teal-400 text-stone-950 font-black rounded-xl text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
                   >
                     <Video size={16} />
@@ -982,6 +1054,17 @@ export default function VirtualClassroom() {
                           {isScheduled && isTeacher && <button onClick={() => handleStartSession(si)} className="px-4 py-2 bg-teal-500 hover:bg-teal-400 text-stone-950 text-xs font-black rounded-xl flex items-center gap-1.5 cursor-pointer"><Video size={14} />{isRTL ? "بدء الآن" : "Start Now"}</button>}
                           {isScheduled && !isTeacher && <span className="px-3 py-1.5 bg-stone-850 text-stone-500 text-xs font-bold rounded-xl border border-white/5">{isRTL ? "انتظار المعلم" : "Awaiting Teacher"}</span>}
                           {isEnded && <span className="px-3 py-1.5 bg-stone-950 text-stone-600 text-xs font-bold rounded-xl">{isRTL ? "انتهى البث" : "Ended"}</span>}
+                          {canDeleteSession(si) && (
+                            <button
+                              onClick={() => setConfirmDelete(si)}
+                              disabled={deletingId === si.id}
+                              title={isRTL ? "حذف الحصة" : "Delete class"}
+                              className="px-3 py-2 bg-stone-900 hover:bg-rose-600 text-stone-500 hover:text-white text-xs font-black rounded-xl flex items-center gap-1.5 cursor-pointer border border-white/10 transition-all disabled:opacity-50"
+                            >
+                              <Trash2 size={14} />
+                              {deletingId === si.id ? (isRTL ? "جارٍ الحذف…" : "Deleting…") : (isRTL ? "حذف" : "Delete")}
+                            </button>
+                          )}
                         </div>
                       </div>
                     </Card>
@@ -991,6 +1074,128 @@ export default function VirtualClassroom() {
             )}
           </div>
         </div>
+
+        {/* Delete confirmation dialog */}
+        <Dialog open={!!confirmDelete} onOpenChange={(open) => !open && setConfirmDelete(null)}>
+          <DialogContent className="max-w-md rounded-[28px] bg-stone-950 border-white/10" dir={isRTL ? "rtl" : "ltr"}>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-white">
+                <Trash2 size={18} className="text-rose-400" />
+                {isRTL ? "تأكيد حذف الحصة الافتراضية" : "Delete virtual class"}
+              </DialogTitle>
+              <p className="text-stone-400 text-sm">
+                {isRTL
+                  ? `هل أنت متأكد من حذف حصة «${confirmDelete?.title}»؟ لا يمكن التراجع عن هذا الإجراء.`
+                  : `Are you sure you want to delete "${confirmDelete?.title}"? This action cannot be undone.`}
+              </p>
+            </DialogHeader>
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs">
+              <AlertCircle size={14} className="shrink-0" />
+              <span>
+                {isRTL
+                  ? "ستُحذف الحصة وجميع رسائلها وسجلات حضورها نهائيًا."
+                  : "This will permanently remove the class, its chat messages and attendance records."}
+              </span>
+            </div>
+            <DialogFooter className="gap-2">
+              <button
+                onClick={() => setConfirmDelete(null)}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-stone-800 text-stone-200 hover:bg-stone-700 border border-white/10 cursor-pointer"
+              >
+                {isRTL ? "إلغاء" : "Cancel"}
+              </button>
+              <button
+                onClick={() => handleDeleteSession(confirmDelete)}
+                disabled={!!deletingId}
+                className="px-4 py-2 rounded-xl text-xs font-black bg-rose-600 hover:bg-rose-500 text-white cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+              >
+                <Trash2 size={14} />
+                {deletingId ? (isRTL ? "جارٍ الحذف…" : "Deleting…") : (isRTL ? "نعم، احذف" : "Yes, delete")}
+              </button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Live class — host confirmation + copy link / notify students */}
+        <Dialog open={!!liveModal} onOpenChange={(open) => !open && setLiveModal(null)}>
+          <DialogContent className="max-w-md rounded-[28px] bg-stone-950 border-white/10" dir={isRTL ? "rtl" : "ltr"}>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-white">
+                <Video size={18} className="text-teal-400" />
+                {isRTL ? "بدء حصة افتراضية مباشرة" : "Start Live Virtual Class"}
+              </DialogTitle>
+              <p className="text-stone-400 text-xs leading-relaxed">
+                {isRTL
+                  ? `تم فتح نافذة جديدة لإنشاء اجتماع Google Meet باسمك — ستدخل كمُنظِّم (Host) تلقائيًا، ما يمنحك كامل صلاحيات التحكم: الميكروفون، مشاركة الشاشة، وإدارة انضمام الطلاب.`
+                  : `A new tab opened to create a Google Meet as you — you'll join as the host automatically, with full controls: microphone, screen sharing, and participant management.`}
+              </p>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-stone-200 uppercase">
+                  {isRTL ? "رابط الاجتماع" : "Meeting link"}
+                </label>
+                <div className="flex gap-2">
+                  <Input
+                    value={liveLink}
+                    onChange={(e) => setLiveLink(e.target.value)}
+                    placeholder="https://meet.google.com/..."
+                    className="!bg-stone-850 !text-white border-white/5 text-xs rounded-xl flex-1"
+                    style={{ backgroundColor: "#1c1917", color: "#ffffff" }}
+                    dir="ltr"
+                  />
+                  <button
+                    type="button"
+                    onClick={copyLiveLink}
+                    className="inline-flex items-center gap-1.5 h-11 px-4 rounded-xl border border-white/10 bg-stone-850 text-stone-200 text-xs font-bold hover:bg-stone-800 cursor-pointer shrink-0"
+                  >
+                    <Copy size={14} />
+                    {isRTL ? "نسخ" : "Copy"}
+                  </button>
+                </div>
+                <p className="text-[11px] text-stone-500 leading-relaxed">
+                  {isRTL
+                    ? "الصق رابط الاجتماع الفعلي من تبويب Google Meet المفتوح، ثم احفظه لإشعار طلاب هذا الفصل."
+                    : "Paste the actual meeting link from the opened Google Meet tab, then save it to notify this class's students."}
+                </p>
+              </div>
+
+              {liveNotified !== null && (
+                <div className="flex items-center gap-2 text-xs font-bold text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-3 py-2">
+                  <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                  {isRTL ? `تم إرسال الإشعار إلى ${liveNotified} طالب` : `Notified ${liveNotified} students`}
+                </div>
+              )}
+
+              <DialogFooter className="gap-2">
+                <button
+                  type="button"
+                  onClick={() => window.open("https://meet.google.com/new", "_blank", "noopener,noreferrer")}
+                  className="px-4 py-2 rounded-xl text-xs font-bold bg-stone-800 text-stone-200 hover:bg-stone-700 border border-white/10 cursor-pointer"
+                >
+                  {isRTL ? "فتح اجتماع جديد" : "Open new meeting"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate(`/virtual-classroom/${liveModal?.session?.id}`)}
+                  className="px-4 py-2 rounded-xl text-xs font-bold bg-stone-800 text-stone-200 hover:bg-stone-700 border border-white/10 cursor-pointer"
+                >
+                  {isRTL ? "دخول الغرفة الداخلية" : "Enter live room"}
+                </button>
+                <button
+                  type="button"
+                  onClick={notifyLiveStudents}
+                  disabled={liveNotifying}
+                  className="px-4 py-2 rounded-xl text-xs font-black bg-teal-500 hover:bg-teal-400 text-stone-950 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  <Send size={14} />
+                  {liveNotifying ? (isRTL ? "جارٍ الإرسال…" : "Sending…") : (isRTL ? "حفظ وإشعار الطلاب" : "Save & notify")}
+                </button>
+              </DialogFooter>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }

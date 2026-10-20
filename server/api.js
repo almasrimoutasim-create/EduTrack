@@ -264,6 +264,8 @@ if (process.env.DATABASE_URL) {
   `.then(() => {
     console.log('[neon] virtual_sessions table verified/created');
     sql`ALTER TABLE virtual_sessions ADD COLUMN IF NOT EXISTS grade TEXT`.catch(() => {});
+    // Live-class meeting link shared by the teacher and sent to students.
+    sql`ALTER TABLE virtual_sessions ADD COLUMN IF NOT EXISTS meet_link TEXT`.catch(() => {});
   }).catch(err => {
     console.error('[neon] failed to verify/create virtual_sessions table:', err.message);
   });
@@ -1359,28 +1361,44 @@ if (process.env.DATABASE_URL) {
         await sql.query(`CREATE INDEX IF NOT EXISTS idx_${tbl}_branch_id ON ${tbl}(branch_id)`).catch(()=>{});
       }
 
-      // Auto-create default main branch for existing schools if they lack branches
+      // Resolve (or create) each school's main branch, then attach every
+      // branch-scoped record that still has branch_id IS NULL to it.
+      //
+      // The original code only ran this when the school had NO branches at all,
+      // so schools that already owned branches (the common case) never got the
+      // backfill — leaving teachers/students with NULL branch_id, which the
+      // branch-filtered list below then hides entirely. It now runs for every
+      // school, unconditionally and idempotently.
       const allSchools = await sql.query(`SELECT id, name, name_ar, name_en, slug, director_name, phone, email, logo_url, background_image FROM schools`).catch(()=>[]);
       for (const sc of allSchools) {
-        const branchCheck = await sql.query(`SELECT id FROM school_branches WHERE school_id = $1 LIMIT 1`, [sc.id]).catch(()=>[]);
-        if (branchCheck.length === 0) {
-          const baseSlug = sc.slug || `school-${String(sc.id).slice(0, 8)}`;
-          const branchSlug = `${baseSlug}-main`;
-          const branchName = (sc.name_ar || sc.name) + ' - الفرع الرئيسي';
+        const baseSlug = sc.slug || `school-${String(sc.id).slice(0, 8)}`;
+        const branchSlug = `${baseSlug}-main`;
+        const branchName = (sc.name_ar || sc.name) + ' - الفرع الرئيسي';
+
+        // 1) Find the school's existing main branch, or create one.
+        let mainBranch = (await sql.query(
+          `SELECT id FROM school_branches WHERE school_id = $1 AND is_main = true LIMIT 1`,
+          [sc.id]
+        ).catch(()=>[]))[0];
+
+        if (!mainBranch) {
           const insertedBranch = await sql.query(
             `INSERT INTO school_branches (school_id, name, name_en, city, slug, is_main, director_name, phone, email, logo_url, background_image, status)
              VALUES ($1, $2, $3, 'المركز الرئيسي', $4, true, $5, $6, $7, $8, $9, 'active')
              ON CONFLICT (slug) DO NOTHING
              RETURNING id`,
             [sc.id, branchName, sc.name_en || sc.name, branchSlug, sc.director_name, sc.phone, sc.email, sc.logo_url, sc.background_image]
-          ).catch(()=>{});
+          ).catch(()=>[]);
+          mainBranch = insertedBranch?.[0] || (await sql.query(
+            `SELECT id FROM school_branches WHERE school_id = $1 AND slug = $2 LIMIT 1`,
+            [sc.id, branchSlug]
+          ).catch(()=>[]))[0];
+        }
 
-          // Associate existing records for this school to this main branch if branch_id is null
-          const bId = insertedBranch?.[0]?.id;
-          if (bId) {
-            for (const tbl of BRANCH_TABLES) {
-              await sql.query(`UPDATE ${tbl} SET branch_id = $1 WHERE school_id = $2 AND branch_id IS NULL`, [bId, sc.id]).catch(()=>{});
-            }
+        // 2) Attach existing records with no branch to that main branch.
+        if (mainBranch?.id) {
+          for (const tbl of BRANCH_TABLES) {
+            await sql.query(`UPDATE ${tbl} SET branch_id = $1 WHERE school_id = $2 AND branch_id IS NULL`, [mainBranch.id, sc.id]).catch(()=>{});
           }
         }
       }
@@ -4949,6 +4967,61 @@ WHERE email = $10`,
         return res.end(JSON.stringify({ student_id: nextId, school_id: effSchool }));
       }
 
+      // ── Delete Virtual Class — معلم (مالك الحصة) أو مدير نظام ──
+      // Dedicated endpoint so permission is enforced explicitly (a plain
+      // /entities/VirtualSession DELETE would only scope by school_id and let a
+      // teacher remove any class in the school). Must run BEFORE the /neon-db
+      // 404 guard below, otherwise it is unreachable.
+      const virtualClassDeleteMatch = path.match(/^\/(api|neon-db)\/virtual-classes\/([^/]+)$/);
+      if (virtualClassDeleteMatch && req.method === 'DELETE') {
+        res.setHeader('Content-Type', 'application/json');
+        const actor = getBearerUser(req) || req.user;
+        if (!actor) {
+          res.statusCode = 401;
+          return res.end(JSON.stringify({ error: 'Auth required' }));
+        }
+        const classId = virtualClassDeleteMatch[2];
+        try {
+          const rows = await dbQuery(
+            `SELECT id, teacher_id, school_id FROM virtual_sessions WHERE id = $1 LIMIT 1`,
+            [classId]
+          );
+          if (rows.length === 0) {
+            res.statusCode = 404;
+            return res.end(JSON.stringify({ error: 'Virtual class not found' }));
+          }
+          const session = rows[0];
+
+          // Permission: founder → any; admin/school_admin → same school;
+          // teacher → only their own class.
+          const role = actor.role;
+          let allowed = false;
+          if (role === 'founder') {
+            allowed = true;
+          } else if (role === 'admin' || role === 'school_admin') {
+            allowed = !session.school_id || !actor.school_id || String(session.school_id) === String(actor.school_id);
+          } else if (role === 'teacher') {
+            const ownerUuid = await resolveTeacherUuid(actor);
+            allowed = !!ownerUuid && String(session.teacher_id) === String(ownerUuid);
+          }
+          if (!allowed) {
+            res.statusCode = 403;
+            return res.end(JSON.stringify({ error: 'You do not have permission to delete this class' }));
+          }
+
+          // Remove dependent rows first (chat + participants), then the session.
+          await dbQuery(`DELETE FROM room_messages WHERE room_id = $1`, [classId]).catch(() => {});
+          await dbQuery(`DELETE FROM session_participants WHERE session_id = $1`, [classId]).catch(() => {});
+          await dbQuery(`DELETE FROM virtual_sessions WHERE id = $1`, [classId]);
+
+          return res.end(JSON.stringify({ success: true, deleted: classId }));
+        } catch (e) {
+          console.error('[delete-virtual-class]', e);
+          res.statusCode = 500;
+          return res.end(JSON.stringify({ error: e.message || 'Delete failed' }));
+        }
+      }
+
       // Only /neon-db/* paths are subject to entity routing; /api/* paths must
       // fall through to the route handlers below. An unmatched /api/* path used
       // to be rejected here with 404, which is what made every route after this
@@ -5374,7 +5447,18 @@ WHERE email = $10`,
             'expenses', 'fee_payments', 'student_fees', 'system_admins', 'system_settings'
           ]);
           if (BRANCH_SCOPED_TABLES.has(table) && activeBranchFilter) {
-            conditions.push(`branch_id = $${paramIdx}`);
+            // Records with no branch assigned belong to the school and must never
+            // silently vanish. When the selected branch IS the school's main
+            // branch, include them; otherwise keep strict per-branch isolation.
+            const isMainBranchView = (await dbQuery(
+              `SELECT id FROM school_branches WHERE id = $1 AND is_main = true LIMIT 1`,
+              [activeBranchFilter]
+            ).catch(() => []))[0];
+            if (isMainBranchView) {
+              conditions.push(`(branch_id = $${paramIdx} OR branch_id IS NULL)`);
+            } else {
+              conditions.push(`branch_id = $${paramIdx}`);
+            }
             values.push(activeBranchFilter);
             paramIdx++;
           }
@@ -5464,13 +5548,25 @@ WHERE email = $10`,
           }
           // Gateway lock accounts: scope to the admin's school automatically (Option A shared credential)
           // Multi-branch: حقن branch_id إن وُجد في الطلب أو الترويسة
-          const branchHeaderPost = req.headers['x-branch-id'];
-          const branchFromUser = req.user?.branch_id;
-          const targetBranchId = body.branch_id || (branchHeaderPost && branchHeaderPost !== 'all' ? branchHeaderPost : null) || branchFromUser || null;
           const BRANCH_SCOPED_TABLES_POST = new Set([
             'students', 'teachers', 'subjects', 'study_rooms', 'class_schedules',
             'expenses', 'fee_payments', 'student_fees', 'system_admins', 'system_settings'
           ]);
+          const branchHeaderPost = req.headers['x-branch-id'];
+          const branchFromUser = req.user?.branch_id;
+          let targetBranchId = body.branch_id || (branchHeaderPost && branchHeaderPost !== 'all' ? branchHeaderPost : null) || branchFromUser || null;
+          // Never orphan a branch-scoped record: when no branch was supplied, fall
+          // back to the school's main branch so branch-filtered lists always see it.
+          if (!targetBranchId && BRANCH_SCOPED_TABLES_POST.has(table)) {
+            const schoolIdForBranch = body.school_id || tenantIdFromUser;
+            if (schoolIdForBranch) {
+              const mainBranch = (await dbQuery(
+                `SELECT id FROM school_branches WHERE school_id = $1 AND is_main = true LIMIT 1`,
+                [schoolIdForBranch]
+              ).catch(() => []))[0];
+              if (mainBranch) targetBranchId = mainBranch.id;
+            }
+          }
           if (BRANCH_SCOPED_TABLES_POST.has(table) && targetBranchId) {
             body.branch_id = targetBranchId;
           }

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { entities } from "@/api/dbClient";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { entities, deleteVirtualClass } from "@/api/dbClient";
 import { useNavigate } from "react-router-dom";
 import { useLanguage } from "@/lib/LanguageContext";
 import { motion, AnimatePresence } from "framer-motion";
@@ -8,17 +8,21 @@ import {
   Users, Clock, Eye, BookOpen,
   Calendar, RefreshCw, Monitor, Radio,
   AlertCircle, Activity, Shield, User,
-  StopCircle, Hourglass, Layers
+  StopCircle, Hourglass, Layers, Trash2
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 
 export default function AdminVirtualClassrooms() {
   const { language } = useLanguage();
   const isRTL = language === "ar";
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const [filter, setFilter] = useState("all"); // all | active | scheduled | ended
+  const [confirmDelete, setConfirmDelete] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
 
   // ===== DATA QUERIES =====
 
@@ -76,6 +80,26 @@ export default function AdminVirtualClassrooms() {
     refetchSessions();
     refetchParticipants();
     toast.success(isRTL ? "تم تحديث جميع البيانات" : "All data refreshed");
+  };
+
+  // ── Delete a virtual class (admin) ──
+  const handleDeleteSession = async (session) => {
+    if (!session?.id) return;
+    setDeletingId(session.id);
+    try {
+      await deleteVirtualClass(session.id);
+      // Immediate UI update: drop the row from the cached list (no reload).
+      qc.setQueryData(["admin-virtual-sessions"], (old = []) =>
+        (Array.isArray(old) ? old : []).filter((s) => s.id !== session.id)
+      );
+      setConfirmDelete(null);
+      toast.success(isRTL ? "تم حذف الحصة الافتراضية بنجاح" : "Virtual class deleted successfully");
+    } catch (err) {
+      console.error("Failed to delete virtual class:", err);
+      toast.error((isRTL ? "تعذر حذف الحصة: " : "Failed to delete class: ") + (err?.message || ""));
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   // Admin enters a live session as observer
@@ -353,16 +377,27 @@ export default function AdminVirtualClassrooms() {
                           </div>
                         </div>
 
-                        {/* Enter Button */}
-                        {isActive && (
+                        {/* Actions */}
+                        <div className="shrink-0 flex items-center gap-2">
+                          {isActive && (
+                            <button
+                              onClick={() => handleEnterSession(session.id)}
+                              className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white rounded-xl text-xs font-black shadow-lg shadow-violet-500/25 transition-all duration-200 cursor-pointer group-hover:scale-105"
+                            >
+                              <Eye size={13} />
+                              {isRTL ? "دخول ومراقبة" : "Watch Live"}
+                            </button>
+                          )}
                           <button
-                            onClick={() => handleEnterSession(session.id)}
-                            className="shrink-0 flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white rounded-xl text-xs font-black shadow-lg shadow-violet-500/25 transition-all duration-200 cursor-pointer group-hover:scale-105"
+                            onClick={() => setConfirmDelete(session)}
+                            disabled={deletingId === session.id}
+                            title={isRTL ? "حذف الحصة" : "Delete class"}
+                            className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-black border transition-all duration-200 cursor-pointer disabled:opacity-50 bg-white text-rose-600 border-rose-200 hover:bg-rose-600 hover:text-white hover:border-rose-600"
                           >
-                            <Eye size={13} />
-                            {isRTL ? "دخول ومراقبة" : "Watch Live"}
+                            <Trash2 size={13} />
+                            {deletingId === session.id ? (isRTL ? "جارٍ الحذف…" : "Deleting…") : (isRTL ? "حذف" : "Delete")}
                           </button>
-                        )}
+                        </div>
                       </div>
 
                       {/* ===== INFO GRID: 3 columns — Teacher / Subject / Grade ===== */}
@@ -505,6 +540,47 @@ export default function AdminVirtualClassrooms() {
           </div>
         </Card>
       </motion.div>
+
+      {/* ===== DELETE CONFIRMATION DIALOG ===== */}
+      <Dialog open={!!confirmDelete} onOpenChange={(open) => !open && setConfirmDelete(null)}>
+        <DialogContent className="max-w-md" dir={isRTL ? "rtl" : "ltr"}>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Trash2 size={18} className="text-rose-500" />
+              {isRTL ? "تأكيد حذف الحصة الافتراضية" : "Delete virtual class"}
+            </DialogTitle>
+            <p className="text-stone-500 text-sm">
+              {isRTL
+                ? `هل أنت متأكد من حذف حصة «${confirmDelete?.title}»؟ لا يمكن التراجع عن هذا الإجراء.`
+                : `Are you sure you want to delete "${confirmDelete?.title}"? This action cannot be undone.`}
+            </p>
+          </DialogHeader>
+          <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs">
+            <AlertCircle size={14} className="shrink-0" />
+            <span>
+              {isRTL
+                ? "ستُحذف الحصة وجميع رسائلها وسجلات حضورها نهائيًا."
+                : "This will permanently remove the class, its chat messages and attendance records."}
+            </span>
+          </div>
+          <DialogFooter className="gap-2">
+            <button
+              onClick={() => setConfirmDelete(null)}
+              className="px-4 py-2 rounded-xl text-xs font-bold bg-white text-stone-700 border border-stone-200 hover:bg-stone-50 cursor-pointer"
+            >
+              {isRTL ? "إلغاء" : "Cancel"}
+            </button>
+            <button
+              onClick={() => handleDeleteSession(confirmDelete)}
+              disabled={!!deletingId}
+              className="px-4 py-2 rounded-xl text-xs font-black bg-rose-600 hover:bg-rose-500 text-white cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+            >
+              <Trash2 size={14} />
+              {deletingId ? (isRTL ? "جارٍ الحذف…" : "Deleting…") : (isRTL ? "نعم، احذف" : "Yes, delete")}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 }
