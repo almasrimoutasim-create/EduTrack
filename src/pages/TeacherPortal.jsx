@@ -18,6 +18,7 @@ import {
   FileText,
   Star,
   Video,
+  ExternalLink,
   Megaphone,
   Search,
   Trophy,
@@ -857,60 +858,17 @@ export default function TeacherPortal() {
                               <ChevronRight size={20} className={isRTL ? "rotate-180" : ""} />
                             </button>
                           </div>
-                          <button 
-                            onClick={async (e) => {
-                              e.stopPropagation();
-                              toast.info(isRTL ? "جارٍ بدء الحصة..." : "Starting session...");
-                              const teacherName = portalUser?.full_name || portalUser?.name || "معلم";
-                              const gradeVal = cls.grade || cls.grade_level || "";
-                              const isUUID = (v) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(v || ""));
-                              try {
-                                const newSession = await entities.VirtualSession.create({
-                                  title: `${cls.name || ""} - ${gradeVal}`,
-                                  teacher_id: isUUID(teacherId) ? teacherId : undefined,
-                                  teacher_name: teacherName,
-                                  subject_id: isUUID(cls.id) ? cls.id : undefined,
-                                  subject_name: cls.name || "",
-                                  grade: gradeVal,
-                                  room_name: `room-${Math.random().toString(36).substr(2, 9)}`,
-                                  scheduled_at: new Date().toISOString(),
-                                  started_at: new Date().toISOString(),
-                                  status: "active",
-                                });
-                                toast.success(isRTL ? "تم بدء الحصة!" : "Session started!");
-                                // Notify assigned students
-                                try {
-                                  const grade = gradeVal;
-                                  if (grade) {
-                                    const students = await entities.Student.filter({ grade: String(grade) });
-                                    const notifications = (students || []).map((st) => ({
-                                      recipient_id: st.id,
-                                      user_id: st.id,
-                                      type: "class_started",
-                                      title: isRTL ? `بدأت الحصة: ${cls.name}` : `Class started: ${cls.name}`,
-                                      message: isRTL
-                                        ? `${teacherName} بدأ حصة ${cls.name}. انضم الآن!`
-                                        : `${teacherName} started a ${cls.name} class. Join now!`,
-                                      link: `/virtual-classroom/${newSession.id}`,
-                                      is_read: false,
-                                    }));
-                                    if (notifications.length > 0) {
-                                      await entities.PortalNotification.bulkCreate(notifications).catch(() => {});
-                                    }
-                                  }
-                                } catch (notifErr) { console.error("Notify students failed:", notifErr); }
-                                window.location.href = `/virtual-classroom/${newSession.id}`;
-                              } catch (err) {
-                                console.error("Failed to start virtual class:", err);
-                                toast.error((isRTL ? "فشل بدء الحصة: " : "Failed to start session: ") + (err?.message || ""));
-                                window.location.href = `/virtual-classroom/${cls.id}`;
-                              }
-                            }}
-                            className="w-full inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-xs font-black transition-all bg-teal-50 text-teal-700 border border-teal-200 hover:bg-teal-100 h-11"
+                          <a
+                            href={cls?.meet_link || cls?.meeting_link || cls?.virtual_class_url || cls?.class_link || "https://meet.google.com/wdk-nuyw-tja"}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="w-full inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-xs font-black transition-all bg-teal-50 text-teal-700 border border-teal-200 hover:bg-teal-600 hover:text-white hover:border-teal-600 h-11 cursor-pointer shadow-sm hover:shadow-md active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-teal-400/40"
                           >
                             <Video size={14} />
                             {isRTL ? "بدء حصة افتراضية مباشر" : "Start Live Virtual Class"}
-                          </button>
+                            <ExternalLink size={12} className="opacity-70" />
+                          </a>
                         </div>
                       </Card>
                     </motion.div>
