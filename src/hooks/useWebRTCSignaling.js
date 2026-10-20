@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { io } from 'socket.io-client';
 
-const WS_URL = import.meta.env.VITE_WS_URL || '';
+// In production (Vercel), we must connect to the Render backend explicitly.
+// VITE_API_URL should be set to the Render backend URL (e.g. https://edutrack-xxxx.onrender.com)
+// VITE_WS_URL can be set to the same value or left empty for local dev (same-origin).
+const WS_URL = import.meta.env.VITE_API_URL || import.meta.env.VITE_WS_URL || '';
 
 /**
  * هوك مخصص لإدارة إشارات WebRTC (Signaling) باستخدام socket.io-client
@@ -59,7 +62,8 @@ export function useWebRTCSignaling(roomId, userId) {
       socketRef.current.emit('signal', {
         roomId,
         senderId: userId,
-        targetUserId: targetUserId === 'all' ? null : targetUserId,
+        // null = broadcast to all; 'all' string is also treated as broadcast
+        targetUserId: (targetUserId === 'all' || targetUserId === null) ? null : targetUserId,
         payload
       });
     } else {

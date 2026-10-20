@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { entities, deleteVirtualClass } from "@/api/dbClient";
@@ -115,6 +115,25 @@ export default function VirtualClassroom() {
     queryKey: ["classroom-students"],
     queryFn: () => entities.Student.list("-created_at"),
   });
+
+  const { data: dbTeachers = [] } = useQuery({
+    queryKey: ["classroom-teachers"],
+    queryFn: () => entities.Teacher.list("-created_at"),
+  });
+
+  // Map of userId -> profile photo (photo_url on students/teachers tables).
+  // Lets the teacher's photo show to students and vice-versa inside the room.
+  const photoMap = useMemo(() => {
+    const map = {};
+    const add = (u) => {
+      if (!u?.id) return;
+      const url = u.photo_url || u.avatar_url || u.profile_image || null;
+      if (url) map[String(u.id)] = url;
+    };
+    (dbStudents || []).forEach(add);
+    (dbTeachers || []).forEach(add);
+    return map;
+  }, [dbStudents, dbTeachers]);
 
   const { data: activeParticipants = [], refetch: refetchParticipants } = useQuery({
     queryKey: ["active-session-participants", sessionId],
@@ -290,6 +309,7 @@ export default function VirtualClassroom() {
   // ─────────────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (isDemo) return;
+    const myPhoto = photoMap[String(userId)] || user?.photo_url || null;
     if (activeParticipants.length > 0) {
       const activeOnly = activeParticipants.filter((p) => !p.left_at);
       const unique = [];
@@ -305,15 +325,16 @@ export default function VirtualClassroom() {
         video: p.user_id === userId ? videoActive : (p.video_active === undefined ? true : Boolean(p.video_active)),
         hand: p.user_id === userId ? handRaised : (p.hand_raised === undefined ? false : Boolean(p.hand_raised)),
         avatar: p.role === "teacher" ? "👨‍🏫" : "🧑‍🎓",
+        photo: p.user_id === userId ? myPhoto : (photoMap[String(p.user_id)] || null),
       }));
       if (!mapped.some((p) => p.id === userId)) {
-        mapped.push({ id: userId, name: userName, role, mic: micActive, video: videoActive, hand: handRaised, avatar: isTeacher ? "👨‍🏫" : "🧑‍🎓" });
+        mapped.push({ id: userId, name: userName, role, mic: micActive, video: videoActive, hand: handRaised, avatar: isTeacher ? "👨‍🏫" : "🧑‍🎓", photo: myPhoto });
       }
       setParticipants(mapped);
     } else {
-      setParticipants([{ id: userId, name: userName, role, mic: micActive, video: videoActive, hand: handRaised, avatar: isTeacher ? "👨‍🏫" : "🧑‍🎓" }]);
+      setParticipants([{ id: userId, name: userName, role, mic: micActive, video: videoActive, hand: handRaised, avatar: isTeacher ? "👨‍🏫" : "🧑‍🎓", photo: myPhoto }]);
     }
-  }, [activeParticipants, userId, userName, role, micActive, videoActive, handRaised, isDemo]);
+  }, [activeParticipants, userId, userName, role, micActive, videoActive, handRaised, isDemo, photoMap, user]);
 
   // ─────────────────────────────────────────────────────────────────────────
   //  DB participant registration
@@ -415,7 +436,7 @@ export default function VirtualClassroom() {
           await Promise.all(replaceJobs);
 
           // Signal peers: pin this user's stream full-screen
-          sendSignal("SCREEN_SHARE", "all", { active: true, sharerId: userId });
+          sendSignal("SCREEN_SHARE", null, { active: true, sharerId: userId });
 
           // When the user stops via browser's stop button
           screenVideoTrack.onended = () => setScreenSharing(false);
@@ -447,7 +468,7 @@ export default function VirtualClassroom() {
           setScreenStream(null);
         }
         setPinnedParticipantId((prev) => (prev === userId ? null : prev));
-        sendSignal("SCREEN_SHARE", "all", { active: false, sharerId: userId });
+        sendSignal("SCREEN_SHARE", null, { active: false, sharerId: userId });
       }
     };
 
@@ -458,9 +479,13 @@ export default function VirtualClassroom() {
   // ─────────────────────────────────────────────────────────────────────────
   //  Signaling helpers
   // ─────────────────────────────────────────────────────────────────────────
-  const sendSignal = async (type, targetId, data) => {
-    if (!wsSignaling.isConnected) return;
-    wsSignaling.sendSignal(targetId, { type, data });
+  const sendSignal = (type, targetId, data) => {
+    if (!wsSignaling.isConnected) {
+      console.warn('[WebRTC] Signaling not connected, cannot send:', type);
+      return;
+    }
+    // targetId=null means broadcast to all in room
+    wsSignaling.sendSignal(targetId === null ? 'all' : targetId, { type, data });
   };
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -1313,11 +1338,11 @@ export default function VirtualClassroom() {
                             el.srcObject = stream;
                           }
                           el.volume = remoteVolume;
-                          el.muted = false;
+                          el.muted = false; // must set via DOM property, not React attr
                           el.play().catch(() => {});
                         }
                       }}
-                      autoPlay playsInline muted={false}
+                      autoPlay playsInline
                       className="w-full h-full object-contain"
                     />
                   ) : (
@@ -1328,12 +1353,16 @@ export default function VirtualClassroom() {
                         const pinnedP = participants.find((p) => p.id === pinnedParticipantId);
                         return (
                           <>
-                            <div className={`h-24 w-24 rounded-full flex items-center justify-center text-4xl font-black text-white shadow-2xl z-10 mb-4 ${
+                            <div className={`h-24 w-24 rounded-full flex items-center justify-center text-4xl font-black text-white shadow-2xl z-10 mb-4 overflow-hidden ${
                               pinnedP?.role === "teacher"
                                 ? "bg-gradient-to-br from-teal-500 to-emerald-600"
                                 : "bg-gradient-to-br from-indigo-500 to-violet-600"
                             }`}>
-                              {pinnedP?.name?.charAt(0)?.toUpperCase() || "?"}
+                              {pinnedP?.photo ? (
+                                <img src={pinnedP.photo} alt={pinnedP?.name} className="h-full w-full object-cover" />
+                              ) : (
+                                pinnedP?.name?.charAt(0)?.toUpperCase() || "?"
+                              )}
                             </div>
                             <p className="text-sm font-bold text-stone-200 z-10">{pinnedP?.name}</p>
                             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-500/10 text-teal-400 text-xs font-bold mt-2 border border-teal-500/20 z-10">
@@ -1492,8 +1521,12 @@ export default function VirtualClassroom() {
             ) : (
               <div className="w-full h-full bg-gradient-to-br from-stone-900 to-stone-850 flex flex-col items-center justify-center p-2">
                 {!localStream && <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-teal-500/10 animate-pulse rounded-2xl" />}
-                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-teal-500 to-emerald-600 flex items-center justify-center text-sm font-black text-white shadow-lg z-10 mb-1">
-                  {userName?.charAt(0)?.toUpperCase() || "U"}
+                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-teal-500 to-emerald-600 flex items-center justify-center text-sm font-black text-white shadow-lg z-10 mb-1 overflow-hidden">
+                  {(photoMap[String(userId)] || user?.photo_url) ? (
+                    <img src={photoMap[String(userId)] || user?.photo_url} alt={userName} className="h-full w-full object-cover" />
+                  ) : (
+                    userName?.charAt(0)?.toUpperCase() || "U"
+                  )}
                 </div>
                 <span className="text-[9px] text-stone-400 font-bold z-10">
                   {!localStream ? (isRTL ? "جاري تفعيل الكاميرا..." : "Starting camera...") : (isRTL ? "الكاميرا مغلقة" : "Camera Off")}
@@ -1527,10 +1560,11 @@ export default function VirtualClassroom() {
                         el.srcObject = remoteStreams[p.id];
                       }
                       el.volume = remoteVolume;
+                      el.muted = false; // set via DOM property to bypass autoplay policy
                       el.play().catch(() => {});
                     }
                   }}
-                  autoPlay playsInline muted={false}
+                  autoPlay playsInline
                   className={`w-full h-full object-cover transition-opacity duration-300 ${
                     p.video ? "opacity-100" : "opacity-0 absolute pointer-events-none"
                   }`}
@@ -1544,12 +1578,16 @@ export default function VirtualClassroom() {
                     // Connecting state — animated avatar
                     <>
                       <div className="relative mb-2">
-                        <div className={`h-10 w-10 rounded-full flex items-center justify-center text-sm font-black text-white shadow-lg ${
+                        <div className={`h-10 w-10 rounded-full flex items-center justify-center text-sm font-black text-white shadow-lg overflow-hidden ${
                           p.role === "teacher"
                             ? "bg-gradient-to-br from-teal-500 to-emerald-600"
                             : "bg-gradient-to-br from-indigo-500 to-violet-600"
                         }`}>
-                          {p.name?.charAt(0)?.toUpperCase() || "?"}
+                          {p.photo ? (
+                            <img src={p.photo} alt={p.name} className="h-full w-full object-cover" />
+                          ) : (
+                            p.name?.charAt(0)?.toUpperCase() || "?"
+                          )}
                         </div>
                         <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-amber-400 border-2 border-stone-900 animate-pulse" />
                       </div>
@@ -1558,12 +1596,16 @@ export default function VirtualClassroom() {
                   ) : (
                     // Camera off state
                     <>
-                      <div className={`h-10 w-10 rounded-full flex items-center justify-center text-sm font-black text-white shadow-lg mb-1 ${
+                      <div className={`h-10 w-10 rounded-full flex items-center justify-center text-sm font-black text-white shadow-lg mb-1 overflow-hidden ${
                         p.role === "teacher"
                           ? "bg-gradient-to-br from-teal-500 to-emerald-600"
                           : "bg-gradient-to-br from-indigo-500 to-violet-600"
                       }`}>
-                        {p.name?.charAt(0)?.toUpperCase() || "?"}
+                        {p.photo ? (
+                          <img src={p.photo} alt={p.name} className="h-full w-full object-cover" />
+                        ) : (
+                          p.name?.charAt(0)?.toUpperCase() || "?"
+                        )}
                       </div>
                       <span className="text-[9px] text-stone-500 font-bold">{isRTL ? "الكاميرا مغلقة" : "Camera Off"}</span>
                     </>
@@ -1651,7 +1693,11 @@ export default function VirtualClassroom() {
                   {participants.map((p) => (
                     <div key={p.id} className="flex items-center justify-between bg-stone-850/50 p-3 rounded-2xl border border-white/5">
                       <div className="flex items-center gap-2.5">
-                        <span className="text-xl">{p.avatar}</span>
+                        {p.photo ? (
+                          <img src={p.photo} alt={p.name} className="h-9 w-9 rounded-full object-cover border border-white/10 shrink-0" />
+                        ) : (
+                          <span className="text-xl">{p.avatar}</span>
+                        )}
                         <div>
                           <p className="text-xs font-bold text-white">{p.name}</p>
                           <p className="text-[9px] font-bold text-stone-500 uppercase tracking-widest">{p.role}</p>

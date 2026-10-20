@@ -86,7 +86,7 @@ app.get('/uploads/:filename', async (req, res, next) => {
 
 app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
 
-// Serve STUN configuration for WebRTC
+// Serve STUN/TURN configuration for WebRTC
 app.get('/api/ice-config', (_req, res) => {
   res.json({
     iceServers: [
@@ -94,7 +94,23 @@ app.get('/api/ice-config', (_req, res) => {
       { urls: 'stun:stun1.l.google.com:19302' },
       { urls: 'stun:stun2.l.google.com:19302' },
       { urls: 'stun:stun3.l.google.com:19302' },
-      { urls: 'stun:stun4.l.google.com:19302' }
+      { urls: 'stun:stun4.l.google.com:19302' },
+      // Free TURN server from openrelay.metered.ca (works without subscription)
+      {
+        urls: 'turn:openrelay.metered.ca:80',
+        username: 'openrelayproject',
+        credential: 'openrelayproject'
+      },
+      {
+        urls: 'turn:openrelay.metered.ca:443',
+        username: 'openrelayproject',
+        credential: 'openrelayproject'
+      },
+      {
+        urls: 'turns:openrelay.metered.ca:443',
+        username: 'openrelayproject',
+        credential: 'openrelayproject'
+      }
     ]
   });
 });

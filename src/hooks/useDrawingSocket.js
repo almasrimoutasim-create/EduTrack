@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { io } from 'socket.io-client';
 
-const WS_URL = import.meta.env.VITE_WS_URL || '';
+// In production (Vercel), must point to the Render backend explicitly.
+const WS_URL = import.meta.env.VITE_API_URL || import.meta.env.VITE_WS_URL || '';
 
 /**
  * هوك مخصص لربط اللوح الذكي باستخدام socket.io-client
