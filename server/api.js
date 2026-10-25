@@ -6726,58 +6726,171 @@ export function setupWebSocket(server) {
   io.on('connection', (socket) => {
     console.log('[Socket.io] New connection established:', socket.id);
     
-    // حفظ الـ userId للاستخدام في الـ WebRTC المُوجّه
+    // حفظ الـ userId و الـ roomId من الـ handshake query
     const { userId, roomId } = socket.handshake.query;
-    if (userId) {
-      socket.userId = userId;
-    }
-    if (roomId) {
-      socket.roomId = roomId;
-    }
+    if (userId) socket.userId = String(userId);
+    if (roomId) socket.roomId = String(roomId);
 
-    socket.on('join-room', (roomId) => {
-      socket.join(roomId);
-      console.log(`[Socket.io] Socket ${socket.id} joined drawing room ${roomId}`);
-    });
-
-    socket.on('join-webrtc-room', (roomId) => {
-      socket.join(roomId);
-      socket.roomId = roomId;
-      // إخبار الآخرين بانضمام مستخدم جديد
-      socket.broadcast.to(roomId).emit('user-joined', { socketId: socket.id, userId });
-      console.log(`[Socket.io] Socket ${socket.id} joined webrtc room ${roomId}`);
+    // ── غرف اللوح التفاعلي (Whiteboard) ──
+    socket.on('join-room', (rId) => {
+      socket.join(rId);
+      console.log(`[Socket.io] Socket ${socket.id} joined drawing room ${rId}`);
     });
 
     socket.on('draw-event', (data) => {
-      const { roomId } = data;
-      if (roomId) {
-        socket.broadcast.to(roomId).emit('draw-event', data);
+      const { roomId: rId } = data;
+      if (rId) {
+        socket.broadcast.to(rId).emit('draw-event', data);
       }
     });
 
+    // ── غرف الفصول الافتراضية الذكية (Smart WebRTC Virtual Classrooms) ──
+    socket.on('join-webrtc-room', (payload) => {
+      let rId = payload;
+      let userData = {};
+
+      if (typeof payload === 'object' && payload !== null) {
+        rId = payload.roomId;
+        userData = payload;
+      }
+
+      if (!rId) return;
+
+      socket.join(rId);
+      socket.roomId = String(rId);
+      if (userData.userId) socket.userId = String(userData.userId);
+      if (userData.userName) socket.userName = userData.userName;
+      if (userData.role) socket.role = userData.role;
+      if (userData.photo) socket.photo = userData.photo;
+      if (userData.micActive !== undefined) socket.micActive = Boolean(userData.micActive);
+      if (userData.videoActive !== undefined) socket.videoActive = Boolean(userData.videoActive);
+
+      // جمع قائمة المشتركين المتواجدين حالياً في الغرفة
+      const roomSockets = io.sockets.adapter.rooms.get(rId);
+      const existingParticipants = [];
+      if (roomSockets) {
+        for (const sId of roomSockets) {
+          if (sId !== socket.id) {
+            const client = io.sockets.sockets.get(sId);
+            if (client && client.userId) {
+              existingParticipants.push({
+                socketId: client.id,
+                userId: client.userId,
+                userName: client.userName || 'مشارك',
+                role: client.role || 'student',
+                photo: client.photo || null,
+                micActive: client.micActive !== undefined ? client.micActive : true,
+                videoActive: client.videoActive !== undefined ? client.videoActive : true,
+                isScreenSharing: Boolean(client.isScreenSharing),
+                handRaised: Boolean(client.handRaised)
+              });
+            }
+          }
+        }
+      }
+
+      // إرسال قائمة المشتركين الحاليين للوافد الجديد فوراً
+      socket.emit('room-users', { participants: existingParticipants });
+
+      // إشعار جميع الحاضرين في الغرفة بانضمام المشترك الجديد
+      socket.broadcast.to(rId).emit('user-joined', {
+        socketId: socket.id,
+        userId: socket.userId,
+        userName: socket.userName || userData.userName || 'مشارك',
+        role: socket.role || userData.role || 'student',
+        photo: socket.photo || userData.photo || null,
+        micActive: socket.micActive !== undefined ? socket.micActive : true,
+        videoActive: socket.videoActive !== undefined ? socket.videoActive : true
+      });
+
+      console.log(`[Socket.io WebRTC] Socket ${socket.id} (User: ${socket.userId}, Role: ${socket.role}) joined room: ${rId}. Total peers: ${roomSockets ? roomSockets.size : 1}`);
+    });
+
+    // تبادل إشارات WebRTC (Offer, Answer, ICE Candidates)
     socket.on('signal', (data) => {
-      const { roomId, targetUserId } = data;
-      if (!roomId) return;
-      
+      const { roomId: rId, targetUserId, targetSocketId } = data;
+      const targetRoom = rId || socket.roomId;
+      if (!targetRoom) return;
+
+      if (targetSocketId) {
+        const client = io.sockets.sockets.get(targetSocketId);
+        if (client) {
+          client.emit('signal', { ...data, senderSocketId: socket.id });
+          return;
+        }
+      }
+
       if (targetUserId) {
-        // إرسال الإشارة لمستخدم محدد
-        const roomSockets = io.sockets.adapter.rooms.get(roomId);
+        const roomSockets = io.sockets.adapter.rooms.get(targetRoom);
         if (roomSockets) {
-          for (const socketId of roomSockets) {
-            const clientSocket = io.sockets.sockets.get(socketId);
-            if (clientSocket && String(clientSocket.userId) === String(targetUserId)) {
-              clientSocket.emit('signal', data);
+          for (const sId of roomSockets) {
+            const client = io.sockets.sockets.get(sId);
+            if (client && String(client.userId) === String(targetUserId)) {
+              client.emit('signal', { ...data, senderSocketId: socket.id });
             }
           }
         }
       } else {
         // بث الإشارة للجميع ما عدا المرسل
-        socket.broadcast.to(roomId).emit('signal', data);
+        socket.broadcast.to(targetRoom).emit('signal', { ...data, senderSocketId: socket.id });
       }
     });
 
+    // مزامنة حالة الوسائط (كتم الصوت، إيقاف الكاميرا، مشاركة الشاشة، رفع اليد)
+    socket.on('media-toggle', (data) => {
+      const { roomId: rId, type, status } = data;
+      const targetRoom = rId || socket.roomId;
+      if (type === 'audio') socket.micActive = status;
+      if (type === 'video') socket.videoActive = status;
+      if (type === 'screen') socket.isScreenSharing = status;
+      if (type === 'hand') socket.handRaised = status;
+
+      if (targetRoom) {
+        socket.broadcast.to(targetRoom).emit('user-media-toggled', {
+          userId: socket.userId,
+          socketId: socket.id,
+          type,
+          status
+        });
+      }
+    });
+
+    // مزامنة حالة التحدث (Active Speaker Voice Activity Indicator)
+    socket.on('speaking-state', (data) => {
+      const { roomId: rId, isSpeaking } = data;
+      const targetRoom = rId || socket.roomId;
+      if (targetRoom) {
+        socket.broadcast.to(targetRoom).emit('user-speaking-state', {
+          userId: socket.userId,
+          isSpeaking
+        });
+      }
+    });
+
+    // إنهاء الحصة لجميع الطلاب والمعلمين من قِبل المعلم
+    socket.on('end-class-for-all', (data) => {
+      const { roomId: rId } = data || {};
+      const targetRoom = rId || socket.roomId;
+      if (targetRoom) {
+        io.to(targetRoom).emit('class-ended-by-teacher', {
+          teacherId: socket.userId,
+          teacherName: socket.userName
+        });
+      }
+    });
+
+    // عند انقطاع الاتصال أو خروج المشترك
     socket.on('disconnect', async () => {
-      console.log('[Socket.io] Disconnected:', socket.id);
+      console.log(`[Socket.io WebRTC] Disconnected: ${socket.id} (User: ${socket.userId})`);
+
+      if (socket.roomId) {
+        // إشعار كافة الأقران فوراً لمسح تيار الفيديو وإغلاق اتصال الـ RTCPeerConnection
+        socket.broadcast.to(socket.roomId).emit('user-left', {
+          socketId: socket.id,
+          userId: socket.userId
+        });
+      }
+
       if (socket.userId && socket.roomId && sql) {
         try {
           await sql`
@@ -6793,6 +6906,7 @@ export function setupWebSocket(server) {
     });
   });
 }
+
 
 // ── Webhook Handlers ──
 

@@ -7,7 +7,8 @@ import {
   Send, Users, PhoneOff, Info, Copy,
   ShieldAlert, ScreenShare, Sparkles, AlertCircle, FileText,
   Clock, Calendar, Maximize2, Minimize2, ChevronLeft, ChevronRight,
-  StopCircle, Trash2
+  StopCircle, Trash2, Pin, PinOff, Volume2, VolumeX, Settings,
+  LayoutGrid, MonitorPlay, Check, Edit3, X, Radio, PenTool
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/lib/LanguageContext";
@@ -49,7 +50,14 @@ export default function VirtualClassroom() {
   const [notes, setNotes] = useState("");
   const [chatMessage, setChatMessage] = useState("");
   const [pinnedParticipantId, setPinnedParticipantId] = useState(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [micVolume, setMicVolume] = useState(0);
+  const [isLocalSpeaking, setIsLocalSpeaking] = useState(false);
+  const [speakingUsers, setSpeakingUsers] = useState({});
+  const [callDuration, setCallDuration] = useState(0);
+  const [showWhiteboardModal, setShowWhiteboardModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [layoutMode, setLayoutMode] = useState("auto"); // "auto" | "spotlight" | "grid"
   // Maps userId -> true when that user is sharing their screen
   const [remoteScreenSharing, setRemoteScreenSharing] = useState({});
   // Maps userId -> MediaStream for the SCREEN track received
@@ -57,7 +65,14 @@ export default function VirtualClassroom() {
 
   // ── WebSockets ────────────────────────────────────────────────────────────
   const wsDrawing = useDrawingSocket(id, userId);
-  const wsSignaling = useWebRTCSignaling(id, userId);
+  const wsSignaling = useWebRTCSignaling(id, userId, {
+    userName,
+    role,
+    photo: user?.photo_url || null,
+    micActive,
+    videoActive
+  });
+
 
   const { data: iceConfig } = useQuery({
     queryKey: ['ice-config'],
@@ -399,9 +414,127 @@ export default function VirtualClassroom() {
     return () => { if (stream) stream.getTracks().forEach((t) => t.stop()); };
   }, [isDemo]);
 
+  // ── Call duration timer ──
+  useEffect(() => {
+    if (isDemo) return;
+    const timer = setInterval(() => {
+      setCallDuration((c) => c + 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [isDemo]);
+
+  const formatCallDuration = (totalSec) => {
+    const mins = Math.floor(totalSec / 60);
+    const secs = totalSec % 60;
+    const hrs = Math.floor(mins / 60);
+    if (hrs > 0) {
+      return `${hrs}:${String(mins % 60).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+    }
+    return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+  };
+
+  // ── Web Audio API Visualizer for local mic volume & Active Speaker detection ──
+  useEffect(() => {
+    if (!localStream || !micActive) {
+      setMicVolume(0);
+      setIsLocalSpeaking(false);
+      return;
+    }
+
+    const audioTracks = localStream.getAudioTracks();
+    if (audioTracks.length === 0) return;
+
+    let audioCtx = null;
+    let analyser = null;
+    let source = null;
+    let rafId = null;
+
+    try {
+      const AudioCtxClass = window.AudioContext || window["webkitAudioContext"];
+      if (!AudioCtxClass) return;
+      audioCtx = new AudioCtxClass();
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 64;
+      analyser.smoothingTimeConstant = 0.4;
+      source = audioCtx.createMediaStreamSource(localStream);
+      source.connect(analyser);
+
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      let lastSpeaking = false;
+
+      const checkVolume = () => {
+        analyser.getByteFrequencyData(dataArray);
+        let sum = 0;
+        for (let i = 0; i < dataArray.length; i++) {
+          sum += dataArray[i];
+        }
+        const avg = sum / dataArray.length;
+        const vol = Math.min(100, Math.round((avg / 128) * 100));
+        setMicVolume(vol);
+
+        const speaking = vol > 12;
+        if (speaking !== lastSpeaking) {
+          lastSpeaking = speaking;
+          setIsLocalSpeaking(speaking);
+          wsSignaling.sendSpeakingState(speaking);
+        }
+
+        rafId = requestAnimationFrame(checkVolume);
+      };
+
+      checkVolume();
+    } catch (e) {
+      console.warn("AudioContext visualizer error:", e);
+    }
+
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      if (audioCtx && audioCtx.state !== "closed") {
+        audioCtx.close().catch(() => {});
+      }
+    };
+  }, [localStream, micActive, wsSignaling]);
+
   // Sync mic / video track enabled state
-  useEffect(() => { if (localStream) localStream.getAudioTracks().forEach((t) => (t.enabled = micActive)); }, [micActive, localStream]);
-  useEffect(() => { if (localStream) localStream.getVideoTracks().forEach((t) => (t.enabled = videoActive)); }, [videoActive, localStream]);
+  useEffect(() => {
+    if (localStream) {
+      localStream.getAudioTracks().forEach((t) => (t.enabled = micActive));
+    }
+  }, [micActive, localStream]);
+
+  useEffect(() => {
+    if (localStream) {
+      localStream.getVideoTracks().forEach((t) => (t.enabled = videoActive));
+    }
+  }, [videoActive, localStream]);
+
+  const toggleMic = () => {
+    const next = !micActive;
+    setMicActive(next);
+    if (localStream) {
+      localStream.getAudioTracks().forEach((t) => (t.enabled = next));
+    }
+    wsSignaling.sendMediaToggle("audio", next);
+  };
+
+  const toggleVideo = () => {
+    const next = !videoActive;
+    setVideoActive(next);
+    if (localStream) {
+      localStream.getVideoTracks().forEach((t) => (t.enabled = next));
+    }
+    wsSignaling.sendMediaToggle("video", next);
+  };
+
+  const toggleHand = () => {
+    const next = !handRaised;
+    setHandRaised(next);
+    wsSignaling.sendMediaToggle("hand", next);
+    if (next) {
+      toast.info(isRTL ? "تم رفع اليد 🙋‍♂️" : "Hand raised 🙋‍♂️");
+    }
+  };
+
 
   // ─────────────────────────────────────────────────────────────────────────
   //  Screen sharing — uses replaceTrack (no renegotiation needed)
@@ -685,26 +818,125 @@ export default function VirtualClassroom() {
   useEffect(() => {
     if (isDemo) return;
 
+    // استقبال قائمة المشتركين المتواجدين مسبقاً في الغرفة
+    wsSignaling.onRoomUsers((existingPeers) => {
+      console.log("[WebRTC] Roster received:", existingPeers);
+      existingPeers.forEach((p) => {
+        if (p.userId && String(p.userId) !== String(userId)) {
+          getOrCreatePC(p.userId);
+        }
+      });
+    });
+
+    // استقبال إشارة WebRTC (Offer, Answer, ICE)
     wsSignaling.onSignal((senderId, payload) => {
-      const { type, data } = payload;
+      const { type, data } = payload || {};
       handleIncomingSignal(type, senderId, data);
     });
 
-    wsSignaling.onUserJoined((newUserId) => {
-      if (String(userId) <= String(newUserId)) return;
-      const offerKey = `${userId}->${newUserId}`;
-      if (offersInitiated.current.has(offerKey)) return;
-      const pc = getOrCreatePC(newUserId);
-      if (pc.signalingState !== 'stable') return;
-      offersInitiated.current.add(offerKey);
-      pc.createOffer()
-        .then((offer) => pc.setLocalDescription(offer).then(() => sendSignal('OFFER', newUserId, offer)))
-        .catch((err) => {
-          console.error("Manual offer failed:", err);
-          offersInitiated.current.delete(offerKey);
-        });
+    // انضمام مستخدم جديد للحصة
+    wsSignaling.onUserJoined((newUserData) => {
+      const newUserId = typeof newUserData === "object" ? newUserData.userId : newUserData;
+      if (!newUserId || String(userId) === String(newUserId)) return;
+      
+      const newUserName = typeof newUserData === "object" ? newUserData.userName : "مشارك";
+      toast.info(isRTL ? `انضم ${newUserName} للحصة` : `${newUserName} joined the class`);
+
+      if (String(userId) > String(newUserId)) {
+        const offerKey = `${userId}->${newUserId}`;
+        if (offersInitiated.current.has(offerKey)) return;
+        const pc = getOrCreatePC(newUserId);
+        if (pc.signalingState !== "stable") return;
+        offersInitiated.current.add(offerKey);
+        pc.createOffer()
+          .then((offer) => pc.setLocalDescription(offer).then(() => sendSignal("OFFER", newUserId, offer)))
+          .catch((err) => {
+            console.error("Manual offer failed:", err);
+            offersInitiated.current.delete(offerKey);
+          });
+      } else {
+        getOrCreatePC(newUserId);
+      }
     });
 
+    // خروج أو انقطاع اتصال مستخدم
+    wsSignaling.onUserLeft((leftUserId) => {
+      console.log("[WebRTC] Peer left:", leftUserId);
+      if (pcsRef.current[leftUserId]) {
+        try { pcsRef.current[leftUserId].close(); } catch (_) {}
+        delete pcsRef.current[leftUserId];
+      }
+      setRemoteStreams((prev) => {
+        const next = { ...prev };
+        delete next[leftUserId];
+        return next;
+      });
+      setRemoteScreenStreams((prev) => {
+        const next = { ...prev };
+        delete next[leftUserId];
+        return next;
+      });
+      setRemoteScreenSharing((prev) => {
+        const next = { ...prev };
+        delete next[leftUserId];
+        return next;
+      });
+      setSpeakingUsers((prev) => {
+        const next = { ...prev };
+        delete next[leftUserId];
+        return next;
+      });
+      setPinnedParticipantId((prev) => (prev === leftUserId ? null : prev));
+    });
+
+    // مزامنة أجهزة الوسائط (كتم المايك، إيقاف الكاميرا، مشاركة الشاشة، رفع اليد)
+    wsSignaling.onMediaToggle((data) => {
+      const { userId: peerId, type, status } = data || {};
+      if (!peerId || String(peerId) === String(userId)) return;
+
+      if (type === "audio") {
+        setParticipants((prev) =>
+          prev.map((p) => (String(p.id) === String(peerId) ? { ...p, mic: status } : p))
+        );
+      } else if (type === "video") {
+        setParticipants((prev) =>
+          prev.map((p) => (String(p.id) === String(peerId) ? { ...p, video: status } : p))
+        );
+      } else if (type === "screen") {
+        setRemoteScreenSharing((prev) => ({ ...prev, [peerId]: status }));
+        if (status) {
+          setPinnedParticipantId(peerId);
+        } else {
+          setPinnedParticipantId((prev) => (prev === peerId ? null : prev));
+        }
+      } else if (type === "hand") {
+        setParticipants((prev) =>
+          prev.map((p) => (String(p.id) === String(peerId) ? { ...p, hand: status } : p))
+        );
+        if (status) {
+          const person = participants.find((p) => String(p.id) === String(peerId));
+          toast.info(isRTL ? `${person?.name || "مشارك"} رفع يده 🙋‍♂️` : `${person?.name || "Participant"} raised hand 🙋‍♂️`);
+        }
+      }
+    });
+
+    // مزامنة حالة التحدث الحقيقي (Active Speaker)
+    wsSignaling.onSpeakingState((data) => {
+      const { userId: peerId, isSpeaking } = data || {};
+      if (peerId && String(peerId) !== String(userId)) {
+        setSpeakingUsers((prev) => ({ ...prev, [peerId]: isSpeaking }));
+      }
+    });
+
+    // إنهاء الحصة من قبل المعلم لجميع الطلاب
+    wsSignaling.onClassEnded((data) => {
+      toast.warning(isRTL ? `قام المعلم ${data?.teacherName || ""} بإنهاء الحصة الدراسية` : `Class has been ended by the teacher`);
+      setTimeout(() => {
+        navigate(role === "student" ? "/student-portal" : "/teacher-portal");
+      }, 1500);
+    });
+
+    // أحداث اللوح الذكي (Drawing)
     wsDrawing.onDrawEvent((data) => {
       if (data.type === 'draw') {
         const payload = data.payload;
@@ -727,7 +959,8 @@ export default function VirtualClassroom() {
       }
     });
 
-  }, [isDemo, wsSignaling, wsDrawing]);
+  }, [isDemo, wsSignaling, wsDrawing, userId, isRTL, navigate, role, participants]);
+
 
   // ─────────────────────────────────────────────────────────────────────────
   //  Initiate connections when participant list changes
@@ -814,24 +1047,6 @@ export default function VirtualClassroom() {
   // ─────────────────────────────────────────────────────────────────────────
   //  Controls
   // ─────────────────────────────────────────────────────────────────────────
-  const toggleMic = async () => {
-    const val = !micActive;
-    setMicActive(val);
-    if (myParticipantId) entities.SessionParticipant.update(myParticipantId, { mic_active: val }).catch(() => {});
-  };
-
-  const toggleVideo = async () => {
-    const val = !videoActive;
-    setVideoActive(val);
-    if (myParticipantId) entities.SessionParticipant.update(myParticipantId, { video_active: val }).catch(() => {});
-  };
-
-  const toggleHand = async () => {
-    const val = !handRaised;
-    setHandRaised(val);
-    if (myParticipantId) entities.SessionParticipant.update(myParticipantId, { hand_raised: val }).catch(() => {});
-  };
-
   const handleSendMessage = async () => {
     if (!chatMessage.trim()) return;
     const text = chatMessage;
@@ -850,20 +1065,28 @@ export default function VirtualClassroom() {
     }
   };
 
-  const handleEndClass = async () => {
-    if (isTeacher) {
-      if (confirm(isRTL ? "هل أنت متأكد من إنهاء الفصل للجميع؟" : "End class for everyone?")) {
-        try { await entities.VirtualSession.update(id, { status: "ended", ended_at: new Date().toISOString() }); } catch {}
-        toast.success(isRTL ? "تم إنهاء الفصل." : "Class ended.");
+  const handleEndClass = async (endForAll = false) => {
+    if (isTeacher && endForAll) {
+      if (confirm(isRTL ? "هل ترغب في إنهاء الحصة لجميع الطلاب وإغلاق الغرفة؟" : "End session for all students and close room?")) {
+        try {
+          await entities.VirtualSession.update(id, { status: "ended", ended_at: new Date().toISOString() });
+        } catch {}
+        wsSignaling.endClassForAll();
+        toast.success(isRTL ? "تم إنهاء الحصة لجميع الطلاب." : "Session ended for all.");
+        navigate("/teacher-portal");
+      }
+    } else if (isTeacher) {
+      if (confirm(isRTL ? "هل ترغب بمغادرة الحصة فقط وإبقائها مفتوحة للطلاب؟" : "Leave session and keep it open?")) {
         navigate("/teacher-portal");
       }
     } else if (isAdmin) {
       navigate("/admin-virtual-classrooms");
     } else {
-      toast.info(isRTL ? "غادرت الفصل." : "You left the classroom.");
+      toast.info(isRTL ? "غادرت الحصة الدراسية." : "You left the session.");
       navigate("/student-portal");
     }
   };
+
 
   const handleStartSession = async (sessionItem) => {
     try {
@@ -1226,486 +1449,613 @@ export default function VirtualClassroom() {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  //  LIVE CLASSROOM
+  //  LIVE CLASSROOM (Google Meet Architecture & UI)
   // ─────────────────────────────────────────────────────────────────────────
 
+  const activeRemoteSharerId = Object.keys(remoteScreenSharing).find((uid) => remoteScreenSharing[uid]);
+  const spotlightId = pinnedParticipantId || (screenSharing ? userId : activeRemoteSharerId) || null;
+
+  const allTiles = [
+    {
+      id: userId,
+      isLocal: true,
+      isMe: true,
+      name: userName,
+      role,
+      photo: user?.photo_url || photoMap[String(userId)] || null,
+      mic: micActive,
+      video: videoActive,
+      stream: screenSharing && screenStream ? screenStream : localStream,
+      isSpeaking: isLocalSpeaking,
+      isScreen: screenSharing,
+      hand: handRaised
+    },
+    ...participants
+      .filter((p) => String(p.id) !== String(userId))
+      .map((p) => ({
+        id: p.id,
+        isLocal: false,
+        isMe: false,
+        name: p.name,
+        role: p.role,
+        photo: p.photo || photoMap[String(p.id)] || null,
+        mic: p.mic !== undefined ? p.mic : true,
+        video: p.video !== undefined ? p.video : true,
+        stream: (remoteScreenSharing[p.id] && remoteScreenStreams[p.id]) || remoteStreams[p.id] || null,
+        isSpeaking: Boolean(speakingUsers[p.id]),
+        isScreen: Boolean(remoteScreenSharing[p.id]),
+        hand: Boolean(p.hand)
+      }))
+  ];
+
+  const getMeetGridCols = (count) => {
+    if (count <= 1) return "grid-cols-1 max-w-4xl mx-auto";
+    if (count === 2) return "grid-cols-1 md:grid-cols-2 max-w-6xl mx-auto";
+    if (count <= 4) return "grid-cols-1 sm:grid-cols-2 max-w-6xl mx-auto";
+    if (count <= 6) return "grid-cols-2 md:grid-cols-3 max-w-7xl mx-auto";
+    if (count <= 9) return "grid-cols-2 sm:grid-cols-3 md:grid-cols-3 max-w-7xl mx-auto";
+    return "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 max-w-7xl mx-auto";
+  };
+
+  const renderVideoTile = (tile, isSpotlight = false) => {
+    const isSpotlightUser = spotlightId === tile.id;
+
+    return (
+      <div
+        key={tile.id}
+        className={`relative bg-[#202124] rounded-2xl sm:rounded-3xl border border-white/5 overflow-hidden shadow-2xl flex items-center justify-center transition-all duration-300 group ${
+          tile.isSpeaking
+            ? "ring-2 ring-emerald-400 shadow-[0_0_25px_rgba(52,211,153,0.35)]"
+            : "hover:border-white/20"
+        } ${isSpotlight ? "w-full h-full min-h-[360px]" : "w-full aspect-video min-h-[160px]"}`}
+      >
+        {/* تيار الفيديو المباشر عبر WebRTC */}
+        {tile.stream ? (
+          <video
+            ref={(el) => {
+              if (tile.isLocal) {
+                localVideoRef.current = el;
+              } else {
+                remoteVideoRefs.current[tile.id] = el;
+              }
+              if (el && tile.stream) {
+                if (el.srcObject !== tile.stream) {
+                  el.srcObject = tile.stream;
+                }
+                if (!tile.isLocal) {
+                  el.volume = remoteVolume;
+                  el.muted = false;
+                }
+                el.play().catch(() => {});
+              }
+            }}
+            autoPlay
+            playsInline
+            muted={tile.isLocal}
+            className={`w-full h-full ${
+              tile.isScreen ? "object-contain bg-black" : "object-cover"
+            } ${tile.isLocal && !tile.isScreen ? "scale-x-[-1]" : ""} ${
+              tile.video ? "opacity-100" : "opacity-0 absolute pointer-events-none"
+            }`}
+          />
+        ) : null}
+
+        {/* واجهة إغلاق الكاميرا (Google Meet Avatar with Voice Waves) */}
+        {(!tile.video || !tile.stream) && (
+          <div className="absolute inset-0 bg-gradient-to-br from-[#1e1e1e] to-[#121212] flex flex-col items-center justify-center p-4">
+            {/* موجات صوتية نابضة عندما يتحدث المستخدم والكاميرا مغلقة */}
+            {tile.isSpeaking && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <span className="h-32 w-32 rounded-full border border-emerald-400/40 animate-ping absolute" />
+                <span className="h-44 w-44 rounded-full border border-emerald-400/20 animate-pulse absolute" />
+              </div>
+            )}
+
+            <div
+              className={`relative z-10 rounded-full flex items-center justify-center font-black text-white shadow-2xl overflow-hidden ${
+                isSpotlight ? "h-28 w-28 text-3xl" : "h-16 w-16 sm:h-20 sm:w-20 text-xl sm:text-2xl"
+              } ${
+                tile.role === "teacher"
+                  ? "bg-gradient-to-br from-teal-500 to-emerald-600"
+                  : "bg-gradient-to-br from-indigo-500 to-violet-600"
+              }`}
+            >
+              {tile.photo ? (
+                <img src={tile.photo} alt={tile.name} className="h-full w-full object-cover" />
+              ) : (
+                tile.name?.charAt(0)?.toUpperCase() || "?"
+              )}
+            </div>
+
+            <p className="mt-3 text-xs font-bold text-stone-300 z-10 flex items-center gap-1.5">
+              <span>{tile.name}</span>
+              {tile.role === "teacher" && (
+                <span className="text-[10px] bg-teal-500/20 text-teal-300 px-1.5 py-0.5 rounded-md border border-teal-500/30">
+                  {isRTL ? "معلم" : "Teacher"}
+                </span>
+              )}
+            </p>
+            <span className="text-[10px] text-stone-500 mt-1 font-mono">
+              {!tile.stream ? (isRTL ? "جاري الاتصال…" : "Connecting…") : (isRTL ? "الكاميرا متوقفة" : "Camera off")}
+            </span>
+          </div>
+        )}
+
+        {/* شارة التعريف السفلية (اسم المشترك وحالته) */}
+        <div className="absolute bottom-3 left-3 z-20 flex items-center gap-2">
+          <div className="bg-black/70 backdrop-blur-md px-3 py-1.5 rounded-xl text-xs font-bold text-white border border-white/10 flex items-center gap-1.5 shadow-lg">
+            <span>{tile.name}</span>
+            {tile.isLocal && <span className="text-teal-400 font-normal">({isRTL ? "أنت" : "You"})</span>}
+            {tile.role === "teacher" && <span className="text-amber-400 text-xs">⭐️</span>}
+          </div>
+        </div>
+
+        {/* المؤشرات العلوية واليمنى (المايك، مشاركة الشاشة، رفع اليد) */}
+        <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5">
+          {tile.isScreen && (
+            <Badge className="bg-teal-500 text-stone-950 font-black px-2 py-1 rounded-lg text-[10px] flex items-center gap-1 shadow-md">
+              <ScreenShare size={12} />
+              <span>{isRTL ? "مشاركة الشاشة" : "Sharing Screen"}</span>
+            </Badge>
+          )}
+
+          {tile.hand && (
+            <Badge className="bg-amber-400 text-stone-950 font-black px-2 py-1 rounded-lg text-xs animate-bounce shadow-md">
+              🙋‍♂️
+            </Badge>
+          )}
+
+          {!tile.mic ? (
+            <div className="bg-rose-600/90 text-white p-1.5 rounded-full border border-rose-400 shadow-md">
+              <MicOff size={13} />
+            </div>
+          ) : tile.isSpeaking ? (
+            <div className="bg-emerald-500/90 text-stone-950 px-2 py-1 rounded-full flex items-center gap-0.5 shadow-md">
+              <span className="h-2 w-0.5 bg-stone-950 animate-[bounce_0.6s_infinite]" />
+              <span className="h-3.5 w-0.5 bg-stone-950 animate-[bounce_0.8s_infinite]" />
+              <span className="h-2 w-0.5 bg-stone-950 animate-[bounce_0.5s_infinite]" />
+            </div>
+          ) : null}
+        </div>
+
+        {/* أزرار التثبيت والتكبير عند التمرير (Hover Controls) */}
+        <div className="absolute top-3 left-3 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center gap-1.5">
+          <button
+            onClick={() => setPinnedParticipantId(isSpotlightUser ? null : tile.id)}
+            title={isSpotlightUser ? (isRTL ? "إلغاء التثبيت" : "Unpin") : (isRTL ? "تثبيت في الواجهة" : "Pin")}
+            className="h-8 w-8 rounded-xl bg-black/70 hover:bg-black text-white flex items-center justify-center border border-white/10 transition-all cursor-pointer"
+          >
+            {isSpotlightUser ? <PinOff size={14} className="text-teal-400" /> : <Pin size={14} />}
+          </button>
+        </div>
+      </div>
+    );
+  };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col font-sans select-none overflow-hidden" dir={isRTL ? "rtl" : "ltr"}>
-      {/* ── HEADER ── */}
-      <header className="h-16 px-6 bg-stone-900/60 backdrop-blur-xl border-b border-white/5 flex items-center justify-between z-10 shrink-0 shadow-lg">
-        <div className="flex items-center gap-4">
-          <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-teal-500/20 to-emerald-500/20 border border-teal-500/30 flex items-center justify-center text-teal-400 shadow-[0_0_15px_rgba(20,184,166,0.2)]">
-            <Sparkles size={20} className="animate-pulse" />
+    <div className="min-h-screen bg-[#121212] text-white flex flex-col font-sans select-none overflow-hidden" dir={isRTL ? "rtl" : "ltr"}>
+      {/* ── GOOGLE MEET TOP HEADER ── */}
+      <header className="h-16 px-6 bg-[#18181b]/80 backdrop-blur-xl border-b border-white/5 flex items-center justify-between z-20 shrink-0 shadow-md">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600 flex items-center justify-center text-stone-950 font-black shadow-[0_0_20px_rgba(20,184,166,0.3)]">
+            <Video size={20} />
           </div>
           <div>
-            <h1 className="text-sm font-black text-white/90 truncate max-w-[200px] sm:max-w-md drop-shadow-sm">
-              {session?.title || (isRTL ? "حصة دراسية افتراضية" : "Virtual Session")}
-            </h1>
-            <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mt-0.5">
-              {session?.subject_name} • <span className="text-stone-300">{session?.teacher_name}</span>
+            <div className="flex items-center gap-2">
+              <h1 className="text-sm sm:text-base font-black text-white truncate max-w-[220px] sm:max-w-md">
+                {session?.title || (isRTL ? "حصة الأحياء - الثالث الثانوي" : "Biology Class - Senior High")}
+              </h1>
+              <Badge className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-md text-[9px] font-black uppercase flex items-center gap-1">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping inline-block" />
+                {isRTL ? "بث مباشر" : "LIVE"}
+              </Badge>
+            </div>
+            <p className="text-[10px] font-bold text-stone-400 tracking-wide mt-0.5 flex items-center gap-2">
+              <span>{session?.subject_name || (isRTL ? "علم الأحياء" : "Biology")}</span>
+              <span>•</span>
+              <span className="text-stone-300">{session?.teacher_name || (isRTL ? "أ. معتصم علي فتاش" : "Mr. Moutasim Ali Fattash")}</span>
+              <span>•</span>
+              <span className="font-mono text-emerald-400 flex items-center gap-1">
+                <Clock size={10} />
+                {formatCallDuration(callDuration)}
+              </span>
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <Badge className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-2 shadow-[0_0_10px_rgba(16,185,129,0.1)]">
-            <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping absolute opacity-75" />
-            <span className="h-2 w-2 rounded-full bg-emerald-400 relative" />
-            {isRTL ? "مباشر" : "LIVE"}
-          </Badge>
-          {isAdmin && (
-            <Badge className="bg-violet-500/15 text-violet-300 border border-violet-500/30 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5">
-              <ShieldAlert size={12} />
-              {isRTL ? "مراقب" : "Observer"}
-            </Badge>
-          )}
+
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* شارة التشفير والأمان */}
+          <div className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-stone-850/60 border border-white/5 text-[10px] font-bold text-stone-400">
+            <Radio size={12} className="text-emerald-400" />
+            <span>{isRTL ? "اتصال WebRTC فائق السرعة" : "Ultra-Low Latency WebRTC"}</span>
+          </div>
+
+          {/* تبديل وضع الشبكة / التثبيت */}
           <button
-            onClick={() => { navigator.clipboard.writeText(window.location.href); toast.success(isRTL ? "تم نسخ الرابط!" : "Link copied!"); }}
-            className="hidden sm:inline-flex items-center gap-2 px-4 py-2 bg-stone-800/80 hover:bg-stone-700 text-stone-200 rounded-xl text-[11px] font-black transition-all border border-white/5 shadow-sm hover:shadow-md"
+            onClick={() => {
+              if (layoutMode === "grid") setLayoutMode("spotlight");
+              else setLayoutMode("grid");
+            }}
+            title={isRTL ? "تغيير تخطيط العرض" : "Switch layout"}
+            className="p-2.5 rounded-xl bg-stone-800/80 hover:bg-stone-700 text-stone-300 hover:text-white border border-white/10 text-xs flex items-center gap-1.5 transition-all cursor-pointer"
           >
-            <Copy size={14} />
-            {isRTL ? "نسخ الرابط" : "Copy Link"}
+            <LayoutGrid size={15} />
+            <span className="hidden md:inline text-xs font-bold">
+              {layoutMode === "grid" ? (isRTL ? "عرض التركيز" : "Spotlight") : (isRTL ? "عرض الشبكة" : "Grid")}
+            </span>
+          </button>
+
+          {/* نسخ الرابط */}
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(window.location.href);
+              toast.success(isRTL ? "تم نسخ رابط الحصة بنجاح!" : "Meeting link copied!");
+            }}
+            className="p-2.5 rounded-xl bg-stone-800/80 hover:bg-stone-700 text-stone-300 hover:text-white border border-white/10 text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+          >
+            <Copy size={15} />
+            <span className="hidden sm:inline text-xs font-bold">{isRTL ? "نسخ الرابط" : "Copy Link"}</span>
           </button>
         </div>
       </header>
 
-      {/* ── CORE WORKSPACE ── */}
-      <div className="flex-1 flex flex-col md:flex-row relative min-h-0 overflow-hidden">
+      {/* ── GOOGLE MEET MAIN STAGE & SIDEBAR ── */}
+      <div className="flex-1 flex flex-col md:flex-row relative min-h-0 overflow-hidden bg-[#202124]">
+        {/* Main Stage Area */}
+        <div className="flex-1 flex flex-col relative min-w-0 p-3 sm:p-4 overflow-hidden">
+          {/* Active View: Spotlight Mode or Dynamic Adaptive Grid */}
+          {spotlightId ? (
+            <div className="flex-1 flex flex-col lg:flex-row gap-3 min-h-0 overflow-hidden">
+              {/* Primary Focused Tile (Teacher / Screen Share / Pinned) */}
+              <div className="flex-1 min-h-0 min-w-0 relative flex items-center justify-center rounded-3xl overflow-hidden bg-[#18181b] border border-white/5 shadow-2xl">
+                {(() => {
+                  const focusedTile = allTiles.find((t) => t.id === spotlightId) || allTiles[0];
+                  return renderVideoTile(focusedTile, true);
+                })()}
+              </div>
 
-        {/* ── MAIN AREA (Presentation / Pinned Video / Screen Share) ── */}
-        <div className="flex-1 p-4 md:p-6 flex flex-col justify-between relative bg-stone-900/40 min-w-0">
-
-          {/* Sidebar toggle */}
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className={`absolute top-1/2 -translate-y-1/2 z-20 h-16 w-5 bg-stone-900 border border-stone-850 hover:bg-stone-800 text-stone-400 hover:text-white flex items-center justify-center shadow-lg transition-all rounded-l-md cursor-pointer ${isRTL ? "left-0 rounded-r-md rounded-l-none border-l-0" : "right-0 rounded-l-md rounded-r-none border-r-0"}`}
-          >
-            {sidebarOpen ? (isRTL ? <ChevronLeft size={12} /> : <ChevronRight size={12} />) : (isRTL ? <ChevronRight size={12} /> : <ChevronLeft size={12} />)}
-          </button>
-
-          {/* Presentation mode tabs (hidden when pinned) */}
-          {!pinnedParticipantId && (
-            <div className="flex items-center justify-between mb-4 bg-stone-900/80 p-2 rounded-2xl border border-white/5">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-stone-400 px-2">{isRTL ? "مساحة العرض:" : "Workspace:"}</span>
-                {[
-                  { id: "whiteboard", label: isRTL ? "اللوح الذكي" : "Whiteboard" },
-                  { id: "file", label: isRTL ? "عرض ملف" : "File/Image" },
-                  { id: "video", label: isRTL ? "فيديو" : "Video" },
-                ].map((mode) => (
-                  <button
-                    key={mode.id}
-                    onClick={() => {
-                      setPresentationMode(mode.id);
-                      if (isTeacher) sendSignal("PRESENTATION_MODE", "all", { mode: mode.id });
-                    }}
-                    className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all ${presentationMode === mode.id ? "bg-teal-500 text-stone-950" : "text-stone-400 hover:text-white hover:bg-white/5"}`}
-                  >
-                    {mode.label}
-                  </button>
-                ))}
+              {/* Side Strip of other participants */}
+              {allTiles.filter((t) => t.id !== spotlightId).length > 0 && (
+                <div className="w-full lg:w-72 flex flex-row lg:flex-col gap-3 overflow-x-auto lg:overflow-y-auto shrink-0 pb-2 lg:pb-0">
+                  {allTiles
+                    .filter((t) => t.id !== spotlightId)
+                    .map((tile) => (
+                      <div key={tile.id} className="w-48 sm:w-56 lg:w-full shrink-0">
+                        {renderVideoTile(tile, false)}
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            /* Adaptive Dynamic Grid (Google Meet Standard) */
+            <div className="flex-1 min-h-0 overflow-y-auto flex items-center justify-center">
+              <div className={`grid w-full gap-3 sm:gap-4 p-2 items-center justify-center ${getMeetGridCols(allTiles.length)}`}>
+                {allTiles.map((tile) => renderVideoTile(tile, false))}
               </div>
             </div>
           )}
 
-          {/* Main content box */}
-          <div className="flex-1 bg-stone-950/80 rounded-[32px] border border-white/5 relative overflow-hidden flex items-center justify-center min-h-[350px]">
-            {pinnedParticipantId ? (
-              /* ── Pinned / Screen share view ── */
-              <div className="w-full h-full relative bg-stone-950 flex items-center justify-center">
-                {pinnedParticipantId === userId ? (
-                  /* Own screen share / camera */
-                  videoActive && activeStream ? (
-                    <video
-                      ref={(el) => { if (el && activeStream && el.srcObject !== activeStream) { el.srcObject = activeStream; el.play().catch(() => {}); } }}
-                      autoPlay playsInline muted
-                      className="w-full h-full object-contain"
-                    />
-                  ) : (
-                    <div className="text-stone-500 font-bold text-xs">{isRTL ? "الكاميرا مغلقة" : "Camera Off"}</div>
-                  )
-                ) : (
-                  /* Remote: prefer screen-share stream when sharing, else camera stream */
-                  ((remoteScreenSharing[pinnedParticipantId] && remoteScreenStreams[pinnedParticipantId]) || remoteStreams[pinnedParticipantId]) ? (
-                    <video
-                      ref={(el) => {
-                        const stream = (remoteScreenSharing[pinnedParticipantId] && remoteScreenStreams[pinnedParticipantId])
-                          ? remoteScreenStreams[pinnedParticipantId]
-                          : remoteStreams[pinnedParticipantId];
-                        remoteVideoRefs.current[`pinned-${pinnedParticipantId}`] = el;
-                        if (el && stream) {
-                          if (el.srcObject !== stream) {
-                            el.srcObject = stream;
-                          }
-                          el.volume = remoteVolume;
-                          el.muted = false; // must set via DOM property, not React attr
-                          el.play().catch(() => {});
-                        }
-                      }}
-                      autoPlay playsInline
-                      className="w-full h-full object-contain"
-                    />
-                  ) : (
-                    /* No stream yet — show participant avatar */
-                    <div className="relative w-full h-full flex flex-col items-center justify-center bg-stone-950">
-                      <div className="absolute inset-0 bg-gradient-to-br from-teal-500/10 to-stone-950" />
-                      {(() => {
-                        const pinnedP = participants.find((p) => p.id === pinnedParticipantId);
-                        return (
-                          <>
-                            <div className={`h-24 w-24 rounded-full flex items-center justify-center text-4xl font-black text-white shadow-2xl z-10 mb-4 overflow-hidden ${
-                              pinnedP?.role === "teacher"
-                                ? "bg-gradient-to-br from-teal-500 to-emerald-600"
-                                : "bg-gradient-to-br from-indigo-500 to-violet-600"
-                            }`}>
-                              {pinnedP?.photo ? (
-                                <img src={pinnedP.photo} alt={pinnedP?.name} className="h-full w-full object-cover" />
-                              ) : (
-                                pinnedP?.name?.charAt(0)?.toUpperCase() || "?"
-                              )}
-                            </div>
-                            <p className="text-sm font-bold text-stone-200 z-10">{pinnedP?.name}</p>
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-500/10 text-teal-400 text-xs font-bold mt-2 border border-teal-500/20 z-10">
-                              <span className="h-2 w-2 rounded-full bg-amber-400 animate-ping" />
-                              {isRTL ? "جاري الاتصال..." : "Connecting..."}
-                            </span>
-                          </>
-                        );
-                      })()}
-                    </div>
-                  )
-                )}
-                {/* Minimize button */}
-                <button onClick={() => setPinnedParticipantId(null)}
-                  className="absolute top-4 right-4 bg-black/70 hover:bg-black/90 text-white p-2 rounded-xl border border-white/10 z-20 flex items-center gap-1.5 text-xs font-bold transition-all">
-                  <Minimize2 size={14} />
-                  <span>{isRTL ? "تصغير" : "Minimize"}</span>
-                </button>
-                {/* Screen share badge */}
-                {remoteScreenSharing[pinnedParticipantId] && (
-                  <div className="absolute top-4 left-4 bg-teal-500/20 border border-teal-500/40 text-teal-300 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2 z-20">
-                    <ScreenShare size={14} />
-                    {isRTL ? "مشاركة الشاشة" : "Screen Share"}
-                  </div>
-                )}
-              </div>
-            ) : (
-              /* ── Normal presentation workspace ── */
-              <>
-                {presentationMode === "whiteboard" && (
-                  <div className="w-full h-full relative bg-stone-900/20">
-                    <canvas ref={canvasRef} onMouseDown={startDrawing} onMouseMove={draw} onMouseUp={endDrawing} onMouseLeave={endDrawing} className="w-full h-full cursor-crosshair" />
-                    <div className="absolute bottom-4 right-4 flex items-center gap-3 bg-stone-900/95 p-3 rounded-2xl border border-white/10 z-10 shadow-2xl backdrop-blur-md">
-                      {["#2dd4bf", "#f43f5e", "#3b82f6", "#eab308", "#ffffff"].map((color) => (
-                        <button key={color} disabled={isEraser} onClick={() => setDrawColor(color)} style={{ backgroundColor: color }} className={`h-6 w-6 rounded-full border-2 transition-all ${!isEraser && drawColor === color ? "border-white scale-110" : "border-transparent opacity-60 hover:opacity-100"}`} />
-                      ))}
-                      <div className="w-px h-6 bg-white/10" />
-                      <button onClick={() => setIsEraser(!isEraser)} className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all ${isEraser ? "bg-amber-500 text-stone-950" : "bg-stone-850 hover:bg-stone-800 text-stone-300"}`}>
-                        {isEraser ? (isRTL ? "ممحاة نشطة" : "Eraser ON") : (isRTL ? "ممحاة" : "Eraser")}
-                      </button>
-                      <div className="w-px h-6 bg-white/10" />
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] text-stone-400 font-bold">{isRTL ? "السمك:" : "Size:"}</span>
-                        <input id="field-virtualclassroom-input-3" name="input_3" aria-label="input 3" type="range" min="1" max="20" value={lineWidth} onChange={(e) => setLineWidth(parseInt(e.target.value))} className="w-16 h-1 bg-stone-700 rounded-lg appearance-none cursor-pointer accent-teal-400" />
-                        <span className="text-[9px] font-mono text-teal-400 w-4">{lineWidth}px</span>
-                      </div>
-                      <div className="w-px h-6 bg-white/10" />
-                      <button onClick={clearCanvas} className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-bold transition-all">{isRTL ? "مسح" : "Clear"}</button>
-                    </div>
-                  </div>
-                )}
-                {presentationMode === "file" && (
-                  <div className="w-full h-full flex flex-col items-center justify-center p-6 relative">
-                    {/\.(png|jpg|jpeg|gif|webp|svg)(\?|$)/i.test(presentationData.imageUrl || "") ? (
-                      <img src={presentationData.imageUrl} alt="Slide" className="max-h-[85%] max-w-[95%] object-contain rounded-xl shadow-2xl" />
-                    ) : (
-                      <div className="w-full h-full flex flex-col items-center justify-center gap-4">
-                        <FileText size={48} className="text-teal-400" />
-                        <a href={presentationData.imageUrl} target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-teal-500 text-stone-950 rounded-xl text-xs font-black">
-                          {isRTL ? "فتح الملف" : "Open File"}
-                        </a>
-                        <iframe src={presentationData.imageUrl} className="w-full h-[70%] rounded-xl border border-white/10" title="shared-file" />
-                      </div>
-                    )}
-                    {isTeacher && (
-                      <div className="absolute bottom-4 right-4 bg-stone-900/90 p-2 rounded-xl border border-white/10 flex items-center gap-3 z-10">
-                        <button onClick={() => { const u = prompt(isRTL ? "أدخل رابط الصورة:" : "Enter Image URL:", presentationData.imageUrl); if (u) { const upd = { ...presentationData, imageUrl: u }; setPresentationData(upd); sendSignal("PRESENTATION_DATA", "all", upd); } }} className="px-3 py-1.5 bg-teal-500 text-stone-950 rounded-lg text-[10px] font-black">{isRTL ? "تغيير" : "Change"}</button>
-                      </div>
-                    )}
-                  </div>
-                )}
-                {presentationMode === "video" && (
-                  <div className="w-full h-full flex items-center justify-center p-6 relative">
-                    <video src={presentationData.videoUrl} controls className="w-full max-h-[85%] rounded-xl shadow-2xl" />
-                    {isTeacher && (
-                      <div className="absolute bottom-4 right-4 bg-stone-900/90 p-2 rounded-xl border border-white/10 flex items-center gap-3 z-10">
-                        <button onClick={() => { const u = prompt(isRTL ? "أدخل رابط الفيديو (MP4):" : "Enter Video URL:", presentationData.videoUrl); if (u) { const upd = { ...presentationData, videoUrl: u }; setPresentationData(upd); sendSignal("PRESENTATION_DATA", "all", upd); } }} className="px-3 py-1.5 bg-teal-500 text-stone-950 rounded-lg text-[10px] font-black">{isRTL ? "تغيير" : "Change"}</button>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </>
-            )}
-          </div>
+          {/* ── GOOGLE MEET FLOATING BOTTOM TOOLBAR ── */}
+          <div className="h-20 shrink-0 flex items-center justify-between px-3 sm:px-6 mt-2 relative z-30">
+            {/* Left: Meeting Time & Subject Info */}
+            <div className="hidden md:flex items-center gap-3 text-stone-300">
+              <span className="font-mono text-sm font-bold tracking-wider">
+                {new Date().toLocaleTimeString(isRTL ? "ar-EG" : "en-US", { hour: "2-digit", minute: "2-digit" })}
+              </span>
+              <span className="text-stone-500">|</span>
+              <span className="text-xs font-bold text-stone-300 truncate max-w-[220px]">
+                {session?.title || (isRTL ? "حصة الأحياء - الصف الثالث الثانوي" : "Live Session")}
+              </span>
+            </div>
 
-          {/* ── CONTROL TOOLBAR ── */}
-          <div className="h-20 bg-stone-900/80 backdrop-blur-xl border border-white/10 rounded-3xl mt-4 px-6 flex items-center justify-between shadow-[0_8px_30px_rgb(0,0,0,0.4)] relative z-10 transition-all hover:border-white/20">
-            <div className="flex items-center gap-3">
-              <button onClick={toggleMic} className={`h-12 w-12 rounded-2xl flex items-center justify-center border transition-all duration-300 hover:scale-105 active:scale-95 ${micActive ? "bg-stone-800 text-stone-200 border-white/10 hover:bg-stone-700" : "bg-rose-500 text-white border-rose-400 shadow-[0_0_15px_rgba(244,63,94,0.4)]"}`}>
-                {micActive ? <Mic size={20} /> : <MicOff size={20} />}
-              </button>
-              <button onClick={toggleVideo} className={`h-12 w-12 rounded-2xl flex items-center justify-center border transition-all duration-300 hover:scale-105 active:scale-95 ${videoActive ? "bg-stone-800 text-stone-200 border-white/10 hover:bg-stone-700" : "bg-rose-500 text-white border-rose-400 shadow-[0_0_15px_rgba(244,63,94,0.4)]"}`}>
+            {/* Center: Core Action Controls (Google Meet Pill Cluster) */}
+            <div className="flex items-center gap-2 sm:gap-3 mx-auto md:mx-0">
+              {/* Microphone Toggle with Audio Level Ring */}
+              <div className="relative flex items-center justify-center">
+                {micActive && micVolume > 0.05 && (
+                  <span
+                    className="absolute inset-0 rounded-full border-2 border-emerald-400 animate-ping pointer-events-none"
+                    style={{ transform: `scale(${1 + Math.min(micVolume * 1.5, 0.8)})` }}
+                  />
+                )}
+                <button
+                  onClick={toggleMic}
+                  title={micActive ? (isRTL ? "كتم الصوت (Ctrl+D)" : "Mute mic (Ctrl+D)") : (isRTL ? "تشغيل الميكروفون" : "Turn on mic")}
+                  className={`h-12 w-12 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer shadow-lg hover:scale-105 active:scale-95 ${
+                    micActive
+                      ? "bg-[#3c4043] hover:bg-[#474a4d] text-white border border-white/10"
+                      : "bg-[#ea4335] hover:bg-[#d93025] text-white shadow-[0_0_20px_rgba(234,67,53,0.4)]"
+                  }`}
+                >
+                  {micActive ? <Mic size={20} /> : <MicOff size={20} />}
+                </button>
+              </div>
+
+              {/* Camera Video Toggle */}
+              <button
+                onClick={toggleVideo}
+                title={videoActive ? (isRTL ? "إيقاف الكاميرا (Ctrl+E)" : "Turn off camera (Ctrl+E)") : (isRTL ? "تشغيل الكاميرا" : "Turn on camera")}
+                className={`h-12 w-12 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer shadow-lg hover:scale-105 active:scale-95 ${
+                  videoActive
+                    ? "bg-[#3c4043] hover:bg-[#474a4d] text-white border border-white/10"
+                    : "bg-[#ea4335] hover:bg-[#d93025] text-white shadow-[0_0_20px_rgba(234,67,53,0.4)]"
+                }`}
+              >
                 {videoActive ? <Video size={20} /> : <VideoOff size={20} />}
               </button>
-              {/* Screen share — teachers/admins only */}
-              {(isTeacher || isAdmin) && (
-                <button onClick={() => setScreenSharing(!screenSharing)}
-                  className={`h-12 w-12 rounded-2xl flex items-center justify-center border transition-all duration-300 hover:scale-105 active:scale-95 ${screenSharing ? "bg-teal-500 text-stone-950 border-teal-400 shadow-[0_0_15px_rgba(20,184,166,0.4)]" : "bg-stone-800 text-stone-200 border-white/10 hover:bg-stone-700"}`}>
-                  {screenSharing ? <StopCircle size={20} /> : <ScreenShare size={20} />}
-                </button>
-              )}
+
+              {/* Screen Share (Teachers & Admins or All) */}
+              <button
+                onClick={() => setScreenSharing(!screenSharing)}
+                title={screenSharing ? (isRTL ? "إيقاف مشاركة الشاشة" : "Stop sharing screen") : (isRTL ? "مشاركة الشاشة الآن" : "Share entire screen")}
+                className={`h-12 w-12 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer shadow-lg hover:scale-105 active:scale-95 ${
+                  screenSharing
+                    ? "bg-[#8ab4f8] text-[#202124] shadow-[0_0_20px_rgba(138,180,248,0.4)] font-bold"
+                    : "bg-[#3c4043] hover:bg-[#474a4d] text-white border border-white/10"
+                }`}
+              >
+                {screenSharing ? <StopCircle size={20} /> : <ScreenShare size={20} />}
+              </button>
+
+              {/* Raise Hand Toggle */}
+              <button
+                onClick={toggleHand}
+                title={handRaised ? (isRTL ? "خفض اليد" : "Lower hand") : (isRTL ? "رفع اليد للمشاركة" : "Raise hand")}
+                className={`h-12 w-12 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer shadow-lg hover:scale-105 active:scale-95 ${
+                  handRaised
+                    ? "bg-[#fbbc04] text-[#202124] shadow-[0_0_20px_rgba(251,188,4,0.4)]"
+                    : "bg-[#3c4043] hover:bg-[#474a4d] text-white border border-white/10"
+                }`}
+              >
+                <Hand size={20} className={handRaised ? "animate-bounce" : ""} />
+              </button>
+
+              {/* Interactive Whiteboard Tool */}
+              <button
+                onClick={() => setShowWhiteboardModal(true)}
+                title={isRTL ? "اللوح الذكي التفاعلي المتزامن" : "Interactive Smart Whiteboard"}
+                className="h-12 w-12 rounded-full bg-[#3c4043] hover:bg-[#474a4d] text-teal-400 hover:text-teal-300 border border-teal-500/20 flex items-center justify-center transition-all duration-200 cursor-pointer shadow-lg hover:scale-105 active:scale-95"
+              >
+                <PenTool size={19} />
+              </button>
+
+              {/* Red End / Leave Call Button */}
+              <button
+                onClick={() => handleEndClass()}
+                title={isTeacher ? (isRTL ? "إنهاء الحصة" : "End session") : (isRTL ? "مغادرة الحصة" : "Leave call")}
+                className="h-12 px-5 sm:px-6 rounded-full bg-[#ea4335] hover:bg-[#d93025] text-white flex items-center gap-2 font-black text-xs shadow-[0_0_25px_rgba(234,67,53,0.4)] transition-all duration-200 cursor-pointer hover:scale-105 active:scale-95"
+              >
+                <PhoneOff size={18} />
+                <span className="hidden sm:inline">
+                  {isTeacher ? (isRTL ? "إنهاء الحصة" : "End Call") : (isRTL ? "مغادرة" : "Leave")}
+                </span>
+              </button>
             </div>
 
-            <div className="flex items-center gap-4">
-              {!isTeacher && !isAdmin && (
-                <button onClick={toggleHand}
-                  className={`h-12 px-5 rounded-2xl flex items-center justify-center gap-2.5 border transition-all duration-300 hover:scale-105 active:scale-95 ${handRaised ? "bg-amber-500 text-stone-950 border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.4)]" : "bg-stone-800 text-stone-200 border-white/10 hover:bg-stone-700"}`}>
-                  <Hand size={20} className={handRaised ? "animate-bounce" : ""} />
-                  <span className="hidden sm:inline text-xs font-black">{isRTL ? "رفع اليد" : "Raise Hand"}</span>
-                </button>
-              )}
-              {/* Volume slider */}
-              <div className="hidden md:flex items-center gap-3 bg-stone-800/80 px-4 py-3 rounded-2xl border border-white/5 h-12">
-                <span className="text-xs text-stone-400">🔊</span>
-                <input id="field-virtualclassroom-input-2" name="input_2" aria-label="input 2" type="range" min="0" max="1" step="0.05" value={remoteVolume} onChange={(e) => setRemoteVolume(parseFloat(e.target.value))} className="w-24 accent-teal-400 cursor-pointer h-1.5 bg-stone-700 rounded-lg appearance-none" />
-                <span className="text-[10px] font-mono text-stone-400 w-8 text-right font-bold">{Math.round(remoteVolume * 100)}%</span>
-              </div>
-            </div>
+            {/* Right: Drawer Toggles (Info / Users / Chat) */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  if (sidebarOpen && activeTab === "participants") setSidebarOpen(false);
+                  else {
+                    setActiveTab("participants");
+                    setSidebarOpen(true);
+                  }
+                }}
+                title={isRTL ? "المشاركون في الحصة" : "People"}
+                className={`h-11 w-11 rounded-full flex items-center justify-center relative transition-all duration-200 cursor-pointer ${
+                  sidebarOpen && activeTab === "participants"
+                    ? "bg-[#8ab4f8] text-[#202124]"
+                    : "bg-[#3c4043]/80 hover:bg-[#3c4043] text-stone-300 hover:text-white"
+                }`}
+              >
+                <Users size={18} />
+                <span className="absolute -top-1 -right-1 bg-teal-500 text-stone-950 text-[10px] font-black h-4 px-1 rounded-full flex items-center justify-center">
+                  {allTiles.length}
+                </span>
+              </button>
 
-            <button onClick={handleEndClass} className="h-12 px-6 rounded-2xl bg-rose-600 hover:bg-rose-500 text-white flex items-center justify-center gap-2.5 transition-all duration-300 hover:scale-105 active:scale-95 font-black text-xs shadow-[0_0_15px_rgba(225,29,72,0.3)]">
-              <PhoneOff size={18} />
-              <span>{isTeacher ? (isRTL ? "إنهاء للجميع" : "End for All") : (isRTL ? "مغادرة" : "Leave")}</span>
-            </button>
+              <button
+                onClick={() => {
+                  if (sidebarOpen && activeTab === "chat") setSidebarOpen(false);
+                  else {
+                    setActiveTab("chat");
+                    setSidebarOpen(true);
+                  }
+                }}
+                title={isRTL ? "الدردشة مع الجميع" : "Chat with everyone"}
+                className={`h-11 w-11 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer ${
+                  sidebarOpen && activeTab === "chat"
+                    ? "bg-[#8ab4f8] text-[#202124]"
+                    : "bg-[#3c4043]/80 hover:bg-[#3c4043] text-stone-300 hover:text-white"
+                }`}
+              >
+                <MessageSquare size={18} />
+              </button>
+
+              <button
+                onClick={() => {
+                  if (sidebarOpen && activeTab === "notes") setSidebarOpen(false);
+                  else {
+                    setActiveTab("notes");
+                    setSidebarOpen(true);
+                  }
+                }}
+                title={isRTL ? "الملاحظات والسبورة" : "Notes"}
+                className={`h-11 w-11 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer ${
+                  sidebarOpen && activeTab === "notes"
+                    ? "bg-[#8ab4f8] text-[#202124]"
+                    : "bg-[#3c4043]/80 hover:bg-[#3c4043] text-stone-300 hover:text-white"
+                }`}
+              >
+                <FileText size={18} />
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* ── PARTICIPANT CAMERA STACK ── */}
-        <div className="w-full lg:w-72 bg-stone-950/60 border-t lg:border-t-0 lg:border-r border-stone-850 p-4 flex flex-row lg:flex-col gap-4 overflow-y-auto shrink-0 justify-center lg:justify-start items-center lg:items-stretch min-w-0">
-
-          {/* Local preview */}
-          <div className={getCameraCardClass()}>
-            <button onClick={() => setPinnedParticipantId(pinnedParticipantId === userId ? null : userId)}
-              className="absolute top-2 left-2 z-20 bg-black/60 hover:bg-black/80 text-white p-1.5 rounded-lg border border-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-              {pinnedParticipantId === userId ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
-            </button>
-            {videoActive && localStream ? (
-              <div className="w-full h-full bg-stone-800 flex items-center justify-center relative">
-                <video
-                  ref={(el) => {
-                    localVideoRef.current = el;
-                    if (el && localStream && el.srcObject !== localStream) {
-                      el.srcObject = localStream;
-                      el.play().catch(() => {});
-                    }
-                  }}
-                  autoPlay playsInline muted
-                  className="w-full h-full object-cover"
-                />
-                {screenSharing && (
-                  <div className="absolute inset-0 bg-stone-900/90 flex flex-col items-center justify-center p-2 text-center">
-                    <ScreenShare size={20} className="text-teal-400 mb-1 animate-bounce" />
-                    <p className="text-[8px] font-bold">{isRTL ? "تشارك شاشتك" : "Sharing screen"}</p>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="w-full h-full bg-gradient-to-br from-stone-900 to-stone-850 flex flex-col items-center justify-center p-2">
-                {!localStream && <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-teal-500/10 animate-pulse rounded-2xl" />}
-                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-teal-500 to-emerald-600 flex items-center justify-center text-sm font-black text-white shadow-lg z-10 mb-1 overflow-hidden">
-                  {(photoMap[String(userId)] || user?.photo_url) ? (
-                    <img src={photoMap[String(userId)] || user?.photo_url} alt={userName} className="h-full w-full object-cover" />
-                  ) : (
-                    userName?.charAt(0)?.toUpperCase() || "U"
-                  )}
-                </div>
-                <span className="text-[9px] text-stone-400 font-bold z-10">
-                  {!localStream ? (isRTL ? "جاري تفعيل الكاميرا..." : "Starting camera...") : (isRTL ? "الكاميرا مغلقة" : "Camera Off")}
-                </span>
-              </div>
-            )}
-            <div className="absolute bottom-1.5 left-1.5 right-1.5 flex items-center justify-between z-10">
-              <span className="bg-black/60 backdrop-blur-md px-1.5 py-0.5 rounded-md text-[8px] font-bold border border-white/5">{userName} {isTeacher && "⭐️"}</span>
-              <div className="flex gap-1">
-                {!micActive && <Badge className="bg-rose-500 text-white p-0.5 rounded-md"><MicOff size={8} /></Badge>}
-                {handRaised && <Badge className="bg-yellow-500 text-stone-950 px-1 py-0.5 rounded-md text-[8px] font-black">🙋‍♂️</Badge>}
-              </div>
+        {/* ── GOOGLE MEET SLIDE-OUT DRAWER (Chat / Users / Notes) ── */}
+        <aside
+          className={`transition-all duration-300 ease-in-out z-40 bg-[#28292c] border-l md:border-l border-white/10 flex flex-col shadow-2xl ${
+            sidebarOpen ? "w-full sm:w-88 md:w-96" : "w-0 overflow-hidden border-none pointer-events-none"
+          }`}
+        >
+          {/* Drawer Top Header */}
+          <div className="h-16 px-4 border-b border-white/10 flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-1">
+              {[
+                { id: "chat", label: isRTL ? "الرسائل" : "Chat", icon: MessageSquare },
+                { id: "participants", label: isRTL ? "الحاضرون" : "People", icon: Users },
+                { id: "notes", label: isRTL ? "الملاحظات" : "Notes", icon: FileText },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                    activeTab === tab.id
+                      ? "bg-stone-700/80 text-white shadow-sm"
+                      : "text-stone-400 hover:text-white hover:bg-stone-800"
+                  }`}
+                >
+                  <tab.icon size={14} />
+                  <span>{tab.label}</span>
+                </button>
+              ))}
             </div>
+
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="h-8 w-8 rounded-full hover:bg-white/10 text-stone-400 hover:text-white flex items-center justify-center transition-all cursor-pointer"
+            >
+              <X size={16} />
+            </button>
           </div>
 
-          {/* Remote participants */}
-          {participants.filter((p) => p.id !== userId).map((p) => (
-            <div key={p.id} className={getCameraCardClass()}>
-              <button onClick={() => setPinnedParticipantId(pinnedParticipantId === p.id ? null : p.id)}
-                className="absolute top-2 left-2 z-20 bg-black/60 hover:bg-black/80 text-white p-1.5 rounded-lg border border-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                {pinnedParticipantId === p.id ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
-              </button>
+          {/* Drawer Tab Content */}
+          <div className="flex-1 flex flex-col p-4 min-h-0 relative">
+            <AnimatePresence mode="wait">
+              {activeTab === "chat" && (
+                <motion.div
+                  key="chat"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="h-full flex flex-col justify-between"
+                >
+                  <div className="space-y-3 flex-1 overflow-y-auto mb-3 pr-1">
+                    {chatMessages.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center h-full text-stone-500 py-12 text-center">
+                        <MessageSquare size={36} className="mb-2 opacity-30 text-teal-400" />
+                        <p className="text-xs font-bold text-stone-300">
+                          {isRTL ? "مرحباً بك في دردشة الحصة المباشرة" : "In-call messages"}
+                        </p>
+                        <p className="text-[11px] text-stone-500 mt-1">
+                          {isRTL ? "الرسائل ظاهرة فقط للمشاركين أثناء الحصة" : "Messages can be seen only by people in the call"}
+                        </p>
+                      </div>
+                    ) : (
+                      chatMessages.map((msg, i) => {
+                        const isMe = msg.sender_name === userName;
+                        const time = msg.created_at
+                          ? new Date(msg.created_at).toLocaleTimeString(isRTL ? "ar-EG" : "en-US", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
+                          : "";
+                        return (
+                          <div key={msg.id || i} className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}>
+                            <div className="flex items-center gap-1.5 mb-1 px-1">
+                              <span className="text-[10px] font-bold text-stone-300">{msg.sender_name}</span>
+                              <span className="text-[9px] text-stone-500 font-mono">{time}</span>
+                            </div>
+                            <div
+                              className={`px-3.5 py-2 rounded-2xl text-xs font-medium max-w-[88%] leading-relaxed shadow-sm ${
+                                isMe
+                                  ? "bg-teal-600 text-white rounded-br-none"
+                                  : "bg-[#3c4043] text-stone-100 rounded-bl-none"
+                              }`}
+                            >
+                              {msg.content || msg.message_text}
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                    <div ref={messagesEndRef} />
+                  </div>
 
-              {/* Remote camera/screen stream */}
-              {remoteStreams[p.id] ? (
-                <video
-                  ref={(el) => {
-                    remoteVideoRefs.current[p.id] = el;
-                    if (el && remoteStreams[p.id]) {
-                      if (el.srcObject !== remoteStreams[p.id]) {
-                        el.srcObject = remoteStreams[p.id];
-                      }
-                      el.volume = remoteVolume;
-                      el.muted = false; // set via DOM property to bypass autoplay policy
-                      el.play().catch(() => {});
-                    }
-                  }}
-                  autoPlay playsInline
-                  className={`w-full h-full object-cover transition-opacity duration-300 ${
-                    p.video ? "opacity-100" : "opacity-0 absolute pointer-events-none"
-                  }`}
-                />
-              ) : null}
+                  <div className="flex items-center gap-2 bg-[#1e1f22] p-1.5 rounded-2xl border border-white/10">
+                    <Input
+                      value={chatMessage}
+                      onChange={(e) => setChatMessage(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
+                      placeholder={isRTL ? "إرسال رسالة إلى الجميع…" : "Send a message to everyone…"}
+                      className="border-none bg-transparent text-xs focus-visible:ring-0 text-white w-full placeholder:text-stone-500"
+                    />
+                    <button
+                      onClick={handleSendMessage}
+                      className="h-9 w-9 rounded-xl bg-teal-500 hover:bg-teal-400 text-stone-950 flex items-center justify-center shrink-0 transition-all cursor-pointer shadow-md"
+                    >
+                      <Send size={15} />
+                    </button>
+                  </div>
+                </motion.div>
+              )}
 
-              {/* Fallback when no stream or camera is off */}
-              {(!remoteStreams[p.id] || !p.video) && (
-                <div className="absolute inset-0 bg-gradient-to-br from-stone-900 to-stone-850 flex flex-col items-center justify-center p-2">
-                  {!remoteStreams[p.id] ? (
-                    // Connecting state — animated avatar
-                    <>
-                      <div className="relative mb-2">
-                        <div className={`h-10 w-10 rounded-full flex items-center justify-center text-sm font-black text-white shadow-lg overflow-hidden ${
-                          p.role === "teacher"
-                            ? "bg-gradient-to-br from-teal-500 to-emerald-600"
-                            : "bg-gradient-to-br from-indigo-500 to-violet-600"
-                        }`}>
+              {activeTab === "participants" && (
+                <motion.div
+                  key="participants"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="space-y-2 overflow-y-auto flex-1 pr-1"
+                >
+                  <div className="flex items-center justify-between text-stone-400 text-xs font-bold pb-2 border-b border-white/10">
+                    <span>{isRTL ? "المشارك" : "Participant"}</span>
+                    <span>{isRTL ? "الحالة" : "Status"}</span>
+                  </div>
+                  {allTiles.map((p) => (
+                    <div
+                      key={p.id}
+                      className="flex items-center justify-between bg-[#3c4043]/50 p-2.5 rounded-2xl border border-white/5 hover:border-white/10 transition-all"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div
+                          className={`h-9 w-9 rounded-full flex items-center justify-center font-bold text-xs text-white overflow-hidden shrink-0 ${
+                            p.role === "teacher"
+                              ? "bg-gradient-to-br from-teal-500 to-emerald-600"
+                              : "bg-gradient-to-br from-indigo-500 to-violet-600"
+                          }`}
+                        >
                           {p.photo ? (
                             <img src={p.photo} alt={p.name} className="h-full w-full object-cover" />
                           ) : (
                             p.name?.charAt(0)?.toUpperCase() || "?"
                           )}
                         </div>
-                        <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-amber-400 border-2 border-stone-900 animate-pulse" />
-                      </div>
-                      <span className="text-[9px] text-stone-400 font-bold">{isRTL ? "جاري الاتصال..." : "Connecting..."}</span>
-                    </>
-                  ) : (
-                    // Camera off state
-                    <>
-                      <div className={`h-10 w-10 rounded-full flex items-center justify-center text-sm font-black text-white shadow-lg mb-1 overflow-hidden ${
-                        p.role === "teacher"
-                          ? "bg-gradient-to-br from-teal-500 to-emerald-600"
-                          : "bg-gradient-to-br from-indigo-500 to-violet-600"
-                      }`}>
-                        {p.photo ? (
-                          <img src={p.photo} alt={p.name} className="h-full w-full object-cover" />
-                        ) : (
-                          p.name?.charAt(0)?.toUpperCase() || "?"
-                        )}
-                      </div>
-                      <span className="text-[9px] text-stone-500 font-bold">{isRTL ? "الكاميرا مغلقة" : "Camera Off"}</span>
-                    </>
-                  )}
-                </div>
-              )}
-
-              {/* Screen share indicator on sidebar card */}
-              {remoteScreenSharing[p.id] && (
-                <div className="absolute top-1 right-1 z-20">
-                  <span className="bg-teal-500 text-stone-950 text-[7px] font-black px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
-                    <ScreenShare size={7} /> {isRTL ? "شاشة" : "Screen"}
-                  </span>
-                </div>
-              )}
-
-              <div className="absolute bottom-1.5 left-1.5 right-1.5 flex items-center justify-between z-10">
-                <span className="bg-black/60 backdrop-blur-md px-1.5 py-0.5 rounded-md text-[8px] font-bold border border-white/5">{p.name} {p.role === "teacher" && "⭐️"}</span>
-                <div className="flex gap-1">
-                  {!p.mic && <Badge className="bg-rose-500 text-white p-0.5 rounded-md"><MicOff size={8} /></Badge>}
-                  {p.hand && <Badge className="bg-yellow-500 text-stone-950 px-1 py-0.5 rounded-md text-[8px] font-black animate-bounce">🙋‍♂️</Badge>}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* ── SIDEBAR (Chat / Participants / Notes) ── */}
-        <aside className={`transition-all duration-300 relative ${sidebarOpen ? "w-full md:w-96" : "w-0 overflow-hidden border-none"} bg-stone-900/40 backdrop-blur-md border-t md:border-t-0 md:border-r md:border-l border-white/5 flex flex-col z-10`}>
-          <div className="h-16 border-b border-white/5 p-2 flex gap-1">
-            {[
-              { id: "chat", label: isRTL ? "الدردشة" : "Chat", icon: MessageSquare },
-              { id: "participants", label: isRTL ? "الحاضرين" : "Users", icon: Users },
-              { id: "notes", label: isRTL ? "الملاحظات" : "Notes", icon: FileText },
-            ].map((tab) => (
-              <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all duration-300 ${activeTab === tab.id ? "bg-stone-800 text-white shadow-sm" : "text-stone-400 hover:text-white hover:bg-stone-800/50"}`}>
-                <tab.icon size={16} />
-                <span>{tab.label}</span>
-              </button>
-            ))}
-          </div>
-
-          <div className="flex-1 flex flex-col p-4 min-h-0 relative">
-            <AnimatePresence mode="wait">
-              {activeTab === "chat" && (
-                <motion.div key="chat" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full flex flex-col justify-between">
-                  <div className="space-y-4 flex-1 overflow-y-auto mb-4">
-                    {chatMessages.length === 0 && (
-                      <div className="flex flex-col items-center justify-center h-full text-stone-600 py-12">
-                        <MessageSquare size={32} className="mb-2 opacity-30" />
-                        <p className="text-xs font-bold">{isRTL ? "لا توجد رسائل بعد" : "No messages yet"}</p>
-                      </div>
-                    )}
-                    {chatMessages.map((msg, i) => {
-                      const isMe = msg.sender_name === userName;
-                      const time = msg.created_at ? new Date(msg.created_at).toLocaleTimeString(isRTL ? "ar-EG" : "en-US", { hour: "2-digit", minute: "2-digit" }) : "";
-                      return (
-                        <div key={msg.id || i} className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}>
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-[10px] font-bold text-stone-400">{msg.sender_name}</span>
-                            <span className="text-[8px] text-stone-500">{time}</span>
-                          </div>
-                          <div className={`px-4 py-2.5 rounded-2xl text-[11px] font-medium max-w-[85%] leading-relaxed shadow-sm ${isMe ? "bg-teal-600/90 backdrop-blur-sm text-white rounded-br-none" : "bg-stone-800 border border-white/5 text-stone-200 rounded-bl-none"}`}>
-                            {msg.content || msg.message_text}
-                          </div>
-                        </div>
-                      );
-                    })}
-                    <div ref={messagesEndRef} />
-                  </div>
-                  <div className="flex gap-2 bg-stone-850 p-1.5 rounded-2xl border border-white/5 mt-auto shadow-inner">
-                    <Input value={chatMessage} onChange={(e) => setChatMessage(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSendMessage()} placeholder={isRTL ? "اكتب رسالة..." : "Type a message..."} className="border-none bg-transparent text-xs focus-visible:ring-0 text-white w-full placeholder:text-stone-500" />
-                    <button onClick={handleSendMessage} className="h-10 w-10 rounded-xl bg-teal-500 text-stone-950 flex items-center justify-center shrink-0 hover:bg-teal-400 transition-all hover:scale-105 active:scale-95 shadow-md"><Send size={16} /></button>
-                  </div>
-                </motion.div>
-              )}
-
-              {activeTab === "participants" && (
-                <motion.div key="participants" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-3 overflow-y-auto flex-1 pr-1">
-                  <div className="flex items-center justify-between text-stone-400 text-xs font-bold pb-2 border-b border-stone-800">
-                    <span>{isRTL ? "اسم المشارك" : "Name"}</span>
-                    <span>{isRTL ? "الحالة" : "Status"}</span>
-                  </div>
-                  {participants.map((p) => (
-                    <div key={p.id} className="flex items-center justify-between bg-stone-850/50 p-3 rounded-2xl border border-white/5">
-                      <div className="flex items-center gap-2.5">
-                        {p.photo ? (
-                          <img src={p.photo} alt={p.name} className="h-9 w-9 rounded-full object-cover border border-white/10 shrink-0" />
-                        ) : (
-                          <span className="text-xl">{p.avatar}</span>
-                        )}
                         <div>
-                          <p className="text-xs font-bold text-white">{p.name}</p>
-                          <p className="text-[9px] font-bold text-stone-500 uppercase tracking-widest">{p.role}</p>
+                          <p className="text-xs font-bold text-white flex items-center gap-1.5">
+                            <span>{p.name}</span>
+                            {p.isMe && <span className="text-teal-400 font-normal text-[10px]">({isRTL ? "أنت" : "You"})</span>}
+                          </p>
+                          <p className="text-[9px] font-bold text-stone-400 uppercase tracking-widest">
+                            {p.role === "teacher" ? (isRTL ? "معلم ومقدم الحصة" : "Host / Teacher") : (isRTL ? "طالب" : "Student")}
+                          </p>
                         </div>
                       </div>
+
                       <div className="flex items-center gap-2">
-                        {p.hand && <span className="text-xs">🙋‍♂️</span>}
-                        {p.mic ? <Mic size={14} className="text-stone-400" /> : <MicOff size={14} className="text-rose-500" />}
+                        {p.hand && <span className="text-sm animate-bounce">🙋‍♂️</span>}
+                        {p.mic ? (
+                          <div className="h-6 w-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                            <Mic size={12} />
+                          </div>
+                        ) : (
+                          <div className="h-6 w-6 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center">
+                            <MicOff size={12} />
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -1713,18 +2063,110 @@ export default function VirtualClassroom() {
               )}
 
               {activeTab === "notes" && (
-                <motion.div key="notes" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full flex flex-col flex-1 min-h-0">
-                  <p className="text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-2 flex items-center gap-1">
-                    <Info size={12} />
-                    {isRTL ? "الملاحظات المشتركة للصف الدراسي" : "Shared notes panel"}
+                <motion.div
+                  key="notes"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="h-full flex flex-col flex-1 min-h-0"
+                >
+                  <p className="text-[11px] font-bold text-stone-400 mb-2 flex items-center gap-1.5">
+                    <Info size={13} className="text-teal-400" />
+                    <span>{isRTL ? "ملاحظات الدرس المشتركة" : "Lesson shared notes"}</span>
                   </p>
-                  <textarea id="field-virtualclassroom-textarea-1" name="textarea_1" aria-label="textarea 1" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={isRTL ? "ابدأ كتابة الملاحظات..." : "Start writing lesson notes..."} className="flex-1 w-full bg-stone-800/50 rounded-2xl p-4 border border-white/5 text-xs text-stone-200 focus:outline-none focus:border-stone-600 resize-none font-mono shadow-inner" />
+                  <textarea
+                    id="field-virtualclassroom-textarea-notes"
+                    name="lesson_notes"
+                    aria-label="Lesson notes"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder={isRTL ? "اكتب ملاحظات ونقاط الحصة هنا لتلخيصها للطلاب…" : "Write lesson notes here…"}
+                    className="flex-1 w-full bg-[#1e1f22] rounded-2xl p-3.5 border border-white/10 text-xs text-stone-200 focus:outline-none focus:border-teal-500/50 resize-none font-sans leading-relaxed"
+                  />
                 </motion.div>
               )}
             </AnimatePresence>
           </div>
         </aside>
       </div>
+
+      {/* ── INTERACTIVE WHITEBOARD MODAL (Google Meet Jam Style) ── */}
+      <Dialog open={showWhiteboardModal} onOpenChange={setShowWhiteboardModal}>
+        <DialogContent className="max-w-5xl h-[85vh] bg-[#1e1f22] border-white/10 text-white rounded-3xl p-4 flex flex-col overflow-hidden">
+          <DialogHeader className="flex flex-row items-center justify-between pb-2 border-b border-white/10 shrink-0">
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-xl bg-teal-500/20 text-teal-400 flex items-center justify-center">
+                <PenTool size={16} />
+              </div>
+              <DialogTitle className="text-sm font-bold text-white">
+                {isRTL ? "اللوح الذكي التفاعلي المتزامن" : "Interactive Smart Whiteboard"}
+              </DialogTitle>
+            </div>
+          </DialogHeader>
+
+          {/* Whiteboard Canvas Stage */}
+          <div className="flex-1 bg-stone-900/60 rounded-2xl border border-white/10 relative overflow-hidden flex items-center justify-center">
+            <canvas
+              ref={canvasRef}
+              onMouseDown={startDrawing}
+              onMouseMove={draw}
+              onMouseUp={endDrawing}
+              onMouseLeave={endDrawing}
+              className="w-full h-full cursor-crosshair"
+            />
+
+            {/* Whiteboard Floating Drawing Tools Bar */}
+            <div className="absolute bottom-4 inset-x-4 mx-auto max-w-fit flex items-center gap-2.5 bg-[#28292c]/95 backdrop-blur-md p-2.5 rounded-2xl border border-white/10 shadow-2xl z-20">
+              {["#2dd4bf", "#f43f5e", "#3b82f6", "#eab308", "#ffffff"].map((color) => (
+                <button
+                  key={color}
+                  disabled={isEraser}
+                  onClick={() => setDrawColor(color)}
+                  style={{ backgroundColor: color }}
+                  className={`h-6 w-6 rounded-full border-2 transition-all cursor-pointer ${
+                    !isEraser && drawColor === color ? "border-white scale-110" : "border-transparent opacity-60 hover:opacity-100"
+                  }`}
+                />
+              ))}
+
+              <div className="w-px h-5 bg-white/10" />
+
+              <button
+                onClick={() => setIsEraser(!isEraser)}
+                className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  isEraser ? "bg-amber-500 text-stone-950 font-black" : "bg-stone-800 text-stone-300 hover:text-white"
+                }`}
+              >
+                {isEraser ? (isRTL ? "ممحاة نشطة" : "Eraser On") : (isRTL ? "ممحاة" : "Eraser")}
+              </button>
+
+              <div className="w-px h-5 bg-white/10" />
+
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-stone-400 font-bold">{isRTL ? "السمك:" : "Size:"}</span>
+                <input
+                  type="range"
+                  min="1"
+                  max="20"
+                  value={lineWidth}
+                  onChange={(e) => setLineWidth(parseInt(e.target.value))}
+                  className="w-16 h-1 bg-stone-700 rounded-lg appearance-none cursor-pointer accent-teal-400"
+                />
+                <span className="text-[10px] font-mono text-teal-400 w-5">{lineWidth}px</span>
+              </div>
+
+              <div className="w-px h-5 bg-white/10" />
+
+              <button
+                onClick={clearCanvas}
+                className="px-3 py-1 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
+              >
+                {isRTL ? "مسح اللوح" : "Clear"}
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

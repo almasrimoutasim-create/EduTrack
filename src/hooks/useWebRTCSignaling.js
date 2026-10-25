@@ -7,83 +7,175 @@ import { io } from 'socket.io-client';
 const WS_URL = import.meta.env.VITE_API_URL || import.meta.env.VITE_WS_URL || '';
 
 /**
- * هوك مخصص لإدارة إشارات WebRTC (Signaling) باستخدام socket.io-client
- * يدعم استقبال إشعار انضمام مستخدم جديد للغرفة فوراً (user-joined)
+ * هوك مخصص لإدارة إشارات WebRTC (Signaling) عبر Socket.io
+ * مصمم لتوفير بنية Google Meet متقدمة للتحكم في الغرف، ومزامنة الوسائط، والتعامل مع الأقران فورياً
  */
-export function useWebRTCSignaling(roomId, userId) {
+export function useWebRTCSignaling(roomId, userId, userProfile = {}) {
   const socketRef = useRef(null);
   const [isConnected, setIsConnected] = useState(false);
-  const onSignalEventRef = useRef(null);
+  
+  // حفظ الـ callbacks في مراجع لتجنب تكرار الاشتراكات
+  const onRoomUsersRef = useRef(null);
   const onUserJoinedRef = useRef(null);
+  const onUserLeftRef = useRef(null);
+  const onSignalEventRef = useRef(null);
+  const onMediaToggleRef = useRef(null);
+  const onSpeakingStateRef = useRef(null);
+  const onClassEndedRef = useRef(null);
 
   useEffect(() => {
     if (!roomId || !userId) return;
 
-    socketRef.current = io(WS_URL, {
-      transports: ['websocket'],
+    const socket = io(WS_URL, {
+      transports: ['websocket', 'polling'],
       query: { roomId, userId }
     });
+    socketRef.current = socket;
 
-    socketRef.current.on('connect', () => {
-      console.log('[WebRTC Signaling Socket.io] Connected');
+    socket.on('connect', () => {
+      console.log('[WebRTC Signaling] Connected with ID:', socket.id);
       setIsConnected(true);
-      socketRef.current.emit('join-webrtc-room', roomId);
+
+      // الانضمام لغرفة الـ WebRTC مع إرسال بيانات المستخدم كاملة
+      socket.emit('join-webrtc-room', {
+        roomId,
+        userId,
+        userName: userProfile.userName || 'مستخدم',
+        role: userProfile.role || 'student',
+        photo: userProfile.photo || null,
+        micActive: userProfile.micActive !== undefined ? userProfile.micActive : true,
+        videoActive: userProfile.videoActive !== undefined ? userProfile.videoActive : true
+      });
     });
 
-    socketRef.current.on('disconnect', () => {
-      console.log('[WebRTC Signaling Socket.io] Disconnected');
+    socket.on('disconnect', () => {
+      console.log('[WebRTC Signaling] Disconnected from server');
       setIsConnected(false);
     });
 
-    socketRef.current.on('signal', (data) => {
-      if (onSignalEventRef.current) {
-        onSignalEventRef.current(data.senderId, data.payload);
+    // استلام قائمة المشتركين المتواجدين مسبقاً في الغرفة
+    socket.on('room-users', (data) => {
+      if (onRoomUsersRef.current && data?.participants) {
+        onRoomUsersRef.current(data.participants);
       }
     });
 
-    // عندما ينضم مستخدم جديد للغرفة — يُطلق callback لبدء الاتصال فوراً
-    socketRef.current.on('user-joined', (data) => {
-      console.log('[WebRTC Signaling] User joined:', data.userId);
+    // عند انضمام مستخدم جديد
+    socket.on('user-joined', (data) => {
+      console.log('[WebRTC Signaling] User joined:', data.userName || data.userId);
       if (onUserJoinedRef.current && data.userId && data.userId !== userId) {
-        onUserJoinedRef.current(data.userId);
+        onUserJoinedRef.current(data);
+      }
+    });
+
+    // عند مغادرة مستخدم
+    socket.on('user-left', (data) => {
+      console.log('[WebRTC Signaling] User left:', data.userId);
+      if (onUserLeftRef.current && data.userId) {
+        onUserLeftRef.current(data.userId, data.socketId);
+      }
+    });
+
+    // إشارات الـ WebRTC (Offer, Answer, ICE)
+    socket.on('signal', (data) => {
+      if (onSignalEventRef.current) {
+        onSignalEventRef.current(data.senderId, data.payload, data.senderSocketId);
+      }
+    });
+
+    // مزامنة حالة الوسائط (كتم/تشغيل المايك والكاميرا ومشاركة الشاشة)
+    socket.on('user-media-toggled', (data) => {
+      if (onMediaToggleRef.current) {
+        onMediaToggleRef.current(data);
+      }
+    });
+
+    // مزامنة مؤشر التحدث الحقيقي (Active Speaker Indicator)
+    socket.on('user-speaking-state', (data) => {
+      if (onSpeakingStateRef.current) {
+        onSpeakingStateRef.current(data);
+      }
+    });
+
+    // إنهاء الحصة من قِبل المعلم
+    socket.on('class-ended-by-teacher', (data) => {
+      if (onClassEndedRef.current) {
+        onClassEndedRef.current(data);
       }
     });
 
     return () => {
-      if (socketRef.current) {
-        socketRef.current.disconnect();
+      if (socket) {
+        socket.disconnect();
       }
     };
-  }, [roomId, userId]);
+  }, [roomId, userId, userProfile.userName, userProfile.role, userProfile.photo]);
 
-  // إرسال إشارة (Offer, Answer, ICE) لشخص محدد (أو للجميع)
-  const sendSignal = useCallback((targetUserId, payload) => {
+  // إرسال إشارة WebRTC إلى نظير محدد أو للجميع
+  const sendSignal = useCallback((targetUserId, payload, targetSocketId = null) => {
     if (socketRef.current && socketRef.current.connected) {
       socketRef.current.emit('signal', {
         roomId,
         senderId: userId,
-        // null = broadcast to all; 'all' string is also treated as broadcast
         targetUserId: (targetUserId === 'all' || targetUserId === null) ? null : targetUserId,
+        targetSocketId,
         payload
       });
     } else {
-      console.warn('[WebRTC Signaling] Socket.io not connected, failed to send signal.');
+      console.warn('[WebRTC Signaling] Socket not connected, signal dropped.');
     }
   }, [roomId, userId]);
 
-  const onSignal = useCallback((callback) => {
-    onSignalEventRef.current = callback;
-  }, []);
+  // إرسال تغيير في حالة الوسائط
+  const sendMediaToggle = useCallback((type, status) => {
+    if (socketRef.current && socketRef.current.connected) {
+      socketRef.current.emit('media-toggle', {
+        roomId,
+        type,
+        status
+      });
+    }
+  }, [roomId]);
 
-  // تسجيل callback لحدث انضمام مستخدم جديد
-  const onUserJoined = useCallback((callback) => {
-    onUserJoinedRef.current = callback;
-  }, []);
+  // إرسال حالة التحدث
+  const sendSpeakingState = useCallback((isSpeaking) => {
+    if (socketRef.current && socketRef.current.connected) {
+      socketRef.current.emit('speaking-state', {
+        roomId,
+        isSpeaking
+      });
+    }
+  }, [roomId]);
+
+  // إنهاء الحصة للجميع (للمعلمين)
+  const endClassForAll = useCallback(() => {
+    if (socketRef.current && socketRef.current.connected) {
+      socketRef.current.emit('end-class-for-all', { roomId });
+    }
+  }, [roomId]);
+
+  // تسجيل مستمعي الأحداث
+  const onRoomUsers = useCallback((cb) => { onRoomUsersRef.current = cb; }, []);
+  const onUserJoined = useCallback((cb) => { onUserJoinedRef.current = cb; }, []);
+  const onUserLeft = useCallback((cb) => { onUserLeftRef.current = cb; }, []);
+  const onSignal = useCallback((cb) => { onSignalEventRef.current = cb; }, []);
+  const onMediaToggle = useCallback((cb) => { onMediaToggleRef.current = cb; }, []);
+  const onSpeakingState = useCallback((cb) => { onSpeakingStateRef.current = cb; }, []);
+  const onClassEnded = useCallback((cb) => { onClassEndedRef.current = cb; }, []);
 
   return {
     isConnected,
+    socket: socketRef.current,
     sendSignal,
+    sendMediaToggle,
+    sendSpeakingState,
+    endClassForAll,
+    onRoomUsers,
+    onUserJoined,
+    onUserLeft,
     onSignal,
-    onUserJoined
+    onMediaToggle,
+    onSpeakingState,
+    onClassEnded
   };
 }

@@ -38,9 +38,18 @@ app.use(cors({
   optionsSuccessStatus: 204,
   maxAge: 86400
 }));
-// Preflight (OPTIONS) is handled by the cors() middleware above for all routes.
-// (Express 5 does not accept the '*' wildcard in app.options(), so we rely on
-// the middleware which responds to OPTIONS automatically.)
+// Trust reverse proxies (Render, Vercel, Cloudflare) for accurate HTTPS detection
+app.set('trust proxy', 1);
+
+// Enforce permissions policy for WebRTC media capture (Camera, Mic, Screen Share)
+app.use((_req, res, next) => {
+  res.setHeader(
+    'Permissions-Policy',
+    'camera=(self "*"), microphone=(self "*"), display-capture=(self "*")'
+  );
+  next();
+});
+
 
 // محلل بيانات الـ JSON لقراءة الطلبات القادمة من الواجهة الأمامية
 app.use(express.json({ limit: '50mb' }));
