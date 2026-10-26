@@ -71,6 +71,7 @@ export default function StudentSidebar() {
       items: [
         { label: isRTL ? "الواجبات" : "Homework", path: "/student-portal?view=homework", icon: FileText },
         { label: isRTL ? "المواد الدراسية" : "Materials", path: "/student-portal?view=materials", icon: BookOpen },
+        { label: isRTL ? "الحصص المباشرة" : "Live Classes", path: "/student-portal?view=virtual-classes", icon: Video },
         { label: isRTL ? "الفصل الافتراضي" : "Virtual Classroom", path: "/virtual-classroom/demo", icon: Video },
         { label: isRTL ? "المكتبة الرقمية" : "Digital Library", path: "/student-portal?view=videos", icon: Video },
         { label: isRTL ? "الدرجات" : "Grades", path: "/student-portal?view=grades", icon: Star },

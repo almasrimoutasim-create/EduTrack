@@ -72,6 +72,14 @@ export default function VirtualClassroom() {
     videoActive
   });
 
+  // Track all peer-related refs for cleanup
+  const peerRefs = useRef({
+    offersInitiated: new Set(),
+    makingOffer: {},
+    ignoreOffer: {},
+    iceQueues: {},
+  });
+
 
   const { data: iceConfig } = useQuery({
     queryKey: ['ice-config'],
@@ -121,13 +129,14 @@ export default function VirtualClassroom() {
   const localVideoRef = useRef(null);
   const pcsRef = useRef({});            // peerId -> RTCPeerConnection
   const processedSignals = useRef(new Set());
-  const iceQueuesRef = useRef({});      // peerId -> ICECandidate[]
+  // Use peerRefs.current for all peer-related state (see initialization above)
+  const iceQueuesRef = peerRefs.current.iceQueues;
   const [remoteVolume, setRemoteVolume] = useState(1.0);
   // Track refs for all remote video elements to apply volume changes
   const remoteVideoRefs = useRef({});   // peerId -> HTMLVideoElement
-  const offersInitiated = useRef(new Set()); // track which peers we've offered to
-  const makingOfferRef = useRef({});    // peerId -> boolean
-  const ignoreOfferRef = useRef({});    // peerId -> boolean
+  const offersInitiated = peerRefs.current.offersInitiated;
+  const makingOfferRef = peerRefs.current.makingOffer;
+  const ignoreOfferRef = peerRefs.current.ignoreOffer;
 
   // ── Presentation / Whiteboard ─────────────────────────────────────────────
   const canvasRef = useRef(null);
@@ -156,8 +165,10 @@ export default function VirtualClassroom() {
 
   const isValidUUID = (val) =>
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
-  const sessionId = isValidUUID(id) ? id : "00000000-0000-0000-0000-000000000000";
   const isDemo = id === "demo";
+  // Use a deterministic sessionId for demo/invalid UUIDs, but don't use a fake UUID
+  // that could collide with real sessions. Use the actual id for room_name lookup.
+  const sessionId = isValidUUID(id) ? id : `temp-${id}`;
 
   const { data: dbStudents = [] } = useQuery({
     queryKey: ["classroom-students"],
@@ -196,18 +207,11 @@ export default function VirtualClassroom() {
         const sessions = await entities.VirtualSession.list("-created_at");
         const found = sessions.find(s => s.room_name === id);
         if (found) return found;
-        throw new Error("Session not found by room_name");
+        // Don't return mock data - let the UI handle missing session gracefully
+        return null;
       } catch (err) {
         console.warn("[VirtualClassroom] Session fetch failed:", err.message);
-        // Return minimal mock data to prevent UI crash
-        return {
-          id: sessionId,
-          title: isRTL ? "حصة افتراضية" : "Virtual Session",
-          subject_name: isRTL ? "غير محدد" : "TBD",
-          teacher_name: isRTL ? "المعلم" : "Teacher",
-          room_name: `room-${id}`,
-          status: "active",
-        };
+        return null;
       }
     },
     enabled: !isDemo,
@@ -217,15 +221,15 @@ export default function VirtualClassroom() {
   const { data: activeParticipants = [], refetch: refetchParticipants } = useQuery({
     queryKey: ["active-session-participants", sessionId],
     queryFn: () => entities.SessionParticipant.filter({ session_id: sessionId }),
-    refetchInterval: 2500,
-    enabled: !isDemo && !!sessionId,
+    refetchInterval: 10000, // Reduced from 2.5s to 10s to reduce server load
+    enabled: !isDemo && !!sessionId && isValidUUID(sessionId), // Only refetch for valid UUID sessions
   });
 
   const { data: dbMessages = [] } = useQuery({
     queryKey: ["room-messages", sessionId],
     queryFn: () => entities.RoomMessage.filter({ room_id: sessionId }),
     refetchInterval: 1500,
-    enabled: !isDemo,
+    enabled: !isDemo && !!sessionId && isValidUUID(sessionId), // Only fetch messages for valid UUID sessions
   });
 
   const { data: teacherSubjects = [] } = useQuery({
@@ -400,6 +404,9 @@ export default function VirtualClassroom() {
   // ─────────────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (isDemo) return;
+    // Skip DB registration for temp/invalid session IDs
+    if (!isValidUUID(sessionId)) return;
+    
     let active = true;
     let participantId = null;
 
@@ -970,9 +977,21 @@ export default function VirtualClassroom() {
     wsSignaling.onUserLeft((leftUserId) => {
       console.log("[WebRTC] Peer left:", leftUserId);
       if (pcsRef.current[leftUserId]) {
-        try { pcsRef.current[leftUserId].close(); } catch (_) {}
+        try { 
+          const pc = pcsRef.current[leftUserId];
+          pc.getSenders().forEach((sender) => { try { sender.track?.stop(); } catch (_) {} });
+          pc.getReceivers().forEach((receiver) => { try { receiver.track?.stop(); } catch (_) {} });
+          pc.close(); 
+        } catch (_) {}
         delete pcsRef.current[leftUserId];
       }
+      // Clean up peerRefs to prevent memory leaks
+      peerRefs.current.offersInitiated.delete(`${userId}->${leftUserId}`);
+      peerRefs.current.offersInitiated.delete(`${leftUserId}->${userId}`);
+      delete peerRefs.current.makingOffer[leftUserId];
+      delete peerRefs.current.ignoreOffer[leftUserId];
+      delete peerRefs.current.iceQueues[leftUserId];
+
       setRemoteStreams((prev) => {
         const next = { ...prev };
         delete next[leftUserId];
@@ -1080,6 +1099,54 @@ export default function VirtualClassroom() {
       }
     });
   }, [participants, isDemo, wsSignaling.isConnected]);
+
+  // ─────────────────────────────────────────────────────────────────────────
+  //  Cleanup on unmount: close all PeerConnections, clear refs, stop media
+  // ─────────────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    return () => {
+      // Close all RTCPeerConnections
+      Object.values(pcsRef.current).forEach((pc) => {
+        try {
+          pc.getSenders().forEach((sender) => {
+            try { sender.track?.stop(); } catch (_) {}
+          });
+          pc.getReceivers().forEach((receiver) => {
+            try { receiver.track?.stop(); } catch (_) {}
+          });
+          pc.close();
+        } catch (_) {}
+      });
+      pcsRef.current = {};
+
+      // Clear all peer-related refs to prevent memory leaks
+      peerRefs.current.offersInitiated.clear();
+      peerRefs.current.makingOffer = {};
+      peerRefs.current.ignoreOffer = {};
+      peerRefs.current.iceQueues = {};
+
+      // Stop local media streams
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach((t) => t.stop());
+        localStreamRef.current = null;
+      }
+      if (screenStream) {
+        screenStream.getTracks().forEach((t) => t.stop());
+      }
+
+      // Clear remote streams
+      setRemoteStreams({});
+      setRemoteScreenStreams({});
+      setRemoteScreenSharing({});
+      setSpeakingUsers({});
+
+      // Clear processed signals
+      processedSignals.current.clear();
+
+      // Note: wsSignaling and wsDrawing cleanup is handled by their respective hooks
+      // if they implement return cleanup functions
+    };
+  }, []);
 
   // ─────────────────────────────────────────────────────────────────────────
   //  Whiteboard

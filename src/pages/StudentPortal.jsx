@@ -25,7 +25,8 @@ import {
   ClipboardCheck,
   BookMarked,
   ExternalLink,
-  Download
+  Download,
+  Video
 } from "lucide-react";
 import { formatDrivePreviewUrl } from "@/utils/driveUrlHelper";
 import PortalGrades from "@/components/portal/PortalGrades";
@@ -157,6 +158,20 @@ export default function StudentPortal() {
     queryKey: ["class-students", student?.grade],
     queryFn: () => entities.Student.filter({ grade: student?.grade }),
     enabled: !!student?.grade
+  });
+
+  // Fetch active virtual sessions for student's grade
+  const { data: myVirtualSessions = [] } = useQuery({
+    queryKey: ["student-virtual-sessions", student?.grade, student?.id],
+    queryFn: async () => {
+      const sessions = await entities.VirtualSession.list("-created_at");
+      return sessions.filter(s => 
+        s.status === "active" && 
+        (s.grade === student.grade || (s.target_students && s.target_students.includes(student.id)))
+      );
+    },
+    enabled: !!student?.grade,
+    refetchInterval: 30000, // Refresh every 30 seconds
   });
 
   const [showScheduleModal, setShowScheduleModal] = useState(false);
@@ -1408,6 +1423,60 @@ export default function StudentPortal() {
                 </button>
               </PageHeader>
               <StudentRecordedVideos isRTL={isRTL} />
+            </div>
+          ) : view === "virtual-classes" ? (
+            <div className="space-y-6">
+              <PageHeader
+                title={isRTL ? "الحصص الافتراضية المباشرة" : "Live Virtual Classes"}
+                subtitle={isRTL ? "انضم للحصص الجارية الآن مع معلميك" : "Join ongoing live classes with your teachers"}
+              >
+                <button onClick={() => window.location.href = "/student-portal"} className={`${btnOutline} h-11 px-5 rounded-xl`}>
+                  {isRTL ? "العودة للوحة التحكم" : "Back to Dashboard"}
+                </button>
+              </PageHeader>
+              
+              {myVirtualSessions.length === 0 ? (
+                <Card className="p-16 text-center border-dashed border-2 border-stone-200 bg-stone-50/50 text-stone-400 rounded-[40px]">
+                  <Video size={48} className="mb-4 opacity-20 mx-auto" />
+                  <p className="font-bold text-lg">{isRTL ? "لا توجد حصص افتراضية جارية حالياً" : "No live virtual classes at the moment"}</p>
+                  <p className="text-sm mt-2">{isRTL ? "ستظهر الحصص هنا عندما يبدأ معلموك الحصة" : "Classes will appear here when your teachers start them"}</p>
+                </Card>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {myVirtualSessions.map(session => (
+                    <Card key={session.id} className="p-5 bg-white border-none shadow-sm rounded-2xl hover:shadow-lg transition-shadow border border-teal-100">
+                      <div className="flex items-start justify-between gap-4 mb-4">
+                        <div className="h-12 w-12 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center shrink-0">
+                          <Video size={24} />
+                        </div>
+                        <Badge className="bg-emerald-50 text-emerald-600 border-none font-bold text-[9px] px-2.5 py-1 rounded-lg shrink-0">
+                          {isRTL ? "مباشر الآن" : "Live Now"}
+                        </Badge>
+                      </div>
+                      <div className="space-y-3 mb-4">
+                        <h4 className="font-bold text-stone-850 text-base leading-tight">{session.title}</h4>
+                        <p className="text-sm text-stone-500 flex items-center gap-1">
+                          <BookOpen size={14} /> {session.subject_name || (isRTL ? "غير محدد" : "TBD")}
+                        </p>
+                        <p className="text-sm text-stone-500 flex items-center gap-1">
+                          <GraduationCap size={14} /> {session.teacher_name || (isRTL ? "المعلم" : "Teacher")}
+                        </p>
+                        {session.grade && (
+                          <p className="text-sm text-stone-500 flex items-center gap-1">
+                            <GraduationCap size={14} /> {isRTL ? "الصف: " : "Grade: "} {session.grade}
+                          </p>
+                        )}
+                      </div>
+                      <a 
+                        href={`/virtual-classroom/${session.id}`}
+                        className={`${btnPrimary} w-full justify-center h-10 px-4 rounded-xl text-sm font-bold gap-1.5`}
+                      >
+                        {isRTL ? "انضم الآن" : "Join Now"} <PlayCircle size={14} />
+                      </a>
+                    </Card>
+                  ))}
+                </div>
+              )}
             </div>
           ) : (
             <>
