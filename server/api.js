@@ -314,12 +314,13 @@ if (process.env.DATABASE_URL) {
     )
   `.then(() => {
     console.log('[neon] session_participants table verified/created');
-    // Alter table to support mic, video and hand-raising synchronization
+    // Alter table to support mic, video, hand-raising and screen sharing synchronization
     sql`
       ALTER TABLE session_participants 
       ADD COLUMN IF NOT EXISTS hand_raised BOOLEAN DEFAULT FALSE,
       ADD COLUMN IF NOT EXISTS mic_active BOOLEAN DEFAULT TRUE,
-      ADD COLUMN IF NOT EXISTS video_active BOOLEAN DEFAULT TRUE;
+      ADD COLUMN IF NOT EXISTS video_active BOOLEAN DEFAULT TRUE,
+      ADD COLUMN IF NOT EXISTS screen_sharing BOOLEAN DEFAULT FALSE;
     `.catch(err => console.error('[neon] failed to alter session_participants:', err.message));
   }).catch(err => {
     console.error('[neon] failed to verify/create session_participants table:', err.message);

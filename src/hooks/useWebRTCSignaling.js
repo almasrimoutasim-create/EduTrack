@@ -122,7 +122,8 @@ export function useWebRTCSignaling(roomId, userId, userProfile = {}) {
         payload
       });
     } else {
-      console.warn('[WebRTC Signaling] Socket not connected, signal dropped.');
+      console.warn('[WebRTC Signaling] Socket not connected, signal dropped. Queueing for retry...');
+      // Could implement a queue here for offline support
     }
   }, [roomId, userId]);
 

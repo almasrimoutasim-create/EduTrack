@@ -4,11 +4,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { entities, deleteVirtualClass } from "@/api/dbClient";
 import {
   Video, VideoOff, Mic, MicOff, Hand, MessageSquare,
-  Send, Users, PhoneOff, Info, Copy,
-  ShieldAlert, ScreenShare, Sparkles, AlertCircle, FileText,
-  Clock, Calendar, Maximize2, Minimize2, ChevronLeft, ChevronRight,
-  StopCircle, Trash2, Pin, PinOff, Volume2, VolumeX, Settings,
-  LayoutGrid, MonitorPlay, Check, Edit3, X, Radio, PenTool
+  Send, Users, PhoneOff, Info, Copy, ScreenShare, AlertCircle, FileText,
+  Clock, Calendar,
+  StopCircle, Trash2, Pin, PinOff,
+  LayoutGrid, X, Radio, PenTool
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/lib/LanguageContext";
@@ -76,8 +75,42 @@ export default function VirtualClassroom() {
 
   const { data: iceConfig } = useQuery({
     queryKey: ['ice-config'],
-    queryFn: () => fetch('/api/ice-config').then(r => r.json()),
-    staleTime: 3600000 // 1 hour
+    queryFn: async () => {
+      try {
+        const response = await fetch('/api/ice-config');
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return await response.json();
+      } catch (err) {
+        console.warn('[VirtualClassroom] ICE config fetch failed, using fallback:', err);
+        // Fallback ICE config with public STUN servers
+        return {
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' },
+            { urls: 'stun:stun3.l.google.com:19302' },
+            { urls: 'stun:stun4.l.google.com:19302' },
+            {
+              urls: 'turn:openrelay.metered.ca:80',
+              username: 'openrelayproject',
+              credential: 'openrelayproject'
+            },
+            {
+              urls: 'turn:openrelay.metered.ca:443',
+              username: 'openrelayproject',
+              credential: 'openrelayproject'
+            },
+            {
+              urls: 'turns:openrelay.metered.ca:443',
+              username: 'openrelayproject',
+              credential: 'openrelayproject'
+            }
+          ]
+        };
+      }
+    },
+    staleTime: 3600000, // 1 hour
+    retry: 1,
   });
 
   // ── WebRTC ────────────────────────────────────────────────────────────────
@@ -150,11 +183,42 @@ export default function VirtualClassroom() {
     return map;
   }, [dbStudents, dbTeachers]);
 
+  // ── Fetch session with fallback to room_name lookup ──
+  const { data: session = null, isLoading: sessionLoading, error: sessionError } = useQuery({
+    queryKey: ["virtual-session", id],
+    queryFn: async () => {
+      if (isDemo) return null;
+      try {
+        if (isValidUUID(id)) {
+          return await entities.VirtualSession.get(id);
+        }
+        // Fallback: search by room_name if id is not a valid UUID
+        const sessions = await entities.VirtualSession.list("-created_at");
+        const found = sessions.find(s => s.room_name === id);
+        if (found) return found;
+        throw new Error("Session not found by room_name");
+      } catch (err) {
+        console.warn("[VirtualClassroom] Session fetch failed:", err.message);
+        // Return minimal mock data to prevent UI crash
+        return {
+          id: sessionId,
+          title: isRTL ? "حصة افتراضية" : "Virtual Session",
+          subject_name: isRTL ? "غير محدد" : "TBD",
+          teacher_name: isRTL ? "المعلم" : "Teacher",
+          room_name: `room-${id}`,
+          status: "active",
+        };
+      }
+    },
+    enabled: !isDemo,
+    retry: 1,
+  });
+
   const { data: activeParticipants = [], refetch: refetchParticipants } = useQuery({
     queryKey: ["active-session-participants", sessionId],
     queryFn: () => entities.SessionParticipant.filter({ session_id: sessionId }),
     refetchInterval: 2500,
-    enabled: !isDemo,
+    enabled: !isDemo && !!sessionId,
   });
 
   const { data: dbMessages = [] } = useQuery({
@@ -174,26 +238,6 @@ export default function VirtualClassroom() {
     queryKey: ["virtual-sessions"],
     queryFn: () => entities.VirtualSession.list("-created_at"),
     enabled: isDemo,
-  });
-
-  const { data: session = null } = useQuery({
-    queryKey: ["virtual-session", sessionId],
-    queryFn: async () => {
-      try {
-        if (!isValidUUID(id)) throw new Error("Mock");
-        return await entities.VirtualSession.get(id);
-      } catch {
-        return {
-          id,
-          title: isRTL ? "مقدمة في الجبر والكسور" : "Introduction to Algebra",
-          subject_name: isRTL ? "الرياضيات" : "Mathematics",
-          teacher_name: isRTL ? "أ. أحمد الغامدي" : "Mr. Ahmad Al-Ghamdi",
-          room_name: `math-room-${id}`,
-          status: "active",
-        };
-      }
-    },
-    enabled: !isDemo,
   });
 
   const [newSession, setNewSession] = useState({
@@ -397,6 +441,7 @@ export default function VirtualClassroom() {
   useEffect(() => {
     if (isDemo) return;
     let stream = null;
+    let mediaError = false;
     const init = async () => {
       try {
         stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
@@ -406,8 +451,14 @@ export default function VirtualClassroom() {
         stream.getVideoTracks().forEach((t) => (t.enabled = videoActive));
         stream.getAudioTracks().forEach((t) => (t.enabled = micActive));
       } catch (err) {
+        mediaError = true;
         console.error("Media access error:", err);
-        toast.error(isRTL ? "تعذّر الوصول للكاميرا/الميكروفون. تحقق من الأذونات." : "Cannot access camera/microphone. Check permissions.");
+        const msg = err.name === 'NotAllowedError' 
+          ? (isRTL ? "تم رفض الإذن للكاميرا/الميكروفون. يرجى السماح بالوصول من إعدادات المتصفح." : "Camera/microphone permission denied. Please allow access in browser settings.")
+          : err.name === 'NotFoundError'
+          ? (isRTL ? "لم يتم العثور على كاميرا/ميكروفون. تأكد من توصيل الأجهزة." : "No camera/microphone found. Please connect devices.")
+          : (isRTL ? "تعذّر الوصول للكاميرا/الميكروفون. تحقق من الأذونات." : "Cannot access camera/microphone. Check permissions.");
+        toast.error(msg);
       }
     };
     init();
@@ -515,6 +566,10 @@ export default function VirtualClassroom() {
       localStream.getAudioTracks().forEach((t) => (t.enabled = next));
     }
     wsSignaling.sendMediaToggle("audio", next);
+    // Sync to DB
+    if (myParticipantId && !isDemo) {
+      entities.SessionParticipant.update(myParticipantId, { mic_active: next }).catch(() => {});
+    }
   };
 
   const toggleVideo = () => {
@@ -524,12 +579,20 @@ export default function VirtualClassroom() {
       localStream.getVideoTracks().forEach((t) => (t.enabled = next));
     }
     wsSignaling.sendMediaToggle("video", next);
+    // Sync to DB
+    if (myParticipantId && !isDemo) {
+      entities.SessionParticipant.update(myParticipantId, { video_active: next }).catch(() => {});
+    }
   };
 
   const toggleHand = () => {
     const next = !handRaised;
     setHandRaised(next);
     wsSignaling.sendMediaToggle("hand", next);
+    // Sync to DB
+    if (myParticipantId && !isDemo) {
+      entities.SessionParticipant.update(myParticipantId, { hand_raised: next }).catch(() => {});
+    }
     if (next) {
       toast.info(isRTL ? "تم رفع اليد 🙋‍♂️" : "Hand raised 🙋‍♂️");
     }
@@ -568,6 +631,11 @@ export default function VirtualClassroom() {
           });
           await Promise.all(replaceJobs);
 
+          // Sync screen sharing state to DB
+          if (myParticipantId) {
+            entities.SessionParticipant.update(myParticipantId, { screen_sharing: true }).catch(() => {});
+          }
+
           // Signal peers: pin this user's stream full-screen
           sendSignal("SCREEN_SHARE", null, { active: true, sharerId: userId });
 
@@ -602,12 +670,17 @@ export default function VirtualClassroom() {
         }
         setPinnedParticipantId((prev) => (prev === userId ? null : prev));
         sendSignal("SCREEN_SHARE", null, { active: false, sharerId: userId });
+
+        // Sync screen sharing state to DB
+        if (myParticipantId) {
+          entities.SessionParticipant.update(myParticipantId, { screen_sharing: false }).catch(() => {});
+        }
       }
     };
 
     toggle();
     return () => { if (currentScreenStream) currentScreenStream.getTracks().forEach((t) => t.stop()); };
-  }, [screenSharing, isDemo]);
+  }, [screenSharing, isDemo, myParticipantId, userId]);
 
   // ─────────────────────────────────────────────────────────────────────────
   //  Signaling helpers
@@ -627,7 +700,10 @@ export default function VirtualClassroom() {
   const getOrCreatePC = (peerId) => {
     if (pcsRef.current[peerId]) return pcsRef.current[peerId];
 
-    const pc = new RTCPeerConnection({ iceServers: iceConfig?.iceServers || [] });
+    const pc = new RTCPeerConnection({ 
+      iceServers: iceConfig?.iceServers || [],
+      iceCandidatePoolSize: 10,
+    });
     pcsRef.current[peerId] = pc;
 
     pc.onnegotiationneeded = async () => {
@@ -647,8 +723,34 @@ export default function VirtualClassroom() {
       if (event.candidate) sendSignal("ICE", peerId, event.candidate);
     };
 
+    // ICE connection state monitoring with auto-restart on failure
     pc.oniceconnectionstatechange = () => {
-      console.log(`[WebRTC] ICE state with ${peerId}: ${pc.iceConnectionState}`);
+      const state = pc.iceConnectionState;
+      console.log(`[WebRTC] ICE state with ${peerId}: ${state}`);
+      
+      if (state === 'failed' || state === 'disconnected') {
+        console.warn(`[WebRTC] ICE ${state} with ${peerId}, attempting restart...`);
+        // Attempt ICE restart
+        pc.restartIce().catch(err => {
+          console.error(`[WebRTC] ICE restart failed for ${peerId}:`, err);
+        });
+      }
+      
+      if (state === 'connected' || state === 'completed') {
+        console.log(`[WebRTC] ICE connected successfully with ${peerId}`);
+      }
+    };
+
+    // Connection state monitoring
+    pc.onconnectionstatechange = () => {
+      const state = pc.connectionState;
+      console.log(`[WebRTC] Connection state with ${peerId}: ${state}`);
+      if (state === 'failed') {
+        console.warn(`[WebRTC] Connection failed with ${peerId}, attempting restart...`);
+        pc.restartIce().catch(err => {
+          console.error(`[WebRTC] Connection restart failed for ${peerId}:`, err);
+        });
+      }
     };
 
     // ontrack fires for every incoming track.
@@ -842,8 +944,12 @@ export default function VirtualClassroom() {
       const newUserName = typeof newUserData === "object" ? newUserData.userName : "مشارك";
       toast.info(isRTL ? `انضم ${newUserName} للحصة` : `${newUserName} joined the class`);
 
-      if (String(userId) > String(newUserId)) {
-        const offerKey = `${userId}->${newUserId}`;
+      // Deterministic offer initiation: lexicographically smaller userId creates offer
+      // This avoids race conditions when multiple users join simultaneously
+      const shouldInitiateOffer = String(userId) < String(newUserId);
+      const offerKey = shouldInitiateOffer ? `${userId}->${newUserId}` : `${newUserId}->${userId}`;
+      
+      if (shouldInitiateOffer) {
         if (offersInitiated.current.has(offerKey)) return;
         const pc = getOrCreatePC(newUserId);
         if (pc.signalingState !== "stable") return;
@@ -855,6 +961,7 @@ export default function VirtualClassroom() {
             offersInitiated.current.delete(offerKey);
           });
       } else {
+        // Wait for offer from the other peer, but ensure PC exists
         getOrCreatePC(newUserId);
       }
     });
