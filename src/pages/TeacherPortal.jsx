@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { entities } from "@/api/dbClient";
 import { 
@@ -103,6 +103,7 @@ const btnOutline = "inline-flex items-center justify-center gap-2 whitespace-now
 const btnPrimary = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-sm font-semibold transition-all bg-stone-900 text-white hover:bg-black cursor-pointer shadow-lg shadow-stone-200 disabled:opacity-50 disabled:cursor-not-allowed";
 
 export default function TeacherPortal() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { language } = useLanguage();
   const isRTL = language === "ar";
@@ -458,54 +459,75 @@ export default function TeacherPortal() {
 
   const notifyClassStudents = async () => {
     if (!liveClass) return;
-    const link = meetingLink.trim() || `/virtual-classroom/${createdSession?.id || createdSession?.room_name || ""}`;
-    const classStudents = (students || []).filter((s) => studentBelongsToClass(s, liveClass));
-    if (classStudents.length === 0) {
-      toast.error(isRTL ? "لا يوجد طلاب مسجلين في هذا الفصل" : "No students in this class");
-      return;
-    }
     setNotifying(true);
     try {
       const teacherName = portalUser?.full_name || portalUser?.name || (isRTL ? "المعلم" : "Teacher");
+      const roomName = `meet-${Math.random().toString(36).slice(2, 10)}`;
 
-      // Save the live class (with its link) so it appears in the virtual-classrooms list.
+      // 1. Create the virtual session
       const createdSession = await entities.VirtualSession.create({
         title: `${liveClass.name} - ${isRTL ? "حصة مباشرة" : "live class"}`,
         teacher_id: teacherId,
         teacher_name: teacherName,
         subject_name: liveClass.name,
         grade: String(liveClass.grade_level || "").trim(),
-        room_name: `meet-${Math.random().toString(36).slice(2, 10)}`,
+        room_name: roomName,
         scheduled_at: new Date().toISOString(),
         started_at: new Date().toISOString(),
         status: "active",
-        meet_link: link || "",
-      }).catch((e) => { console.warn("Failed to save live session:", e); return null; });
-    if (createdSession?.id) {
-      setTimeout(() => navigate(`/virtual-classroom/${createdSession.id}`), 800);
-    }
+        meet_link: "",
+      }).catch((e) => {
+        console.warn("Failed to save live session:", e);
+        return null;
+      });
 
-      // Notify every student in this specific class (portal notification).
-      const results = await Promise.allSettled(
-        classStudents.map((s) =>
-          entities.PortalNotification.create({
-            user_id: s.id,
-            type: "class_started",
-            title: isRTL ? `بدأت الحصة المباشرة: ${liveClass.name}` : `Live class started: ${liveClass.name}`,
-            message: isRTL
-              ? `${teacherName} بدأ حصة مباشرة في ${liveClass.name}. انضم من الرابط: ${link}`
-              : `${teacherName} started a live ${liveClass.name} class. Join: ${link}`,
-            link: `/virtual-classroom/${createdSession?.id || createdSession?.room_name || "demo"}`,
-            is_read: false,
-          }).catch(() => null)
-        )
-      );
-      const sent = results.filter((r) => r.status === "fulfilled" && r.value).length;
-      setNotifiedCount(sent);
-      toast.success(isRTL ? `تم إرسال الإشعار إلى ${sent} طالب` : `Notified ${sent} students`);
+      refetchMyVirtualSessions();
+
+      const sessionRoomId = createdSession?.id || roomName;
+      const classLink = `/virtual-classroom/${sessionRoomId}`;
+
+      // 2. Filter students belonging to this class with fallbacks
+      let classStudents = (students || []).filter((s) => studentBelongsToClass(s, liveClass));
+      if (classStudents.length === 0 && liveClass.grade_level) {
+        classStudents = (students || []).filter((s) => matchGrade(s.grade, liveClass.grade_level));
+      }
+
+      if (classStudents.length > 0) {
+        // Send notifications
+        const notifResults = await Promise.allSettled(
+          classStudents.map((s) =>
+            entities.PortalNotification.create({
+              user_id: s.id,
+              type: "class_started",
+              title: isRTL ? `بدأت الحصة المباشرة: ${liveClass.name}` : `Live class started: ${liveClass.name}`,
+              message: isRTL
+                ? `${teacherName} بدأ حصة مباشرة في ${liveClass.name}. انضم الآن!`
+                : `${teacherName} started a live ${liveClass.name} class. Join now!`,
+              link: classLink,
+              is_read: false,
+            }).catch(() => null)
+          )
+        );
+        const sent = notifResults.filter((r) => r.status === "fulfilled" && r.value).length;
+        setNotifiedCount(sent || classStudents.length);
+        toast.success(isRTL ? `تم إشعار الطلاب (${sent || classStudents.length}) وجارٍ نقلك للحصة...` : `Notified ${sent || classStudents.length} students, entering class...`);
+      } else {
+        toast.success(isRTL ? "تم بدء الحصة وجارٍ نقلك لغرفة البث..." : "Session started, entering class...");
+      }
+
+      // 3. Immediately navigate teacher to the live session room
+      setTimeout(() => {
+        setLiveClass(null);
+        try {
+          navigate(classLink);
+        } catch {
+          window.location.href = classLink;
+        }
+      }, 700);
+
     } catch (err) {
-      console.error("Failed to notify students:", err);
-      toast.error(isRTL ? "تعذر إرسال الإشعارات" : "Failed to notify students");
+      console.error("Failed in notifyClassStudents:", err);
+      toast.error(isRTL ? "حدث خطأ أثناء بدء الحصة" : "Failed to start live session");
     } finally {
       setNotifying(false);
     }
@@ -546,7 +568,14 @@ export default function TeacherPortal() {
       setNewSessionScheduledAt("");
       refetchMyVirtualSessions();
       if (!newSessionScheduledAt && created?.id) {
-        setTimeout(() => navigate(`/virtual-classroom/${created.id}`), 600);
+        setTimeout(() => {
+          const roomUrl = `/virtual-classroom/${created.id}`;
+          try {
+            navigate(roomUrl);
+          } catch {
+            window.location.href = roomUrl;
+          }
+        }, 500);
       }
     } catch (err) {
       console.error("Failed to create session:", err);
@@ -869,13 +898,16 @@ export default function TeacherPortal() {
                       className="w-full bg-white border border-teal-200 rounded-xl h-10 px-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-teal-400/30"
                       dir={isRTL ? "rtl" : "ltr"}
                     >
-                      <option value="">{isRTL ? "-- اختر الصف --" : "-- Select Grade --"}</option>
-                      {classes.map(c => (
-                        <option key={c.id} value={c.grade_level}>
-                          {isRTL ? `الصف ${c.grade_level}` : `Grade ${c.grade_level}`} - {c.name}
-                        </option>
-                      ))}
-                      {[1,2,3,4,5,6,7,8,9,10,11,12].filter(g => !classes.some(c => String(c.grade_level) === String(g))).map(g => (
+                      <option value="">{isRTL ? "-- اختر الصف (أو اتركه عاماً للكل) --" : "-- Select Grade (or leave for all) --"}</option>
+                      {Array.from(new Set(classes.map(c => String(c.grade_level || "").trim()).filter(Boolean))).map(gradeVal => {
+                        const classMatch = classes.find(c => String(c.grade_level || "").trim() === gradeVal);
+                        return (
+                          <option key={gradeVal} value={gradeVal}>
+                            {isRTL ? `الصف ${gradeVal}` : `Grade ${gradeVal}`} {classMatch ? `- ${classMatch.name}` : ""}
+                          </option>
+                        );
+                      })}
+                      {[1,2,3,4,5,6,7,8,9,10,11,12].filter(g => !classes.some(c => String(c.grade_level || "").trim() === String(g))).map(g => (
                         <option key={g} value={g}>{isRTL ? `الصف ${g}` : `Grade ${g}`}</option>
                       ))}
                     </select>
@@ -1000,10 +1032,19 @@ export default function TeacherPortal() {
                           </button>
                         )}
                         <button
-                          onClick={() => navigate(`/virtual-classroom/${s.id}`)}
-                          className="bg-stone-900 text-white text-xs font-black rounded-xl px-3 py-2 hover:bg-black cursor-pointer"
+                          type="button"
+                          onClick={() => {
+                            const targetUrl = `/virtual-classroom/${s.id || s.room_name || ""}`;
+                            try {
+                              navigate(targetUrl);
+                            } catch {
+                              window.location.href = targetUrl;
+                            }
+                          }}
+                          className="bg-stone-900 text-white text-xs font-black rounded-xl px-4 py-2 hover:bg-black cursor-pointer inline-flex items-center gap-1 shadow-sm transition-transform active:scale-95"
                         >
-                          {isRTL ? "دخول" : "Open"}
+                          <PlayCircle size={13} />
+                          <span>{isRTL ? "دخول" : "Open"}</span>
                         </button>
                         <button
                           onClick={() => setSessionToDelete(s)}
@@ -1716,10 +1757,20 @@ export default function TeacherPortal() {
           </DialogHeader>
 
           <div className="space-y-4 pt-3">
+            <div className="bg-teal-50/60 border border-teal-100 rounded-2xl p-3 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-black text-stone-900">{liveClass?.name}</p>
+                <p className="text-[11px] text-stone-500">{isRTL ? `الصف: ${liveClass?.grade_level || "عام"}` : `Grade: ${liveClass?.grade_level || "General"}`}</p>
+              </div>
+              <Badge className="bg-teal-600 text-white text-[10px] font-bold">
+                {isRTL ? "مباشر" : "Live"}
+              </Badge>
+            </div>
+
             {notifiedCount !== null && (
               <div className="flex items-center gap-2 text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-2">
                 <CheckCircle2 size={14} />
-                {isRTL ? `تم إرسال الإشعار إلى ${notifiedCount} طالب` : `Notified ${notifiedCount} students`}
+                {isRTL ? `تم إرسال الإشعار إلى ${notifiedCount} طالب بنجاح` : `Notified ${notifiedCount} students`}
               </div>
             )}
 
@@ -1729,16 +1780,18 @@ export default function TeacherPortal() {
                 onClick={() => setLiveClass(null)}
                 className="inline-flex items-center gap-1.5 h-11 px-4 rounded-xl border-2 border-stone-200 bg-white text-stone-700 text-xs font-bold hover:bg-stone-50 cursor-pointer"
               >
-                {isRTL ? "إغلاق" : "Close"}
+                {isRTL ? "إلغاء" : "Cancel"}
               </button>
               <button
                 type="button"
                 onClick={notifyClassStudents}
                 disabled={notifying}
-                className="inline-flex items-center gap-1.5 h-11 px-5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-black cursor-pointer disabled:opacity-50"
+                className="flex-1 inline-flex items-center justify-center gap-1.5 h-11 px-5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-black cursor-pointer disabled:opacity-50 shadow-md shadow-teal-600/20"
               >
                 <Send size={14} />
-                {notifying ? (isRTL ? "جارٍ الإرسال..." : "Sending...") : (isRTL ? "إشعار الطلاب" : "Notify students")}
+                {notifying
+                  ? (isRTL ? "جارٍ الإشعار والبدء..." : "Notifying & Starting...")
+                  : (isRTL ? "إشعار الطلاب وبدء الحصة فوراً" : "Notify Students & Start Now")}
               </button>
             </DialogFooter>
           </div>
