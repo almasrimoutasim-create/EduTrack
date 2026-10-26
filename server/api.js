@@ -2132,18 +2132,24 @@ export function createApiHandler() {
     // WebRTC STUN/TURN config
     if (req.url === '/neon-db/ice-config' || req.url === '/api/ice-config') {
       res.setHeader('Content-Type', 'application/json');
-      return res.end(JSON.stringify({
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' },
-          // Free reliable TURN via Cloudflare (no registration needed)
-          {
-            urls: 'turn:turn.cloudflare.com:3478',
-            username: 'free',
-            credential: 'free'
-          }
-        ]
-      }));
+      const iceServers = [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+        {
+          urls: 'turn:turn.cloudflare.com:3478',
+          username: 'free',
+          credential: 'free'
+        }
+      ];
+      // Optional production TURN override via env (TURN_URL, TURN_USERNAME, TURN_CREDENTIAL)
+      if (process.env.TURN_URL) {
+        iceServers.push({
+          urls: process.env.TURN_URL,
+          username: process.env.TURN_USERNAME || '',
+          credential: process.env.TURN_CREDENTIAL || ''
+        });
+      }
+      return res.end(JSON.stringify({ iceServers }));
     }
 
     // Serve uploaded files directly or from persistent Neon database storage

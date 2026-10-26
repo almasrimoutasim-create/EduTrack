@@ -97,7 +97,7 @@ export default function TeacherSidebar() {
       label: isRTL ? "الأكاديميات" : "Academics",
       items: [
         { label: isRTL ? "فصولي" : "My Classes", path: "/teacher-portal?tab=classes", icon: BookOpen },
-        { label: isRTL ? "الفصول الافتراضية" : "Virtual Classroom", path: "/virtual-classroom/demo", icon: Video },
+        { label: isRTL ? "حصصي الافتراضية" : "My Virtual Classes", path: "/teacher-portal?tab=virtual-sessions", icon: Video },
         { label: isRTL ? "طلابي" : "My Students", path: "/teacher-portal?tab=students", icon: Users },
         { label: isRTL ? "الحضور" : "Attendance", path: "/teacher-portal?tab=attendance", icon: ClipboardCheck },
         { label: isRTL ? "الواجبات والتصحيح" : "Assignments & Grading", path: "/teacher-portal?tab=grading", icon: FileText },

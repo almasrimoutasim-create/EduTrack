@@ -245,7 +245,7 @@ export default function StudentDashboard() {
       console.warn("[StudentDashboard] Student grade not set, showing all sessions");
       return sessionsListRaw || [];
     }
-    return (sessionsListRaw || []).filter((s) => !s.grade || String(s.grade) === String(grade));
+    return (sessionsListRaw || []).filter((s) => !s.grade || String(s.grade).trim() === String(grade || "").trim());
   }, [sessionsListRaw, grade]);
 
   const { data: portalNotifications = [], refetch: refetchPortalNotifs } = useQuery({
@@ -706,34 +706,18 @@ export default function StudentDashboard() {
             </div>
           )}
 
-          {/* ===== CLASSROOM ===== */}
+          {/* ===== CLASSROOM (merged into unified Classes page) ===== */}
           {activeTab === "classroom" && (
             <div className="max-w-4xl mx-auto space-y-3">
-              <div className="flex items-center justify-between mb-4">
-                <h1 className="text-2xl font-black">الفصل الافتراضي</h1>
-                {!grade && (
-                  <span className="text-xs font-bold px-3 py-1 bg-amber-100 text-amber-700 rounded-full">
-                    الصف غير محدد — تظهر جميع الحصص
-                  </span>
-                )}
+              <div className="bg-white rounded-2xl border border-stone-100 p-6 text-center space-y-4">
+                <h1 className="text-2xl font-black">{isRTL ? "الحصص" : "Classes"}</h1>
+                <p className="text-sm text-stone-500">
+                  تم دمج الحصص (الجارية، المجدولة، المسجلة) في صفحة واحدة داخل بوابة الطالب.
+                </p>
+                <button onClick={() => navigate("/student-portal?view=virtual-classes")} className="bg-stone-900 text-white text-sm font-black rounded-xl px-6 py-3 hover:bg-black cursor-pointer">
+                  فتح صفحة الحصص
+                </button>
               </div>
-              {loadingSess ? (<><Skeleton className="h-14" /><Skeleton className="h-14" /></>)
-                : errSess ? <ErrorBox message="تعذر تحميل الجلسات" onRetry={() => refetchSess()} />
-                : sessionsList.length === 0 ? (
-                  <div className="bg-white rounded-2xl border border-stone-100 p-6 text-center">
-                    <p className="text-sm text-stone-500">لا توجد فصول افتراضية مجدولة حالياً.</p>
-                    {!grade && (
-                      <p className="text-xs text-amber-600 mt-2">
-                        تنبيه: صفك الدراسي غير محدد. يرجى التواصل مع الإدارة لتحديث بياناتك.
-                      </p>
-                    )}
-                  </div>
-                ) : sessionsList.map((s) => (
-                  <div key={s.id} className="bg-white rounded-2xl border border-stone-100 p-4 flex items-center justify-between">
-                    <div><p className="font-black text-sm">{s.title}</p><p className="text-xs text-stone-500">{s.teacher_name || ""} • {s.status}</p></div>
-                    <button onClick={() => navigate(`/virtual-classroom/${s.room_name || s.id}`)} className="bg-stone-900 text-white text-xs font-black rounded-xl px-4 py-2 hover:bg-black cursor-pointer">انضمام</button>
-                  </div>
-                ))}
             </div>
           )}
 

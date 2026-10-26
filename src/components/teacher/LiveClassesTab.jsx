@@ -27,15 +27,7 @@ export default function LiveClassesTab({ teacher }) {
     return Math.random().toString(36).substring(2, 8).toUpperCase();
   };
 
-  const openGoogleMeet = () => {
-    window.open("https://meet.google.com/new", "_blank");
-    setShowCreate(false);
-  };
-
-  const openZoom = () => {
-    window.open("https://zoom.us/", "_blank");
-    setShowCreate(false);
-  };
+  // External meeting platforms (Google Meet/Zoom) removed — internal WebRTC room only.
 
   const save = async () => {
     setSaving(true);
@@ -221,20 +213,6 @@ export default function LiveClassesTab({ teacher }) {
             <DialogTitle>Start New Live Class</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
-            <div className="grid grid-cols-2 gap-2">
-              <button 
-                className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border-2 border-stone-200 bg-white text-stone-800 hover:bg-stone-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed h-11 px-4 gap-2"
-                onClick={openGoogleMeet}
-              >
-                <ExternalLink className="h-4 w-4" /> Google Meet
-              </button>
-              <button 
-                className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all border-2 border-stone-200 bg-white text-stone-800 hover:bg-stone-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed h-11 px-4 gap-2"
-                onClick={openZoom}
-              >
-                <ExternalLink className="h-4 w-4" /> Zoom
-              </button>
-            </div>
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-muted"></div>
@@ -324,10 +302,10 @@ export default function LiveClassesTab({ teacher }) {
               </div>
               
               <div>
-                <Label>Meeting Link (Zoom or Google Meet)</Label>
+                <Label>External link (optional)</Label>
                 <Input
                   className="mt-2"
-                  placeholder="https://zoom.us/j/... or https://meet.google.com/..."
+                  placeholder="Optional external link"
                   value={platformUrl}
                   onChange={e => setPlatformUrl(e.target.value)}
                 />

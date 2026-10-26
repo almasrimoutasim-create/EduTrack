@@ -26,6 +26,20 @@ import { useWebRTCSignaling } from "@/hooks/useWebRTCSignaling";
 
 export default function VirtualClassroom() {
   const { id } = useParams();
+
+  // End the current live session (teacher/admin): mark status="ended" so it
+  // stops appearing in students' "Live" tab.
+  const handleEndSession = async () => {
+    if (!id) return;
+    if (!isTeacher && !isAdmin) return;
+    try {
+      await entities.VirtualSession.update(id, { status: "ended", ended_at: new Date().toISOString() });
+      toast.success(isRTL ? "تم إنهاء الحصة" : "Session ended");
+    } catch (err) {
+      console.error("Failed to end session:", err);
+      toast.error(isRTL ? "تعذر إنهاء الحصة" : "Failed to end session");
+    }
+  };
   const navigate = useNavigate();
   const { language } = useLanguage();
   const isRTL = language === "ar";
@@ -303,18 +317,18 @@ export default function VirtualClassroom() {
         teacher_name: userName,
         subject_id: newSession.subject_id,
         subject_name: selectedSub?.name || "",
-        grade: selectedSub?.grade || "",
+        grade: String(selectedSub?.grade || "").trim(),
         room_name: `room-${Math.random().toString(36).substr(2, 9)}`,
         scheduled_at: new Date().toISOString(),
         started_at: new Date().toISOString(),
         status: "active",
-        meet_link: "https://meet.google.com/new",
+        meet_link: "",
       });
       setLiveModal({ session: res, title: newSession.title, subjectName: selectedSub?.name || "", grade: selectedSub?.grade || "" });
-      setLiveLink("https://meet.google.com/new");
+      setLiveLink("");
       setLiveNotified(null);
-      // Teacher-created meeting → the teacher is the host (full controls).
-      window.open("https://meet.google.com/new", "_blank", "noopener,noreferrer");
+      // Original flow: redirect teacher into the live room.
+      setTimeout(() => navigate(`/virtual-classroom/${res.id}`), 800);
     } catch (err) {
       console.error("Failed to start session:", err);
       toast.error((isRTL ? "فشل بدء الحصة: " : "Failed to start session: ") + (err?.message || ""));
@@ -322,7 +336,7 @@ export default function VirtualClassroom() {
   };
 
   const copyLiveLink = async () => {
-    const link = liveLink.trim() || "https://meet.google.com/new";
+    const link = liveLink.trim() || `/virtual-classroom/${liveModal?.session?.id || ""}`;
     try {
       await navigator.clipboard.writeText(link);
       toast.success(isRTL ? "تم نسخ رابط الاجتماع" : "Meeting link copied");
@@ -333,7 +347,7 @@ export default function VirtualClassroom() {
 
   const notifyLiveStudents = async () => {
     if (!liveModal?.session) return;
-    const link = liveLink.trim() || "https://meet.google.com/new";
+    const link = liveLink.trim() || `/virtual-classroom/${liveModal.session.id}`;
     setLiveNotifying(true);
     try {
       await entities.VirtualSession.update(liveModal.session.id, { meet_link: link }).catch(() => {});
@@ -1309,7 +1323,7 @@ export default function VirtualClassroom() {
         teacher_name: userName,
         subject_id: newSession.subject_id,
         subject_name: selectedSub?.name || "",
-        grade: selectedSub?.grade || "",
+        grade: String(selectedSub?.grade || "").trim(),
         room_name: roomName,
         scheduled_at: scheduledDateTime,
         status: "scheduled",
@@ -1548,41 +1562,12 @@ export default function VirtualClassroom() {
               </DialogTitle>
               <p className="text-stone-400 text-xs leading-relaxed">
                 {isRTL
-                  ? `تم فتح نافذة جديدة لإنشاء اجتماع Google Meet باسمك — ستدخل كمُنظِّم (Host) تلقائيًا، ما يمنحك كامل صلاحيات التحكم: الميكروفون، مشاركة الشاشة، وإدارة انضمام الطلاب.`
-                  : `A new tab opened to create a Google Meet as you — you'll join as the host automatically, with full controls: microphone, screen sharing, and participant management.`}
+                  ? `تم بدء الحصة داخل الغرفة الافتراضية (WebRTC). يمكنك إشعار طلاب هذا الفصل للانضمام.`
+                  : `The class has started inside the virtual classroom (WebRTC). You can notify this class's students to join.`}
               </p>
             </DialogHeader>
 
             <div className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-stone-200 uppercase">
-                  {isRTL ? "رابط الاجتماع" : "Meeting link"}
-                </label>
-                <div className="flex gap-2">
-                  <Input
-                    value={liveLink}
-                    onChange={(e) => setLiveLink(e.target.value)}
-                    placeholder="https://meet.google.com/..."
-                    className="!bg-stone-850 !text-white border-white/5 text-xs rounded-xl flex-1"
-                    style={{ backgroundColor: "#1c1917", color: "#ffffff" }}
-                    dir="ltr"
-                  />
-                  <button
-                    type="button"
-                    onClick={copyLiveLink}
-                    className="inline-flex items-center gap-1.5 h-11 px-4 rounded-xl border border-white/10 bg-stone-850 text-stone-200 text-xs font-bold hover:bg-stone-800 cursor-pointer shrink-0"
-                  >
-                    <Copy size={14} />
-                    {isRTL ? "نسخ" : "Copy"}
-                  </button>
-                </div>
-                <p className="text-[11px] text-stone-500 leading-relaxed">
-                  {isRTL
-                    ? "الصق رابط الاجتماع الفعلي من تبويب Google Meet المفتوح، ثم احفظه لإشعار طلاب هذا الفصل."
-                    : "Paste the actual meeting link from the opened Google Meet tab, then save it to notify this class's students."}
-                </p>
-              </div>
-
               {liveNotified !== null && (
                 <div className="flex items-center gap-2 text-xs font-bold text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-3 py-2">
                   <span className="h-2 w-2 rounded-full bg-emerald-400" />
@@ -1593,17 +1578,10 @@ export default function VirtualClassroom() {
               <DialogFooter className="gap-2">
                 <button
                   type="button"
-                  onClick={() => window.open("https://meet.google.com/new", "_blank", "noopener,noreferrer")}
-                  className="px-4 py-2 rounded-xl text-xs font-bold bg-stone-800 text-stone-200 hover:bg-stone-700 border border-white/10 cursor-pointer"
-                >
-                  {isRTL ? "فتح اجتماع جديد" : "Open new meeting"}
-                </button>
-                <button
-                  type="button"
                   onClick={() => navigate(`/virtual-classroom/${liveModal?.session?.id}`)}
                   className="px-4 py-2 rounded-xl text-xs font-bold bg-stone-800 text-stone-200 hover:bg-stone-700 border border-white/10 cursor-pointer"
                 >
-                  {isRTL ? "دخول الغرفة الداخلية" : "Enter live room"}
+                  {isRTL ? "دخول الغرفة" : "Enter live room"}
                 </button>
                 <button
                   type="button"
@@ -1996,7 +1974,7 @@ export default function VirtualClassroom() {
 
               {/* Red End / Leave Call Button */}
               <button
-                onClick={() => handleEndClass()}
+                onClick={() => isTeacher ? handleEndClass(true) : handleEndClass()}
                 title={isTeacher ? (isRTL ? "إنهاء الحصة" : "End session") : (isRTL ? "مغادرة الحصة" : "Leave call")}
                 className="h-12 px-5 sm:px-6 rounded-full bg-[#ea4335] hover:bg-[#d93025] text-white flex items-center gap-2 font-black text-xs shadow-[0_0_25px_rgba(234,67,53,0.4)] transition-all duration-200 cursor-pointer hover:scale-105 active:scale-95"
               >
