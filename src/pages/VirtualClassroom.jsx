@@ -7,7 +7,8 @@ import {
   Send, Users, PhoneOff, Info, Copy, ScreenShare, AlertCircle, FileText,
   Clock, Calendar,
   StopCircle, Trash2, Pin, PinOff,
-  LayoutGrid, X, Radio, PenTool
+  LayoutGrid, X, Radio, PenTool,
+  Paperclip, Download, FolderOpen, FileCheck
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/lib/LanguageContext";
@@ -75,6 +76,9 @@ export default function VirtualClassroom() {
   const [remoteScreenSharing, setRemoteScreenSharing] = useState({});
   // Maps userId -> MediaStream for the SCREEN track received
   const [remoteScreenStreams, setRemoteScreenStreams] = useState({});
+  const [attachedFile, setAttachedFile] = useState(null);
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
+  const fileInputRef = useRef(null);
 
   // ── WebSockets ────────────────────────────────────────────────────────────
   const wsDrawing = useDrawingSocket(id, userId);
@@ -1233,23 +1237,59 @@ export default function VirtualClassroom() {
   }, [presentationMode]);
 
   // ─────────────────────────────────────────────────────────────────────────
-  //  Controls
+  //  Controls & File Sharing
   // ─────────────────────────────────────────────────────────────────────────
+  const handleFileUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 8 * 1024 * 1024) {
+      toast.error(isRTL ? "حجم الملف كبير جداً. الحد الأقصى 8 ميجابايت." : "File too large. Max size is 8MB.");
+      return;
+    }
+
+    setIsUploadingFile(true);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setAttachedFile({
+        name: file.name,
+        type: file.type,
+        size: (file.size / 1024).toFixed(1) + " KB",
+        dataUrl: event.target.result,
+      });
+      setIsUploadingFile(false);
+      toast.success(isRTL ? `تم إرفاق: ${file.name}` : `Attached: ${file.name}`);
+    };
+    reader.onerror = () => {
+      setIsUploadingFile(false);
+      toast.error(isRTL ? "تعذر قراءة الملف" : "Failed to read file");
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
   const handleSendMessage = async () => {
-    if (!chatMessage.trim()) return;
-    const text = chatMessage;
+    if (!chatMessage.trim() && !attachedFile) return;
+    const text = chatMessage.trim();
+    const currentAttachment = attachedFile;
     setChatMessage("");
+    setAttachedFile(null);
+
     try {
       await entities.RoomMessage.create({
         room_id: sessionId,
         sender_name: userName,
         sender_id: userId,
-        content: text,
-        type: "text",
+        content: text || (currentAttachment ? `${isRTL ? "شارك ملفاً" : "shared a file"}: ${currentAttachment.name}` : ""),
+        type: currentAttachment ? (currentAttachment.type.startsWith("image/") ? "image" : "file") : "text",
+        file_url: currentAttachment?.dataUrl || "",
+        file_name: currentAttachment?.name || "",
+        file_size: currentAttachment?.size || "",
       });
       qc.invalidateQueries({ queryKey: ["room-messages", sessionId] });
     } catch (err) {
       console.error("Message send failed:", err);
+      toast.error(isRTL ? "فشل إرسال الرسالة أو الملف" : "Failed to send message/file");
     }
   };
 
@@ -2043,6 +2083,24 @@ export default function VirtualClassroom() {
               >
                 <FileText size={18} />
               </button>
+
+              <button
+                onClick={() => {
+                  if (sidebarOpen && activeTab === "files") setSidebarOpen(false);
+                  else {
+                    setActiveTab("files");
+                    setSidebarOpen(true);
+                  }
+                }}
+                title={isRTL ? "الملفات المشتركة" : "Shared Files"}
+                className={`h-11 w-11 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer ${
+                  sidebarOpen && activeTab === "files"
+                    ? "bg-[#8ab4f8] text-[#202124]"
+                    : "bg-[#3c4043]/80 hover:bg-[#3c4043] text-stone-300 hover:text-white"
+                }`}
+              >
+                <FolderOpen size={18} />
+              </button>
             </div>
           </div>
         </div>
@@ -2060,6 +2118,7 @@ export default function VirtualClassroom() {
                 { id: "chat", label: isRTL ? "الرسائل" : "Chat", icon: MessageSquare },
                 { id: "participants", label: isRTL ? "الحاضرون" : "People", icon: Users },
                 { id: "notes", label: isRTL ? "الملاحظات" : "Notes", icon: FileText },
+                { id: "files", label: isRTL ? "الملفات" : "Files", icon: FolderOpen },
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -2128,7 +2187,42 @@ export default function VirtualClassroom() {
                                   : "bg-[#3c4043] text-stone-100 rounded-bl-none"
                               }`}
                             >
-                              {msg.content || msg.message_text}
+                              {msg.type === "image" && msg.file_url ? (
+                                <div className="space-y-1.5">
+                                  <img
+                                    src={msg.file_url}
+                                    alt={msg.file_name || "image"}
+                                    className="max-h-52 w-auto rounded-xl object-contain cursor-pointer hover:opacity-95"
+                                    onClick={() => window.open(msg.file_url, "_blank")}
+                                  />
+                                  {msg.content && <p>{msg.content}</p>}
+                                </div>
+                              ) : msg.file_url ? (
+                                <div className="space-y-2">
+                                  <div className="flex items-center gap-2.5 p-2 bg-black/20 rounded-xl">
+                                    <div className="h-8 w-8 rounded-lg bg-teal-500/20 text-teal-300 flex items-center justify-center shrink-0">
+                                      <FileText size={16} />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                      <p className="font-bold truncate text-[11px]">{msg.file_name || msg.content}</p>
+                                      {msg.file_size && <p className="text-[9px] opacity-70">{msg.file_size}</p>}
+                                    </div>
+                                    <a
+                                      href={msg.file_url}
+                                      download={msg.file_name || "shared-file"}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="h-7 w-7 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center shrink-0 transition-colors"
+                                      title={isRTL ? "تحميل الملف" : "Download file"}
+                                    >
+                                      <Download size={13} />
+                                    </a>
+                                  </div>
+                                  {msg.content && !msg.content.includes("شارك ملفاً") && <p>{msg.content}</p>}
+                                </div>
+                              ) : (
+                                msg.content || msg.message_text
+                              )}
                             </div>
                           </div>
                         );
@@ -2137,17 +2231,53 @@ export default function VirtualClassroom() {
                     <div ref={messagesEndRef} />
                   </div>
 
-                  <div className="flex items-center gap-2 bg-[#1e1f22] p-1.5 rounded-2xl border border-white/10">
+                  {/* Attached file preview chip */}
+                  {attachedFile && (
+                    <div className="mb-2 p-2 bg-[#1e1f22] border border-teal-500/30 rounded-xl flex items-center justify-between gap-2 text-xs text-white">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <FileCheck size={14} className="text-teal-400 shrink-0" />
+                        <span className="truncate text-[11px] font-bold">{attachedFile.name}</span>
+                        <span className="text-[10px] text-stone-400 shrink-0">({attachedFile.size})</span>
+                      </div>
+                      <button
+                        onClick={() => setAttachedFile(null)}
+                        className="text-stone-400 hover:text-white p-1"
+                        title={isRTL ? "إلغاء الإرفاق" : "Remove"}
+                      >
+                        <X size={13} />
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Hidden file input */}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    className="hidden"
+                    onChange={handleFileUpload}
+                  />
+
+                  <div className="flex items-center gap-1.5 bg-[#1e1f22] p-1.5 rounded-2xl border border-white/10">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isUploadingFile}
+                      title={isRTL ? "مشاركة ملف أو صورة" : "Attach file or photo"}
+                      className="h-9 w-9 rounded-xl hover:bg-white/10 text-stone-400 hover:text-teal-300 flex items-center justify-center shrink-0 transition-all cursor-pointer"
+                    >
+                      <Paperclip size={16} />
+                    </button>
                     <Input
                       value={chatMessage}
                       onChange={(e) => setChatMessage(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
-                      placeholder={isRTL ? "إرسال رسالة إلى الجميع…" : "Send a message to everyone…"}
+                      placeholder={isRTL ? "إرسال رسالة أو ملف إلى الجميع…" : "Send a message or file to everyone…"}
                       className="border-none bg-transparent text-xs focus-visible:ring-0 text-white w-full placeholder:text-stone-500"
                     />
                     <button
                       onClick={handleSendMessage}
-                      className="h-9 w-9 rounded-xl bg-teal-500 hover:bg-teal-400 text-stone-950 flex items-center justify-center shrink-0 transition-all cursor-pointer shadow-md"
+                      disabled={!chatMessage.trim() && !attachedFile}
+                      className="h-9 w-9 rounded-xl bg-teal-500 hover:bg-teal-400 disabled:opacity-40 disabled:cursor-not-allowed text-stone-950 flex items-center justify-center shrink-0 transition-all cursor-pointer shadow-md"
                     >
                       <Send size={15} />
                     </button>
@@ -2235,6 +2365,89 @@ export default function VirtualClassroom() {
                     placeholder={isRTL ? "اكتب ملاحظات ونقاط الحصة هنا لتلخيصها للطلاب…" : "Write lesson notes here…"}
                     className="flex-1 w-full bg-[#1e1f22] rounded-2xl p-3.5 border border-white/10 text-xs text-stone-200 focus:outline-none focus:border-teal-500/50 resize-none font-sans leading-relaxed"
                   />
+                </motion.div>
+              )}
+
+              {activeTab === "files" && (
+                <motion.div
+                  key="files"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="h-full flex flex-col justify-between"
+                >
+                  <div className="space-y-3 flex-1 overflow-y-auto mb-3 pr-1">
+                    <div className="flex items-center justify-between pb-2 border-b border-white/10">
+                      <p className="text-[11px] font-bold text-stone-400 flex items-center gap-1.5">
+                        <FolderOpen size={13} className="text-teal-400" />
+                        <span>{isRTL ? "الملفات المشتركة في هذه الحصة" : "Files shared in call"}</span>
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isUploadingFile}
+                        className="text-[11px] font-bold text-teal-400 hover:text-teal-300 flex items-center gap-1 cursor-pointer bg-teal-500/10 hover:bg-teal-500/20 px-2.5 py-1 rounded-xl transition-all"
+                      >
+                        <Paperclip size={12} />
+                        <span>{isRTL ? "رفع ملف" : "Upload"}</span>
+                      </button>
+                    </div>
+
+                    {chatMessages.filter(m => m.file_url).length === 0 ? (
+                      <div className="flex flex-col items-center justify-center h-48 text-stone-500 text-center">
+                        <FolderOpen size={36} className="mb-2 opacity-30 text-teal-400" />
+                        <p className="text-xs font-bold text-stone-300">
+                          {isRTL ? "لا توجد ملفات مشاركة بعد" : "No files shared yet"}
+                        </p>
+                        <p className="text-[11px] text-stone-500 mt-1 max-w-[200px]">
+                          {isRTL ? "اضغط على زر رفع ملف لمشاركة الكتب أو أوراق العمل أو الصور مع الطلاب" : "Click upload to share PDFs, assignments, or slides with students"}
+                        </p>
+                      </div>
+                    ) : (
+                      chatMessages.filter(m => m.file_url).map((m, idx) => (
+                        <div
+                          key={m.id || idx}
+                          className="p-3 bg-[#3c4043]/60 hover:bg-[#3c4043] rounded-2xl border border-white/10 transition-all flex items-center justify-between gap-3"
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="h-9 w-9 rounded-xl bg-teal-500/20 text-teal-300 flex items-center justify-center shrink-0">
+                              {m.type === "image" ? <FileCheck size={18} /> : <FileText size={18} />}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-xs font-bold text-white truncate">{m.file_name || m.content}</p>
+                              <p className="text-[10px] text-stone-400">
+                                {m.sender_name} • {m.file_size || (m.type === "image" ? (isRTL ? "صورة" : "Image") : (isRTL ? "مستند" : "Document"))}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <a
+                              href={m.file_url}
+                              download={m.file_name || "lesson-file"}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="h-8 w-8 rounded-xl bg-white/10 hover:bg-white/20 text-white flex items-center justify-center cursor-pointer transition-colors"
+                              title={isRTL ? "تنزيل" : "Download"}
+                            >
+                              <Download size={14} />
+                            </a>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  <div className="p-3 bg-[#1e1f22] rounded-2xl border border-white/10 text-center">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isUploadingFile}
+                      className="w-full py-2.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md"
+                    >
+                      <Paperclip size={14} />
+                      <span>{isUploadingFile ? (isRTL ? "جارٍ التحميل..." : "Uploading...") : (isRTL ? "إرفاق ومشاركة ملف جديد" : "Attach & Share File")}</span>
+                    </button>
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>

@@ -24,7 +24,10 @@ import {
   Trophy,
   Award,
   Copy,
-  Send
+  Send,
+  Trash2,
+  PlayCircle,
+  X
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useLanguage } from "@/lib/LanguageContext";
@@ -125,6 +128,16 @@ export default function TeacherPortal() {
   const [meetingLink, setMeetingLink] = useState("");
   const [notifying, setNotifying] = useState(false);
   const [notifiedCount, setNotifiedCount] = useState(null);
+
+  // ── New virtual session creation form (in virtual-sessions tab) ──
+  const [newSessionTitle, setNewSessionTitle] = useState("");
+  const [newSessionSubject, setNewSessionSubject] = useState("");
+  const [newSessionGrade, setNewSessionGrade] = useState("");
+  const [newSessionScheduledAt, setNewSessionScheduledAt] = useState("");
+  const [isCreatingSession, setIsCreatingSession] = useState(false);
+  const [sessionToDelete, setSessionToDelete] = useState(null);
+  const [isDeletingSession, setIsDeletingSession] = useState(false);
+
 
   const [studentSearch, setStudentSearch] = useState("");
   const [selectedStudentForProfile, setSelectedStudentForProfile] = useState(null);
@@ -498,10 +511,68 @@ export default function TeacherPortal() {
     }
   };
 
+
   const { data: officialAnnouncements = [] } = useQuery({
     queryKey: ["official-announcements-teacher"],
     queryFn: () => entities.OfficialAnnouncement.list("-created_at")
   });
+
+  // ── Create a new virtual session directly from the virtual-sessions tab ──
+  const createDirectSession = async () => {
+    if (!newSessionTitle.trim()) {
+      toast.error(isRTL ? "يرجى إدخال عنوان الحصة" : "Please enter a session title");
+      return;
+    }
+    setIsCreatingSession(true);
+    try {
+      const teacherName = portalUser?.full_name || portalUser?.name || (isRTL ? "المعلم" : "Teacher");
+      const roomName = `session-${Math.random().toString(36).slice(2, 10)}`;
+      const created = await entities.VirtualSession.create({
+        title: newSessionTitle.trim(),
+        teacher_id: teacherId,
+        teacher_name: teacherName,
+        subject_name: newSessionSubject.trim() || newSessionTitle.trim(),
+        grade: newSessionGrade.trim(),
+        room_name: roomName,
+        scheduled_at: newSessionScheduledAt || new Date().toISOString(),
+        started_at: newSessionScheduledAt ? null : new Date().toISOString(),
+        status: newSessionScheduledAt ? "scheduled" : "active",
+        meet_link: "",
+      });
+      toast.success(isRTL ? "تم إنشاء الحصة بنجاح" : "Session created successfully");
+      setNewSessionTitle("");
+      setNewSessionSubject("");
+      setNewSessionGrade("");
+      setNewSessionScheduledAt("");
+      refetchMyVirtualSessions();
+      if (!newSessionScheduledAt && created?.id) {
+        setTimeout(() => navigate(`/virtual-classroom/${created.id}`), 600);
+      }
+    } catch (err) {
+      console.error("Failed to create session:", err);
+      toast.error(isRTL ? "تعذر إنشاء الحصة" : "Failed to create session");
+    } finally {
+      setIsCreatingSession(false);
+    }
+  };
+
+  // ── Delete a virtual session ──
+  const deleteSession = async (sessionId) => {
+    setIsDeletingSession(true);
+    try {
+      await entities.VirtualSession.delete(sessionId);
+      toast.success(isRTL ? "تم حذف الحصة" : "Session deleted");
+      setSessionToDelete(null);
+      refetchMyVirtualSessions();
+    } catch (err) {
+      console.error("Failed to delete session:", err);
+      toast.error(isRTL ? "تعذر حذف الحصة" : "Failed to delete session");
+    } finally {
+      setIsDeletingSession(false);
+    }
+  };
+
+
 
   const teacherAnnouncements = React.useMemo(() => {
     return officialAnnouncements.filter(a => a.target_audience === "teachers" || a.target_audience === "all");
@@ -749,12 +820,101 @@ export default function TeacherPortal() {
             <div className="space-y-6">
               <PageHeader
                 title={isRTL ? "حصصي الافتراضية" : "My Virtual Classes"}
-                subtitle={isRTL ? "الحصص التي أنشأتها (جارية، مجدولة، منتهية)" : "Classes you created (live, scheduled, ended)"}
+                subtitle={isRTL ? "أنشئ حصصاً جديدة وأدر حصصك الحالية والمجدولة" : "Create new sessions and manage your live, scheduled, and ended classes"}
               >
                 <button onClick={() => setActiveTab("classes")} className={`${btnOutline} h-11 px-5 rounded-xl`}>
                   {isRTL ? "العودة" : "Back"}
                 </button>
               </PageHeader>
+
+              {/* ── New Session Creation Form ── */}
+              <Card className="p-6 bg-gradient-to-br from-teal-50 to-emerald-50 border border-teal-100 rounded-[32px] space-y-4">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="h-10 w-10 rounded-xl bg-teal-500 text-white flex items-center justify-center">
+                    <PlayCircle size={20} />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-stone-900 text-base">{isRTL ? "إنشاء حصة افتراضية جديدة" : "Create New Virtual Session"}</h3>
+                    <p className="text-xs text-stone-500">{isRTL ? "ابدأ حصة مباشرة الآن أو جدولها لوقت لاحق" : "Start an instant session now or schedule it for later"}</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-stone-600">{isRTL ? "عنوان الحصة *" : "Session Title *"}</label>
+                    <Input
+                      value={newSessionTitle}
+                      onChange={e => setNewSessionTitle(e.target.value)}
+                      placeholder={isRTL ? "مثال: درس الكيمياء - الفصل الأول" : "e.g. Chemistry Lesson - Chapter 1"}
+                      className="rounded-xl border-teal-200 bg-white focus:ring-teal-400/30"
+                      dir={isRTL ? "rtl" : "ltr"}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-stone-600">{isRTL ? "المادة" : "Subject"}</label>
+                    <Input
+                      value={newSessionSubject}
+                      onChange={e => setNewSessionSubject(e.target.value)}
+                      placeholder={isRTL ? "مثال: الكيمياء" : "e.g. Chemistry"}
+                      className="rounded-xl border-teal-200 bg-white focus:ring-teal-400/30"
+                      dir={isRTL ? "rtl" : "ltr"}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-stone-600">{isRTL ? "الصف الدراسي" : "Grade Level"}</label>
+                    <select
+                      id="new-session-grade"
+                      name="new_session_grade"
+                      value={newSessionGrade}
+                      onChange={e => setNewSessionGrade(e.target.value)}
+                      className="w-full bg-white border border-teal-200 rounded-xl h-10 px-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-teal-400/30"
+                      dir={isRTL ? "rtl" : "ltr"}
+                    >
+                      <option value="">{isRTL ? "-- اختر الصف --" : "-- Select Grade --"}</option>
+                      {classes.map(c => (
+                        <option key={c.id} value={c.grade_level}>
+                          {isRTL ? `الصف ${c.grade_level}` : `Grade ${c.grade_level}`} - {c.name}
+                        </option>
+                      ))}
+                      {[1,2,3,4,5,6,7,8,9,10,11,12].filter(g => !classes.some(c => String(c.grade_level) === String(g))).map(g => (
+                        <option key={g} value={g}>{isRTL ? `الصف ${g}` : `Grade ${g}`}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-stone-600">{isRTL ? "جدولة الحصة (اختياري)" : "Schedule for Later (optional)"}</label>
+                    <Input
+                      type="datetime-local"
+                      value={newSessionScheduledAt}
+                      onChange={e => setNewSessionScheduledAt(e.target.value)}
+                      className="rounded-xl border-teal-200 bg-white focus:ring-teal-400/30"
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-3 pt-1">
+                  <button
+                    onClick={createDirectSession}
+                    disabled={isCreatingSession || !newSessionTitle.trim()}
+                    className="flex-1 inline-flex items-center justify-center gap-2 h-11 rounded-xl bg-teal-600 text-white text-sm font-black hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-all"
+                  >
+                    <PlayCircle size={16} />
+                    {isCreatingSession
+                      ? (isRTL ? "جارٍ الإنشاء..." : "Creating...")
+                      : newSessionScheduledAt
+                        ? (isRTL ? "جدولة الحصة" : "Schedule Session")
+                        : (isRTL ? "بدء الحصة الآن" : "Start Session Now")}
+                  </button>
+                  {(newSessionTitle || newSessionSubject || newSessionGrade || newSessionScheduledAt) && (
+                    <button
+                      onClick={() => { setNewSessionTitle(""); setNewSessionSubject(""); setNewSessionGrade(""); setNewSessionScheduledAt(""); }}
+                      className="h-11 px-4 rounded-xl border border-stone-200 text-stone-500 hover:bg-stone-100 text-xs font-bold cursor-pointer"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+              </Card>
+
+              {/* ── Sessions List ── */}
               {loadingMyVirtualSessions ? (
                 <div className="space-y-3">
                   <div className="h-14 bg-stone-100 rounded-2xl animate-pulse" />
@@ -764,20 +924,62 @@ export default function TeacherPortal() {
                 <Card className="p-16 text-center border-dashed border-2 border-stone-200 bg-stone-50/50 text-stone-400 rounded-[40px]">
                   <Video size={48} className="mb-4 opacity-20 mx-auto" />
                   <p className="font-bold text-lg">{isRTL ? "لا توجد حصص افتراضية بعد" : "No virtual classes yet"}</p>
-                  <p className="text-sm mt-2">{isRTL ? "ابدأ حصة من «فصولي»" : "Start a class from 'My Classes'"}</p>
+                  <p className="text-sm mt-2">{isRTL ? "أنشئ حصتك الأولى من النموذج أعلاه" : "Create your first session using the form above"}</p>
                 </Card>
               ) : (
                 <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-bold text-stone-500">
+                      {isRTL ? `${myVirtualSessions.length} حصة` : `${myVirtualSessions.length} session(s)`}
+                    </p>
+                    {myVirtualSessions.some(s => s.status === "ended") && (
+                      <button
+                        onClick={async () => {
+                          const ended = myVirtualSessions.filter(s => s.status === "ended");
+                          if (!window.confirm(isRTL ? `هل تريد حذف ${ended.length} حصة منتهية؟` : `Delete ${ended.length} ended session(s)?`)) return;
+                          for (const s of ended) {
+                            try { await entities.VirtualSession.delete(s.id); } catch {}
+                          }
+                          refetchMyVirtualSessions();
+                          toast.success(isRTL ? "تم مسح الحصص المنتهية" : "Ended sessions cleared");
+                        }}
+                        className="text-xs font-bold text-rose-500 hover:text-rose-700 hover:bg-rose-50 px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5"
+                      >
+                        <Trash2 size={12} />
+                        {isRTL ? "مسح المنتهية" : "Clear Ended"}
+                      </button>
+                    )}
+                  </div>
                   {myVirtualSessions.map(s => (
                     <Card key={s.id} className="p-4 bg-white rounded-2xl border border-stone-100 flex items-center justify-between gap-4">
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="h-11 w-11 rounded-xl bg-stone-50 text-stone-600 flex items-center justify-center shrink-0">
+                        <div className={`h-11 w-11 rounded-xl flex items-center justify-center shrink-0 ${
+                          s.status === "active" ? "bg-emerald-50 text-emerald-600" :
+                          s.status === "scheduled" ? "bg-blue-50 text-blue-600" :
+                          "bg-stone-50 text-stone-400"
+                        }`}>
                           <Video size={20} />
                         </div>
                         <div className="min-w-0">
                           <p className="font-black text-sm truncate">{s.title}</p>
-                          <p className="text-xs text-stone-500 truncate">{s.subject_name || ""} • {s.grade || ""} • {s.status}</p>
-                          {s.scheduled_at && <p className="text-xs text-stone-400 mt-0.5">{s.scheduled_at}</p>}
+                          <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                            {s.subject_name && <span className="text-xs text-stone-500">{s.subject_name}</span>}
+                            {s.grade && <span className="text-xs text-stone-400">{isRTL ? `• الصف ${s.grade}` : `• Grade ${s.grade}`}</span>}
+                            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                              s.status === "active" ? "bg-emerald-100 text-emerald-700" :
+                              s.status === "scheduled" ? "bg-blue-100 text-blue-700" :
+                              "bg-stone-100 text-stone-500"
+                            }`}>
+                              {s.status === "active" ? (isRTL ? "مباشر" : "Live") :
+                               s.status === "scheduled" ? (isRTL ? "مجدولة" : "Scheduled") :
+                               (isRTL ? "منتهية" : "Ended")}
+                            </span>
+                          </div>
+                          {s.scheduled_at && (
+                            <p className="text-xs text-stone-400 mt-0.5">
+                              {new Date(s.scheduled_at).toLocaleString(isRTL ? "ar-SA" : "en-US")}
+                            </p>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
@@ -788,7 +990,7 @@ export default function TeacherPortal() {
                                 await entities.VirtualSession.update(s.id, { status: "ended", ended_at: new Date().toISOString() });
                                 refetchMyVirtualSessions();
                                 toast.success(isRTL ? "تم إنهاء الحصة" : "Session ended");
-                              } catch (e) {
+                              } catch {
                                 toast.error(isRTL ? "تعذر الإنهاء" : "Failed to end");
                               }
                             }}
@@ -803,12 +1005,49 @@ export default function TeacherPortal() {
                         >
                           {isRTL ? "دخول" : "Open"}
                         </button>
+                        <button
+                          onClick={() => setSessionToDelete(s)}
+                          className="h-9 w-9 flex items-center justify-center rounded-xl border border-rose-100 text-rose-400 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 cursor-pointer transition-all"
+                          title={isRTL ? "حذف الحصة" : "Delete session"}
+                        >
+                          <Trash2 size={14} />
+                        </button>
                       </div>
                     </Card>
                   ))}
                 </div>
               )}
+
+              {/* ── Delete Confirmation Dialog ── */}
+              <Dialog open={!!sessionToDelete} onOpenChange={open => !open && setSessionToDelete(null)}>
+                <DialogContent className="rounded-3xl">
+                  <DialogHeader>
+                    <DialogTitle>{isRTL ? "تأكيد الحذف" : "Confirm Delete"}</DialogTitle>
+                    <DialogDescription>
+                      {isRTL
+                        ? `هل أنت متأكد من حذف الحصة "${sessionToDelete?.title}"؟ لا يمكن التراجع عن هذا الإجراء.`
+                        : `Are you sure you want to delete "${sessionToDelete?.title}"? This action cannot be undone.`}
+                    </DialogDescription>
+                  </DialogHeader>
+                  <DialogFooter className="flex gap-2 justify-end">
+                    <button
+                      onClick={() => setSessionToDelete(null)}
+                      className={`${btnOutline} h-10 px-5 rounded-xl text-sm`}
+                    >
+                      {isRTL ? "إلغاء" : "Cancel"}
+                    </button>
+                    <button
+                      onClick={() => deleteSession(sessionToDelete?.id)}
+                      disabled={isDeletingSession}
+                      className="h-10 px-5 rounded-xl bg-rose-600 text-white text-sm font-black hover:bg-rose-700 disabled:opacity-50 cursor-pointer"
+                    >
+                      {isDeletingSession ? (isRTL ? "جارٍ الحذف..." : "Deleting...") : (isRTL ? "حذف" : "Delete")}
+                    </button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </div>
+
           ) : activeTab === "videos" ? (
             <div className="space-y-8">
               <RecordedVideosManager
