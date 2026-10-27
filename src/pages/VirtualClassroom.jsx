@@ -965,8 +965,23 @@ export default function VirtualClassroom() {
     wsSignaling.onRoomUsers((existingPeers) => {
       console.log("[WebRTC] Roster received:", existingPeers);
       existingPeers.forEach((p) => {
-        if (p.userId && String(p.userId) !== String(userId)) {
-          getOrCreatePC(p.userId);
+        if (!p.userId || String(p.userId) === String(userId)) return;
+        getOrCreatePC(p.userId);
+        // Deterministic offer initiation: the lexicographically smaller userId
+        // creates the offer. The newcomer initiates when it is the smaller peer,
+        // otherwise it waits for the existing peer's offer (handled in onUserJoined).
+        if (String(userId) < String(p.userId)) {
+          const offerKey = `${userId}->${p.userId}`;
+          if (offersInitiated.current.has(offerKey)) return;
+          const pc = getOrCreatePC(p.userId);
+          if (pc.signalingState !== "stable") return;
+          offersInitiated.current.add(offerKey);
+          pc.createOffer()
+            .then((offer) => pc.setLocalDescription(offer).then(() => sendSignal("OFFER", p.userId, offer)))
+            .catch((err) => {
+              console.error("Manual offer failed:", err);
+              offersInitiated.current.delete(offerKey);
+            });
         }
       });
     });
@@ -1988,8 +2003,8 @@ export default function VirtualClassroom() {
               <div className="relative flex items-center justify-center">
                 {micActive && micVolume > 0.05 && (
                   <span
-                    className="absolute inset-0 rounded-full border-2 border-emerald-400 animate-ping pointer-events-none"
-                    style={{ transform: `scale(${1 + Math.min(micVolume * 1.5, 0.8)})` }}
+                    className="absolute inset-0 rounded-full border-2 border-emerald-400 pointer-events-none transition-transform duration-75"
+                    style={{ transform: `scale(${1 + Math.min(micVolume * 1.5, 0.8)})`, opacity: Math.min(0.9, micVolume / 60) }}
                   />
                 )}
                 <button
