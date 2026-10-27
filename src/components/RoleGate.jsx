@@ -40,13 +40,13 @@ const isPathAllowed = (user, path) => {
 
   if (role === 'teacher') {
     const isIndependent = !schoolId;
-    if (isIndependent) return path.startsWith('/teacher-panel');
-    return path.startsWith('/teacher-portal');
+    if (isIndependent) return path.startsWith('/teacher-panel') || path.startsWith('/virtual-classroom');
+    return path.startsWith('/teacher-portal') || path.startsWith('/virtual-classroom');
   }
   if (role === 'student') {
     const isIndependent = !schoolId;
-    if (isIndependent) return path.startsWith('/student-panel') || path.startsWith('/store');
-    return path.startsWith('/student-portal') || path.startsWith('/store');
+    if (isIndependent) return path.startsWith('/student-panel') || path.startsWith('/store') || path.startsWith('/virtual-classroom');
+    return path.startsWith('/student-portal') || path.startsWith('/store') || path.startsWith('/virtual-classroom');
   }
   if (role === 'parent') return path.startsWith('/parent-portal') || path.startsWith('/store');
   if (role === 'bus' || role === 'bus_supervisor') {

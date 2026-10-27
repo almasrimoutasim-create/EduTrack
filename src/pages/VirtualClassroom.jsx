@@ -25,6 +25,8 @@ import { useWebRTCSignaling } from "@/hooks/useWebRTCSignaling";
 //  ICE Server Configuration will now be fetched from the backend API
 // ─────────────────────────────────────────────────────────────────────────────
 
+const EMPTY_ARR = [];
+
 export default function VirtualClassroom() {
   const { id } = useParams();
 
@@ -47,11 +49,16 @@ export default function VirtualClassroom() {
   const qc = useQueryClient();
   const { user } = useAuth();
 
-  // ── Auth ──────────────────────────────────────────────────────────────────
+  // ── Auth & Identity ────────────────────────────────────────────────────────
+  const storedUserStr = typeof window !== 'undefined' ? (localStorage.getItem("portal_user") || localStorage.getItem("user")) : null;
+  const storedUser = storedUserStr ? (() => { try { return JSON.parse(storedUserStr); } catch { return null; } })() : null;
+  const storedUserId = typeof window !== 'undefined' ? (localStorage.getItem("portal_user_id") || localStorage.getItem("user_id")) : null;
+  const storedUserName = typeof window !== 'undefined' ? (localStorage.getItem("portal_user_name") || localStorage.getItem("user_name")) : null;
+
   const fallbackId = useRef(`temp-${Math.random().toString(36).substr(2, 9)}`).current;
-  const role = user?.role || "student";
-  const userId = user?.id || fallbackId;
-  const userName = user?.full_name || (role === "teacher" ? "أ. أحمد" : "طالب زائر");
+  const role = user?.role || storedUser?.role || (window.location.pathname.includes("teacher") || localStorage.getItem("portal_type") === "teacher" ? "teacher" : "student");
+  const userId = user?.id || storedUser?.id || storedUserId || fallbackId;
+  const userName = user?.full_name || storedUser?.full_name || storedUser?.name || storedUserName || (role === "teacher" ? (isRTL ? "المعلم" : "Teacher") : (isRTL ? "طالب" : "Student"));
   const isTeacher = role === "teacher";
   const isAdmin = role === "admin" || role === "school_admin";
 
@@ -188,15 +195,17 @@ export default function VirtualClassroom() {
   // that could collide with real sessions. Use the actual id for room_name lookup.
   const sessionId = isValidUUID(id) ? id : `temp-${id}`;
 
-  const { data: dbStudents = [] } = useQuery({
+  const { data: dbStudentsRaw } = useQuery({
     queryKey: ["classroom-students"],
     queryFn: () => entities.Student.list("-created_at"),
   });
+  const dbStudents = dbStudentsRaw ?? EMPTY_ARR;
 
-  const { data: dbTeachers = [] } = useQuery({
+  const { data: dbTeachersRaw } = useQuery({
     queryKey: ["classroom-teachers"],
     queryFn: () => entities.Teacher.list("-created_at"),
   });
+  const dbTeachers = dbTeachersRaw ?? EMPTY_ARR;
 
   // Map of userId -> profile photo (photo_url on students/teachers tables).
   // Lets the teacher's photo show to students and vice-versa inside the room.
@@ -236,31 +245,37 @@ export default function VirtualClassroom() {
     retry: 1,
   });
 
-  const { data: activeParticipants = [], refetch: refetchParticipants } = useQuery({
-    queryKey: ["active-session-participants", sessionId],
-    queryFn: () => entities.SessionParticipant.filter({ session_id: sessionId }),
-    refetchInterval: 10000, // Reduced from 2.5s to 10s to reduce server load
-    enabled: !isDemo && !!sessionId && isValidUUID(sessionId), // Only refetch for valid UUID sessions
-  });
+  const effectiveSessionId = session?.id || id;
 
-  const { data: dbMessages = [] } = useQuery({
-    queryKey: ["room-messages", sessionId],
-    queryFn: () => entities.RoomMessage.filter({ room_id: sessionId }),
+  const { data: activeParticipantsRaw, refetch: refetchParticipants } = useQuery({
+    queryKey: ["active-session-participants", effectiveSessionId],
+    queryFn: () => entities.SessionParticipant.filter({ session_id: effectiveSessionId }),
+    refetchInterval: 5000,
+    enabled: !isDemo && !!effectiveSessionId,
+  });
+  const activeParticipants = activeParticipantsRaw ?? EMPTY_ARR;
+
+  const { data: dbMessagesRaw } = useQuery({
+    queryKey: ["room-messages", effectiveSessionId],
+    queryFn: () => entities.RoomMessage.filter({ room_id: effectiveSessionId }),
     refetchInterval: 1500,
-    enabled: !isDemo && !!sessionId && isValidUUID(sessionId), // Only fetch messages for valid UUID sessions
+    enabled: !isDemo && !!effectiveSessionId,
   });
+  const dbMessages = dbMessagesRaw ?? EMPTY_ARR;
 
-  const { data: teacherSubjects = [] } = useQuery({
+  const { data: teacherSubjectsRaw } = useQuery({
     queryKey: ["teacher-subjects-all"],
     queryFn: () => entities.Subject.list("-created_at"),
     enabled: isDemo,
   });
+  const teacherSubjects = teacherSubjectsRaw ?? EMPTY_ARR;
 
-  const { data: virtualSessions = [], refetch: refetchSessions } = useQuery({
+  const { data: virtualSessionsRaw, refetch: refetchSessions } = useQuery({
     queryKey: ["virtual-sessions"],
     queryFn: () => entities.VirtualSession.list("-created_at"),
     enabled: isDemo,
   });
+  const virtualSessions = virtualSessionsRaw ?? EMPTY_ARR;
 
   const [newSession, setNewSession] = useState({
     title: "",
@@ -421,21 +436,19 @@ export default function VirtualClassroom() {
   //  DB participant registration
   // ─────────────────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (isDemo) return;
-    // Skip DB registration for temp/invalid session IDs
-    if (!isValidUUID(sessionId)) return;
+    if (isDemo || !effectiveSessionId) return;
     
     let active = true;
     let participantId = null;
 
     const register = async () => {
       try {
-        const existing = await entities.SessionParticipant.filter({ session_id: sessionId, user_id: userId });
-        for (const p of existing.filter((p) => !p.left_at)) {
+        const existing = await entities.SessionParticipant.filter({ session_id: effectiveSessionId, user_id: userId }).catch(() => []);
+        for (const p of (existing || []).filter((p) => !p.left_at)) {
           await entities.SessionParticipant.update(p.id, { left_at: new Date().toISOString() }).catch(() => {});
         }
         const res = await entities.SessionParticipant.create({
-          session_id: sessionId,
+          session_id: effectiveSessionId,
           user_id: userId,
           user_name: userName,
           role,
@@ -443,6 +456,9 @@ export default function VirtualClassroom() {
           mic_active: micActive,
           video_active: videoActive,
           hand_raised: handRaised,
+        }).catch((err) => {
+          console.warn("[VirtualClassroom] Register participant error:", err);
+          return null;
         });
         if (res?.id && active) { participantId = res.id; setMyParticipantId(res.id); }
         refetchParticipants();
@@ -458,7 +474,7 @@ export default function VirtualClassroom() {
         entities.SessionParticipant.update(participantId, { left_at: new Date().toISOString() }).catch(() => {});
       }
     };
-  }, [sessionId, userId, userName, role, isDemo]);
+  }, [effectiveSessionId, userId, userName, role, isDemo]);
 
   // ─────────────────────────────────────────────────────────────────────────
   //  Local media stream
@@ -1239,7 +1255,7 @@ export default function VirtualClassroom() {
   // ─────────────────────────────────────────────────────────────────────────
   //  Controls & File Sharing
   // ─────────────────────────────────────────────────────────────────────────
-  const handleFileUpload = (e) => {
+  const handleFileUpload = async (e, autoSend = false) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -1250,15 +1266,39 @@ export default function VirtualClassroom() {
 
     setIsUploadingFile(true);
     const reader = new FileReader();
-    reader.onload = (event) => {
-      setAttachedFile({
+    reader.onload = async (event) => {
+      const fileData = {
         name: file.name,
         type: file.type,
         size: (file.size / 1024).toFixed(1) + " KB",
         dataUrl: event.target.result,
-      });
-      setIsUploadingFile(false);
-      toast.success(isRTL ? `تم إرفاق: ${file.name}` : `Attached: ${file.name}`);
+      };
+
+      if (autoSend) {
+        try {
+          await entities.RoomMessage.create({
+            room_id: effectiveSessionId,
+            sender_name: userName,
+            sender_id: userId,
+            content: `${isRTL ? "شارك ملفاً" : "shared a file"}: ${file.name}`,
+            type: file.type.startsWith("image/") ? "image" : "file",
+            file_url: fileData.dataUrl,
+            file_name: fileData.name,
+            file_size: fileData.size,
+          });
+          qc.invalidateQueries({ queryKey: ["room-messages", effectiveSessionId] });
+          toast.success(isRTL ? `تمت مشاركة الملف: ${file.name}` : `Shared file: ${file.name}`);
+        } catch (err) {
+          console.error("Auto file upload failed:", err);
+          toast.error(isRTL ? "تعذر حفظ الملف المشترك" : "Failed to share file");
+        } finally {
+          setIsUploadingFile(false);
+        }
+      } else {
+        setAttachedFile(fileData);
+        setIsUploadingFile(false);
+        toast.success(isRTL ? `تم إرفاق: ${file.name}` : `Attached: ${file.name}`);
+      }
     };
     reader.onerror = () => {
       setIsUploadingFile(false);
@@ -1277,7 +1317,7 @@ export default function VirtualClassroom() {
 
     try {
       await entities.RoomMessage.create({
-        room_id: sessionId,
+        room_id: effectiveSessionId,
         sender_name: userName,
         sender_id: userId,
         content: text || (currentAttachment ? `${isRTL ? "شارك ملفاً" : "shared a file"}: ${currentAttachment.name}` : ""),
@@ -1286,7 +1326,8 @@ export default function VirtualClassroom() {
         file_name: currentAttachment?.name || "",
         file_size: currentAttachment?.size || "",
       });
-      qc.invalidateQueries({ queryKey: ["room-messages", sessionId] });
+      qc.invalidateQueries({ queryKey: ["room-messages", effectiveSessionId] });
+      toast.success(isRTL ? "تم الإرسال والمشاركة بنجاح" : "Message/file shared successfully");
     } catch (err) {
       console.error("Message send failed:", err);
       toast.error(isRTL ? "فشل إرسال الرسالة أو الملف" : "Failed to send message/file");
@@ -2438,14 +2479,20 @@ export default function VirtualClassroom() {
                   </div>
 
                   <div className="p-3 bg-[#1e1f22] rounded-2xl border border-white/10 text-center">
+                    <input
+                      id="files-tab-file-input"
+                      type="file"
+                      className="hidden"
+                      onChange={(e) => handleFileUpload(e, true)}
+                    />
                     <button
                       type="button"
-                      onClick={() => fileInputRef.current?.click()}
+                      onClick={() => document.getElementById("files-tab-file-input")?.click()}
                       disabled={isUploadingFile}
                       className="w-full py-2.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md"
                     >
                       <Paperclip size={14} />
-                      <span>{isUploadingFile ? (isRTL ? "جارٍ التحميل..." : "Uploading...") : (isRTL ? "إرفاق ومشاركة ملف جديد" : "Attach & Share File")}</span>
+                      <span>{isUploadingFile ? (isRTL ? "جارٍ الرفع والمشاركة..." : "Uploading & Sharing...") : (isRTL ? "إرفاق ومشاركة ملف جديد" : "Attach & Share File")}</span>
                     </button>
                   </div>
                 </motion.div>
