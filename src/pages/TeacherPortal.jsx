@@ -957,14 +957,14 @@ export default function TeacherPortal() {
                       dir="ltr"
                     />
                     <div className="flex flex-wrap items-center gap-2 pt-1">
-                      <button
-                        type="button"
-                        onClick={() => window.open('https://meet.google.com/new', '_blank', 'noopener,noreferrer')}
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 px-3 py-1.5 text-xs font-bold transition-all cursor-pointer"
-                      >
-                        <Video size={13} />
-                        {isRTL ? 'إنشاء Google Meet (نسخ الرابط هنا)' : 'Create Google Meet (copy URL here)'}
-                      </button>
+
+
+
+
+
+
+
+
                       <button
                         type="button"
                         onClick={() => {
@@ -984,8 +984,7 @@ export default function TeacherPortal() {
                   </div>
                 </div>
                 <div className="flex gap-3 pt-1">
-                  <button
-                    onClick={createDirectSession}
+                  <button type="button"
                     disabled={isCreatingSession || !newSessionTitle.trim()}
                     className="flex-1 inline-flex items-center justify-center gap-2 h-11 rounded-xl bg-teal-600 text-white text-sm font-black hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-all shadow-md shadow-teal-600/20"
                   >

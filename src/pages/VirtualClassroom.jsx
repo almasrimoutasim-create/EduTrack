@@ -1524,7 +1524,7 @@ export default function VirtualClassroom() {
                     <label className="text-[10px] font-bold text-stone-200 uppercase block mb-1.5">{isRTL ? "رابط الاجتماع المخصص (Google Meet / Zoom)" : "Direct Meeting URL (Google Meet / Zoom)"}</label>
                     <Input placeholder={isRTL ? "مثال: https://meet.google.com/..." : "https://meet.google.com/..."} value={newSession.meeting_url || ""} onChange={(e) => setNewSession({ ...newSession, meeting_url: e.target.value })} className="!bg-stone-850 !text-white border-white/5 text-xs rounded-xl font-mono" dir="ltr" style={{ backgroundColor: "#1c1917", color: "#ffffff" }} />
                   </div>
-                  <button
+                  <button type="button"
                     onClick={openLiveClass}
                     className="w-full h-11 bg-teal-500 hover:bg-teal-400 text-stone-950 font-black rounded-xl text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
                   >
