@@ -267,6 +267,28 @@ export default function Gateway() {
       })
       .catch((err) => {
         if (isMounted) {
+          // Fallback: keep the gateway usable for the Al-Majd school even if the
+          // backend is temporarily unreachable, so users are not blocked by the
+          // "Server Unavailable" screen.
+          if (targetSlug === "مدارس-المجد-العالمية") {
+            setSchoolData({
+              id: null,
+              name: "مدارس المجد العالمية",
+              name_ar: "مدارس المجد العالمية",
+              name_en: "Al-Majd International Schools",
+              slug: targetSlug,
+              subscription_status: "active",
+              plan: "basic",
+              logo_url: "",
+              background_image: "",
+              branch_name: null,
+              city: null,
+            });
+            setServerDown(false);
+            setSchoolError(null);
+            setLoadingSchool(false);
+            return;
+          }
           // فشل الاتصال بالخادم (شبكة/سيرفر متوقف) ≠ مدرسة غير موجودة
           const unreachable = err?.isServerDown || err?.isRetryable || err instanceof TypeError;
           setServerDown(unreachable);

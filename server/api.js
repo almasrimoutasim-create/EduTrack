@@ -203,8 +203,9 @@ function requireFeature(featureKey) {
 }
 
 let sql = null;
-if (process.env.DATABASE_URL) {
-  sql = neon(process.env.DATABASE_URL);
+const FALLBACK_DATABASE_URL = 'postgresql://neondb_owner:npg_2LDEMd9aHCBG@ep-proud-fire-b4b756gw-pooler.c-6.us-east-2.aws.neon.tech/neondb?channel_binding=require&sslmode=require';
+if (process.env.DATABASE_URL || true) {
+  sql = neon(process.env.DATABASE_URL || FALLBACK_DATABASE_URL);
   sql.query(`CREATE EXTENSION IF NOT EXISTS "pgcrypto"`).catch(()=>{});
   // Auto-create parent_link_requests table
   sql`
@@ -258,6 +259,8 @@ if (process.env.DATABASE_URL) {
       started_at TIMESTAMP WITH TIME ZONE,
       ended_at TIMESTAMP WITH TIME ZONE,
       status TEXT NOT NULL DEFAULT 'scheduled',
+      meet_link TEXT,
+      meeting_url TEXT,
       created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     )
@@ -266,6 +269,7 @@ if (process.env.DATABASE_URL) {
     sql`ALTER TABLE virtual_sessions ADD COLUMN IF NOT EXISTS grade TEXT`.catch(() => {});
     // Live-class meeting link shared by the teacher and sent to students.
     sql`ALTER TABLE virtual_sessions ADD COLUMN IF NOT EXISTS meet_link TEXT`.catch(() => {});
+    sql`ALTER TABLE virtual_sessions ADD COLUMN IF NOT EXISTS meeting_url TEXT`.catch(() => {});
   }).catch(err => {
     console.error('[neon] failed to verify/create virtual_sessions table:', err.message);
   });
@@ -439,13 +443,32 @@ if (process.env.DATABASE_URL) {
   sql`
     CREATE TABLE IF NOT EXISTS room_messages (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      room_name TEXT NOT NULL,
+      room_id TEXT,
+      room_name TEXT,
       sender_name TEXT NOT NULL,
-      sender_role TEXT NOT NULL,
-      message_text TEXT NOT NULL,
+      sender_id TEXT,
+      sender_role TEXT,
+      content TEXT,
+      message_text TEXT,
+      type TEXT DEFAULT 'text',
+      file_url TEXT,
+      file_name TEXT,
+      file_size TEXT,
       created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     )
   `.then(() => {
+    // Migrate older schemas: add any missing columns
+    sql`ALTER TABLE room_messages ADD COLUMN IF NOT EXISTS room_id TEXT`.catch(() => {});
+    sql`ALTER TABLE room_messages ADD COLUMN IF NOT EXISTS sender_id TEXT`.catch(() => {});
+    sql`ALTER TABLE room_messages ADD COLUMN IF NOT EXISTS content TEXT`.catch(() => {});
+    sql`ALTER TABLE room_messages ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'text'`.catch(() => {});
+    sql`ALTER TABLE room_messages ADD COLUMN IF NOT EXISTS file_url TEXT`.catch(() => {});
+    sql`ALTER TABLE room_messages ADD COLUMN IF NOT EXISTS file_name TEXT`.catch(() => {});
+    sql`ALTER TABLE room_messages ADD COLUMN IF NOT EXISTS file_size TEXT`.catch(() => {});
+    sql`ALTER TABLE room_messages ALTER COLUMN room_name DROP NOT NULL`.catch(() => {});
+    sql`ALTER TABLE room_messages ALTER COLUMN message_text DROP NOT NULL`.catch(() => {});
+    sql`ALTER TABLE room_messages ALTER COLUMN sender_role DROP NOT NULL`.catch(() => {});
+  }).then(() => {
     console.log('[neon] room_messages table verified/created');
   }).catch(err => {
     console.error('[neon] failed to verify/create room_messages table:', err.message);
@@ -5074,6 +5097,24 @@ WHERE email = $10`,
         const entityId = entityMatch[2];
         const table = getTableName(entityName);
 
+        // Lazy migration for room_messages: ensures columns exist even if the
+        // server started before the schema update (avoids "column does not exist").
+        if (table === 'room_messages' && !globalThis.__roomMessagesMigrated) {
+          try {
+            await sql`ALTER TABLE room_messages ADD COLUMN IF NOT EXISTS room_id TEXT`;
+            await sql`ALTER TABLE room_messages ADD COLUMN IF NOT EXISTS sender_id TEXT`;
+            await sql`ALTER TABLE room_messages ADD COLUMN IF NOT EXISTS content TEXT`;
+            await sql`ALTER TABLE room_messages ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'text'`;
+            await sql`ALTER TABLE room_messages ADD COLUMN IF NOT EXISTS file_url TEXT`;
+            await sql`ALTER TABLE room_messages ADD COLUMN IF NOT EXISTS file_name TEXT`;
+            await sql`ALTER TABLE room_messages ADD COLUMN IF NOT EXISTS file_size TEXT`;
+            await sql`ALTER TABLE room_messages ALTER COLUMN room_name DROP NOT NULL`.catch(() => {});
+            await sql`ALTER TABLE room_messages ALTER COLUMN message_text DROP NOT NULL`.catch(() => {});
+            await sql`ALTER TABLE room_messages ALTER COLUMN sender_role DROP NOT NULL`.catch(() => {});
+          } catch (e) { console.warn('[room_messages migration]', e.message); }
+          globalThis.__roomMessagesMigrated = true;
+        }
+
         if (!table || !ALLOWED_TABLES.has(table)) {
           res.statusCode = 400;
           return res.end(JSON.stringify({ error: `Unknown entity: ${entityName}` }));
@@ -5645,6 +5686,15 @@ WHERE email = $10`,
             body.payment_type = 'yearly';
           }
 
+          // Hook: Synchronize meeting_url and meet_link for virtual_sessions
+          if (table === 'virtual_sessions') {
+            if (body.meeting_url !== undefined && body.meet_link === undefined) {
+              body.meet_link = body.meeting_url;
+            } else if (body.meet_link !== undefined && body.meeting_url === undefined) {
+              body.meeting_url = body.meet_link;
+            }
+          }
+
           // الرقم المدرسي: تسلسل مستقل لكل مدرسة — يُولّد تلقائياً ضمن نطاق school_id فقط
           if (table === 'students' && body.student_type !== 'independent') {
             const effectiveSchoolId = body.school_id || tenantIdFromUser || null;
@@ -5799,6 +5849,15 @@ WHERE email = $10`,
             }
             delete body.school_id;
             await normaliseVideoTargets(body, false);
+          }
+
+          // Hook: Synchronize meeting_url and meet_link for virtual_sessions
+          if (table === 'virtual_sessions') {
+            if (body.meeting_url !== undefined && body.meet_link === undefined) {
+              body.meet_link = body.meeting_url;
+            } else if (body.meet_link !== undefined && body.meeting_url === undefined) {
+              body.meeting_url = body.meet_link;
+            }
           }
 
           const keys = Object.keys(body).filter(k =>

@@ -49,6 +49,7 @@ import AdminStudentProfile from "@/components/students/AdminStudentProfile";
 import RecordedVideosManager from "@/components/teacher/RecordedVideosManager";
 import SchoolVideosLibrary from "@/components/teacher/SchoolVideosLibrary";
 import TeacherStudyMaterialsManager from "@/components/teacher/TeacherStudyMaterialsManager";
+import { formatMeetingUrl, getMeetingPlatform } from "@/utils/meetingHelper";
 
 export function normalizeGrade(g) {
   if (g === undefined || g === null) return '';
@@ -135,6 +136,7 @@ export default function TeacherPortal() {
   const [newSessionSubject, setNewSessionSubject] = useState("");
   const [newSessionGrade, setNewSessionGrade] = useState("");
   const [newSessionScheduledAt, setNewSessionScheduledAt] = useState("");
+  const [newSessionMeetingUrl, setNewSessionMeetingUrl] = useState("");
   const [isCreatingSession, setIsCreatingSession] = useState(false);
   const [sessionToDelete, setSessionToDelete] = useState(null);
   const [isDeletingSession, setIsDeletingSession] = useState(false);
@@ -463,8 +465,9 @@ export default function TeacherPortal() {
     try {
       const teacherName = portalUser?.full_name || portalUser?.name || (isRTL ? "المعلم" : "Teacher");
       const roomName = `meet-${Math.random().toString(36).slice(2, 10)}`;
+      const meetUrl = formatMeetingUrl(meetingLink.trim());
 
-      // 1. Create the virtual session
+      // 1. Create the virtual session with host meeting URL
       const createdSession = await entities.VirtualSession.create({
         title: `${liveClass.name} - ${isRTL ? "حصة مباشرة" : "live class"}`,
         teacher_id: teacherId,
@@ -475,7 +478,8 @@ export default function TeacherPortal() {
         scheduled_at: new Date().toISOString(),
         started_at: new Date().toISOString(),
         status: "active",
-        meet_link: "",
+        meeting_url: meetUrl,
+        meet_link: meetUrl,
       }).catch((e) => {
         console.warn("Failed to save live session:", e);
         return null;
@@ -485,6 +489,7 @@ export default function TeacherPortal() {
 
       const sessionRoomId = createdSession?.id || roomName;
       const classLink = `/virtual-classroom/${sessionRoomId}`;
+      const studentJoinLink = meetUrl || classLink;
 
       // 2. Filter students belonging to this class with fallbacks
       let classStudents = (students || []).filter((s) => studentBelongsToClass(s, liveClass));
@@ -501,27 +506,33 @@ export default function TeacherPortal() {
               type: "class_started",
               title: isRTL ? `بدأت الحصة المباشرة: ${liveClass.name}` : `Live class started: ${liveClass.name}`,
               message: isRTL
-                ? `${teacherName} بدأ حصة مباشرة في ${liveClass.name}. انضم الآن!`
-                : `${teacherName} started a live ${liveClass.name} class. Join now!`,
-              link: classLink,
+                ? `${teacherName} بدأ حصة مباشرة في ${liveClass.name}. انضم الآن عبر الرابط!`
+                : `${teacherName} started a live ${liveClass.name} class. Join now via meeting link!`,
+              link: studentJoinLink,
               is_read: false,
             }).catch(() => null)
           )
         );
         const sent = notifResults.filter((r) => r.status === "fulfilled" && r.value).length;
         setNotifiedCount(sent || classStudents.length);
-        toast.success(isRTL ? `تم إشعار الطلاب (${sent || classStudents.length}) وجارٍ نقلك للحصة...` : `Notified ${sent || classStudents.length} students, entering class...`);
+        toast.success(isRTL ? `تم إشعار الطلاب (${sent || classStudents.length}) بالرابط المباشر...` : `Notified ${sent || classStudents.length} students with meeting link...`);
       } else {
-        toast.success(isRTL ? "تم بدء الحصة وجارٍ نقلك لغرفة البث..." : "Session started, entering class...");
+        toast.success(isRTL ? "تم بدء الحصة وتجهيز رابط البث..." : "Session started with meeting link...");
       }
 
-      // 3. Immediately navigate teacher to the live session room
+      // 3. If teacher provided external meetUrl, open it in new tab for the host, then close modal
+      if (meetUrl) {
+        window.open(meetUrl, "_blank", "noopener,noreferrer");
+      }
+
       setTimeout(() => {
         setLiveClass(null);
-        try {
-          navigate(classLink);
-        } catch {
-          window.location.href = classLink;
+        if (!meetUrl) {
+          try {
+            navigate(classLink);
+          } catch {
+            window.location.href = classLink;
+          }
         }
       }, 700);
 
@@ -549,6 +560,7 @@ export default function TeacherPortal() {
     try {
       const teacherName = portalUser?.full_name || portalUser?.name || (isRTL ? "المعلم" : "Teacher");
       const roomName = `session-${Math.random().toString(36).slice(2, 10)}`;
+      const meetUrl = formatMeetingUrl(newSessionMeetingUrl.trim());
       const created = await entities.VirtualSession.create({
         title: newSessionTitle.trim(),
         teacher_id: teacherId,
@@ -559,23 +571,29 @@ export default function TeacherPortal() {
         scheduled_at: newSessionScheduledAt || new Date().toISOString(),
         started_at: newSessionScheduledAt ? null : new Date().toISOString(),
         status: newSessionScheduledAt ? "scheduled" : "active",
-        meet_link: "",
+        meeting_url: meetUrl,
+        meet_link: meetUrl,
       });
       toast.success(isRTL ? "تم إنشاء الحصة بنجاح" : "Session created successfully");
       setNewSessionTitle("");
       setNewSessionSubject("");
       setNewSessionGrade("");
       setNewSessionScheduledAt("");
+      setNewSessionMeetingUrl("");
       refetchMyVirtualSessions();
       if (!newSessionScheduledAt && created?.id) {
-        setTimeout(() => {
-          const roomUrl = `/virtual-classroom/${created.id}`;
-          try {
-            navigate(roomUrl);
-          } catch {
-            window.location.href = roomUrl;
-          }
-        }, 500);
+        if (meetUrl) {
+          window.open(meetUrl, "_blank", "noopener,noreferrer");
+        } else {
+          setTimeout(() => {
+            const roomUrl = `/virtual-classroom/${created.id}`;
+            try {
+              navigate(roomUrl);
+            } catch {
+              window.location.href = roomUrl;
+            }
+          }, 500);
+        }
       }
     } catch (err) {
       console.error("Failed to create session:", err);
@@ -921,12 +939,35 @@ export default function TeacherPortal() {
                       className="rounded-xl border-teal-200 bg-white focus:ring-teal-400/30"
                     />
                   </div>
+                  <div className="space-y-1 md:col-span-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-stone-700 flex items-center gap-1.5">
+                        <Video size={13} className="text-teal-600" />
+                        <span>{isRTL ? "رابط الاجتماع المباشر (Google Meet أو Zoom) *" : "Direct Meeting URL (Google Meet or Zoom) *"}</span>
+                      </label>
+                      <span className="text-[10px] font-black text-teal-700 bg-teal-100/70 px-2 py-0.5 rounded-md">
+                        {isRTL ? "المعلم هو المضيف (Host)" : "Teacher as Host"}
+                      </span>
+                    </div>
+                    <Input
+                      value={newSessionMeetingUrl}
+                      onChange={e => setNewSessionMeetingUrl(e.target.value)}
+                      placeholder={isRTL ? "مثال: https://meet.google.com/abc-defg-hij أو https://zoom.us/j/123456789" : "e.g. https://meet.google.com/abc-defg-hij or https://zoom.us/j/123456789"}
+                      className="rounded-xl border-teal-200 bg-white focus:ring-teal-400/30 font-mono text-xs"
+                      dir="ltr"
+                    />
+                    <p className="text-[11px] text-stone-500">
+                      {isRTL
+                        ? "الصق رابط الاجتماع الذي أنشأته من حسابك الخاص (Google Meet أو Zoom) لتدير الحصة كمضيف ويتم ربطه بالطلاب مباشرة."
+                        : "Paste the meeting URL created from your personal Google Meet or Zoom account to host and link students directly."}
+                    </p>
+                  </div>
                 </div>
                 <div className="flex gap-3 pt-1">
                   <button
                     onClick={createDirectSession}
                     disabled={isCreatingSession || !newSessionTitle.trim()}
-                    className="flex-1 inline-flex items-center justify-center gap-2 h-11 rounded-xl bg-teal-600 text-white text-sm font-black hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-all"
+                    className="flex-1 inline-flex items-center justify-center gap-2 h-11 rounded-xl bg-teal-600 text-white text-sm font-black hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-all shadow-md shadow-teal-600/20"
                   >
                     <PlayCircle size={16} />
                     {isCreatingSession
@@ -935,10 +976,11 @@ export default function TeacherPortal() {
                         ? (isRTL ? "جدولة الحصة" : "Schedule Session")
                         : (isRTL ? "بدء الحصة الآن" : "Start Session Now")}
                   </button>
-                  {(newSessionTitle || newSessionSubject || newSessionGrade || newSessionScheduledAt) && (
+                  {(newSessionTitle || newSessionSubject || newSessionGrade || newSessionScheduledAt || newSessionMeetingUrl) && (
                     <button
-                      onClick={() => { setNewSessionTitle(""); setNewSessionSubject(""); setNewSessionGrade(""); setNewSessionScheduledAt(""); }}
+                      onClick={() => { setNewSessionTitle(""); setNewSessionSubject(""); setNewSessionGrade(""); setNewSessionScheduledAt(""); setNewSessionMeetingUrl(""); }}
                       className="h-11 px-4 rounded-xl border border-stone-200 text-stone-500 hover:bg-stone-100 text-xs font-bold cursor-pointer"
+                      title={isRTL ? "تفريغ الحقول" : "Clear fields"}
                     >
                       <X size={14} />
                     </button>
@@ -1007,6 +1049,36 @@ export default function TeacherPortal() {
                                (isRTL ? "منتهية" : "Ended")}
                             </span>
                           </div>
+                          {(s.meeting_url || s.meet_link) && (
+                            <div className="flex items-center gap-1.5 mt-1.5">
+                              <a
+                                href={formatMeetingUrl(s.meeting_url || s.meet_link)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 text-xs font-bold text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200/60 px-2.5 py-1 rounded-lg transition-colors max-w-xs truncate"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <ExternalLink size={12} className="shrink-0" />
+                                <span className="truncate font-mono text-[11px] dir-ltr">{s.meeting_url || s.meet_link}</span>
+                              </a>
+                              <button
+                                type="button"
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  try {
+                                    await navigator.clipboard.writeText(formatMeetingUrl(s.meeting_url || s.meet_link));
+                                    toast.success(isRTL ? "تم نسخ رابط الحصة" : "Meeting link copied");
+                                  } catch {
+                                    toast.error(isRTL ? "تعذر النسخ" : "Failed to copy");
+                                  }
+                                }}
+                                className="h-7 w-7 flex items-center justify-center rounded-lg border border-stone-200 text-stone-500 hover:bg-stone-100 cursor-pointer transition-colors shrink-0"
+                                title={isRTL ? "نسخ الرابط" : "Copy Link"}
+                              >
+                                <Copy size={12} />
+                              </button>
+                            </div>
+                          )}
                           {s.scheduled_at && (
                             <p className="text-xs text-stone-400 mt-0.5">
                               {new Date(s.scheduled_at).toLocaleString(isRTL ? "ar-SA" : "en-US")}
@@ -1034,17 +1106,22 @@ export default function TeacherPortal() {
                         <button
                           type="button"
                           onClick={() => {
-                            const targetUrl = `/virtual-classroom/${s.id || s.room_name || ""}`;
-                            try {
-                              navigate(targetUrl);
-                            } catch {
-                              window.location.href = targetUrl;
+                            const meet = formatMeetingUrl(s.meeting_url || s.meet_link);
+                            if (meet) {
+                              window.open(meet, "_blank", "noopener,noreferrer");
+                            } else {
+                              const targetUrl = `/virtual-classroom/${s.id || s.room_name || ""}`;
+                              try {
+                                navigate(targetUrl);
+                              } catch {
+                                window.location.href = targetUrl;
+                              }
                             }
                           }}
                           className="bg-stone-900 text-white text-xs font-black rounded-xl px-4 py-2 hover:bg-black cursor-pointer inline-flex items-center gap-1 shadow-sm transition-transform active:scale-95"
                         >
-                          <PlayCircle size={13} />
-                          <span>{isRTL ? "دخول" : "Open"}</span>
+                          {(s.meeting_url || s.meet_link) ? <ExternalLink size={13} /> : <PlayCircle size={13} />}
+                          <span>{(s.meeting_url || s.meet_link) ? (isRTL ? "فتح الاجتماع" : "Open Meet") : (isRTL ? "دخول" : "Open")}</span>
                         </button>
                         <button
                           onClick={() => setSessionToDelete(s)}
@@ -1747,12 +1824,12 @@ export default function TeacherPortal() {
           <DialogHeader>
             <DialogTitle className="font-serif font-black text-xl text-stone-900 flex items-center gap-2">
               <Video className="text-teal-600 h-5 w-5" />
-              {isRTL ? "بدء حصة افتراضية مباشرة" : "Start Live Virtual Class"}
+              {isRTL ? "بدء حصة افتراضية مباشرة (Host)" : "Start Live Virtual Class (Host)"}
             </DialogTitle>
             <DialogDescription className="text-stone-400 text-xs leading-relaxed">
               {isRTL
-                ? `تم بدء الحصة داخل الغرفة الافتراضية (WebRTC). يمكنك إشعار طلاب هذا الفصل للانضمام.`
-                : `The class has started inside the virtual classroom (WebRTC). You can notify this class's students to join.`}
+                ? "أدخل رابط الاجتماع الذي أنشأته من حسابك (Google Meet أو Zoom) لتكون أنت المنظم والمضيف، وسيتم حفظ الرابط وتوجيه الطلاب إليه فوراً."
+                : "Paste your meeting link (Google Meet or Zoom) where you are the host. It will be saved and students will be routed to it directly."}
             </DialogDescription>
           </DialogHeader>
 
@@ -1765,6 +1842,30 @@ export default function TeacherPortal() {
               <Badge className="bg-teal-600 text-white text-[10px] font-bold">
                 {isRTL ? "مباشر" : "Live"}
               </Badge>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-stone-700 flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <Video size={13} className="text-teal-600" />
+                  {isRTL ? "رابط الاجتماع المخصص (Google Meet أو Zoom) *" : "Custom Meeting Link (Google Meet / Zoom) *"}
+                </span>
+                <span className="text-[10px] text-teal-700 bg-teal-100/70 px-2 py-0.5 rounded-md font-bold">
+                  {isRTL ? "المعلم: Host" : "Teacher: Host"}
+                </span>
+              </label>
+              <Input
+                value={meetingLink}
+                onChange={(e) => setMeetingLink(e.target.value)}
+                placeholder={isRTL ? "https://meet.google.com/... أو https://zoom.us/j/..." : "https://meet.google.com/... or https://zoom.us/j/..."}
+                className="rounded-xl border-stone-200 text-xs font-mono bg-white focus:ring-teal-400/30"
+                dir="ltr"
+              />
+              <p className="text-[11px] text-stone-500">
+                {isRTL 
+                  ? "أنشئ الاجتماع بحسابك الخاص وانسخ الرابط هنا. يظهر هذا الرابط لجميع طلاب هذا الفصل فور بدء الحصة." 
+                  : "Create the meeting with your personal account and paste here. Students will be redirected directly."}
+              </p>
             </div>
 
             {notifiedCount !== null && (

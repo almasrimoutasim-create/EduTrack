@@ -49,6 +49,7 @@ import PageHeader from "@/components/shared/PageHeader";
 import StudentLevelsXP from "@/components/student-dashboard/StudentLevelsXP";
 import StudentRecordedVideos from "@/components/student/StudentRecordedVideos";
 import { resolveFileUrl } from "@/lib/materialFile";
+import { formatMeetingUrl, getMeetingPlatform } from "@/utils/meetingHelper";
 
 const btnOutline = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-sm font-semibold transition-all border-2 border-stone-300 bg-white text-stone-800 hover:bg-stone-50 hover:border-stone-400 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
 const btnPrimary = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-sm font-semibold transition-all bg-stone-900 text-white hover:bg-black cursor-pointer shadow-lg shadow-stone-200 disabled:opacity-50 disabled:cursor-not-allowed";
@@ -1509,47 +1510,84 @@ export default function StudentPortal() {
                     <p className="text-sm mt-2">{isRTL ? "ستظهر الحصص هنا تلقائياً عندما يبدأ معلموك الحصة" : "Classes will appear here automatically when your teachers start them"}</p>
                   </Card>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {myVirtualSessions.map(session => (
-                      <Card key={session.id} className="p-5 bg-white border-2 border-emerald-300 shadow-sm rounded-2xl hover:shadow-xl transition-all relative overflow-hidden">
-                        <div className="flex items-start justify-between gap-4 mb-3">
-                          <div className="h-12 w-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-                            <Radio size={24} className="animate-pulse" />
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    {myVirtualSessions.map(session => {
+                      const joinUrl = formatMeetingUrl(session.meeting_url || session.meet_link) || `/virtual-classroom/${session.id}`;
+                      const isZoom = (joinUrl || "").toLowerCase().includes("zoom.us");
+                      const isMeet = (joinUrl || "").toLowerCase().includes("meet.google.com");
+                      return (
+                        <Card key={session.id} className="p-6 bg-white border border-emerald-200 hover:border-emerald-400 shadow-sm hover:shadow-xl rounded-[28px] transition-all duration-300 relative overflow-hidden flex flex-col justify-between group">
+                          {/* Top decorative gradient bar */}
+                          <div className="absolute top-0 right-0 left-0 h-1.5 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500" />
+
+                          <div>
+                            {/* Header: Platform & Live Status */}
+                            <div className="flex items-center justify-between gap-2 mb-4">
+                              <div className="flex items-center gap-2">
+                                <div className="h-10 w-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                                  <Radio size={20} className="animate-pulse" />
+                                </div>
+                                <Badge className="bg-emerald-500 text-white border-none font-black text-[10px] px-2.5 py-0.5 rounded-full flex items-center gap-1.5 shadow-sm shadow-emerald-500/20">
+                                  <span className="h-2 w-2 rounded-full bg-white animate-ping" />
+                                  {isRTL ? "مباشر الآن" : "Live Now"}
+                                </Badge>
+                              </div>
+                              {(session.meeting_url || session.meet_link) && (
+                                <Badge variant="outline" className={`text-[10px] font-black px-2.5 py-1 rounded-xl border ${
+                                  isZoom 
+                                    ? "bg-blue-50 text-blue-700 border-blue-200"
+                                    : isMeet
+                                    ? "bg-amber-50 text-amber-800 border-amber-200"
+                                    : "bg-teal-50 text-teal-700 border-teal-200"
+                                }`}>
+                                  {isZoom ? "Zoom Meeting" : isMeet ? "Google Meet" : (isRTL ? "بث مباشر" : "Live Meeting")}
+                                </Badge>
+                              )}
+                            </div>
+
+                            {/* Class Title (اسم الحصة) */}
+                            <h4 className="font-serif font-black text-stone-900 text-lg leading-snug mb-3 group-hover:text-emerald-700 transition-colors">
+                              {session.title}
+                            </h4>
+
+                            {/* Details: Subject & Teacher (المادة واسم المعلم) */}
+                            <div className="space-y-2 mb-5 bg-stone-50/80 rounded-2xl p-3 border border-stone-100">
+                              <div className="flex items-center gap-2 text-xs text-stone-700">
+                                <BookOpen size={14} className="text-teal-600 shrink-0" />
+                                <span className="text-stone-400 font-bold">{isRTL ? "المادة:" : "Subject:"}</span>
+                                <span className="font-black text-stone-900">{session.subject_name || (isRTL ? "عام" : "General")}</span>
+                              </div>
+
+                              <div className="flex items-center gap-2 text-xs text-stone-700">
+                                <GraduationCap size={14} className="text-teal-600 shrink-0" />
+                                <span className="text-stone-400 font-bold">{isRTL ? "المعلم:" : "Teacher:"}</span>
+                                <span className="font-black text-stone-900">{session.teacher_name || (isRTL ? "المعلم" : "Teacher")}</span>
+                              </div>
+
+                              {session.grade && (
+                                <div className="flex items-center gap-2 text-xs text-stone-500 pt-1 border-t border-stone-200/50">
+                                  <span className="text-[11px] font-bold">
+                                    {isRTL ? `الفصل الدراسي / الصف: ${session.grade}` : `Grade Level: ${session.grade}`}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
                           </div>
-                          <Badge className="bg-emerald-500 text-white border-none font-black text-[10px] px-3 py-1 rounded-full shrink-0 flex items-center gap-1 shadow-sm">
-                            <span className="h-2 w-2 rounded-full bg-white animate-ping" />
-                            {isRTL ? "مباشر الآن" : "Live Now"}
-                          </Badge>
-                        </div>
-                        <div className="space-y-2 mb-4">
-                          <h4 className="font-black text-stone-900 text-base leading-tight">{session.title}</h4>
-                          <div className="flex flex-wrap items-center gap-2 text-xs text-stone-500">
-                            {session.subject_name && (
-                              <span className="flex items-center gap-1 bg-stone-100 px-2 py-0.5 rounded-lg">
-                                <BookOpen size={12} /> {session.subject_name}
-                              </span>
-                            )}
-                            {session.teacher_name && (
-                              <span className="flex items-center gap-1 bg-stone-100 px-2 py-0.5 rounded-lg">
-                                <GraduationCap size={12} /> {session.teacher_name}
-                              </span>
-                            )}
-                            {session.grade && (
-                              <span className="bg-stone-100 px-2 py-0.5 rounded-lg">
-                                {isRTL ? `الصف ${session.grade}` : `Grade ${session.grade}`}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => navigate(`/virtual-classroom/${session.id}`)}
-                          className="w-full inline-flex items-center justify-center gap-2 h-11 rounded-xl text-sm font-black bg-emerald-600 text-white hover:bg-emerald-700 shadow-md shadow-emerald-600/20 cursor-pointer transition-all active:scale-[0.98]"
-                        >
-                          <PlayCircle size={16} />
-                          {isRTL ? "دخول الحصة المباشرة" : "Enter Live Session"}
-                        </button>
-                      </Card>
-                    ))}
+
+                          {/* Interactive Join Button (زر تفاعلي بارز يفتح الرابط في تبويب جديد) */}
+                          <a
+                            href={joinUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="w-full inline-flex items-center justify-center gap-2 h-12 rounded-2xl text-sm font-black bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg shadow-emerald-600/25 hover:shadow-xl hover:shadow-emerald-600/35 cursor-pointer transition-all active:scale-[0.98]"
+                          >
+                            <Video size={18} />
+                            <span>{isRTL ? "انضم إلى الحصة" : "Join Class"}</span>
+                            <ExternalLink size={15} className="opacity-90" />
+                          </a>
+                        </Card>
+                      );
+                    })}
                   </div>
                 )
               )}
@@ -1575,39 +1613,81 @@ export default function StudentPortal() {
                     <p className="text-sm mt-2">{isRTL ? "ستظهر المواعيد القادمة عند جدولتها من قِبل المعلم" : "Upcoming sessions will appear here when scheduled by teacher"}</p>
                   </Card>
                 ) : (
-                  <div className="space-y-3">
-                    {allVirtualSessions.filter(s => s.status === "scheduled").map(s => (
-                      <Card key={s.id} className="p-4 bg-white rounded-2xl border border-stone-200 flex items-center justify-between gap-4">
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className="h-11 w-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-                            <Calendar size={20} />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="font-black text-sm truncate text-stone-900">{s.title}</p>
-                            <div className="flex items-center gap-2 flex-wrap text-xs text-stone-500 mt-0.5">
-                              {s.subject_name && <span>{s.subject_name}</span>}
-                              {s.teacher_name && <span>• {s.teacher_name}</span>}
-                              {s.grade && <span>• {isRTL ? `الصف ${s.grade}` : `Grade ${s.grade}`}</span>}
-                              <span className="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                                {isRTL ? "مجدولة" : "Scheduled"}
-                              </span>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    {allVirtualSessions.filter(s => s.status === "scheduled").map(s => {
+                      const joinUrl = formatMeetingUrl(s.meeting_url || s.meet_link) || `/virtual-classroom/${s.id}`;
+                      const isZoom = (joinUrl || "").toLowerCase().includes("zoom.us");
+                      const isMeet = (joinUrl || "").toLowerCase().includes("meet.google.com");
+                      return (
+                        <Card key={s.id} className="p-6 bg-white border border-stone-200 hover:border-blue-300 shadow-sm hover:shadow-xl rounded-[28px] transition-all duration-300 relative overflow-hidden flex flex-col justify-between group">
+                          <div className="absolute top-0 right-0 left-0 h-1.5 bg-gradient-to-r from-blue-500 to-indigo-500" />
+                          <div>
+                            <div className="flex items-center justify-between gap-2 mb-4">
+                              <div className="flex items-center gap-2">
+                                <div className="h-10 w-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                                  <Calendar size={20} />
+                                </div>
+                                <Badge className="bg-blue-100 text-blue-700 border-none font-bold text-[10px] px-2.5 py-0.5 rounded-full">
+                                  {isRTL ? "مجدولة" : "Scheduled"}
+                                </Badge>
+                              </div>
+                              {(s.meeting_url || s.meet_link) && (
+                                <Badge variant="outline" className={`text-[10px] font-black px-2.5 py-1 rounded-xl border ${
+                                  isZoom 
+                                    ? "bg-blue-50 text-blue-700 border-blue-200"
+                                    : isMeet
+                                    ? "bg-amber-50 text-amber-800 border-amber-200"
+                                    : "bg-teal-50 text-teal-700 border-teal-200"
+                                }`}>
+                                  {isZoom ? "Zoom" : isMeet ? "Google Meet" : (isRTL ? "رابط مباشر" : "Direct Link")}
+                                </Badge>
+                              )}
                             </div>
-                            {s.scheduled_at && (
-                              <p className="text-xs text-stone-400 mt-1 flex items-center gap-1">
-                                <Clock size={12} />
-                                {new Date(s.scheduled_at).toLocaleString(isRTL ? "ar-SA" : "en-US")}
-                              </p>
-                            )}
+
+                            <h4 className="font-serif font-black text-stone-900 text-lg leading-snug mb-3 group-hover:text-blue-700 transition-colors">
+                              {s.title}
+                            </h4>
+
+                            <div className="space-y-2 mb-4 bg-stone-50/80 rounded-2xl p-3 border border-stone-100">
+                              <div className="flex items-center gap-2 text-xs text-stone-700">
+                                <BookOpen size={14} className="text-blue-600 shrink-0" />
+                                <span className="text-stone-400 font-bold">{isRTL ? "المادة:" : "Subject:"}</span>
+                                <span className="font-black text-stone-900">{s.subject_name || (isRTL ? "عام" : "General")}</span>
+                              </div>
+                              <div className="flex items-center gap-2 text-xs text-stone-700">
+                                <GraduationCap size={14} className="text-blue-600 shrink-0" />
+                                <span className="text-stone-400 font-bold">{isRTL ? "المعلم:" : "Teacher:"}</span>
+                                <span className="font-black text-stone-900">{s.teacher_name || (isRTL ? "المعلم" : "Teacher")}</span>
+                              </div>
+                              {s.grade && (
+                                <div className="flex items-center gap-2 text-xs text-stone-500 pt-1 border-t border-stone-200/50">
+                                  <span className="text-[11px] font-bold">
+                                    {isRTL ? `الصف: ${s.grade}` : `Grade: ${s.grade}`}
+                                  </span>
+                                </div>
+                              )}
+                              {s.scheduled_at && (
+                                <div className="flex items-center gap-2 text-xs text-stone-500 pt-1 border-t border-stone-200/50">
+                                  <Clock size={12} className="text-blue-500" />
+                                  <span>{new Date(s.scheduled_at).toLocaleString(isRTL ? "ar-SA" : "en-US")}</span>
+                                </div>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                        <button
-                          onClick={() => navigate(`/virtual-classroom/${s.id}`)}
-                          className="bg-stone-900 text-white text-xs font-black rounded-xl px-4 py-2 hover:bg-black cursor-pointer shrink-0 transition-all"
-                        >
-                          {isRTL ? "دخول" : "Join"}
-                        </button>
-                      </Card>
-                    ))}
+
+                          <a
+                            href={joinUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="w-full inline-flex items-center justify-center gap-2 h-11 rounded-2xl text-xs font-black bg-stone-900 hover:bg-black text-white shadow-md cursor-pointer transition-all active:scale-[0.98]"
+                          >
+                            <Video size={16} />
+                            <span>{isRTL ? "انضم إلى الحصة" : "Join Class"}</span>
+                            <ExternalLink size={13} className="opacity-80" />
+                          </a>
+                        </Card>
+                      );
+                    })}
                   </div>
                 )
               )}
@@ -1710,13 +1790,16 @@ export default function StudentPortal() {
                           </p>
                         </div>
                       </div>
-                      <button
-                        onClick={() => navigate(`/virtual-classroom/${session.id}`)}
+                      <a
+                        href={formatMeetingUrl(session.meeting_url || session.meet_link) || `/virtual-classroom/${session.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-white text-emerald-850 hover:bg-emerald-50 font-black text-xs shadow-lg transition-all active:scale-95 cursor-pointer shrink-0"
                       >
-                        <PlayCircle size={16} />
-                        <span>{isRTL ? "دخول البث المباشر الآن" : "Join Live Class Now"}</span>
-                      </button>
+                        <Video size={16} className="text-emerald-700" />
+                        <span>{isRTL ? "انضم إلى الحصة الآن" : "Join Live Class Now"}</span>
+                        <ExternalLink size={14} className="text-emerald-700" />
+                      </a>
                     </motion.div>
                   ))}
                 </div>

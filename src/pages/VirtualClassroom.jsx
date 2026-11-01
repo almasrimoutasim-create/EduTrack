@@ -5,7 +5,7 @@ import { entities, deleteVirtualClass } from "@/api/dbClient";
 import {
   Video, VideoOff, Mic, MicOff, Hand, MessageSquare,
   Send, Users, PhoneOff, Info, Copy, ScreenShare, AlertCircle, FileText,
-  Clock, Calendar,
+  Clock, Calendar, ExternalLink,
   StopCircle, Trash2, Pin, PinOff,
   LayoutGrid, X, Radio, PenTool,
   Paperclip, Download, FolderOpen, FileCheck
@@ -282,6 +282,7 @@ export default function VirtualClassroom() {
     subject_id: "",
     scheduled_at: "",
     scheduled_time: "",
+    meeting_url: "",
   });
 
   // Delete flow state: the session pending confirmation + the one being deleted.
@@ -329,6 +330,7 @@ export default function VirtualClassroom() {
     if (!newSession.title) { toast.error(isRTL ? "أدخل عنوان الحصة" : "Enter session title"); return; }
     if (!newSession.subject_id) { toast.error(isRTL ? "اختر المادة الدراسية" : "Select a subject"); return; }
     const selectedSub = teacherSubjects.find((s) => s.id === newSession.subject_id);
+    const meetUrl = (newSession.meeting_url || "").trim();
     try {
       const res = await entities.VirtualSession.create({
         title: newSession.title,
@@ -341,13 +343,18 @@ export default function VirtualClassroom() {
         scheduled_at: new Date().toISOString(),
         started_at: new Date().toISOString(),
         status: "active",
-        meet_link: "",
+        meeting_url: meetUrl,
+        meet_link: meetUrl,
       });
       setLiveModal({ session: res, title: newSession.title, subjectName: selectedSub?.name || "", grade: selectedSub?.grade || "" });
-      setLiveLink("");
+      setLiveLink(meetUrl);
       setLiveNotified(null);
-      // Original flow: redirect teacher into the live room.
-      setTimeout(() => navigate(`/virtual-classroom/${res.id}`), 800);
+      if (meetUrl) {
+        window.open(meetUrl, "_blank", "noopener,noreferrer");
+      }
+      setTimeout(() => {
+        if (!meetUrl) navigate(`/virtual-classroom/${res.id}`);
+      }, 800);
     } catch (err) {
       console.error("Failed to start session:", err);
       toast.error((isRTL ? "فشل بدء الحصة: " : "Failed to start session: ") + (err?.message || ""));
@@ -484,23 +491,43 @@ export default function VirtualClassroom() {
     let stream = null;
     let mediaError = false;
     const init = async () => {
+      // Request audio and video independently so a missing camera doesn't kill
+      // the microphone (and vice-versa). This avoids an all-or-nothing failure
+      // that left the tile black when only one device was unavailable.
+      const constraints = { video: true, audio: true };
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        setLocalStream(stream);
-        localStreamRef.current = stream;
-        if (localVideoRef.current) localVideoRef.current.srcObject = stream;
-        stream.getVideoTracks().forEach((t) => (t.enabled = videoActive));
-        stream.getAudioTracks().forEach((t) => (t.enabled = micActive));
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
       } catch (err) {
-        mediaError = true;
-        console.error("Media access error:", err);
-        const msg = err.name === 'NotAllowedError' 
-          ? (isRTL ? "تم رفض الإذن للكاميرا/الميكروفون. يرجى السماح بالوصول من إعدادات المتصفح." : "Camera/microphone permission denied. Please allow access in browser settings.")
-          : err.name === 'NotFoundError'
-          ? (isRTL ? "لم يتم العثور على كاميرا/ميكروفون. تأكد من توصيل الأجهزة." : "No camera/microphone found. Please connect devices.")
-          : (isRTL ? "تعذّر الوصول للكاميرا/الميكروفون. تحقق من الأذونات." : "Cannot access camera/microphone. Check permissions.");
-        toast.error(msg);
+        // Fall back to audio-only if video is unavailable
+        if (err.name === 'NotFoundError' || err.name === 'OverconstrainedError') {
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
+          } catch (e2) {
+            mediaError = true;
+            console.error("Media access error:", e2);
+            const msg2 = e2.name === 'NotAllowedError'
+              ? (isRTL ? "تم رفض الإذن للميكروفون. يرجى السماح بالوصول من إعدادات المتصفح." : "Microphone permission denied. Please allow access in browser settings.")
+              : (isRTL ? "تعذّر الوصول للميكروفون. تحقق من الأذونات." : "Cannot access microphone. Check permissions.");
+            toast.error(msg2);
+            return;
+          }
+        } else {
+          mediaError = true;
+          console.error("Media access error:", err);
+          const msg = err.name === 'NotAllowedError'
+            ? (isRTL ? "تم رفض الإذن للكاميرا/الميكروفون. يرجى السماح بالوصول من إعدادات المتصفح." : "Camera/microphone permission denied. Please allow access in browser settings.")
+            : (isRTL ? "تعذّر الوصول للكاميرا/الميكروفون. تحقق من الأذونات." : "Cannot access camera/microphone. Check permissions.");
+          toast.error(msg);
+          return;
+        }
       }
+      if (!stream) return;
+      setLocalStream(stream);
+      localStreamRef.current = stream;
+      if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+      stream.getVideoTracks().forEach((t) => (t.enabled = videoActive));
+      stream.getAudioTracks().forEach((t) => (t.enabled = micActive));
+      console.log("[VirtualClassroom] Local media ready: videoTracks=" + stream.getVideoTracks().length + " audioTracks=" + stream.getAudioTracks().length);
     };
     init();
     return () => { if (stream) stream.getTracks().forEach((t) => t.stop()); };
@@ -642,86 +669,76 @@ export default function VirtualClassroom() {
 
   // ─────────────────────────────────────────────────────────────────────────
   //  Screen sharing — uses replaceTrack (no renegotiation needed)
+  //  Called directly from the button click so getDisplayMedia keeps the user
+  //  gesture (calling it inside useEffect loses the gesture → NotAllowedError).
   // ─────────────────────────────────────────────────────────────────────────
-  useEffect(() => {
+  const handleScreenShareToggle = async () => {
     if (isDemo) return;
-    let currentScreenStream = null;
-
-    const toggle = async () => {
-      if (screenSharing) {
-        // Show the teacher's own screen in the main black frame
-        setPinnedParticipantId(userId);
-        try {
-          currentScreenStream = await navigator.mediaDevices.getDisplayMedia({
-            video: { frameRate: { ideal: 30, max: 30 }, width: { ideal: 1920 }, height: { ideal: 1080 } },
-            audio: true,
-          });
-          setScreenStream(currentScreenStream);
-
-          const screenVideoTrack = currentScreenStream.getVideoTracks()[0];
-
-          // Replace the video track on every active peer connection
-          // replaceTrack() works WITHOUT renegotiation — the receiver sees it instantly
-          const replaceJobs = Object.values(pcsRef.current).map(async (pc) => {
+    if (screenSharing) {
+      // Stop sharing: restore camera track on every active peer connection
+      if (localStream) {
+        const cameraTrack = localStream.getVideoTracks()[0];
+        if (cameraTrack) {
+          const restoreJobs = Object.values(pcsRef.current).map(async (pc) => {
             const sender = pc.getSenders().find((s) => s.track && s.track.kind === "video");
-            if (sender) {
-              await sender.replaceTrack(screenVideoTrack);
-            } else {
-              pc.addTrack(screenVideoTrack, currentScreenStream);
-            }
+            if (sender) await sender.replaceTrack(cameraTrack);
           });
-          await Promise.all(replaceJobs);
-
-          // Sync screen sharing state to DB
-          if (myParticipantId) {
-            entities.SessionParticipant.update(myParticipantId, { screen_sharing: true }).catch(() => {});
-          }
-
-          // Signal peers: pin this user's stream full-screen
-          sendSignal("SCREEN_SHARE", null, { active: true, sharerId: userId });
-
-          // When the user stops via browser's stop button
-          screenVideoTrack.onended = () => setScreenSharing(false);
-
-        } catch (err) {
-          if (err.name !== "NotAllowedError") console.error("Screen share error:", err);
-          setScreenSharing(false);
+          await Promise.all(restoreJobs);
         }
       } else {
-        // Restore camera track on every active peer connection
-        if (localStream) {
-          const cameraTrack = localStream.getVideoTracks()[0];
-          if (cameraTrack) {
-            const restoreJobs = Object.values(pcsRef.current).map(async (pc) => {
-              const sender = pc.getSenders().find((s) => s.track && s.track.kind === "video");
-              if (sender) await sender.replaceTrack(cameraTrack);
-            });
-            await Promise.all(restoreJobs);
-          }
-        } else {
-          // If there is no camera, remove the screen track completely
-          Object.values(pcsRef.current).forEach((pc) => {
-            const sender = pc.getSenders().find((s) => s.track && s.track.kind === "video");
-            if (sender) pc.removeTrack(sender);
-          });
-        }
-        if (screenStream) {
-          screenStream.getTracks().forEach((t) => t.stop());
-          setScreenStream(null);
-        }
-        setPinnedParticipantId((prev) => (prev === userId ? null : prev));
-        sendSignal("SCREEN_SHARE", null, { active: false, sharerId: userId });
-
-        // Sync screen sharing state to DB
-        if (myParticipantId) {
-          entities.SessionParticipant.update(myParticipantId, { screen_sharing: false }).catch(() => {});
-        }
+        Object.values(pcsRef.current).forEach((pc) => {
+          const sender = pc.getSenders().find((s) => s.track && s.track.kind === "video");
+          if (sender) pc.removeTrack(sender);
+        });
       }
-    };
+      if (screenStream) {
+        screenStream.getTracks().forEach((t) => t.stop());
+        setScreenStream(null);
+      }
+      setPinnedParticipantId((prev) => (prev === userId ? null : prev));
+      sendSignal("SCREEN_SHARE", null, { active: false, sharerId: userId });
+      if (myParticipantId) {
+        entities.SessionParticipant.update(myParticipantId, { screen_sharing: false }).catch(() => {});
+      }
+      setScreenSharing(false);
+      return;
+    }
 
-    toggle();
-    return () => { if (currentScreenStream) currentScreenStream.getTracks().forEach((t) => t.stop()); };
-  }, [screenSharing, isDemo, myParticipantId, userId]);
+    // Start sharing
+    setPinnedParticipantId(userId);
+    try {
+      const currentScreenStream = await navigator.mediaDevices.getDisplayMedia({
+        video: { frameRate: { ideal: 30, max: 30 }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+        audio: true,
+      });
+      setScreenStream(currentScreenStream);
+      setScreenSharing(true);
+
+      const screenVideoTrack = currentScreenStream.getVideoTracks()[0];
+
+      const replaceJobs = Object.values(pcsRef.current).map(async (pc) => {
+        const sender = pc.getSenders().find((s) => s.track && s.track.kind === "video");
+        if (sender) {
+          await sender.replaceTrack(screenVideoTrack);
+        } else {
+          pc.addTrack(screenVideoTrack, currentScreenStream);
+        }
+      });
+      await Promise.all(replaceJobs);
+
+      if (myParticipantId) {
+        entities.SessionParticipant.update(myParticipantId, { screen_sharing: true }).catch(() => {});
+      }
+
+      sendSignal("SCREEN_SHARE", null, { active: true, sharerId: userId });
+
+      screenVideoTrack.onended = () => handleScreenShareToggle();
+    } catch (err) {
+      if (err.name !== "NotAllowedError") console.error("Screen share error:", err);
+      setScreenSharing(false);
+      setScreenStream(null);
+    }
+  };
 
   // ─────────────────────────────────────────────────────────────────────────
   //  Signaling helpers
@@ -749,14 +766,14 @@ export default function VirtualClassroom() {
 
     pc.onnegotiationneeded = async () => {
       try {
-        makingOfferRef.current[peerId] = true;
+        makingOfferRef[peerId] = true;
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
         sendSignal("OFFER", peerId, offer);
       } catch (err) {
         console.error("Negotiation error:", err);
       } finally {
-        makingOfferRef.current[peerId] = false;
+        makingOfferRef[peerId] = false;
       }
     };
 
@@ -842,19 +859,19 @@ export default function VirtualClassroom() {
     const isPolite = String(userId) < String(peerId);
 
     if (type === "OFFER") {
-      const offerCollision = makingOfferRef.current[peerId] || pc.signalingState !== "stable";
-      ignoreOfferRef.current[peerId] = !isPolite && offerCollision;
+      const offerCollision = makingOfferRef[peerId] || pc.signalingState !== "stable";
+      ignoreOfferRef[peerId] = !isPolite && offerCollision;
       
-      if (ignoreOfferRef.current[peerId]) {
+      if (ignoreOfferRef[peerId]) {
         return;
       }
 
       await pc.setRemoteDescription(new RTCSessionDescription(data));
-      if (iceQueuesRef.current[peerId]) {
-        for (const c of iceQueuesRef.current[peerId]) {
+      if (iceQueuesRef[peerId]) {
+        for (const c of iceQueuesRef[peerId]) {
           await pc.addIceCandidate(new RTCIceCandidate(c)).catch(() => {});
         }
-        delete iceQueuesRef.current[peerId];
+        delete iceQueuesRef[peerId];
       }
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
@@ -862,20 +879,20 @@ export default function VirtualClassroom() {
 
     } else if (type === "ANSWER") {
       await pc.setRemoteDescription(new RTCSessionDescription(data));
-      if (iceQueuesRef.current[peerId]) {
-        for (const c of iceQueuesRef.current[peerId]) {
+      if (iceQueuesRef[peerId]) {
+        for (const c of iceQueuesRef[peerId]) {
           await pc.addIceCandidate(new RTCIceCandidate(c)).catch(() => {});
         }
-        delete iceQueuesRef.current[peerId];
+        delete iceQueuesRef[peerId];
       }
 
     } else if (type === "ICE") {
       try {
         await pc.addIceCandidate(new RTCIceCandidate(data));
       } catch (err) {
-        if (!ignoreOfferRef.current[peerId]) {
-          if (!iceQueuesRef.current[peerId]) iceQueuesRef.current[peerId] = [];
-          iceQueuesRef.current[peerId].push(data);
+        if (!ignoreOfferRef[peerId]) {
+          if (!iceQueuesRef[peerId]) iceQueuesRef[peerId] = [];
+          iceQueuesRef[peerId].push(data);
         }
       }
 
@@ -972,15 +989,15 @@ export default function VirtualClassroom() {
         // otherwise it waits for the existing peer's offer (handled in onUserJoined).
         if (String(userId) < String(p.userId)) {
           const offerKey = `${userId}->${p.userId}`;
-          if (offersInitiated.current.has(offerKey)) return;
+          if (offersInitiated.has(offerKey)) return;
           const pc = getOrCreatePC(p.userId);
           if (pc.signalingState !== "stable") return;
-          offersInitiated.current.add(offerKey);
+          offersInitiated.add(offerKey);
           pc.createOffer()
             .then((offer) => pc.setLocalDescription(offer).then(() => sendSignal("OFFER", p.userId, offer)))
             .catch((err) => {
               console.error("Manual offer failed:", err);
-              offersInitiated.current.delete(offerKey);
+              offersInitiated.delete(offerKey);
             });
         }
       });
@@ -1006,15 +1023,15 @@ export default function VirtualClassroom() {
       const offerKey = shouldInitiateOffer ? `${userId}->${newUserId}` : `${newUserId}->${userId}`;
       
       if (shouldInitiateOffer) {
-        if (offersInitiated.current.has(offerKey)) return;
+        if (offersInitiated.has(offerKey)) return;
         const pc = getOrCreatePC(newUserId);
         if (pc.signalingState !== "stable") return;
-        offersInitiated.current.add(offerKey);
+        offersInitiated.add(offerKey);
         pc.createOffer()
           .then((offer) => pc.setLocalDescription(offer).then(() => sendSignal("OFFER", newUserId, offer)))
           .catch((err) => {
             console.error("Manual offer failed:", err);
-            offersInitiated.current.delete(offerKey);
+            offersInitiated.delete(offerKey);
           });
       } else {
         // Wait for offer from the other peer, but ensure PC exists
@@ -1412,6 +1429,7 @@ export default function VirtualClassroom() {
     const selectedSub = teacherSubjects.find((s) => s.id === newSession.subject_id);
     const roomName = `room-${Math.random().toString(36).substr(2, 9)}`;
     const scheduledDateTime = new Date(`${newSession.scheduled_at}T${newSession.scheduled_time}`).toISOString();
+    const meetUrl = (newSession.meeting_url || "").trim();
     try {
       await entities.VirtualSession.create({
         title: newSession.title,
@@ -1423,9 +1441,11 @@ export default function VirtualClassroom() {
         room_name: roomName,
         scheduled_at: scheduledDateTime,
         status: "scheduled",
+        meeting_url: meetUrl,
+        meet_link: meetUrl,
       });
       toast.success(isRTL ? "تم جدولة الحصة!" : "Session scheduled!");
-      setNewSession({ title: "", subject_id: "", scheduled_at: "", scheduled_time: "" });
+      setNewSession({ title: "", subject_id: "", scheduled_at: "", scheduled_time: "", meeting_url: "" });
       refetchSessions();
     } catch { toast.error(isRTL ? "فشل الجدولة" : "Failed to schedule"); }
   };
@@ -1500,6 +1520,10 @@ export default function VirtualClassroom() {
                       {teacherSubjects.map((sub) => <option key={sub.id} value={sub.id} style={{ backgroundColor: "#1c1917" }}>{sub.name}{sub.grade ? ` (${sub.grade})` : ""}</option>)}
                     </select>
                   </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-stone-200 uppercase block mb-1.5">{isRTL ? "رابط الاجتماع المخصص (Google Meet / Zoom)" : "Direct Meeting URL (Google Meet / Zoom)"}</label>
+                    <Input placeholder={isRTL ? "مثال: https://meet.google.com/..." : "https://meet.google.com/..."} value={newSession.meeting_url || ""} onChange={(e) => setNewSession({ ...newSession, meeting_url: e.target.value })} className="!bg-stone-850 !text-white border-white/5 text-xs rounded-xl font-mono" dir="ltr" style={{ backgroundColor: "#1c1917", color: "#ffffff" }} />
+                  </div>
                   <button
                     onClick={openLiveClass}
                     className="w-full h-11 bg-teal-500 hover:bg-teal-400 text-stone-950 font-black rounded-xl text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
@@ -1529,6 +1553,10 @@ export default function VirtualClassroom() {
                       {teacherSubjects.length === 0 && <option value="" disabled>{isRTL ? "جارٍ التحميل..." : "Loading..."}</option>}
                       {teacherSubjects.map((sub) => <option key={sub.id} value={sub.id} style={{ backgroundColor: "#1c1917" }}>{sub.name}{sub.grade ? ` (${sub.grade})` : ""}</option>)}
                     </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-stone-200 uppercase block mb-1.5">{isRTL ? "رابط الاجتماع المخصص (Google Meet / Zoom)" : "Direct Meeting URL (Google Meet / Zoom)"}</label>
+                    <Input placeholder={isRTL ? "مثال: https://meet.google.com/..." : "https://meet.google.com/..."} value={newSession.meeting_url || ""} onChange={(e) => setNewSession({ ...newSession, meeting_url: e.target.value })} className="!bg-stone-850 !text-white border-white/5 text-xs rounded-xl font-mono" dir="ltr" style={{ backgroundColor: "#1c1917", color: "#ffffff" }} />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -1582,7 +1610,24 @@ export default function VirtualClassroom() {
                           )}
                         </div>
                         <div className="flex gap-2 shrink-0">
-                          {isActive && <button onClick={() => navigate(`/virtual-classroom/${si.id}`)} className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-stone-950 text-xs font-black rounded-xl flex items-center gap-1.5 cursor-pointer"><Video size={14} />{isRTL ? "دخول البث المباشر" : "Enter Live"}</button>}
+                          {isActive && (
+                            (si.meeting_url || si.meet_link) ? (
+                              <a
+                                href={si.meeting_url || si.meet_link}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-stone-950 text-xs font-black rounded-xl flex items-center gap-1.5 cursor-pointer shadow-md"
+                              >
+                                <Video size={14} />
+                                <span>{isRTL ? "انضم إلى الحصة" : "Join Class"}</span>
+                                <ExternalLink size={12} />
+                              </a>
+                            ) : (
+                              <button onClick={() => navigate(`/virtual-classroom/${si.id}`)} className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-stone-950 text-xs font-black rounded-xl flex items-center gap-1.5 cursor-pointer">
+                                <Video size={14} />{isRTL ? "دخول البث المباشر" : "Enter Live"}
+                              </button>
+                            )
+                          )}
                           {isScheduled && isTeacher && <button onClick={() => handleStartSession(si)} className="px-4 py-2 bg-teal-500 hover:bg-teal-400 text-stone-950 text-xs font-black rounded-xl flex items-center gap-1.5 cursor-pointer"><Video size={14} />{isRTL ? "بدء الآن" : "Start Now"}</button>}
                           {isScheduled && !isTeacher && <span className="px-3 py-1.5 bg-stone-850 text-stone-500 text-xs font-bold rounded-xl border border-white/5">{isRTL ? "انتظار المعلم" : "Awaiting Teacher"}</span>}
                           {isEnded && <span className="px-3 py-1.5 bg-stone-950 text-stone-600 text-xs font-bold rounded-xl">{isRTL ? "انتهى البث" : "Ended"}</span>}
@@ -1773,8 +1818,13 @@ export default function VirtualClassroom() {
                 if (!tile.isLocal) {
                   el.volume = remoteVolume;
                   el.muted = false;
+                } else {
+                  el.muted = true;
                 }
-                el.play().catch(() => {});
+                const playPromise = el.play();
+                if (playPromise && typeof playPromise.catch === 'function') {
+                  playPromise.catch((e) => console.warn('[VirtualClassroom] video play() failed:', e && e.name, e && e.message));
+                }
               }
             }}
             autoPlay
@@ -2035,7 +2085,7 @@ export default function VirtualClassroom() {
 
               {/* Screen Share (Teachers & Admins or All) */}
               <button
-                onClick={() => setScreenSharing(!screenSharing)}
+                onClick={handleScreenShareToggle}
                 title={screenSharing ? (isRTL ? "إيقاف مشاركة الشاشة" : "Stop sharing screen") : (isRTL ? "مشاركة الشاشة الآن" : "Share entire screen")}
                 className={`h-12 w-12 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer shadow-lg hover:scale-105 active:scale-95 ${
                   screenSharing

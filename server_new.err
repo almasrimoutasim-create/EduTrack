@@ -1,0 +1,67 @@
+[neon] activity_fees school_id type fix failed: relation "activity_fees" does not exist
+[neon] activity_fees branch_id type fix failed: relation "activity_fees" does not exist
+[neon] add school_id to friend_requests: relation "friend_requests" does not exist
+[neon] activity_fees created_by type fix failed: relation "activity_fees" does not exist
+[neon] donations created_by type fix failed: relation "donations" does not exist
+[neon] add school_id to room_videos: relation "room_videos" does not exist
+[neon] add school_id to student_wallet: relation "student_wallet" does not exist
+[neon] other_revenue branch_id type fix failed: column "branch_id" does not exist
+[neon] add school_id to activity_comments: relation "activity_comments" does not exist
+[neon] add school_id to activity_posts: relation "activity_posts" does not exist
+[neon] add school_id to bus_driver_reports: relation "bus_driver_reports" does not exist
+[neon] salary_records branch_id type fix failed: column "branch_id" does not exist
+[neon] add school_id to portal_access_configs: relation "portal_access_configs" does not exist
+[neon] add school_id to audit_logs: relation "audit_logs" does not exist
+[neon] add school_id to activity_chats: relation "activity_chats" does not exist
+[neon] add school_id to subjects: relation "subjects" does not exist
+[neon] add school_id to student_reports: relation "student_reports" does not exist
+[neon] add school_id to teacher_tasks: relation "teacher_tasks" does not exist
+[neon] add school_id to teacher_ratings: relation "teacher_ratings" does not exist
+[neon] add school_id to supervisors: relation "supervisors" does not exist
+[neon] add school_id to staff_members: relation "staff_members" does not exist
+[neon] add school_id to private_messages: relation "private_messages" does not exist
+[neon] failed to alter staff_members table: relation "staff_members" does not exist
+[neon] add school_id to student_grades: relation "student_grades" does not exist
+[neon] add school_id to study_groups: relation "study_groups" does not exist
+[neon] add school_id to study_materials: relation "study_materials" does not exist
+[neon] add school_id to study_group_posts: relation "study_group_posts" does not exist
+[neon] add school_id to student_awards: relation "student_awards" does not exist
+[neon] add school_id to card_top_ups: relation "card_top_ups" does not exist
+[neon] add school_id to bus_drivers: relation "bus_drivers" does not exist
+[neon] add school_id to financial_records: relation "financial_records" does not exist
+[neon] add school_id to teacher_exams: relation "teacher_exams" does not exist
+[neon] add school_id to portal_group_messages: relation "portal_group_messages" does not exist
+[neon] add school_id to donations: relation "donations" does not exist
+[neon] add school_id to portal_notifications: relation "portal_notifications" does not exist
+[neon] add school_id to store_items: relation "store_items" does not exist
+[neon] failed to alter donations table: relation "donations" does not exist
+[neon] add school_id to study_rooms: relation "study_rooms" does not exist
+[neon] add school_id to class_schedules: relation "class_schedules" does not exist
+[neon] add school_id to purchases: relation "purchases" does not exist
+[neon] add school_id to library_books: relation "library_books" does not exist
+[neon] add school_id to follow_ups: relation "follow_ups" does not exist
+[neon] counseling_cases closed_by type fix failed: relation "counseling_cases" does not exist
+[neon] hall_rentals branch_id type fix failed: column "branch_id" does not exist
+[neon] add school_id to message_read_receipts: relation "message_read_receipts" does not exist
+[neon] add school_id to counseling_cases: relation "counseling_cases" does not exist
+[neon] add school_id to teacher_subscriptions: relation "teacher_subscriptions" does not exist
+[neon] add school_id to teacher_assignments: relation "teacher_assignments" does not exist
+[neon] add school_id to teacher_live_classes: relation "teacher_live_classes" does not exist
+[neon] purchase_orders branch_id type fix failed: column "branch_id" does not exist
+[neon] add school_id to book_reviews: relation "book_reviews" does not exist
+[neon] failed to alter study_materials table: relation "study_materials" does not exist
+[neon] add school_id to curriculum_books: relation "curriculum_books" does not exist
+[neon] failed to alter library_books table: relation "library_books" does not exist
+[neon] donations school_id type fix failed: relation "donations" does not exist
+[neon] donations branch_id type fix failed: relation "donations" does not exist
+[neon] add school_id to teacher_submissions: relation "teacher_submissions" does not exist
+[neon] add school_id to class_participants: relation "class_participants" does not exist
+[neon] counseling_cases created_by type fix failed: relation "counseling_cases" does not exist
+[neon] add school_id to typing_indicators: relation "typing_indicators" does not exist
+[neon] add school_id to teacher_own_students: relation "teacher_own_students" does not exist
+[neon] fee_structures created_by type fix failed: Error connecting to database: TypeError: fetch failed
+[neon] add school_id to fines: Error connecting to database: TypeError: fetch failed
+[neon] add school_id to teacher_youtube_videos: Error connecting to database: TypeError: fetch failed
+[neon] add school_id to portal_groups: Error connecting to database: TypeError: fetch failed
+[neon] add school_id to case_visibility_logs: Error connecting to database: TypeError: fetch failed
+[neon] add school_id to salary_records: Error connecting to database: TypeError: fetch failed
