@@ -956,6 +956,26 @@ export default function TeacherPortal() {
                       className="rounded-xl border-teal-200 bg-white focus:ring-teal-400/30 font-mono text-xs"
                       dir="ltr"
                     />
+                    <div className="flex flex-wrap items-center gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => window.open('https://meet.google.com/new', '_blank', 'noopener,noreferrer')}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 px-3 py-1.5 text-xs font-bold transition-all cursor-pointer"
+                      >
+                        <Video size={13} />
+                        {isRTL ? 'إنشاء Google Meet (نسخ الرابط هنا)' : 'Create Google Meet (copy URL here)'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const code = Math.random().toString(36).slice(2, 10);
+                          setNewSessionMeetingUrl(`https://meet.jit.si/EduTrack-${code}`);
+                        }}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 px-3 py-1.5 text-xs font-bold transition-all cursor-pointer"
+                      >
+                        {isRTL ? 'رابط EduTrack فوري (Jitsi)' : 'Instant EduTrack link (Jitsi)'}
+                      </button>
+                    </div>
                     <p className="text-[11px] text-stone-500">
                       {isRTL
                         ? "الصق رابط الاجتماع الذي أنشأته من حسابك الخاص (Google Meet أو Zoom) لتدير الحصة كمضيف ويتم ربطه بالطلاب مباشرة."

@@ -767,7 +767,7 @@ export default function VirtualClassroom() {
     pc.onnegotiationneeded = async () => {
       try {
         makingOfferRef[peerId] = true;
-        const offer = await pc.createOffer();
+        const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true });
         await pc.setLocalDescription(offer);
         sendSignal("OFFER", peerId, offer);
       } catch (err) {
@@ -819,7 +819,7 @@ export default function VirtualClassroom() {
       setRemoteStreams((prev) => ({ ...prev, [peerId]: stream }));
       // Apply current volume to newly connected remote video element
       const el = remoteVideoRefs.current[peerId];
-      if (el) { el.volume = remoteVolume; el.muted = false; el.play().catch(() => {}); }
+      if (el) { el.volume = remoteVolume; el.muted = true; el.play().then(()=>{ if (el) el.muted = false; }).catch(() => {}); }
     };
 
     // Add currently active tracks (camera or screen share) immediately if available
@@ -993,7 +993,7 @@ export default function VirtualClassroom() {
           const pc = getOrCreatePC(p.userId);
           if (pc.signalingState !== "stable") return;
           offersInitiated.add(offerKey);
-          pc.createOffer()
+          pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true })
             .then((offer) => pc.setLocalDescription(offer).then(() => sendSignal("OFFER", p.userId, offer)))
             .catch((err) => {
               console.error("Manual offer failed:", err);
@@ -1027,8 +1027,8 @@ export default function VirtualClassroom() {
         const pc = getOrCreatePC(newUserId);
         if (pc.signalingState !== "stable") return;
         offersInitiated.add(offerKey);
-        pc.createOffer()
-          .then((offer) => pc.setLocalDescription(offer).then(() => sendSignal("OFFER", newUserId, offer)))
+        pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true })
+            .then((offer) => pc.setLocalDescription(offer).then(() => sendSignal("OFFER", newUserId, offer)))
           .catch((err) => {
             console.error("Manual offer failed:", err);
             offersInitiated.delete(offerKey);
@@ -1817,13 +1817,19 @@ export default function VirtualClassroom() {
                 }
                 if (!tile.isLocal) {
                   el.volume = remoteVolume;
-                  el.muted = false;
+                  el.muted = true;
+                  const playPromise = el.play();
+                  if (playPromise && typeof playPromise.then === 'function') {
+                    playPromise
+                      .then(() => { if (el && !tile.isLocal) el.muted = false; })
+                      .catch((e) => console.warn('[VirtualClassroom] video play() failed:', e && e.name, e && e.message));
+                  }
                 } else {
                   el.muted = true;
-                }
-                const playPromise = el.play();
-                if (playPromise && typeof playPromise.catch === 'function') {
-                  playPromise.catch((e) => console.warn('[VirtualClassroom] video play() failed:', e && e.name, e && e.message));
+                  const playPromise = el.play();
+                  if (playPromise && typeof playPromise.catch === 'function') {
+                    playPromise.catch((e) => console.warn('[VirtualClassroom] video play() failed:', e && e.name, e && e.message));
+                  }
                 }
               }
             }}
