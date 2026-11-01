@@ -330,7 +330,11 @@ export default function VirtualClassroom() {
     if (!newSession.title) { toast.error(isRTL ? "أدخل عنوان الحصة" : "Enter session title"); return; }
     if (!newSession.subject_id) { toast.error(isRTL ? "اختر المادة الدراسية" : "Select a subject"); return; }
     const selectedSub = teacherSubjects.find((s) => s.id === newSession.subject_id);
-    const meetUrl = (newSession.meeting_url || "").trim();
+    const meetUrlRaw = (newSession.meeting_url || "").trim();
+    const meetUrl = meetUrlRaw || `https://meet.jit.si/EduTrack-${Math.random().toString(36).slice(2, 10)}`;
+    if (!meetUrlRaw) {
+      setNewSession((prev) => ({ ...prev, meeting_url: meetUrl }));
+    }
     try {
       const res = await entities.VirtualSession.create({
         title: newSession.title,
@@ -1429,7 +1433,8 @@ export default function VirtualClassroom() {
     const selectedSub = teacherSubjects.find((s) => s.id === newSession.subject_id);
     const roomName = `room-${Math.random().toString(36).substr(2, 9)}`;
     const scheduledDateTime = new Date(`${newSession.scheduled_at}T${newSession.scheduled_time}`).toISOString();
-    const meetUrl = (newSession.meeting_url || "").trim();
+    const meetUrlRaw = (newSession.meeting_url || "").trim();
+    const meetUrl = meetUrlRaw || `https://meet.jit.si/EduTrack-${Math.random().toString(36).slice(2, 10)}`;
     try {
       await entities.VirtualSession.create({
         title: newSession.title,

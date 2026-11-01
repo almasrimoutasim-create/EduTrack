@@ -465,7 +465,8 @@ export default function TeacherPortal() {
     try {
       const teacherName = portalUser?.full_name || portalUser?.name || (isRTL ? "المعلم" : "Teacher");
       const roomName = `meet-${Math.random().toString(36).slice(2, 10)}`;
-      const meetUrl = formatMeetingUrl(meetingLink.trim());
+      const meetUrl = formatMeetingUrl(meetingLink.trim()) || 
+        `https://meet.jit.si/EduTrack-${Math.random().toString(36).slice(2, 10)}`;
 
       // 1. Create the virtual session with host meeting URL
       const createdSession = await entities.VirtualSession.create({
@@ -560,7 +561,8 @@ export default function TeacherPortal() {
     try {
       const teacherName = portalUser?.full_name || portalUser?.name || (isRTL ? "المعلم" : "Teacher");
       const roomName = `session-${Math.random().toString(36).slice(2, 10)}`;
-      const meetUrl = formatMeetingUrl(newSessionMeetingUrl.trim());
+      const meetUrl = formatMeetingUrl(newSessionMeetingUrl.trim()) || 
+        `https://meet.jit.si/EduTrack-${Math.random().toString(36).slice(2, 10)}`;
       const created = await entities.VirtualSession.create({
         title: newSessionTitle.trim(),
         teacher_id: teacherId,

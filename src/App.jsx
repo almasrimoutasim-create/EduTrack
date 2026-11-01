@@ -1,7 +1,7 @@
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import { LanguageProvider } from '@/lib/LanguageContext';
@@ -175,7 +175,7 @@ const AuthenticatedApp = () => {
            <Route path="/print-results" element={<PlanAccessGuard><PrintResults /></PlanAccessGuard>} />
            <Route path="/audit-log" element={<PlanAccessGuard><AuditLog /></PlanAccessGuard>} />
            <Route path="/library" element={<PlanAccessGuard><Library /></PlanAccessGuard>} />
-           <Route path="/virtual-classroom/:id" element={<VirtualClassroom />} />
+           <Route path="/virtual-classroom/:id" element={<Navigate to="/" replace />} />
            <Route path="/admin-virtual-classrooms" element={<PlanAccessGuard><AdminVirtualClassrooms /></PlanAccessGuard>} />
            <Route path="/admin-chats" element={<PlanAccessGuard><AdminChats /></PlanAccessGuard>} />
            <Route path="/official-announcements" element={<PlanAccessGuard><OfficialAnnouncements /></PlanAccessGuard>} />
