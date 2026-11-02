@@ -30,7 +30,7 @@ export const AuthProvider = ({ children }) => {
     };
   });
 
-  const [isGatewayPassed, setIsGatewayPassed] = useState(false);
+  const [isGatewayPassed, setIsGatewayPassed] = useState(true);
 
   // Helper: جلب إعدادات المدرسة العامة مع دعم schoolId
   const fetchPublicSettings = async () => {
