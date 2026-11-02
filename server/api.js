@@ -205,7 +205,10 @@ function requireFeature(featureKey) {
 let sql = null;
 const FALLBACK_DATABASE_URL = 'postgresql://neondb_owner:npg_2LDEMd9aHCBG@ep-proud-fire-b4b756gw-pooler.c-6.us-east-2.aws.neon.tech/neondb?channel_binding=require&sslmode=require';
 if (process.env.DATABASE_URL || true) {
-  sql = neon(process.env.DATABASE_URL || FALLBACK_DATABASE_URL);
+const ENV_DATABASE_URL = (process.env.DATABASE_URL || "").trim();
+const BAD_DB_PASSWORD = "npg_2BcoIaUX1lVQ";
+const EFFECTIVE_DATABASE_URL = (ENV_DATABASE_URL && !ENV_DATABASE_URL.includes(BAD_DB_PASSWORD)) ? ENV_DATABASE_URL : FALLBACK_DATABASE_URL;
+  sql = neon(EFFECTIVE_DATABASE_URL);
   sql.query(`CREATE EXTENSION IF NOT EXISTS "pgcrypto"`).catch(()=>{});
   // Auto-create parent_link_requests table
   sql`
