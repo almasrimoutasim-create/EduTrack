@@ -1301,7 +1301,7 @@ const FounderDashboard = () => {
         const url = apiBase ? `${apiBase}/neon-db/payment-receipts` : '/neon-db/payment-receipts';
         const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
         const data = await res.json();
-        return data.receipts || data || [];
+        return Array.isArray(data.receipts) ? data.receipts : (Array.isArray(data) ? data : []);
       } catch (err) { console.error("[founder-payment-receipts] failed", err); return []; }
     },
   });
@@ -2246,7 +2246,7 @@ const FounderDashboard = () => {
                   const statusColor = s.subscription_status === 'active' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : s.subscription_status === 'trial' ? 'bg-blue-50 text-blue-700 border-blue-200' : s.subscription_status === 'pending' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-rose-50 text-rose-700 border-rose-200';
                   const statusLabel = {active:'نشط',trial:'تجريبي',pending:'معلق',inactive:'موقوف',expired:'منتهي'}[s.subscription_status] || s.subscription_status;
                   const planColor = s.plan==='enterprise'?'from-violet-500 to-purple-600': s.plan==='professional'?'from-blue-500 to-indigo-600':'from-slate-500 to-slate-600';
-                  const pendingForSchool = paymentReceiptsRaw.filter(r => r.school_id === s.id && r.status === 'pending');
+                  const pendingForSchool = Array.isArray(paymentReceiptsRaw) ? paymentReceiptsRaw.filter(r => r.school_id === s.id && r.status === 'pending') : [];
                   return (
                     <div key={s.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
                       {/* Card Header */}
