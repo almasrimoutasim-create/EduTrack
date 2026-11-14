@@ -12,7 +12,6 @@ import {
 } from "lucide-react";
 import LandingContentEditor from "@/components/LandingContentEditor";
 import { useLanguage } from "@/lib/LanguageContext";
-import { useAuth } from "@/lib/AuthContext";
 import { buildPortalDeepLink } from "@/lib/portalNavigation";
 import { checkBackendHealth } from "@/lib/healthCheck";
 import { enhanceResponsiveTables } from "@/lib/responsiveTables";
@@ -88,45 +87,22 @@ const NAV = [
   { id: "settings", label: "إعدادات المنصة", icon: Settings },
 ];
 
-function PaymentReceiptsSection() {
+function PaymentReceiptsSection({ receipts = [], loading, loadError, refetch, onReview, reviewing }) {
   const [filter, setFilter] = useState("pending");
   const [selectedReceipt, setSelectedReceipt] = useState(null);
-  const [reviewing, setReviewing] = useState(false);
   const [notes, setNotes] = useState("");
 
-  const { data: receipts = [], isLoading: loading, refetch } = useQuery({
-    queryKey: ["founder-payment-receipts"],
-    queryFn: async () => {
-      try {
-        const token = localStorage.getItem("portal_jwt_token") || localStorage.getItem("jwt_token");
-        const apiBase = "https://edutrack-ey49.onrender.com";
-        const url = `${apiBase}/neon-db/payment-receipts`;
-        const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        return data.receipts || [];
-      } catch (err) { console.error("[PaymentReceiptsSection] fetch failed:", err); return []; }
-    },
-  });
-
-  const handleReview = async (id, status) => {
-    setReviewing(true);
-    try {
-      const token = localStorage.getItem("portal_jwt_token") || localStorage.getItem("jwt_token");
-      const apiBase = "https://edutrack-ey49.onrender.com";
-      const res = await fetch(`${apiBase}/neon-db/review-receipt/${id}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ status, reviewer_notes: notes }),
-      });
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-      toast.success(status === "approved" ? "تمت الموافقة وتفعيل الاشتراك" : "تم رفض الإيصال");
+  const handleReview = async (status) => {
+    const success = await onReview(
+      selectedReceipt.id,
+      status,
+      notes,
+      selectedReceipt.school_name || selectedReceipt.school_id
+    );
+    if (success) {
       setSelectedReceipt(null);
       setNotes("");
-      refetch();
-    } catch (e) { toast.error(e.message || "خطأ"); }
-    setReviewing(false);
+    }
   };
 
   const filtered = receipts.filter(r => filter === "all" || r.status === filter);
@@ -148,7 +124,12 @@ function PaymentReceiptsSection() {
         ))}
       </div>
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        {loading ? (
+        {loadError ? (
+          <div className="p-8 text-center space-y-3">
+            <p className="text-sm text-rose-600">تعذر تحميل طلبات الترقية: {loadError}</p>
+            <button onClick={() => refetch()} className="text-xs font-bold text-blue-600 hover:underline">إعادة المحاولة</button>
+          </div>
+        ) : loading ? (
           <div className="p-8 text-center"><RefreshCw className="animate-spin mx-auto text-emerald-500" size={24}/></div>
         ) : filtered.length === 0 ? (
           <p className="p-8 text-center text-slate-400">لا توجد إيصالات</p>
@@ -247,8 +228,8 @@ function PaymentReceiptsSection() {
             </div>
             {selectedReceipt.status === "pending" && (
               <div className="flex gap-3 mt-5">
-                <button disabled={reviewing} onClick={() => handleReview(selectedReceipt.id, "approved")} className="flex-1 bg-emerald-600 text-white py-2.5 rounded-xl font-bold text-sm hover:bg-emerald-700 disabled:opacity-50 flex items-center justify-center gap-2"><CheckCircle2 size={16}/> {reviewing ? "..." : "موافقة وتفعيل"}</button>
-                <button disabled={reviewing} onClick={() => handleReview(selectedReceipt.id, "rejected")} className="flex-1 bg-rose-100 text-rose-700 py-2.5 rounded-xl font-bold text-sm hover:bg-rose-200 disabled:opacity-50 flex items-center justify-center gap-2"><XCircle size={16}/> {reviewing ? "..." : "رفض"}</button>
+                <button disabled={reviewing} onClick={() => handleReview("approved")} className="flex-1 bg-emerald-600 text-white py-2.5 rounded-xl font-bold text-sm hover:bg-emerald-700 disabled:opacity-50 flex items-center justify-center gap-2"><CheckCircle2 size={16}/> {reviewing ? "..." : "موافقة وتفعيل"}</button>
+                <button disabled={reviewing} onClick={() => handleReview("rejected")} className="flex-1 bg-rose-100 text-rose-700 py-2.5 rounded-xl font-bold text-sm hover:bg-rose-200 disabled:opacity-50 flex items-center justify-center gap-2"><XCircle size={16}/> {reviewing ? "..." : "رفض"}</button>
               </div>
             )}
             <button onClick={() => { setSelectedReceipt(null); setNotes(""); }} className="w-full mt-3 bg-slate-100 text-slate-600 py-2 rounded-xl text-sm font-bold hover:bg-slate-200">إغلاق</button>
@@ -1292,35 +1273,46 @@ const FounderDashboard = () => {
   });
 
   // ── Payment receipts (upgrade requests) — للترقية أمام كل مدرسة ──
-  const { data: paymentReceiptsRaw = [], refetch: refetchPaymentReceipts } = useQuery({
+  const {
+    data: paymentReceiptsRaw = [],
+    refetch: refetchPaymentReceipts,
+    isLoading: paymentReceiptsLoading,
+    isError: paymentReceiptsLoadFailed,
+    error: paymentReceiptsLoadError,
+  } = useQuery({
     queryKey: ["founder-payment-receipts"],
     queryFn: async () => {
-      try {
-        const token = localStorage.getItem("founder_token") || "";
-        const apiBase = (import.meta.env.VITE_BACKEND_URL || '').replace(/\/$/, '');
-        const url = apiBase ? `${apiBase}/neon-db/payment-receipts` : '/neon-db/payment-receipts';
-        const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-        const data = await res.json();
-        return Array.isArray(data.receipts) ? data.receipts : (Array.isArray(data) ? data : []);
-      } catch (err) { console.error("[founder-payment-receipts] failed", err); return []; }
+      const token = localStorage.getItem("founder_token") || "";
+      const apiBase = (import.meta.env.VITE_BACKEND_URL || '').replace(/\/$/, '');
+      const url = apiBase ? `${apiBase}/neon-db/payment-receipts` : '/neon-db/payment-receipts';
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      return Array.isArray(data.receipts) ? data.receipts : (Array.isArray(data) ? data : []);
     },
   });
   const [viewUpgradeSchool, setViewUpgradeSchool] = useState(null);
   const [upgradeReviewing, setUpgradeReviewing] = useState(false);
-  const handleUpgradeReview = async (receiptId, status, schoolName) => {
+  const handleUpgradeReview = async (receiptId, status, reviewerNotes = "", schoolName = "المدرسة") => {
     setUpgradeReviewing(true);
+    let success = false;
     try {
       const token = localStorage.getItem("founder_token") || "";
       const apiBase = (import.meta.env.VITE_BACKEND_URL || '').replace(/\/$/, '');
       const url = apiBase ? `${apiBase}/neon-db/review-receipt/${receiptId}` : `/neon-db/review-receipt/${receiptId}`;
-      const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ status, reviewer_notes: "" }) });
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
+      const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ status, reviewer_notes: reviewerNotes }) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
       toast.success(status === "approved" ? `تمت الموافقة وتفعيل ${schoolName}` : "تم رفض الطلب");
       await Promise.all([refetchPaymentReceipts(), queryClient.invalidateQueries({ queryKey: ["founder-schools"] }), queryClient.invalidateQueries({ queryKey: ["founder-payment-receipts"] })]);
       setViewUpgradeSchool(null);
-    } catch (e) { toast.error(e.message || "فشل"); }
-    setUpgradeReviewing(false);
+      success = true;
+    } catch (e) {
+      toast.error(e.message || "فشل");
+    } finally {
+      setUpgradeReviewing(false);
+    }
+    return success;
   };
 
   // ── Support tickets (live API) ──
@@ -2007,6 +1999,79 @@ const FounderDashboard = () => {
   const [showAdd, setShowAdd] = useState(false);
   const [newSchool, setNewSchool] = useState({ name: "", country: "السودان", plan: "starter", billing_cycle: "monthly", email: "", phone: "", director_name: "" });
   const [viewSchool, setViewSchool] = useState(null);
+  const [editingSchool, setEditingSchool] = useState(null);
+  const [schoolEditForm, setSchoolEditForm] = useState(null);
+  const [upgradingSchool, setUpgradingSchool] = useState(null);
+  const [schoolPlanForm, setSchoolPlanForm] = useState({ plan: "starter", billing_cycle: "monthly" });
+  const [savingSchoolChanges, setSavingSchoolChanges] = useState(false);
+
+  const openSchoolEditor = (school) => {
+    setEditingSchool(school);
+    setSchoolEditForm({
+      name: school.name || "",
+      country: school.country || "",
+      email: school.email || "",
+      phone: school.phone || "",
+      plan: school.plan || "starter",
+      subscription_status: school.subscription_status || "trial",
+      expires_at: school.expires_at ? new Date(school.expires_at).toISOString().slice(0, 10) : "",
+    });
+  };
+
+  const saveSchoolChanges = async () => {
+    if (!editingSchool || !schoolEditForm?.name.trim()) {
+      toast.error("اسم المدرسة مطلوب");
+      return;
+    }
+    setSavingSchoolChanges(true);
+    try {
+      await entities.School.update(editingSchool.id, {
+        ...schoolEditForm,
+        name: schoolEditForm.name.trim(),
+        email: schoolEditForm.email.trim() || null,
+        phone: schoolEditForm.phone.trim() || null,
+        country: schoolEditForm.country.trim() || null,
+        expires_at: schoolEditForm.expires_at ? new Date(`${schoolEditForm.expires_at}T23:59:59`).toISOString() : null,
+      });
+      await queryClient.invalidateQueries({ queryKey: ["founder-schools"] });
+      toast.success("تم تحديث بيانات المدرسة");
+      setEditingSchool(null);
+      setSchoolEditForm(null);
+    } catch (error) {
+      toast.error(error.message || "تعذر تحديث بيانات المدرسة");
+    } finally {
+      setSavingSchoolChanges(false);
+    }
+  };
+
+  const saveSchoolPlan = async () => {
+    if (!upgradingSchool) return;
+    setSavingSchoolChanges(true);
+    try {
+      const apiBase = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/$/, "");
+      const response = await fetch(`${apiBase}/api/founder/school-plan`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("founder_token") || ""}`,
+        },
+        body: JSON.stringify({
+          school_id: upgradingSchool.id,
+          plan: schoolPlanForm.plan,
+          billing_cycle: schoolPlanForm.billing_cycle,
+        }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || result.error) throw new Error(result.error || `HTTP ${response.status}`);
+      await queryClient.invalidateQueries({ queryKey: ["founder-schools"] });
+      toast.success(`تم تحديث باقة ${upgradingSchool.name}`);
+      setUpgradingSchool(null);
+    } catch (error) {
+      toast.error(error.message || "تعذر تحديث الباقة");
+    } finally {
+      setSavingSchoolChanges(false);
+    }
+  };
 
   // ── Teacher management states ──
   const [viewTeacher, setViewTeacher] = useState(null);
@@ -2299,7 +2364,7 @@ const FounderDashboard = () => {
                         </div>
                       </div>
                       {/* Card Footer — Action Buttons */}
-                      <div className="border-t border-slate-100 px-4 py-3 flex items-center gap-1.5 flex-nowrap overflow-x-auto">
+                      <div className="border-t border-slate-100 px-4 py-3 flex items-center gap-2 flex-wrap">
                         <a href={`/gateway/${s.slug || s.domain_subdomain || s.id}`} target="_blank" rel="noreferrer" title="فتح بوابة المدرسة" className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-900 text-white text-[11px] font-bold hover:bg-black"><ExternalLink size={12}/> البوابة</a>
                         {pendingForSchool.length > 0 && (
                           <button onClick={()=>setViewUpgradeSchool({ school: s, receipts: pendingForSchool })} className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-500 text-white text-[11px] font-bold hover:bg-amber-600 shadow-sm">
@@ -2311,6 +2376,8 @@ const FounderDashboard = () => {
                         <button onClick={()=>renewSubscription(s)} className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-blue-600 text-white text-[11px] font-bold hover:bg-blue-700"><RefreshCw size={12}/> تجديد</button>
                         <button onClick={()=>createAdminForSchool(s)} className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-violet-600 text-white text-[11px] font-bold hover:bg-violet-700"><KeyRound size={12}/> المدير</button>
                         <button onClick={()=>{ setViewSchool(s); loadSchoolAdminData(s); }} className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-blue-50 text-blue-700 text-[11px] font-bold border border-slate-200"><Eye size={12}/> التفاصيل</button>
+                        <button onClick={()=>{ setUpgradingSchool(s); setSchoolPlanForm({ plan: s.plan || "starter", billing_cycle: s.billing_cycle || "monthly" }); }} className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-blue-50 text-blue-700 text-[11px] font-bold border border-blue-200 hover:bg-blue-100"><CreditCard size={12}/> ترقية الباقة</button>
+                        <button onClick={()=>openSchoolEditor(s)} className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white text-slate-700 text-[11px] font-bold border border-slate-200 hover:bg-slate-50"><Settings size={12}/> تعديل البيانات</button>
                         <button onClick={()=>setConfirmDeleteSchool(s)} className="shrink-0 p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 ml-auto" title="حذف المدرسة"><Trash2 size={13}/></button>
                       </div>
                     </div>
@@ -2473,13 +2540,104 @@ const FounderDashboard = () => {
                         )}
                         {!r.license_image && <p className="text-xs text-slate-400 mb-3">لم يُرفق ترخيص مع هذا الطلب</p>}
                         <div className="flex gap-2">
-                          <button disabled={upgradeReviewing} onClick={()=>handleUpgradeReview(r.id,'approved', viewUpgradeSchool.school.name)} className="flex-1 bg-emerald-600 text-white py-2 rounded-xl font-bold text-sm hover:bg-emerald-700 disabled:opacity-50 flex items-center justify-center gap-1"><CheckCircle2 size={14}/> {upgradeReviewing?'...':'موافقة وتفعيل'}</button>
-                          <button disabled={upgradeReviewing} onClick={()=>handleUpgradeReview(r.id,'rejected', viewUpgradeSchool.school.name)} className="flex-1 bg-rose-100 text-rose-700 py-2 rounded-xl font-bold text-sm hover:bg-rose-200 disabled:opacity-50">رفض</button>
+                          <button disabled={upgradeReviewing} onClick={()=>handleUpgradeReview(r.id,'approved', '', viewUpgradeSchool.school.name)} className="flex-1 bg-emerald-600 text-white py-2 rounded-xl font-bold text-sm hover:bg-emerald-700 disabled:opacity-50 flex items-center justify-center gap-1"><CheckCircle2 size={14}/> {upgradeReviewing?'...':'موافقة وتفعيل'}</button>
+                          <button disabled={upgradeReviewing} onClick={()=>handleUpgradeReview(r.id,'rejected', '', viewUpgradeSchool.school.name)} className="flex-1 bg-rose-100 text-rose-700 py-2 rounded-xl font-bold text-sm hover:bg-rose-200 disabled:opacity-50">رفض</button>
                         </div>
                       </div>
                     ))}
                   </div>
                   <button onClick={()=>setViewUpgradeSchool(null)} className="w-full mt-4 bg-slate-100 py-2 rounded-xl font-bold text-sm hover:bg-slate-200">إغلاق</button>
+                </div>
+              </div>
+            )}
+            {upgradingSchool && (
+              <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" onClick={()=>!savingSchoolChanges && setUpgradingSchool(null)}>
+                <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl" onClick={e=>e.stopPropagation()} dir="rtl">
+                  <div className="flex items-center justify-between border-b border-slate-100 p-5">
+                    <div>
+                      <h3 className="font-extrabold text-slate-900">ترقية الباقة</h3>
+                      <p className="mt-1 text-xs text-slate-500">{upgradingSchool.name} • الحالية: {upgradingSchool.plan || "starter"}</p>
+                    </div>
+                    <button onClick={()=>setUpgradingSchool(null)} disabled={savingSchoolChanges} aria-label="إغلاق" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X size={17}/></button>
+                  </div>
+                  <div className="space-y-4 p-5">
+                    <div>
+                      <label htmlFor="founder-school-plan" className="text-xs font-bold text-slate-600">الباقة</label>
+                      <select id="founder-school-plan" value={schoolPlanForm.plan} onChange={e=>setSchoolPlanForm(form=>({...form, plan:e.target.value}))} className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm">
+                        <option value="starter">Starter</option>
+                        <option value="professional">Professional</option>
+                        <option value="enterprise">Enterprise</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label htmlFor="founder-school-cycle" className="text-xs font-bold text-slate-600">دورة الفوترة</label>
+                      <select id="founder-school-cycle" value={schoolPlanForm.billing_cycle} onChange={e=>setSchoolPlanForm(form=>({...form, billing_cycle:e.target.value}))} className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm">
+                        <option value="monthly">شهري</option>
+                        <option value="yearly">سنوي</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 border-t border-slate-100 p-4">
+                    <button onClick={()=>setUpgradingSchool(null)} disabled={savingSchoolChanges} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50">إلغاء</button>
+                    <button onClick={saveSchoolPlan} disabled={savingSchoolChanges} className="flex-[2] rounded-xl bg-blue-600 py-2.5 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-50">{savingSchoolChanges ? "جارٍ الحفظ..." : "حفظ الباقة"}</button>
+                  </div>
+                </div>
+              </div>
+            )}
+            {editingSchool && schoolEditForm && (
+              <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" onClick={()=>!savingSchoolChanges && setEditingSchool(null)}>
+                <div className="w-full max-w-xl overflow-hidden rounded-2xl bg-white shadow-2xl" onClick={e=>e.stopPropagation()} dir="rtl">
+                  <div className="flex items-center justify-between border-b border-slate-100 p-5">
+                    <div>
+                      <h3 className="font-extrabold text-slate-900">تعديل بيانات المدرسة</h3>
+                      <p className="mt-1 text-xs text-slate-500">{editingSchool.name}</p>
+                    </div>
+                    <button onClick={()=>setEditingSchool(null)} disabled={savingSchoolChanges} aria-label="إغلاق" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X size={17}/></button>
+                  </div>
+                  <div className="grid max-h-[65vh] grid-cols-1 gap-3 overflow-y-auto p-5 sm:grid-cols-2">
+                    <div className="sm:col-span-2">
+                      <label htmlFor="founder-school-name" className="text-xs font-bold text-slate-600">اسم المدرسة *</label>
+                      <input id="founder-school-name" value={schoolEditForm.name} onChange={e=>setSchoolEditForm(form=>({...form, name:e.target.value}))} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm" required/>
+                    </div>
+                    <div>
+                      <label htmlFor="founder-school-country" className="text-xs font-bold text-slate-600">البلد</label>
+                      <input id="founder-school-country" value={schoolEditForm.country} onChange={e=>setSchoolEditForm(form=>({...form, country:e.target.value}))} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"/>
+                    </div>
+                    <div>
+                      <label htmlFor="founder-school-email" className="text-xs font-bold text-slate-600">البريد الإلكتروني</label>
+                      <input id="founder-school-email" type="email" dir="ltr" value={schoolEditForm.email} onChange={e=>setSchoolEditForm(form=>({...form, email:e.target.value}))} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"/>
+                    </div>
+                    <div>
+                      <label htmlFor="founder-school-phone" className="text-xs font-bold text-slate-600">الهاتف</label>
+                      <input id="founder-school-phone" type="tel" dir="ltr" value={schoolEditForm.phone} onChange={e=>setSchoolEditForm(form=>({...form, phone:e.target.value}))} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"/>
+                    </div>
+                    <div>
+                      <label htmlFor="founder-school-edit-plan" className="text-xs font-bold text-slate-600">الخطة</label>
+                      <select id="founder-school-edit-plan" value={schoolEditForm.plan} onChange={e=>setSchoolEditForm(form=>({...form, plan:e.target.value}))} className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm">
+                        <option value="starter">Starter</option>
+                        <option value="professional">Professional</option>
+                        <option value="enterprise">Enterprise</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label htmlFor="founder-school-status" className="text-xs font-bold text-slate-600">حالة الاشتراك</label>
+                      <select id="founder-school-status" value={schoolEditForm.subscription_status} onChange={e=>setSchoolEditForm(form=>({...form, subscription_status:e.target.value}))} className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm">
+                        <option value="active">نشط</option>
+                        <option value="trial">تجريبي</option>
+                        <option value="pending">معلق</option>
+                        <option value="inactive">موقوف</option>
+                        <option value="expired">منتهي</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label htmlFor="founder-school-expiry" className="text-xs font-bold text-slate-600">تاريخ الانتهاء</label>
+                      <input id="founder-school-expiry" type="date" value={schoolEditForm.expires_at} onChange={e=>setSchoolEditForm(form=>({...form, expires_at:e.target.value}))} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"/>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 border-t border-slate-100 p-4">
+                    <button onClick={()=>setEditingSchool(null)} disabled={savingSchoolChanges} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50">إلغاء</button>
+                    <button onClick={saveSchoolChanges} disabled={savingSchoolChanges} className="flex-[2] rounded-xl bg-blue-600 py-2.5 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-50">{savingSchoolChanges ? "جارٍ الحفظ..." : "حفظ التعديلات"}</button>
+                  </div>
                 </div>
               </div>
             )}
@@ -3192,7 +3350,14 @@ const FounderDashboard = () => {
         {/* ───── إيصالات الدفع البنتقالية ───── */}
         {section === "subscriptions" && (
           <SubscriptionErrorBoundary>
-            <PaymentReceiptsSection />
+            <PaymentReceiptsSection
+              receipts={paymentReceiptsRaw}
+              loading={paymentReceiptsLoading}
+              loadError={paymentReceiptsLoadFailed ? paymentReceiptsLoadError?.message || "تعذر تحميل الإيصالات" : ""}
+              refetch={refetchPaymentReceipts}
+              onReview={handleUpgradeReview}
+              reviewing={upgradeReviewing}
+            />
           </SubscriptionErrorBoundary>
         )}
 
@@ -4050,33 +4215,55 @@ const FounderDashboard = () => {
 function SchoolSubscriptionRequests() {
   const { language } = useLanguage();
   const isRTL = language === 'ar';
-  const { user } = useAuth();
   const queryClient = useQueryClient();
+  const apiBase = (import.meta.env.VITE_BACKEND_URL || '').replace(/\/$/, '');
+  const endpoint = (path) => `${apiBase}${path}`;
+  const founderHeaders = () => ({ Authorization: `Bearer ${localStorage.getItem('founder_token') || ''}` });
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [reviewNotes, setReviewNotes] = useState('');
   const [activeTab, setActiveTab] = useState('all');
 
-  const { data: requests = [], isLoading } = useQuery({
+  const { data: requests = [], isLoading, isError, error, refetch } = useQuery({
     queryKey: ['school-subscription-requests'],
-    queryFn: async () => { try { return await fetch('/api/school-subscription-requests').then(r => r.json()); } catch (err) { console.error("[SchoolSubscriptionRequests] fetch failed:", err); return []; } }
+    queryFn: async () => {
+      const res = await fetch(endpoint('/api/school-subscription-requests'), { headers: founderHeaders() });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      return Array.isArray(data) ? data : [];
+    }
   });
 
   const approveMutation = useMutation({
     mutationFn: async (id) => {
-      const res = await fetch(`/api/school-subscription-requests/${id}/approve`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ notes: reviewNotes }) });
-      if (!res.ok) throw new Error('Failed');
-      return res.json();
+      const res = await fetch(endpoint(`/api/school-subscription-requests/${id}/approve`), { method: 'POST', headers: { 'Content-Type': 'application/json', ...founderHeaders() }, body: JSON.stringify({ founder_notes: reviewNotes }) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Failed');
+      return data;
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['school-subscription-requests'] }); setSelectedRequest(null); setReviewNotes(''); toast.success(isRTL ? 'تمت الموافقة' : 'Approved!'); }
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['school-subscription-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['founder-schools'] });
+      setSelectedRequest(null);
+      setReviewNotes('');
+      toast.success(isRTL ? 'تمت الموافقة' : 'Approved!');
+    },
+    onError: (mutationError) => toast.error(mutationError.message || (isRTL ? 'تعذرت الموافقة على الطلب' : 'Approval failed')),
   });
 
   const rejectMutation = useMutation({
     mutationFn: async (id) => {
-      const res = await fetch(`/api/school-subscription-requests/${id}/reject`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ notes: reviewNotes }) });
-      if (!res.ok) throw new Error('Failed');
-      return res.json();
+      const res = await fetch(endpoint(`/api/school-subscription-requests/${id}/reject`), { method: 'POST', headers: { 'Content-Type': 'application/json', ...founderHeaders() }, body: JSON.stringify({ founder_notes: reviewNotes }) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Failed');
+      return data;
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['school-subscription-requests'] }); setSelectedRequest(null); setReviewNotes(''); toast.success(isRTL ? 'تم الرفض' : 'Rejected!'); }
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['school-subscription-requests'] });
+      setSelectedRequest(null);
+      setReviewNotes('');
+      toast.success(isRTL ? 'تم الرفض' : 'Rejected!');
+    },
+    onError: (mutationError) => toast.error(mutationError.message || (isRTL ? 'تعذر رفض الطلب' : 'Rejection failed')),
   });
 
   const filtered = activeTab === 'all' ? requests : requests.filter(r => r.status === activeTab);
@@ -4087,6 +4274,7 @@ function SchoolSubscriptionRequests() {
   };
 
   if (isLoading) return <div className="flex items-center justify-center p-8"><Loader2 className="w-6 h-6 animate-spin text-slate-400" /></div>;
+  if (isError) return <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-center"><p className="text-sm text-rose-700">تعذر تحميل طلبات الترقية: {error?.message}</p><button onClick={() => refetch()} className="mt-3 text-xs font-bold text-blue-700 hover:underline">إعادة المحاولة</button></div>;
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -4101,6 +4289,7 @@ function SchoolSubscriptionRequests() {
               {tab === 'all' ? 'الكل' : tab === 'pending' ? 'قيد المراجعة' : tab === 'approved' ? 'موافق' : 'مرفوض'}
             </button>
           ))}
+          <button onClick={() => refetch()} title="تحديث الطلبات" className="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 hover:bg-slate-50"><RefreshCw size={14}/></button>
         </div>
       </div>
       <div className="divide-y divide-slate-100">
