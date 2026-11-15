@@ -646,12 +646,16 @@ export default function Settings() {
             {(() => {
               const getFullUrl = (url) => {
                 if (!url) return "";
-                if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
-                  // Add cache busting for http/https URLs
+                if (url.startsWith('http://') || url.startsWith('https://')) {
+                  // Add cache busting for http/https URLs only (data: URIs break with query strings)
                   if (url.includes('?')) {
                     return url + '&t=' + Date.now();
                   }
                   return url + '?t=' + Date.now();
+                }
+                if (url.startsWith('data:')) {
+                  // data URIs must be returned untouched
+                  return url;
                 }
                 const apiBase = import.meta.env.VITE_BACKEND_URL || '';
                 const fullUrl = `${apiBase.replace(/\/$/, '')}${url.startsWith('/') ? '' : '/'}${url}`;
