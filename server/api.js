@@ -1170,6 +1170,24 @@ const EFFECTIVE_DATABASE_URL = (ENV_DATABASE_URL && !ENV_DATABASE_URL.includes(B
   `.then(() => console.log('[neon] teachers table verified'))
     .catch(err => console.error('[neon] teachers:', err.message));
 
+  sql`
+    CREATE TABLE IF NOT EXISTS subjects (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      name TEXT NOT NULL,
+      code TEXT,
+      grade TEXT,
+      teacher_id UUID,
+      teacher_name TEXT,
+      status TEXT DEFAULT 'active',
+      description TEXT,
+      school_id UUID,
+      branch_id UUID,
+      academic_year_id TEXT,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `.then(() => console.log('[neon] subjects table verified'))
+    .catch(err => console.error('[neon] subjects:', err.message));
+
   // Migration: add experience_years if missing
   sql`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS experience_years INTEGER;`.catch(() => {});
   // Migration: add school_name if missing (prevent mixing between schools)
@@ -1189,6 +1207,8 @@ const EFFECTIVE_DATABASE_URL = (ENV_DATABASE_URL && !ENV_DATABASE_URL.includes(B
   sql`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS notes TEXT;`.catch(() => {});
   sql`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS cv_document_url TEXT;`.catch(() => {});
   sql`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS certificates_urls TEXT;`.catch(() => {});
+  sql`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS username TEXT;`.catch(() => {});
+  sql`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS independent_teacher_id TEXT;`.catch(() => {});
 
   // ── Independent Student Portal: جدول الطلاب المستقلين ──
   sql`
@@ -2881,11 +2901,9 @@ const user = {
           const gateCheck = await dbQuery(
             `SELECT 'gw' AS src FROM gateway_accounts WHERE LOWER(username) = LOWER($1)
              UNION ALL
-             SELECT 't'  AS src FROM teachers   WHERE LOWER(email) = LOWER($1) OR LOWER(username) = LOWER($1) OR LOWER(employee_id) = LOWER($1)
+             SELECT 't'  AS src FROM teachers   WHERE LOWER(email) = LOWER($1) OR LOWER(employee_id) = LOWER($1)
              UNION ALL
              SELECT 's'  AS src FROM students    WHERE LOWER(user_email) = LOWER($1) OR LOWER(username) = LOWER($1) OR LOWER(student_id) = LOWER($1)
-             UNION ALL
-             SELECT 'st' AS src FROM staff_members WHERE LOWER(email) = LOWER($1) OR LOWER(employee_id) = LOWER($1)
              LIMIT 1`,
             [identifier]
           );
@@ -3501,7 +3519,7 @@ const rows = await dbQuery(
           [username.trim(), password, requestId]
         );
 
-        return res.end(JSON.stringify({ success: true, message: 'Teacher approved successfully', empId, independentTeacherId }));
+        return res.end(JSON.stringify({ success: true, message: 'Teacher approved successfully', empId, independentTeacherId: indTeacherId }));
       } catch (error) {
         console.error('[approve-teacher] error:', error);
         res.statusCode = 500;
