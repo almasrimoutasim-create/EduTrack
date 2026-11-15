@@ -155,6 +155,18 @@ export default function Settings() {
     }
   }, [existingSettings]);
 
+  const getCacheBustedUrl = (url) => {
+    if (!url) return '';
+    if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
+      // Add cache busting only for http/https URLs, not data URIs
+      if (url.includes('?')) {
+        return url + '&t=' + Date.now();
+      }
+      return url + '?t=' + Date.now();
+    }
+    return url;
+  };
+
   const saveMutation = useMutation({
     mutationFn: async () => {
       // Resolve current school_id for multi-tenant isolation
@@ -185,7 +197,26 @@ export default function Settings() {
       }
     },
     onSuccess: async () => {
+      // Invalidate queries to force re-fetch
       await queryClient.invalidateQueries({ queryKey: ['system-settings'] });
+      // Refresh form data from backend to ensure UI reflects new image URLs
+      if (existingSettings?.id) {
+        try {
+          const refreshed = await entities.SystemSetting.get(existingSettings.id);
+          if (refreshed) {
+            setFormData({
+              school_name_ar: refreshed.school_name_ar || '',
+              school_name_en: refreshed.school_name_en || '',
+              school_logo: refreshed.school_logo || '',
+              school_background_image: refreshed.school_background_image || '',
+              sidebar_logo: refreshed.sidebar_logo || '',
+              sidebar_short_name: refreshed.sidebar_short_name || ''
+            });
+          }
+        } catch (e) {
+          console.error('Failed to refresh settings after save:', e);
+        }
+      }
       await checkAppState(); 
       toast.success(isRTL ? 'تم حفظ الإعدادات بنجاح!' : 'Settings saved successfully!');
     },
@@ -221,7 +252,8 @@ export default function Settings() {
         try {
           const toastId = toast.loading(isRTL ? 'جاري ضغط الصورة...' : 'Compressing image...');
           const compressed = await compressImage(fullDataUri, field === 'school_background_image' ? 1200 : field === 'sidebar_logo' ? 400 : 600);
-          setFormData(prev => ({ ...prev, [field]: compressed }));
+          const cacheBusted = compressed + (compressed.includes('?') ? '&' : '?') + 't=' + Date.now();
+          setFormData(prev => ({ ...prev, [field]: cacheBusted }));
           toast.success(isRTL ? 'تم حفظ الصورة بنجاح' : 'Image saved', { id: toastId });
         } catch (err) {
           toast.error(isRTL ? 'فشل معالجة الصورة' : 'Failed to process image');
@@ -613,9 +645,20 @@ export default function Settings() {
             {(() => {
               const getFullUrl = (url) => {
                 if (!url) return "";
-                if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) return url;
+                if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
+                  // Add cache busting for http/https URLs
+                  if (url.includes('?')) {
+                    return url + '&t=' + Date.now();
+                  }
+                  return url + '?t=' + Date.now();
+                }
                 const apiBase = import.meta.env.VITE_BACKEND_URL || '';
-                return `${apiBase.replace(/\/$/, '')}${url.startsWith('/') ? '' : '/'}${url}`;
+                const fullUrl = `${apiBase.replace(/\/$/, '')}${url.startsWith('/') ? '' : '/'}${url}`;
+                // Add cache busting to the constructed URL
+                if (fullUrl.includes('?')) {
+                  return fullUrl + '&t=' + Date.now();
+                }
+                return fullUrl + '?t=' + Date.now();
               };
               const previewUrl = getFullUrl(formData.school_logo);
               return (

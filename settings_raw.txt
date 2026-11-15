@@ -1,0 +1,1323 @@
+﻿import React, { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { entities } from '@/api/dbClient';
+import { useLanguage } from '@/lib/LanguageContext';
+import { useAuth } from '@/lib/AuthContext';
+import { toast } from 'sonner';
+import { Settings as SettingsIcon, Save, Image as ImageIcon, Building2, Globe, Shield, UserPlus, Key, Trash2, Upload, Users, Edit, X, Crown, Zap, Loader2, CheckCircle, AlertCircle, Calendar, CreditCard, Eye, Download, RefreshCw, FileText, Clock, Copy, ExternalLink, Link2, Award } from 'lucide-react';
+import PageHeader from '@/components/shared/PageHeader';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+
+export default function Settings() {
+  const { language } = useLanguage();
+  const isRTL = language === 'ar';
+  const queryClient = useQueryClient();
+  const { user, checkAppState } = useAuth();
+
+  const [formData, setFormData] = useState({
+    school_name_ar: '',
+    school_name_en: '',
+    school_logo: '',
+    school_background_image: '',
+    sidebar_logo: '',
+    sidebar_short_name: ''
+  });
+
+  const [newGatewayUser, setNewGatewayUser] = useState({ username: '', password: '' });
+  const [newAdmin, setNewAdmin] = useState({ email: '', password: '', full_name: '' });
+
+  const [editingGateway, setEditingGateway] = useState(null);
+  const [editingAdmin, setEditingAdmin] = useState(null);
+
+  // ظ…ط³طھظ†ط¯ط§طھ ط§ظ„ظ…ظˆط¸ظپظٹظ†: ط§ظ„ط´ظ‡ط§ط¯ط§طھ ظ‚ط¯ طھظƒظˆظ† JSON string (ظ…ظ† ط§ظ„طھط³ط¬ظٹظ„ ط§ظ„ط¹ط§ظ…) ط£ظˆ array
+  const parseAdminCertificates = (raw) => {
+    if (!raw) return [];
+    if (Array.isArray(raw)) return raw.filter(Boolean);
+    if (typeof raw === "string") {
+      const s = raw.trim();
+      if (!s) return [];
+      try {
+        const parsed = JSON.parse(s);
+        if (Array.isArray(parsed)) return parsed.filter(Boolean);
+        if (typeof parsed === "string" && parsed) return [parsed];
+      } catch {
+        if (s.startsWith("data:") || s.startsWith("http") || s.startsWith("/")) return [s];
+        return [];
+      }
+    }
+    return [];
+  };
+
+  // â”€â”€ ط§ط´طھط±ط§ظƒ ط§ظ„ط¨ط§ظ‚ط§طھ (ظ…ط¯ظٹط± ط§ظ„ظ…ط¯ط±ط³ط©) â”€â”€
+  const schoolId = localStorage.getItem('portal_school_id') || user?.school_id || null;
+  const [upgradePlan, setUpgradePlan] = useState(null);
+  const [billingCycleLocal, setBillingCycleLocal] = useState('monthly');
+  const [receiptFile, setReceiptFile] = useState(null);
+  const [receiptPreview, setReceiptPreview] = useState(null);
+  const [licenseFile, setLicenseFile] = useState(null);
+  const [licensePreview, setLicensePreview] = useState(null);
+  const [senderName, setSenderName] = useState('');
+  const [transferRef, setTransferRef] = useState('');
+  const [bankNameLocal, setBankNameLocal] = useState('');
+  const [uploadingReceipt, setUploadingReceipt] = useState(false);
+  const [showSuccessReceipt, setShowSuccessReceipt] = useState(false);
+
+  const PLAN_DEFS = {
+    starter: { name: 'Starter', price: 49, icon: Shield, color: 'border-slate-200', bg: 'bg-slate-50', accent: 'text-slate-600', descAr: 'ظ…ط¯ط±ط³ط© طµط؛ظٹط±ط© ط­طھظ‰ 200 ط·ط§ظ„ط¨', descEn: 'Small school up to 200 students' },
+    professional: { name: 'Professional', price: 99, icon: Zap, color: 'border-blue-300', bg: 'bg-blue-50/50', accent: 'text-blue-600', popular: true, descAr: 'ط§ظ„ط£ظƒط«ط± ط·ظ„ط¨ط§ظ‹ â€” ظƒظ„ ط§ظ„ظ…ظٹط²ط§طھ', descEn: 'Most popular â€” all features' },
+    enterprise: { name: 'Enterprise', price: 199, icon: Crown, color: 'border-violet-300', bg: 'bg-violet-50/50', accent: 'text-violet-600', descAr: 'ط´ط¨ظƒط© ظ…ط¯ط§ط±ط³ ط¨ظ„ط§ ط­ط¯ظˆط¯', descEn: 'Unlimited network' },
+  };
+  const calcPriceLocal = (plan, cycle) => {
+    const base = PLAN_DEFS[plan]?.price || 99;
+    if (cycle === 'yearly') return Math.round(base * 12 * 0.8);
+    return base;
+  };
+
+  const { data: gatewayAccounts, isLoading: isLoadingAccounts } = useQuery({
+    queryKey: ['gateway-accounts'],
+    queryFn: () => entities.GatewayAccount.list("-created_at", 50)
+  });
+
+  const { data: systemAdmins, isLoading: isLoadingAdmins } = useQuery({
+    queryKey: ['system-admins'],
+    queryFn: () => entities.SystemAdmin.list("-created_at", 50)
+  });
+
+  const { data: currentSchool } = useQuery({
+    queryKey: ['current-school', schoolId],
+    enabled: !!schoolId,
+    queryFn: async () => {
+      try { return await entities.School.get(schoolId); } catch { return null; }
+    }
+  });
+  const { data: tierFeaturesList = [] } = useQuery({
+    queryKey: ['tier-features-settings'],
+    queryFn: async () => {
+      try {
+        const token = localStorage.getItem('portal_jwt_token') || localStorage.getItem('jwt_token') || '';
+        const apiBase = (import.meta.env.VITE_BACKEND_URL || '').replace(/\/$/, '');
+        const url = apiBase ? `${apiBase}/api/tier-features` : '/api/tier-features';
+        const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+        if (!res.ok) return [];
+        return await res.json();
+      } catch { return []; }
+    }
+  });
+
+  // â”€â”€ ط·ظ„ط¨ط§طھ ط§ظ„طھط±ظ‚ظٹط© ظ„ظ„ظ…ط¯ط±ط³ط© ط§ظ„ط­ط§ظ„ظٹط© â”€â”€
+  const { data: myReceipts = [] } = useQuery({
+    queryKey: ['my-receipts', schoolId],
+    enabled: !!schoolId,
+    queryFn: async () => {
+      try {
+        const token = localStorage.getItem('portal_jwt_token') || localStorage.getItem('jwt_token') || '';
+        const apiBase = (import.meta.env.VITE_BACKEND_URL || '').replace(/\/$/, '');
+        const url = apiBase ? `${apiBase}/neon-db/my-receipts` : '/neon-db/my-receipts';
+        const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+        const data = await res.json();
+        return data.receipts || [];
+      } catch { return []; }
+    }
+  });
+  // ط£ط­ط¯ط« ط·ظ„ط¨ ظ„ظƒظ„ ط¨ط§ظ‚ط©
+  const latestByPlan = {};
+  myReceipts.forEach(r => {
+    const plan = r.plan;
+    if (!plan) return;
+    const prev = latestByPlan[plan];
+    if (!prev || new Date(r.created_at) > new Date(prev.created_at)) latestByPlan[plan] = r;
+  });
+  const statusBadge = {
+    pending:  { ar: 'ظ‚ظٹط¯ ط§ظ„ظ…ط±ط§ط¬ط¹ط©', en: 'Pending', cls: 'bg-amber-100 text-amber-700', icon: Clock },
+    approved: { ar: 'طھظ…طھ ط§ظ„ظ…ظˆط§ظپظ‚ط©', en: 'Approved', cls: 'bg-emerald-100 text-emerald-700', icon: CheckCircle },
+    rejected: { ar: 'ظ…ط±ظپظˆط¶', en: 'Rejected', cls: 'bg-rose-100 text-rose-700', icon: X },
+  };
+
+  const { data: settingsList, isLoading } = useQuery({
+    queryKey: ['system-settings'],
+    queryFn: () => entities.SystemSetting.list("-created_at", 1)
+  });
+
+  const existingSettings = settingsList && settingsList.length > 0 ? settingsList[0] : null;
+
+  useEffect(() => {
+    if (existingSettings) {
+      setFormData({
+        school_name_ar: existingSettings.school_name_ar || '',
+        school_name_en: existingSettings.school_name_en || '',
+        school_logo: existingSettings.school_logo || '',
+        school_background_image: existingSettings.school_background_image || '',
+        sidebar_logo: existingSettings.sidebar_logo || '',
+        sidebar_short_name: existingSettings.sidebar_short_name || ''
+      });
+    }
+  }, [existingSettings]);
+
+  const getCacheBustedUrl = (url) => {
+    if (!url) return '';
+    if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
+      // Add cache busting only for http/https URLs, not data URIs
+      if (url.includes('?')) {
+        return url + '&t=' + Date.now();
+      }
+      return url + '?t=' + Date.now();
+    }
+    return url;
+  };
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      // Resolve current school_id for multi-tenant isolation
+      const schoolId = localStorage.getItem('portal_school_id') || user?.school_id || null;
+      // Save to SystemSetting â€” include school_id for tenant isolation
+      const payload = { ...formData, school_id: schoolId };
+      if (existingSettings?.id) {
+        await entities.SystemSetting.update(existingSettings.id, payload);
+      } else {
+        await entities.SystemSetting.create(payload);
+      }
+      // Also update schools table branding (for Gateway page)
+      if (schoolId) {
+        try {
+          const apiBase = (import.meta.env.VITE_BACKEND_URL || '').replace(/\/$/, '');
+          await fetch(`${apiBase}/neon-db/update-school-branding`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              school_id: schoolId,
+              logo_url: formData.school_logo,
+              background_image: formData.school_background_image
+            })
+          });
+        } catch (e) {
+          console.error('Failed to update school branding:', e);
+        }
+      }
+    },
+    onSuccess: async () => {
+      // Invalidate queries to force re-fetch
+      await queryClient.invalidateQueries({ queryKey: ['system-settings'] });
+      // Refresh form data from backend to ensure UI reflects new image URLs
+      if (existingSettings?.id) {
+        try {
+          const refreshed = await entities.SystemSetting.get(existingSettings.id);
+          if (refreshed) {
+            setFormData({
+              school_name_ar: refreshed.school_name_ar || '',
+              school_name_en: refreshed.school_name_en || '',
+              school_logo: refreshed.school_logo || '',
+              school_background_image: refreshed.school_background_image || '',
+              sidebar_logo: refreshed.sidebar_logo || '',
+              sidebar_short_name: refreshed.sidebar_short_name || ''
+            });
+          }
+        } catch (e) {
+          console.error('Failed to refresh settings after save:', e);
+        }
+      }
+      await checkAppState(); 
+      toast.success(isRTL ? 'طھظ… ط­ظپط¸ ط§ظ„ط¥ط¹ط¯ط§ط¯ط§طھ ط¨ظ†ط¬ط§ط­!' : 'Settings saved successfully!');
+    },
+    onError: (err) => {
+      toast.error(isRTL ? 'ط­ط¯ط« ط®ط·ط£ ط£ط«ظ†ط§ط، ط­ظپط¸ ط§ظ„ط¥ط¹ط¯ط§ط¯ط§طھ.' : 'Error saving settings.');
+      console.error(err);
+    }
+  });
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    saveMutation.mutate();
+  };
+
+  const BRANDING_FIELDS = ['school_logo', 'school_background_image', 'sidebar_logo'];
+
+  const handleFileUpload = async (e, field) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error(isRTL ? 'ط­ط¬ظ… ط§ظ„ظ…ظ„ظپ ظٹط¬ط¨ ط£ظ† ظٹظƒظˆظ† ط£ظ‚ظ„ ظ…ظ† 5 ظ…ظٹط¬ط§ط¨ط§ظٹطھ' : 'File must be less than 5MB');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const fullDataUri = event.target.result;
+
+      // For branding fields (logo, background): compress + store as base64 data URI in DB
+      // This avoids Render's ephemeral filesystem â€” images persist across deploys
+      if (BRANDING_FIELDS.includes(field)) {
+        try {
+          const toastId = toast.loading(isRTL ? 'ط¬ط§ط±ظٹ ط¶ط؛ط· ط§ظ„طµظˆط±ط©...' : 'Compressing image...');
+          const compressed = await compressImage(fullDataUri, field === 'school_background_image' ? 1200 : field === 'sidebar_logo' ? 400 : 600);
+          setFormData(prev => ({ ...prev, [field]: compressed }));
+          toast.success(isRTL ? 'طھظ… ط­ظپط¸ ط§ظ„طµظˆط±ط© ط¨ظ†ط¬ط§ط­' : 'Image saved', { id: toastId });
+        } catch (err) {
+          toast.error(isRTL ? 'ظپط´ظ„ ظ…ط¹ط§ظ„ط¬ط© ط§ظ„طµظˆط±ط©' : 'Failed to process image');
+          console.error(err);
+        }
+        return;
+      }
+
+      // Other fields: upload to server filesystem
+      const base64Data = fullDataUri.split(',')[1];
+      try {
+        const toastId = toast.loading(isRTL ? 'ط¬ط§ط±ظٹ ط±ظپط¹ ط§ظ„ظ…ظ„ظپ...' : 'Uploading file...');
+        const apiBase = import.meta.env.VITE_BACKEND_URL || '';
+        const uploadUrl = apiBase
+          ? `${apiBase.replace(/\/$/, '')}/neon-db/upload`
+          : '/neon-db/upload';
+
+        const res = await fetch(uploadUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fileName: file.name,
+            fileData: base64Data
+          })
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          setFormData(prev => ({ ...prev, [field]: data.fileUrl }));
+          toast.success(isRTL ? 'طھظ… ط±ظپط¹ ط§ظ„ظ…ظ„ظپ ط¨ظ†ط¬ط§ط­' : 'File uploaded successfully', { id: toastId });
+        } else {
+          throw new Error(data.error);
+        }
+      } catch (err) {
+        toast.error(isRTL ? 'ظپط´ظ„ ط±ظپط¹ ط§ظ„ظ…ظ„ظپ' : 'Upload failed');
+        console.error(err);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Compress image to target max width, returns base64 data URI
+  const compressImage = (dataUri, maxWidth) => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let w = img.width;
+        let h = img.height;
+        if (w > maxWidth) {
+          h = (h * maxWidth) / w;
+          w = maxWidth;
+        }
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', 0.7));
+      };
+      img.onerror = reject;
+      img.src = dataUri;
+    });
+  };
+
+  // â”€â”€ ط±ظپط¹ ط¥ظٹطµط§ظ„ طھط±ظ‚ظٹط© ط§ظ„ط¨ط§ظ‚ط© + طھط±ط®ظٹطµ ط§ظ„ظ…ط¯ط±ط³ط© â”€â”€
+  const handleReceiptSelect = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { toast.error(isRTL ? 'ط§ظ„ط­ط¯ ط§ظ„ط£ظ‚طµظ‰ 5 ظ…ظٹط¬ط§' : 'Max 5MB'); return; }
+    setReceiptFile(file);
+    const reader = new FileReader();
+    reader.onload = (ev) => setReceiptPreview(ev.target.result);
+    reader.readAsDataURL(file);
+  };
+  const handleLicenseSelect = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { toast.error(isRTL ? 'ط§ظ„ط­ط¯ ط§ظ„ط£ظ‚طµظ‰ 5 ظ…ظٹط¬ط§' : 'Max 5MB'); return; }
+    setLicenseFile(file);
+    if (file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (ev) => setLicensePreview(ev.target.result);
+      reader.readAsDataURL(file);
+    } else {
+      setLicensePreview(null);
+    }
+  };
+  const handleUploadUpgradeReceipt = async () => {
+    if (!receiptFile || !upgradePlan || !currentSchool) return;
+    if (!senderName.trim()) { toast.error(isRTL ? 'ط£ط¯ط®ظ„ ط§ط³ظ… ط§ظ„ظ…ط±ط³ظ„' : 'Enter sender name'); return; }
+    setUploadingReceipt(true);
+    try {
+      const base64 = await new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(r.result);
+        r.onerror = reject;
+        r.readAsDataURL(receiptFile);
+      });
+      let licenseBase64 = null;
+      let licenseFilename = null;
+      if (licenseFile) {
+        licenseBase64 = await new Promise((resolve, reject) => {
+          const r = new FileReader();
+          r.onload = () => resolve(r.result);
+          r.onerror = reject;
+          r.readAsDataURL(licenseFile);
+        });
+        licenseFilename = licenseFile.name;
+      }
+      const apiBase = (import.meta.env.VITE_BACKEND_URL || '').replace(/\/$/, '');
+      const url = apiBase ? `${apiBase}/neon-db/upload-receipt` : '/neon-db/upload-receipt';
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('portal_jwt_token') || localStorage.getItem('jwt_token') || ''}` },
+        body: JSON.stringify({
+          amount: calcPriceLocal(upgradePlan, billingCycleLocal),
+          plan: upgradePlan,
+          billing_cycle: billingCycleLocal,
+          receipt_image: base64,
+          bank_name: bankNameLocal || 'Bank',
+          account_holder: 'EduTrack',
+          transfer_reference: transferRef,
+          sender_name: senderName,
+          license_image: licenseBase64,
+          license_filename: licenseFilename,
+        })
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      toast.success(isRTL ? 'طھظ… ط¥ط±ط³ط§ظ„ ط·ظ„ط¨ ط§ظ„طھط±ظ‚ظٹط© â€” ط¨ط§ظ†طھط¸ط§ط± ظ…ظˆط§ظپظ‚ط© ط§ظ„ظ…ط¤ط³ط³' : 'Upgrade request sent â€” pending founder approval');
+      setShowSuccessReceipt(true);
+      setReceiptFile(null); setReceiptPreview(null); setLicenseFile(null); setLicensePreview(null); setSenderName(''); setTransferRef(''); setBankNameLocal(''); setUpgradePlan(null);
+    } catch (e) { toast.error(e.message || 'ظپط´ظ„ ط§ظ„ط¥ط±ط³ط§ظ„'); } finally { setUploadingReceipt(false); }
+  };
+
+  const createGatewayMutation = useMutation({
+    mutationFn: async (data) => await entities.GatewayAccount.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['gateway-accounts'] });
+      setNewGatewayUser({ username: '', password: '' });
+      toast.success(isRTL ? 'طھظ… ط¥ط¶ط§ظپط© ط­ط³ط§ط¨ ط§ظ„ط¨ظˆط§ط¨ط© ط¨ظ†ط¬ط§ط­' : 'Gateway account added');
+    },
+    onError: (err) => {
+      console.error("Gateway create error:", err);
+      const msg = err.message?.includes('duplicate') || err.message?.includes('unique')
+        ? (isRTL ? "ط§ط³ظ… ط§ظ„ظ…ط³طھط®ط¯ظ… ظ…ظˆط¬ظˆط¯ ط¨ط§ظ„ظپط¹ظ„. ط§ط³طھط®ط¯ظ… ط§ط³ظ… ظ…ط³طھط®ط¯ظ… ظ…ط®طھظ„ظپ." : "Username already exists. Use a different username.")
+        : err.message?.includes('Unauthorized')
+        ? (isRTL ? "ط§ظ†طھظ‡طھ ط¬ظ„ط³ط© طھط³ط¬ظٹظ„ ط§ظ„ط¯ط®ظˆظ„. ظٹط±ط¬ظ‰ طھط³ط¬ظٹظ„ ط§ظ„ط¯ط®ظˆظ„ ظ…ط¬ط¯ط¯ط§ظ‹." : "Session expired. Please log in again.")
+        : (isRTL ? `ظپط´ظ„ ط¥ط¶ط§ظپط© ط§ظ„ط­ط³ط§ط¨: ${err.message}` : `Failed to add account: ${err.message}`);
+      toast.error(msg);
+    }
+  });
+
+  const updateGatewayMutation = useMutation({
+    mutationFn: async (data) => {
+      const payload = { username: data.username };
+      if (data.password) payload.password = data.password;
+      return await entities.GatewayAccount.update(data.id, payload);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['gateway-accounts'] });
+      setEditingGateway(null);
+      toast.success(isRTL ? 'طھظ… طھط¹ط¯ظٹظ„ ط§ظ„ط­ط³ط§ط¨ ط¨ظ†ط¬ط§ط­' : 'Account updated');
+    },
+    onError: () => toast.error(isRTL ? 'ظپط´ظ„ طھط¹ط¯ظٹظ„ ط§ظ„ط­ط³ط§ط¨' : 'Update failed')
+  });
+
+  const deleteGatewayMutation = useMutation({
+    mutationFn: (id) => entities.GatewayAccount.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['gateway-accounts'] });
+      toast.success(isRTL ? 'طھظ… ط­ط°ظپ ط§ظ„ط­ط³ط§ط¨' : 'Account deleted');
+    }
+  });
+
+  const createAdminMutation = useMutation({
+    mutationFn: async (data) => await entities.SystemAdmin.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['system-admins'] });
+      setNewAdmin({ email: '', password: '', full_name: '' });
+      toast.success(isRTL ? 'طھظ… ط¥ط¶ط§ظپط© ظ…ط¯ظٹط± ط§ظ„ظ†ط¸ط§ظ… ط¨ظ†ط¬ط§ط­' : 'Admin account added');
+    },
+    onError: (err) => {
+      console.error("Admin create error:", err);
+      const msg = err.message?.includes('duplicate') || err.message?.includes('unique')
+        ? (isRTL ? "ظ‡ط°ط§ ط§ظ„ط¨ط±ظٹط¯ ط§ظ„ط¥ظ„ظƒطھط±ظˆظ†ظٹ ظ…ط³ط¬ظ„ ط¨ط§ظ„ظپط¹ظ„." : "This email is already registered.")
+        : err.message?.includes('Unauthorized')
+        ? (isRTL ? "ط§ظ†طھظ‡طھ ط¬ظ„ط³ط© طھط³ط¬ظٹظ„ ط§ظ„ط¯ط®ظˆظ„. ظٹط±ط¬ظ‰ طھط³ط¬ظٹظ„ ط§ظ„ط¯ط®ظˆظ„ ظ…ط¬ط¯ط¯ط§ظ‹." : "Session expired. Please log in again.")
+        : (isRTL ? `ظپط´ظ„ ط¥ط¶ط§ظپط© ط§ظ„ظ…ط¯ظٹط±: ${err.message}` : `Failed to add admin: ${err.message}`);
+      toast.error(msg);
+    }
+  });
+
+  const updateAdminMutation = useMutation({
+    mutationFn: async (data) => {
+      const payload = { email: data.email };
+      if (data.password) payload.password = data.password;
+      return await entities.SystemAdmin.update(data.id, payload);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['system-admins'] });
+      setEditingAdmin(null);
+      toast.success(isRTL ? 'طھظ… طھط¹ط¯ظٹظ„ ط­ط³ط§ط¨ ط§ظ„ظ…ط¯ظٹط± ط¨ظ†ط¬ط§ط­' : 'Admin account updated');
+    },
+    onError: () => toast.error(isRTL ? 'ظپط´ظ„ ط§ظ„طھط¹ط¯ظٹظ„' : 'Update failed')
+  });
+
+  const deleteAdminMutation = useMutation({
+    mutationFn: (id) => entities.SystemAdmin.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['system-admins'] });
+      toast.success(isRTL ? 'طھظ… ط­ط°ظپ ط­ط³ط§ط¨ ط§ظ„ظ…ط¯ظٹط±' : 'Admin account deleted');
+    }
+  });
+
+  const btnPrimary = "inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-primary text-white hover:bg-primary/95 transition-all shadow-md hover:shadow-lg font-bold text-sm cursor-pointer";
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-[60vh]">
+        <div className="w-10 h-10 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="pb-20 space-y-6" dir={isRTL ? "rtl" : "ltr"}>
+      <PageHeader 
+        title={isRTL ? "ط¥ط¹ط¯ط§ط¯ط§طھ ط§ظ„ظ†ط¸ط§ظ…" : "System Settings"}
+        subtitle={isRTL ? "ط¥ط¯ط§ط±ط© ط§ط³ظ… ظˆط´ط¹ط§ط± ط§ظ„ظ…ط¯ط±ط³ط© ظˆط§ظ„ظ…ط·ط¨ظˆط¹ط§طھ" : "Manage school name, logo and printout settings"}
+      />
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
+          <Card className="border border-stone-200/80 rounded-2xl p-6 bg-white shadow-sm">
+            <div className="flex items-center gap-3 border-b border-stone-100 pb-4 mb-6">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                <SettingsIcon size={20} />
+              </div>
+              <div>
+                <h2 className="text-lg font-black font-display text-stone-900">
+                  {isRTL ? "ط¥ط¹ط¯ط§ط¯ط§طھ ط§ظ„ظ‡ظˆظٹط© ظˆط§ظ„ظ…ط·ط¨ظˆط¹ط§طھ" : "Identity & Print Settings"}
+                </h2>
+                <p className="text-sm text-stone-500 font-medium mt-0.5">
+                  {isRTL ? "ط³طھط¸ظ‡ط± ظ‡ط°ظ‡ ط§ظ„ط¨ظٹط§ظ†ط§طھ ظپظٹ طھط±ظˆظٹط³ط© ط§ظ„طھظ‚ط§ط±ظٹط± ظˆط§ظ„ظپظˆط§طھظٹط±" : "This data will appear in the header of reports and invoices"}
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-stone-700 flex items-center gap-2">
+                    <Building2 size={16} className="text-stone-400" />
+                    {isRTL ? "ط§ط³ظ… ط§ظ„ظ…ط¯ط±ط³ط© (ط¨ط§ظ„ط¹ط±ط¨ظٹط©)" : "School Name (Arabic)"}
+                  </label>
+                  <Input 
+                    required
+                    value={formData.school_name_ar}
+                    onChange={(e) => setFormData({...formData, school_name_ar: e.target.value})}
+                    placeholder={isRTL ? "ظ…ط¯ط§ط±ط³ ط¥ط¯ظٹظˆطھط±ط§ظƒ ط§ظ„ط¹ط§ظ„ظ…ظٹط©" : "EduTrack International School"}
+                    className="h-12 bg-stone-50 border-stone-200 focus:bg-white"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-stone-700 flex items-center gap-2">
+                    <Globe size={16} className="text-stone-400" />
+                    {isRTL ? "ط§ط³ظ… ط§ظ„ظ…ط¯ط±ط³ط© (ط¨ط§ظ„ظ„ط؛ط© ط§ظ„ط¥ظ†ط¬ظ„ظٹط²ظٹط©)" : "School Name (English)"}
+                  </label>
+                  <Input 
+                    required
+                    value={formData.school_name_en}
+                    onChange={(e) => setFormData({...formData, school_name_en: e.target.value})}
+                    placeholder="EduTrack International School"
+                    className="h-12 bg-stone-50 border-stone-200 focus:bg-white"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="field-settings-input-5" className="text-sm font-bold text-stone-700 flex items-center gap-2">
+                  <ImageIcon size={16} className="text-stone-400" />
+                  {isRTL ? "ط´ط¹ط§ط± ط§ظ„ظ…ط¯ط±ط³ط© (Logo)" : "School Logo"}
+                </label>
+                <div className="flex gap-2">
+                  <Input 
+                    value={formData.school_logo}
+                    readOnly
+                    placeholder={isRTL ? "ظ„ظ… ظٹطھظ… ط±ظپط¹ طµظˆط±ط©" : "No image uploaded"}
+                    className="h-12 bg-stone-50 border-stone-200 focus:bg-white flex-1"
+                    dir="ltr"
+                  />
+                  <div className="relative">
+                    <input id="field-settings-input-5" name="input_5" aria-label="input 5" 
+                      type="file" 
+                      accept="image/*"
+                      onChange={(e) => handleFileUpload(e, 'school_logo')}
+                      className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
+                    />
+                    <button type="button" className="h-12 px-4 rounded-xl bg-primary/10 text-primary font-bold flex items-center gap-2 pointer-events-none">
+                      <Upload size={18} />
+                      {isRTL ? "ط±ظپط¹ طµظˆط±ط©" : "Upload"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="field-settings-input-4" className="text-sm font-bold text-stone-700 flex items-center gap-2">
+                  <ImageIcon size={16} className="text-stone-400" />
+                  {isRTL ? "طµظˆط±ط© ط®ظ„ظپظٹط© ط´ط§ط´ط© ط§ظ„ظ‚ظپظ„ (Gateway BG)" : "Gateway Background Image"}
+                </label>
+                <div className="flex gap-2">
+                  <Input 
+                    value={formData.school_background_image}
+                    readOnly
+                    placeholder={isRTL ? "ظ„ظ… ظٹطھظ… ط±ظپط¹ طµظˆط±ط©" : "No image uploaded"}
+                    className="h-12 bg-stone-50 border-stone-200 focus:bg-white flex-1"
+                    dir="ltr"
+                  />
+                  <div className="relative">
+                    <input id="field-settings-input-4" name="input_4" aria-label="input 4" 
+                      type="file" 
+                      accept="image/*"
+                      onChange={(e) => handleFileUpload(e, 'school_background_image')}
+                      className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
+                    />
+                    <button type="button" className="h-12 px-4 rounded-xl bg-primary/10 text-primary font-bold flex items-center gap-2 pointer-events-none">
+                      <Upload size={18} />
+                      {isRTL ? "ط±ظپط¹ طµظˆط±ط©" : "Upload"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* â”€â”€ ط¥ط¹ط¯ط§ط¯ط§طھ ط§ظ„ط³ط§ظٹط¯ط¨ط§ط± ط§ظ„ظ…ط®طھطµط± â”€â”€ */}
+              <div className="border-t border-stone-100 pt-6 space-y-4">
+                <h4 className="font-black text-stone-900 flex items-center gap-2">
+                  <span className="h-6 w-6 rounded-lg bg-violet-100 text-violet-600 flex items-center justify-center text-xs">â‰،</span>
+                  {isRTL ? "ط¥ط¹ط¯ط§ط¯ط§طھ ط§ظ„ط³ط§ظٹط¯ط¨ط§ط± (ط§ظ„ط´ط¹ط§ط± + ط§ظ„ط§ط³ظ… ط§ظ„ظ…ط®طھطµط±)" : "Sidebar branding"}
+                </h4>
+                <p className="text-xs text-stone-500 -mt-2">{isRTL ? "ط§ط±ظپط¹ ط´ط¹ط§ط± ط§ظ„ط³ط§ظٹط¯ط¨ط§ط± ظˆط§ظƒطھط¨ ظƒظ„ظ…ط© ظ…ط®طھطµط±ط© (ظ…ط«ظ„ط§ظ‹: ط¥ظٹط¯ظٹظˆطھط±ط§ظƒ) â€” ظٹط¸ظ‡ط± ط§ظ„ط´ط¹ط§ط± ظپظˆظ‚ ظˆط§ظ„ط§ط³ظ… طھط­طھظ‡ ط¨طھظ†ط³ظٹظ‚ ط¬ظ…ظٹظ„" : "Upload sidebar logo and write a short name"}</p>
+
+                <div className="space-y-2">
+                  <label htmlFor="field-settings-input-3" className="text-sm font-bold text-stone-700 flex items-center gap-2">
+                    <ImageIcon size={16} className="text-violet-400" />
+                    {isRTL ? "ط´ط¹ط§ط± ط§ظ„ط³ط§ظٹط¯ط¨ط§ط±" : "Sidebar logo"}
+                  </label>
+                  <div className="flex gap-2">
+                    <Input value={formData.sidebar_logo} readOnly placeholder={isRTL ? "ظ„ظ… ظٹطھظ… ط±ظپط¹ ط´ط¹ط§ط± ط§ظ„ط³ط§ظٹط¯ط¨ط§ط±" : "No sidebar logo"} className="h-12 bg-stone-50 border-stone-200 flex-1" dir="ltr" />
+                    <div className="relative">
+                      <input id="field-settings-input-3" name="input_3" aria-label="input 3" type="file" accept="image/*" onChange={(e) => handleFileUpload(e, 'sidebar_logo')} className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10" />
+                      <button type="button" className="h-12 px-4 rounded-xl bg-violet-600 text-white font-bold flex items-center gap-2 pointer-events-none">
+                        <Upload size={18} /> {isRTL ? "ط±ظپط¹" : "Upload"}
+                      </button>
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-stone-400">{isRTL ? "ط¥ظ† طھط±ظƒطھظ‡ ظپط§ط±ط؛ط§ظ‹ ط³ظٹظڈط³طھط®ط¯ظ… ط´ط¹ط§ط± ط§ظ„ظ…ط¯ط±ط³ط© ط§ظ„ط¹ط§ظ…" : "If empty, main school logo is used"}</p>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-stone-700">{isRTL ? "ط§ظ„ط§ط³ظ… ط§ظ„ظ…ط®طھطµط± ظ„ظ„ط³ط§ظٹط¯ط¨ط§ط±" : "Sidebar short name"}</label>
+                  <Input value={formData.sidebar_short_name} onChange={(e) => setFormData({...formData, sidebar_short_name: e.target.value})} placeholder={isRTL ? "ظ…ط«ط§ظ„: ط¥ظٹط¯ظٹظˆطھط±ط§طھ" : "e.g. EduTack"} className="h-12 bg-stone-50 border-stone-200 focus:bg-white" maxLength={20} />
+                  <p className="text-[11px] text-stone-400">{isRTL ? "ظƒظ„ظ…ط© ظˆط§ط­ط¯ط© ظ…ط®طھطµط±ط© â€” طھط¸ظ‡ط± طھط­طھ ط§ظ„ط´ط¹ط§ط± ط¨ط®ط· ط¬ظ…ظٹظ„" : "One short word shown under logo"}</p>
+                </div>
+              </div>
+
+              <div className="pt-4 flex justify-end">
+                <button 
+                  type="submit" 
+                  disabled={saveMutation.isPending}
+                  className={btnPrimary}
+                >
+                  <Save size={18} />
+                  <span>{saveMutation.isPending ? (isRTL ? "ط¬ط§ط±ظٹ ط§ظ„ط­ظپط¸..." : "Saving...") : (isRTL ? "ط­ظپط¸ ط§ظ„ط¥ط¹ط¯ط§ط¯ط§طھ" : "Save Settings")}</span>
+                </button>
+              </div>
+            </form>
+          </Card>
+        </div>
+
+        <div className="lg:col-span-1 space-y-6">
+          <Card className="border border-stone-200/80 rounded-2xl p-6 bg-white shadow-sm space-y-4">
+            <h3 className="font-bold text-stone-800 border-b border-stone-100 pb-2">
+              {isRTL ? "ظ…ط¹ط§ظٹظ†ط© ط§ظ„ط´ط¹ط§ط±" : "Logo Preview"}
+            </h3>
+            
+            {(() => {
+              const getFullUrl = (url) => {
+                if (!url) return "";
+                if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) return url;
+                const apiBase = import.meta.env.VITE_BACKEND_URL || '';
+                return `${apiBase.replace(/\/$/, '')}${url.startsWith('/') ? '' : '/'}${url}`;
+              };
+              const previewUrl = getFullUrl(formData.school_logo);
+              return (
+            <div className="h-40 border-2 border-dashed border-stone-200 rounded-xl flex items-center justify-center bg-stone-50/50 overflow-hidden">
+              {previewUrl ? (
+                <img 
+                  src={previewUrl} 
+                  alt="School Logo" 
+                  className="max-h-full max-w-full object-contain p-2"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                    const err = e.currentTarget.nextElementSibling;
+                    if (err) err.style.display = 'block';
+                    const hidden = e.currentTarget.parentElement?.querySelector('.no-logo-fallback');
+                    if (hidden) hidden.style.display = 'none';
+                  }}
+                  onLoad={(e) => {
+                    const err = e.currentTarget.nextElementSibling;
+                    if (err) err.style.display = 'none';
+                  }}
+                />
+              ) : null}
+              <div className={`text-center p-4 ${previewUrl ? 'hidden no-logo-fallback' : ''}`}>
+                <ImageIcon size={32} className="mx-auto text-stone-300 mb-2" />
+                <p className="text-xs text-stone-500 font-medium">
+                  {isRTL ? "ظ„ظ… ظٹطھظ… طھط­ط¯ظٹط¯ ط´ط¹ط§ط±" : "No logo set"}
+                </p>
+              </div>
+              <div className="text-center p-4 hidden">
+                <p className="text-xs text-rose-500 font-bold">
+                  {isRTL ? "ط§ظ„ط±ط§ط¨ط· ط؛ظٹط± طµط§ظ„ط­ ط£ظˆ ظ„ط§ ظٹظ…ظƒظ† طھط­ظ…ظٹظ„ ط§ظ„طµظˆط±ط©" : "Invalid URL or image failed to load"}
+                </p>
+              </div>
+            </div>
+              );
+            })()}
+
+            <div className="p-4 rounded-xl bg-primary/5 border border-primary/10">
+              <p className="text-xs font-bold text-primary mb-1">
+                {isRTL ? "ظ…ظ„ط§ط­ط¸ط© ط­ظˆظ„ ط§ظ„طھط±ظˆظٹط³ط©:" : "Header Note:"}
+              </p>
+              <p className="text-[11px] text-stone-600 leading-relaxed">
+                {isRTL 
+                  ? "ط³ظٹطھظ… طھط·ط¨ظٹظ‚ ظ‡ط°ظ‡ ط§ظ„ط¥ط¹ط¯ط§ط¯ط§طھ طھظ„ظ‚ط§ط¦ظٹط§ظ‹ ط¹ظ„ظ‰ ظƒط§ظپط© ط§ظ„طھظ‚ط§ط±ظٹط± ظˆط§ظ„ظپظˆط§طھظٹط± ظˆط§ظ„ظ…ظ„ظپط§طھ ط§ظ„ط´ط§ظ…ظ„ط© ط§ظ„ظ‚ط§ط¨ظ„ط© ظ„ظ„ط·ط¨ط§ط¹ط© ط¹ط¨ط± ط§ظ„ظ†ط¸ط§ظ…." 
+                  : "These settings will automatically apply to all printable reports, invoices, and comprehensive dossiers across the system."}
+              </p>
+            </div>
+          </Card>
+        </div>
+      </div>
+
+      {/* â”€â”€ ط±ظˆط§ط¨ط· ط§ظ„طھط³ط¬ظٹظ„ ط§ظ„ط¹ط§ظ… â”€â”€ */}
+      {/* fallback: slug â†’ domain_subdomain â†’ id ط­طھظ‰ ظ„ط§ طھط®طھظپظٹ ط§ظ„ط±ظˆط§ط¨ط· ط¥ظ† ظƒط§ظ† slug ظپط§ط±ط؛ط§ظ‹ */}
+      {(() => {
+        const regSlug = currentSchool?.slug || currentSchool?.domain_subdomain || currentSchool?.id;
+        return regSlug ? <RegistrationLinksSection slug={regSlug} isRTL={isRTL} /> : null;
+      })()}
+
+      {/* â”€â”€ ط­ط§ظ„ط© ط·ظ„ط¨ط§طھ ط§ظ„طھط±ظ‚ظٹط© â”€â”€ */}
+      <MyReceiptStatus />
+
+      {/* â”€â”€ ط§ط´طھط±ط§ظƒ ط§ظ„ط¨ط§ظ‚ط§طھ (Subscription Plans) â€” ظ…ط¯ظٹط± ط§ظ„ظ†ط¸ط§ظ… â”€â”€ */}
+      <Card className="border-2 border-slate-200 rounded-[28px] p-6 md:p-8 bg-white shadow-sm mt-6">
+        <div className="flex items-center gap-3 border-b border-slate-100 pb-4 mb-6">
+          <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center text-amber-600"><CreditCard size={20} /></div>
+          <div className="flex-1">
+            <h2 className="text-lg font-black text-slate-900">{isRTL ? 'ط§ط´طھط±ط§ظƒ ط§ظ„ط¨ط§ظ‚ط§طھ' : 'Subscription Plans'}</h2>
+            <p className="text-xs text-slate-500 mt-0.5">{isRTL ? 'ط§ظ„ط¨ط§ظ‚ط© ط§ظ„ط­ط§ظ„ظٹط© ظ…ظ…ظٹط²ط© â€” ظٹظ…ظƒظ†ظƒ ط·ظ„ط¨ طھط±ظ‚ظٹط© ظ„ط£ظٹ ط¨ط§ظ‚ط© ط£ط®ط±ظ‰ ط¹ط¨ط± ط±ظپط¹ ط¥ظٹطµط§ظ„ ط§ظ„ط¯ظپط¹' : 'Current plan highlighted â€” request upgrade to any other plan by uploading receipt'}</p>
+          </div>
+          {currentSchool && <span className="text-xs font-bold bg-slate-900 text-white px-3 py-1.5 rounded-full">{isRTL ? 'ط§ظ„ط­ط§ظ„ظٹط©: ' : 'Current: '}{(currentSchool.plan || 'starter').toUpperCase()}</span>}
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {Object.entries(PLAN_DEFS).map(([key, p]) => {
+            const isCurrent = (currentSchool?.plan || 'starter') === key;
+            const Icon = p.icon;
+            const priceDisplay = `${p.price}`;
+            const receipt = latestByPlan[key];
+            const badge = receipt ? statusBadge[receipt.status] : null;
+            const BadgeIcon = badge?.icon;
+            const hasPending = receipt?.status === 'pending';
+            const hasRejected = receipt?.status === 'rejected';
+            return (
+              <div key={key} className={`relative rounded-2xl border-2 p-5 text-center transition-all ${isCurrent ? 'border-emerald-400 bg-emerald-50/60 shadow-lg' : `border-slate-200 ${p.bg} hover:shadow-md`}`}>
+                {p.popular && <span className="absolute -top-2 right-3 bg-blue-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">{isRTL ? 'ط§ظ„ط£ظƒط«ط± ط·ظ„ط¨ط§ظ‹' : 'Popular'}</span>}
+                {isCurrent && <span className="absolute -top-2 left-3 bg-emerald-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold flex items-center gap-1"><CheckCircle size={10}/>{isRTL ? 'ط§ظ„ط¨ط§ظ‚ط© ط§ظ„ط­ط§ظ„ظٹط©' : 'Current'}</span>}
+                {/* â”€â”€ ط´ط±ظٹط· ط§ظ„ط­ط§ظ„ط© â”€â”€ */}
+                {badge && !isCurrent && (
+                  <div className={`absolute -top-2 right-3 flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold text-white shadow-sm ${
+                    receipt.status === 'pending'  ? 'bg-amber-500' :
+                    receipt.status === 'approved' ? 'bg-emerald-500' :
+                    'bg-rose-500'
+                  }`}>
+                    <BadgeIcon size={10}/>{isRTL ? badge.ar : badge.en}
+                  </div>
+                )}
+                <Icon size={24} className={`mx-auto mb-2 ${isCurrent ? 'text-emerald-600' : p.accent}`} />
+                <div className="text-base font-black text-slate-900">{p.name}</div>
+                <div className="text-2xl font-extrabold text-slate-900">${priceDisplay}<span className="text-xs font-normal text-slate-500">/ط´ظ‡ط±</span></div>
+                <p className="text-xs text-slate-500 mt-1">{isRTL ? p.descAr : p.descEn}</p>
+                {isCurrent ? (
+                  <div className="mt-4 py-2.5 rounded-xl bg-emerald-100 text-emerald-700 font-bold text-xs flex items-center justify-center gap-1"><CheckCircle size={14}/>{isRTL ? 'ظ…ظپط¹ظ„ط© ط­ط§ظ„ظٹط§ظ‹' : 'Active'}</div>
+                ) : hasPending ? (
+                  <div className="mt-4 py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 font-bold text-xs flex items-center justify-center gap-1"><Clock size={14}/>{isRTL ? 'ط¨ط§ظ†طھط¸ط§ط± ط§ظ„ظ…ط±ط§ط¬ط¹ط©' : 'Awaiting Review'}</div>
+                ) : hasRejected ? (
+                  <button onClick={() => { setUpgradePlan(key); setBillingCycleLocal(currentSchool?.billing_cycle || 'monthly'); }} className="mt-4 w-full py-2.5 rounded-xl font-bold text-sm bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 transition">{isRTL ? 'ط¥ط¹ط§ط¯ط© ط§ظ„ط¥ط±ط³ط§ظ„' : 'Resubmit'}</button>
+                ) : (
+                  <button onClick={() => { setUpgradePlan(key); setBillingCycleLocal(currentSchool?.billing_cycle || 'monthly'); }} className={`mt-4 w-full py-2.5 rounded-xl font-bold text-sm transition ${upgradePlan===key ? 'bg-slate-900 text-white' : 'bg-white border border-slate-200 hover:bg-slate-900 hover:text-white'}`}>{isRTL ? `طھط±ظ‚ظٹط© ط¥ظ„ظ‰ ${p.name}` : `Upgrade to ${p.name}`}</button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* طھظپط§طµظٹظ„ ط§ظ„ط¨ط§ظ‚ط© ط§ظ„ظ…ط®طھط§ط±ط© + ط±ظپط¹ ط§ظ„ط¥ظٹطµط§ظ„ */}
+        {upgradePlan && (
+          <div className="mt-6 rounded-2xl border-2 border-slate-900 bg-slate-50 p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-black text-slate-900 flex items-center gap-2"><Upload size={16} className="text-blue-600"/>{isRTL ? `ط·ظ„ط¨ طھط±ظ‚ظٹط© ط¥ظ„ظ‰ ${PLAN_DEFS[upgradePlan].name}` : `Upgrade to ${PLAN_DEFS[upgradePlan].name}`}</h3>
+              <button onClick={()=>{ setUpgradePlan(null); setReceiptFile(null); setReceiptPreview(null); setLicenseFile(null); setLicensePreview(null);}} className="text-xs text-slate-500 hover:text-slate-900"><X size={16}/></button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+              <button onClick={()=>setBillingCycleLocal('monthly')} className={`p-3 rounded-xl border-2 text-center ${billingCycleLocal==='monthly' ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white'}`}>
+                <div className="font-bold text-sm">{isRTL ? 'ط´ظ‡ط±ظٹ' : 'Monthly'}</div><div className="text-lg font-extrabold">${PLAN_DEFS[upgradePlan].price}</div>
+              </button>
+              <button onClick={()=>setBillingCycleLocal('yearly')} className={`p-3 rounded-xl border-2 text-center ${billingCycleLocal==='yearly' ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white'}`}>
+                <div className="font-bold text-sm">{isRTL ? 'ط³ظ†ظˆظٹ (طھظˆظپظٹط± 20%)' : 'Yearly (Save 20%)'}</div><div className="text-lg font-extrabold">${calcPriceLocal(upgradePlan,'yearly')}<span className="text-xs font-normal">/ط³ظ†ط©</span></div>
+              </button>
+            </div>
+            <div className="bg-white rounded-xl p-4 border border-slate-200 space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div><label className="text-xs font-bold text-slate-600">{isRTL ? 'ط§ط³ظ… ط§ظ„ظ…ط±ط³ظ„ *' : 'Sender name *'}</label><Input value={senderName} onChange={e=>setSenderName(e.target.value)} placeholder={isRTL ? 'ظƒظ…ط§ ظپظٹ ط§ظ„ط¥ظٹطµط§ظ„' : 'As on receipt'} className="mt-1"/></div>
+                <div><label className="text-xs font-bold text-slate-600">{isRTL ? 'ط±ظ‚ظ… ط§ظ„ظ…ط±ط¬ط¹' : 'Reference'}</label><Input value={transferRef} onChange={e=>setTransferRef(e.target.value)} placeholder="Ref #" className="mt-1"/></div>
+              </div>
+              <div><label className="text-xs font-bold text-slate-600">{isRTL ? 'ط§ظ„ط¨ظ†ظƒ ط§ظ„ظ…ط±ط³ظ„' : 'Sender bank'}</label><Input value={bankNameLocal} onChange={e=>setBankNameLocal(e.target.value)} placeholder={isRTL ? 'ط§ط³ظ… ط§ظ„ط¨ظ†ظƒ' : 'Bank name'} className="mt-1"/></div>
+              <div>
+                <label className="text-xs font-bold text-slate-600">{isRTL ? 'طµظˆط±ط© ط§ظ„ط¥ظٹطµط§ظ„ *' : 'Receipt image *'}</label>
+                <label htmlFor="field-settings-input-2" className="mt-1 flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-slate-300 rounded-xl bg-slate-50 cursor-pointer hover:bg-slate-100">
+                  {receiptPreview ? <img src={receiptPreview} alt="receipt" className="max-h-28 rounded-lg object-contain"/> : <div className="text-center"><Upload size={24} className="mx-auto text-slate-400 mb-1"/><p className="text-xs text-slate-500">{isRTL ? 'ط§ط¶ط؛ط· ظ„ط§ط®طھظٹط§ط± طµظˆط±ط©' : 'Click to select'}</p></div>}
+                  <input id="field-settings-input-2" name="input_2" aria-label="input 2" type="file" accept="image/*" onChange={handleReceiptSelect} className="hidden" />
+                </label>
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-600">{isRTL ? 'طھط±ط®ظٹطµ ط§ظ„ظ…ط¯ط±ط³ط© (طµظˆط±ط© ط£ظˆ PDF)' : 'School License (image or PDF)'}</label>
+                <label className="mt-1 flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-amber-300 rounded-xl bg-amber-50/50 cursor-pointer hover:bg-amber-50">
+                  {licenseFile ? (
+                    <div className="text-center p-2">
+                      {licensePreview ? <img src={licensePreview} alt="license" className="max-h-20 rounded-lg object-contain mx-auto"/> : <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center mx-auto mb-1"><FileText size={18} className="text-amber-600"/></div>}
+                      <p className="text-xs font-bold text-amber-700 truncate max-w-[200px]">{licenseFile.name}</p>
+                      <p className="text-[10px] text-slate-400">{(licenseFile.size/1024).toFixed(0)} KB</p>
+                    </div>
+                  ) : (
+                    <div className="text-center"><Upload size={20} className="mx-auto text-amber-400 mb-1"/><p className="text-xs text-slate-500">{isRTL ? 'ط§ط±ظپط¹ طھط±ط®ظٹطµ ط§ظ„ظ…ط¯ط±ط³ط©' : 'Upload license'}</p><p className="text-[10px] text-slate-400">JPG, PNG, PDF â€” 5MB</p></div>
+                  )}
+                  <input id="field-settings-input-1" name="input_1" aria-label="input 1" type="file" accept="image/*,.pdf" onChange={handleLicenseSelect} className="hidden" />
+                </label>
+              </div>
+              <div className="flex items-center justify-between bg-slate-900 text-white rounded-xl px-4 py-3">
+                <span className="text-sm">{isRTL ? 'ط§ظ„ظ…ط¨ظ„ط؛' : 'Amount'}</span><span className="text-xl font-black">${calcPriceLocal(upgradePlan, billingCycleLocal)} <span className="text-xs font-normal opacity-60">{billingCycleLocal==='yearly' ? '/ط³ظ†ط©' : '/ط´ظ‡ط±'}</span></span>
+              </div>
+              <Button onClick={handleUploadUpgradeReceipt} disabled={uploadingReceipt || !receiptFile || !senderName.trim()} className="w-full h-11 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold disabled:opacity-50">
+                {uploadingReceipt ? <><Loader2 className="animate-spin" size={16}/>{isRTL ? 'ط¬ط§ط±ظٹ ط§ظ„ط¥ط±ط³ط§ظ„...' : 'Sending...'}</> : <><Upload size={16}/>{isRTL ? 'ط¥ط±ط³ط§ظ„ ط·ظ„ط¨ ط§ظ„طھط±ظ‚ظٹط©' : 'Send Upgrade Request'}</>}
+              </Button>
+              <p className="text-xs text-slate-400 text-center">{isRTL ? 'ط³ظٹطھظ… ظ…ط±ط§ط¬ط¹ط© ط§ظ„ط¥ظٹطµط§ظ„ ظ…ظ† ط§ظ„ظ…ط¤ط³ط³ ظˆطھظپط¹ظٹظ„ ط§ظ„ط¨ط§ظ‚ط© ظپظˆط± ط§ظ„ظ…ظˆط§ظپظ‚ط©' : 'Receipt will be reviewed by founder and plan activated on approval'}</p>
+            </div>
+          </div>
+        )}
+
+        {/* ظ…ظ‚ط§ط±ظ†ط© ط§ظ„ظ…ظٹط²ط§طھ */}
+        {tierFeaturesList.length > 0 && (
+          <div className="mt-6 border border-slate-200 rounded-2xl overflow-hidden">
+            <div className="bg-slate-50 px-4 py-3 font-bold text-sm text-slate-800 flex items-center gap-2"><Zap size={16} className="text-amber-500"/>{isRTL ? 'ظ…ظ‚ط§ط±ظ†ط© ط³ط±ظٹط¹ط© ظ„ظ„ظ…ظٹط²ط§طھ' : 'Quick feature comparison'}</div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead><tr className="bg-white border-b"><th className="text-right p-3 text-slate-500">{isRTL ? 'ط§ظ„ظ…ظٹط²ط©' : 'Feature'}</th>{Object.keys(PLAN_DEFS).map(k => <th key={k} className="text-center p-3 font-black capitalize">{k}</th>)}</tr></thead>
+                <tbody className="divide-y divide-slate-100">
+                  {[...new Set(tierFeaturesList.map(f=>f.category))].slice(0,3).map(cat => (
+                    <React.Fragment key={cat}>
+                      {tierFeaturesList.filter(f=>f.category===cat).slice(0,4).map(fe => (
+                        <tr key={fe.feature_key}><td className="p-2.5 text-right font-bold text-slate-700">{isRTL ? fe.name_ar : fe.name_en}</td>
+                          {Object.keys(PLAN_DEFS).map(tier => <td key={tier} className="text-center">{fe.tiers?.[tier] ? <span className="inline-flex w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 items-center justify-center"><CheckCircle size={12}/></span> : <span className="inline-flex w-5 h-5 rounded-full bg-slate-100 text-slate-400 items-center justify-center"><X size={10}/></span>}</td>)}
+                        </tr>
+                      ))}
+                    </React.Fragment>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </Card>
+
+      {showSuccessReceipt && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={()=>setShowSuccessReceipt(false)}>
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full text-center" onClick={e=>e.stopPropagation()}>
+            <div className="w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-3"><CheckCircle size={28}/></div>
+            <h3 className="font-black text-slate-900">{isRTL ? 'طھظ… ط§ظ„ط¥ط±ط³ط§ظ„' : 'Sent!'}</h3><p className="text-sm text-slate-500 mt-1">{isRTL ? 'طھظ… ط¥ط±ط³ط§ظ„ ط·ظ„ط¨ ط§ظ„طھط±ظ‚ظٹط© ظ„ظ„ظ…ط¤ط³ط³ â€” ط³ظٹطھظ… طھظپط¹ظٹظ„ ط§ظ„ط¨ط§ظ‚ط© ط¨ط¹ط¯ ط§ظ„ظ…ظˆط§ظپظ‚ط©' : 'Upgrade request sent â€” founder will activate soon'}</p>
+            <Button onClick={()=>setShowSuccessReceipt(false)} className="w-full mt-4 bg-slate-900 text-white rounded-xl">OK</Button>
+          </div>
+        </div>
+      )}
+
+      {/* Gateway Accounts Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+        <div className="space-y-6">
+          <Card className="border border-stone-200/80 rounded-2xl p-6 bg-white shadow-sm">
+            <div className="flex items-center gap-3 border-b border-stone-100 pb-4 mb-6">
+              <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+                <Shield size={20} />
+              </div>
+              <div>
+                <h2 className="text-lg font-black font-display text-stone-900">
+                  {isRTL ? "ط£ط¹ط¶ط§ط، ط§ظ„ظ…ط¯ط±ط³ط©" : "School Members"}
+                </h2>
+                <p className="text-sm text-stone-500 font-medium mt-0.5">
+                  {isRTL ? "ط­ط³ط§ط¨ ظˆط§ط­ط¯ ظ…ط´طھط±ظƒ ظ„ظ„ظ…ط¯ط±ط³ط© ظƒظ„ظ‡ط§ â€” ظˆط²ظ‘ط¹ ط¨ظٹط§ظ†ط§طھظ‡ ط¹ظ„ظ‰ ط§ظ„ظ…ط¹ظ„ظ…ظٹظ† ظˆط§ظ„ط·ظ„ط§ط¨ ظˆط§ظ„ظ…ظˆط¸ظپظٹظ† ظ„ظٹط¯ط®ظ„ظˆط§ ظ…ظ† ط±ط§ط¨ط· ط¨ظˆط§ط¨ط© ط§ظ„ظ…ط¯ط±ط³ط© ط«ظ… ظٹط®طھط§ط±ظˆط§ ط¨ظˆط§ط¨طھظ‡ظ… ظˆظٹط¯ط®ظ„ظˆط§ ط¨ط­ط³ط§ط¨ط§طھظ‡ظ… ط§ظ„ط´ط®طµظٹط©." : "One shared account for the whole school â€” share it with teachers, students and staff to enter via the school gateway link, then pick their portal and sign in personally."}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-4 items-end mb-6">
+              <div className="flex-1 space-y-2">
+                <label className="text-sm font-bold text-stone-700">{isRTL ? "ط§ط³ظ… ط§ظ„ظ…ط³طھط®ط¯ظ…" : "Username"}</label>
+                <Input 
+                  value={newGatewayUser.username}
+                  onChange={(e) => setNewGatewayUser({...newGatewayUser, username: e.target.value})}
+                  className="bg-stone-50"
+                  dir="ltr"
+                />
+              </div>
+              <div className="flex-1 space-y-2">
+                <label className="text-sm font-bold text-stone-700">{isRTL ? "ظƒظ„ظ…ط© ط§ظ„ظ…ط±ظˆط±" : "Password"}</label>
+                <Input 
+                  type="text"
+                  value={newGatewayUser.password}
+                  onChange={(e) => setNewGatewayUser({...newGatewayUser, password: e.target.value})}
+                  className="bg-stone-50"
+                  dir="ltr"
+                />
+              </div>
+              <button 
+                onClick={() => {
+                  if (newGatewayUser.username && newGatewayUser.password) {
+                    createGatewayMutation.mutate(newGatewayUser);
+                  }
+                }}
+                disabled={createGatewayMutation.isPending || !newGatewayUser.username || !newGatewayUser.password}
+                className="h-10 px-4 rounded-xl bg-indigo-600 text-white font-bold text-sm hover:bg-indigo-700 transition-colors flex items-center gap-2 disabled:opacity-50"
+              >
+                <UserPlus size={16} />
+                {isRTL ? "ط¥ط¶ط§ظپط©" : "Add"}
+              </button>
+            </div>
+
+            <div className="border border-stone-100 rounded-xl overflow-hidden">
+              <table className="w-full text-start">
+                <thead className="bg-stone-50">
+                  <tr>
+                    <th className="px-4 py-3 text-xs font-bold text-stone-500">{isRTL ? "ط§ط³ظ… ط§ظ„ظ…ط³طھط®ط¯ظ…" : "Username"}</th>
+                    <th className="px-4 py-3 text-xs font-bold text-stone-500">{isRTL ? "طھط§ط±ظٹط® ط§ظ„ط¥ط¶ط§ظپط©" : "Added On"}</th>
+                    <th className="px-4 py-3 text-xs font-bold text-stone-500 w-24"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-stone-100">
+                  {isLoadingAccounts ? (
+                    <tr><td colSpan="3" className="p-4 text-center text-sm text-stone-400">Loading...</td></tr>
+                  ) : gatewayAccounts?.map(account => {
+                    if (editingGateway?.id === account.id) {
+                      return (
+                        <tr key={account.id} className="bg-indigo-50/50">
+                          <td colSpan="3" className="p-3">
+                            <div className="flex items-center gap-2">
+                              <Input 
+                                value={editingGateway.username}
+                                onChange={(e) => setEditingGateway({...editingGateway, username: e.target.value})}
+                                className="h-8 text-sm"
+                                placeholder="Username"
+                                dir="ltr"
+                              />
+                              <Input 
+                                type="text"
+                                value={editingGateway.password}
+                                onChange={(e) => setEditingGateway({...editingGateway, password: e.target.value})}
+                                className="h-8 text-sm"
+                                placeholder={isRTL ? "ظƒظ„ظ…ط© ظ…ط±ظˆط± ط¬ط¯ظٹط¯ط©" : "New password"}
+                                dir="ltr"
+                              />
+                              <button 
+                                onClick={() => updateGatewayMutation.mutate(editingGateway)}
+                                className="p-1.5 bg-indigo-600 text-white rounded hover:bg-indigo-700 shrink-0"
+                              >
+                                <Save size={16} />
+                              </button>
+                              <button 
+                                onClick={() => setEditingGateway(null)}
+                                className="p-1.5 bg-stone-200 text-stone-600 rounded hover:bg-stone-300 shrink-0"
+                              >
+                                <X size={16} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    }
+                    
+                    return (
+                      <tr key={account.id} className="hover:bg-stone-50/50">
+                        <td className="px-4 py-3 font-bold text-stone-900" dir="ltr">{account.username}</td>
+                        <td className="px-4 py-3 text-sm text-stone-500">
+                          {new Date(account.created_at).toLocaleDateString()}
+                        </td>
+                        <td className="px-4 py-3 text-end whitespace-nowrap">
+                          <button 
+                            onClick={() => setEditingGateway({ id: account.id, username: account.username, password: '' })}
+                            className="p-2 text-stone-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors mx-1"
+                          >
+                            <Edit size={16} />
+                          </button>
+                          <button 
+                            onClick={() => deleteGatewayMutation.mutate(account.id)}
+                            className="p-2 text-stone-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {gatewayAccounts?.length === 0 && (
+                    <tr><td colSpan="3" className="p-4 text-center text-sm text-stone-400">{isRTL ? "ظ„ط§ طھظˆط¬ط¯ ط­ط³ط§ط¨ط§طھ" : "No accounts found"}</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+          </Card>
+        </div>
+
+        {/* System Admins Section */}
+        <div className="space-y-6">
+          <Card className="border border-stone-200/80 rounded-2xl p-6 bg-white shadow-sm">
+            <div className="flex items-center gap-3 border-b border-stone-100 pb-4 mb-6">
+              <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600">
+                <Users size={20} />
+              </div>
+              <div>
+                <h2 className="text-lg font-black font-display text-stone-900">
+                  {isRTL ? "ظ…ط¯ط±ط§ط، ط§ظ„ظ†ط¸ط§ظ… (Admins)" : "System Admins"}
+                </h2>
+                <p className="text-sm text-stone-500 font-medium mt-0.5">
+                  {isRTL ? "ط§ظ„ط­ط³ط§ط¨ط§طھ ط§ظ„طھظٹ طھظ…ظ„ظƒ ط§ظ„طµظ„ط§ط­ظٹط© ط§ظ„ظƒط§ظ…ظ„ط© ظ„ط¥ط¯ط§ط±ط© ط§ظ„ظ†ط¸ط§ظ…." : "Accounts with full permissions to manage the system."}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-4 items-end mb-6">
+              <div className="flex-1 space-y-2">
+                <label className="text-sm font-bold text-stone-700">{isRTL ? "ط§ظ„ط¨ط±ظٹط¯ ط§ظ„ط¥ظ„ظƒطھط±ظˆظ†ظٹ" : "Email"}</label>
+                <Input 
+                  value={newAdmin.email}
+                  onChange={(e) => setNewAdmin({...newAdmin, email: e.target.value})}
+                  className="bg-stone-50"
+                  dir="ltr"
+                />
+              </div>
+              <div className="flex-1 space-y-2">
+                <label className="text-sm font-bold text-stone-700">{isRTL ? "ظƒظ„ظ…ط© ط§ظ„ظ…ط±ظˆط±" : "Password"}</label>
+                <Input 
+                  type="text"
+                  value={newAdmin.password}
+                  onChange={(e) => setNewAdmin({...newAdmin, password: e.target.value})}
+                  className="bg-stone-50"
+                  dir="ltr"
+                />
+              </div>
+              <button 
+                onClick={() => {
+                  if (newAdmin.email && newAdmin.password) {
+                    createAdminMutation.mutate({ ...newAdmin, full_name: 'System Admin' });
+                  }
+                }}
+                disabled={createAdminMutation.isPending || !newAdmin.email || !newAdmin.password}
+                className="h-10 px-4 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-50"
+              >
+                <UserPlus size={16} />
+                {isRTL ? "ط¥ط¶ط§ظپط©" : "Add"}
+              </button>
+            </div>
+
+            <div className="border border-stone-100 rounded-xl overflow-hidden">
+              <table className="w-full text-start">
+                <thead className="bg-stone-50">
+                  <tr>
+                    <th className="px-4 py-3 text-xs font-bold text-stone-500">{isRTL ? "ط§ظ„ط¨ط±ظٹط¯ ط§ظ„ط¥ظ„ظƒطھط±ظˆظ†ظٹ" : "Email"}</th>
+                    <th className="px-4 py-3 text-xs font-bold text-stone-500">{isRTL ? "ط§ظ„ظ…ط³طھظ†ط¯ط§طھ" : "Documents"}</th>
+                    <th className="px-4 py-3 text-xs font-bold text-stone-500">{isRTL ? "طھط§ط±ظٹط® ط§ظ„ط¥ط¶ط§ظپط©" : "Added On"}</th>
+                    <th className="px-4 py-3 text-xs font-bold text-stone-500 w-24"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-stone-100">
+                  {isLoadingAdmins ? (
+                    <tr><td colSpan="4" className="p-4 text-center text-sm text-stone-400">Loading...</td></tr>
+                  ) : systemAdmins?.map(admin => {
+                    if (editingAdmin?.id === admin.id) {
+                      return (
+                        <tr key={admin.id} className="bg-blue-50/50">
+                          <td colSpan="4" className="p-3">
+                            <div className="flex items-center gap-2">
+                              <Input 
+                                value={editingAdmin.email}
+                                onChange={(e) => setEditingAdmin({...editingAdmin, email: e.target.value})}
+                                className="h-8 text-sm"
+                                placeholder="Email"
+                                dir="ltr"
+                              />
+                              <Input 
+                                type="text"
+                                value={editingAdmin.password}
+                                onChange={(e) => setEditingAdmin({...editingAdmin, password: e.target.value})}
+                                className="h-8 text-sm"
+                                placeholder={isRTL ? "ظƒظ„ظ…ط© ظ…ط±ظˆط± ط¬ط¯ظٹط¯ط©" : "New password"}
+                                dir="ltr"
+                              />
+                              <button 
+                                onClick={() => updateAdminMutation.mutate(editingAdmin)}
+                                className="p-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 shrink-0"
+                              >
+                                <Save size={16} />
+                              </button>
+                              <button 
+                                onClick={() => setEditingAdmin(null)}
+                                className="p-1.5 bg-stone-200 text-stone-600 rounded hover:bg-stone-300 shrink-0"
+                              >
+                                <X size={16} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    }
+                    
+                    return (
+                      <tr key={admin.id} className="hover:bg-stone-50/50">
+                        <td className="px-4 py-3 font-bold text-stone-900" dir="ltr">{admin.email}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            {admin.cv_document_url ? (
+                              <a
+                                href={admin.cv_document_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-100 transition-colors"
+                                title={isRTL ? "ظ…ط¹ط§ظٹظ†ط© ط§ظ„ط³ظٹط±ط© ط§ظ„ط°ط§طھظٹط©" : "Preview CV"}
+                              >
+                                <FileText size={12} />
+                                <span>{isRTL ? "ط§ظ„ط³ظٹط±ط©" : "CV"}</span>
+                                <Eye size={11} />
+                              </a>
+                            ) : null}
+                            {parseAdminCertificates(admin.certificates_urls).map((url, idx) => (
+                              <a
+                                key={idx}
+                                href={url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-lg bg-blue-50 text-blue-700 border border-blue-100 hover:bg-blue-100 transition-colors"
+                                title={isRTL ? `ظ…ط¹ط§ظٹظ†ط© ط§ظ„ط´ظ‡ط§ط¯ط© ${idx + 1}` : `Preview certificate ${idx + 1}`}
+                              >
+                                <Award size={12} />
+                                <span>{isRTL ? `ط´ ${idx + 1}` : `C${idx + 1}`}</span>
+                                <Eye size={11} />
+                              </a>
+                            ))}
+                            {!admin.cv_document_url && parseAdminCertificates(admin.certificates_urls).length === 0 && (
+                              <span className="text-[11px] text-stone-400">â€”</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-stone-500">
+                          {new Date(admin.created_at).toLocaleDateString()}
+                        </td>
+                        <td className="px-4 py-3 text-end whitespace-nowrap">
+                          <button 
+                            onClick={() => setEditingAdmin({ id: admin.id, email: admin.email, password: '' })}
+                            className="p-2 text-stone-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors mx-1"
+                          >
+                            <Edit size={16} />
+                          </button>
+                          <button 
+                            onClick={() => deleteAdminMutation.mutate(admin.id)}
+                            className="p-2 text-stone-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {systemAdmins?.length === 0 && (
+                    <tr><td colSpan="4" className="p-4 text-center text-sm text-stone-400">{isRTL ? "ظ„ط§ ظٹظˆط¬ط¯ ظ…ط¯ط±ط§ط،" : "No admins found"}</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* â”€â”€ ط±ظˆط§ط¨ط· ط§ظ„طھط³ط¬ظٹظ„ ط§ظ„ط¹ط§ظ… â”€â”€ */
+function RegistrationLinksSection({ slug, isRTL }) {
+  const [copiedId, setCopiedId] = useState(null);
+
+  const links = [
+    { id: 'student', label: isRTL ? 'طھط³ط¬ظٹظ„ ط·ط§ظ„ط¨' : 'Student Registration', icon: Users, path: 'student', ring: 'ring-blue-500/20', bg: 'bg-blue-50', border: 'border-blue-200', iconBg: 'bg-blue-100', iconColor: 'text-blue-600' },
+    { id: 'teacher', label: isRTL ? 'طھط³ط¬ظٹظ„ ظ…ط¹ظ„ظ…' : 'Teacher Registration', icon: UserPlus, path: 'teacher', ring: 'ring-purple-500/20', bg: 'bg-purple-50', border: 'border-purple-200', iconBg: 'bg-purple-100', iconColor: 'text-purple-600' },
+    { id: 'staff', label: isRTL ? 'طھط³ط¬ظٹظ„ ظ…ظˆط¸ظپ' : 'Staff Registration', icon: Shield, path: 'staff', ring: 'ring-amber-500/20', bg: 'bg-amber-50', border: 'border-amber-200', iconBg: 'bg-amber-100', iconColor: 'text-amber-600' },
+  ];
+
+  const handleCopy = (id, url) => {
+    navigator.clipboard.writeText(url).then(() => {
+      setCopiedId(id);
+      toast.success(isRTL ? 'طھظ… ظ†ط³ط® ط§ظ„ط±ط§ط¨ط·' : 'Link copied');
+      setTimeout(() => setCopiedId(null), 2000);
+    }).catch(() => {
+      toast.error(isRTL ? 'ظپط´ظ„ ط§ظ„ظ†ط³ط®' : 'Copy failed');
+    });
+  };
+
+  return (
+    <Card className="border-2 border-emerald-200 rounded-[28px] p-6 md:p-8 bg-white shadow-sm mt-6">
+      <div className="flex items-center gap-3 border-b border-emerald-100 pb-4 mb-6">
+        <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-600"><Link2 size={20} /></div>
+        <div className="flex-1">
+          <h2 className="text-lg font-black text-slate-900">{isRTL ? 'ط±ظˆط§ط¨ط· ط§ظ„طھط³ط¬ظٹظ„ ط§ظ„ط¹ط§ظ…' : 'Public Registration Links'}</h2>
+          <p className="text-xs text-slate-500 mt-0.5">{isRTL ? 'ط´ط§ط±ظƒ ظ‡ط°ظ‡ ط§ظ„ط±ظˆط§ط¨ط· ظ…ط¹ ط£ظˆظ„ظٹط§ط، ط§ظ„ط£ظ…ظˆط± ظˆط§ظ„ظ…ظˆط¸ظپظٹظ† ظ„ظ„طھط³ط¬ظٹظ„ ط§ظ„ظ…ط¨ط§ط´ط± ظپظٹ ظ…ط¯ط±ط³طھظƒ' : 'Share these links with parents and staff for direct registration at your school'}</p>
+        </div>
+        <span className="text-xs font-bold bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-full">{slug}</span>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {links.map(({ id, label, icon: Icon, path, bg, border, iconBg, iconColor }) => {
+          const fullUrl = `${window.location.origin}/register/${path}/${slug}`;
+          const isCopied = copiedId === id;
+
+          return (
+            <div key={id} className={`rounded-xl border-2 ${border} ${bg}/50 p-4 space-y-3`}>
+              <div className="flex items-center gap-2">
+                <div className={`w-8 h-8 rounded-lg ${iconBg} flex items-center justify-center ${iconColor}`}><Icon size={16} /></div>
+                <span className="text-sm font-bold text-slate-800">{label}</span>
+              </div>
+              <div className="bg-white rounded-lg p-2 border border-slate-100 flex items-center gap-2">
+                <span className="flex-1 text-xs text-slate-500 font-mono truncate" dir="ltr">{fullUrl}</span>
+                <button onClick={() => handleCopy(id, fullUrl)} className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${isCopied ? 'bg-emerald-100 text-emerald-600' : `${iconBg} ${iconColor} hover:opacity-80`}`}>
+                  {isCopied ? <CheckCircle size={14} /> : <Copy size={14} />}
+                </button>
+              </div>
+              <a href={fullUrl} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-1.5 text-xs font-bold text-emerald-600 hover:text-emerald-700 transition-colors">
+                <ExternalLink size={12} />
+                {isRTL ? 'ظ…ط¹ط§ظٹظ†ط©' : 'Preview'}
+              </a>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
+/* â”€â”€ ط­ط§ظ„ط© ط·ظ„ط¨ط§طھ ط§ظ„طھط±ظ‚ظٹط© ظ„ظ„ظ…ط¯ط±ط³ط© â”€â”€ */
+function MyReceiptStatus() {
+  const { language } = useLanguage();
+  const isRTL = language === 'ar';
+  const { user } = useAuth();
+  const [receipts, setReceipts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState(null);
+
+  useEffect(() => {
+    const fetchReceipts = async () => {
+      try {
+        const apiBase = 'https://edutrack-ey49.onrender.com';
+        const token = localStorage.getItem('portal_jwt_token') || localStorage.getItem('jwt_token');
+        const schoolId = user?.school_id || user?.id;
+        if (!schoolId || !token) return;
+        const res = await fetch(`${apiBase}/neon-db/my-receipts`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        setReceipts(data.receipts || []);
+      } catch (e) { console.error(e); }
+      setLoading(false);
+    };
+    fetchReceipts();
+  }, [user]);
+
+  if (loading || receipts.length === 0) return null;
+
+  const statusConfig = {
+    pending: { color: 'bg-amber-100 text-amber-700', label: isRTL ? 'ظ‚ظٹط¯ ط§ظ„ظ…ط±ط§ط¬ط¹ط©' : 'Pending', icon: Clock },
+    approved: { color: 'bg-emerald-100 text-emerald-700', label: isRTL ? 'طھظ…طھ ط§ظ„ظ…ظˆط§ظپظ‚ط©' : 'Approved', icon: CheckCircle },
+    rejected: { color: 'bg-rose-100 text-rose-700', label: isRTL ? 'ظ…ط±ظپظˆط¶' : 'Rejected', icon: X },
+  };
+
+  return (
+    <Card className="border-2 border-slate-200 rounded-[28px] p-6 bg-white shadow-sm mt-6">
+      <div className="flex items-center gap-3 border-b border-slate-100 pb-4 mb-4">
+        <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600"><CreditCard size={20}/></div>
+        <div className="flex-1">
+          <h2 className="text-lg font-black text-slate-900">{isRTL ? 'ط·ظ„ط¨ط§طھ ط§ظ„طھط±ظ‚ظٹط©' : 'Upgrade Requests'}</h2>
+          <p className="text-xs text-slate-500">{isRTL ? 'ط­ط§ظ„ط© ط·ظ„ط¨ط§طھ طھط±ظ‚ظٹط© ط§ظ„ط¨ط§ظ‚ط© ط§ظ„ظ…ط±ط³ظ„ط©' : 'Status of your upgrade requests'}</p>
+        </div>
+      </div>
+      <div className="space-y-3">
+        {receipts.map(r => {
+          const st = statusConfig[r.status] || statusConfig.pending;
+          const StIcon = st.icon;
+          const isOpen = expanded === r.id;
+          return (
+            <div key={r.id} className="border border-slate-200 rounded-xl overflow-hidden">
+              <button onClick={() => setExpanded(isOpen ? null : r.id)} className="w-full flex items-center justify-between p-3 hover:bg-slate-50 transition-colors text-right">
+                <div className="flex items-center gap-3">
+                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold flex items-center gap-1 ${st.color}`}><StIcon size={12}/>{st.label}</span>
+                  <span className="text-sm font-bold text-slate-800 capitalize">{r.plan} â€¢ ${r.amount}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-400">{r.created_at ? new Date(r.created_at).toLocaleDateString('ar-EG') : ''}</span>
+                  {r.status === 'rejected' && <span className="text-xs bg-rose-50 text-rose-600 px-2 py-0.5 rounded-full font-bold">{isRTL ? 'ط£ط¹ط¯ ط§ظ„ط¥ط±ط³ط§ظ„' : 'Resubmit'}</span>}
+                </div>
+              </button>
+              {isOpen && (
+                <div className="border-t border-slate-100 p-4 bg-slate-50 space-y-3">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                    <div className="bg-white rounded-lg p-2 border border-slate-100"><p className="text-[10px] text-slate-400">{isRTL ? 'ط§ظ„ظ…ط¨ظ„ط؛' : 'Amount'}</p><p className="font-bold text-emerald-700">${r.amount}</p></div>
+                    <div className="bg-white rounded-lg p-2 border border-slate-100"><p className="text-[10px] text-slate-400">{isRTL ? 'ط§ظ„ط¯ظˆط±ط©' : 'Cycle'}</p><p className="font-bold">{r.billing_cycle === 'yearly' ? (isRTL ? 'ط³ظ†ظˆظٹ' : 'Yearly') : (isRTL ? 'ط´ظ‡ط±ظٹ' : 'Monthly')}</p></div>
+                    <div className="bg-white rounded-lg p-2 border border-slate-100"><p className="text-[10px] text-slate-400">{isRTL ? 'ط§ظ„ظ…ط±ط¬ط¹' : 'Reference'}</p><p className="font-bold font-mono text-xs">{r.transfer_reference || 'â€”'}</p></div>
+                    <div className="bg-white rounded-lg p-2 border border-slate-100"><p className="text-[10px] text-slate-400">{isRTL ? 'ط§ظ„ط¨ظ†ظƒ' : 'Bank'}</p><p className="font-bold">{r.bank_name || 'â€”'}</p></div>
+                  </div>
+                  {r.receipt_image && (
+                    <div><p className="text-xs font-bold text-slate-600 mb-1">{isRTL ? 'طµظˆط±ط© ط§ظ„ط¥ظٹطµط§ظ„' : 'Receipt'}</p>
+                      {r.receipt_image.startsWith('data:application/pdf')
+                        ? <iframe src={r.receipt_image} className="w-full h-48 rounded-lg border" title="receipt"/>
+                        : <img src={r.receipt_image} alt="receipt" className="max-h-40 rounded-lg border border-slate-200 object-contain"/>}
+                    </div>
+                  )}
+                  {r.license_image && (
+                    <div><p className="text-xs font-bold text-slate-600 mb-1">{isRTL ? 'ط§ظ„طھط±ط®ظٹطµ' : 'License'}</p>
+                      {r.license_image.startsWith('data:application/pdf')
+                        ? <iframe src={r.license_image} className="w-full h-48 rounded-lg border" title="license"/>
+                        : <img src={r.license_image} alt="license" className="max-h-40 rounded-lg border border-slate-200 object-contain"/>}
+                    </div>
+                  )}
+                  {r.reviewer_notes && (
+                    <div className={`rounded-lg p-3 text-sm ${r.status === 'rejected' ? 'bg-rose-50 border border-rose-200' : 'bg-blue-50 border border-blue-200'}`}>
+                      <p className="text-xs font-bold mb-1">{isRTL ? 'ظ…ظ„ط§ط­ط¸ط§طھ ط§ظ„ظ…ط±ط§ط¬ط¹:' : 'Reviewer notes:'}</p>
+                      <p className={r.status === 'rejected' ? 'text-rose-700' : 'text-blue-700'}>{r.reviewer_notes}</p>
+                    </div>
+                  )}
+                  {r.status === 'rejected' && (
+                    <p className="text-xs text-slate-500 text-center">{isRTL ? 'ظٹظ…ظƒظ†ظƒ ط¥ط±ط³ط§ظ„ ط·ظ„ط¨ ط¬ط¯ظٹط¯ ظ…ظ† ظ‚ط³ظ… "ط§ط´طھط±ط§ظƒ ط§ظ„ط¨ط§ظ‚ط§طھ" ط£ط¯ظ†ط§ظ‡' : 'You can submit a new request from the "Subscription Plans" section below'}</p>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+

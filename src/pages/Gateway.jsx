@@ -564,7 +564,9 @@ export default function Gateway() {
           <div className="px-8 pt-8 pb-5 text-center flex flex-col items-center">
             {schoolData.logo_url ? (
               <img
-                src={schoolData.logo_url}
+                src={schoolData.logo_url.includes('?') 
+                  ? schoolData.logo_url + '&t=' + Date.now()
+                  : schoolData.logo_url + '?t=' + Date.now()}
                 alt={schoolName}
                 className="h-16 w-auto mb-3 object-contain drop-shadow-md max-h-16 rounded-xl"
                 onError={(e) => {
