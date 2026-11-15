@@ -384,7 +384,7 @@ export default function Gateway() {
     ? (branchData?.name || schoolData?.name_ar || schoolData?.name || "بوابة إدارة المدرسة")
     : (branchData?.name_en || schoolData?.name_en || schoolData?.name || "School Management Gateway");
   const branchCity = branchData?.city || schoolData?.city || null;
-  const branchLogo = branchData?.logo_url || schoolData?.school_logo || null;
+  const branchLogo = branchData?.logo_url || schoolData?.logo_url || null;
 
   // State 1: No School Slug Provided (/gateway directly)
   if (!schoolSlug) {
@@ -547,8 +547,8 @@ export default function Gateway() {
         className="absolute inset-0 z-0 bg-cover bg-center transition-all duration-700"
         style={{
           backgroundImage: `url('${backgroundUrl}')`,
-          filter: "blur(8px) brightness(0.45)",
-          transform: "scale(1.1)",
+          filter: "brightness(0.5)",
+          transform: "scale(1.05)",
         }}
       />
       <div className="absolute inset-0 z-0 bg-gradient-to-b from-black/30 via-black/50 to-black/70" />
