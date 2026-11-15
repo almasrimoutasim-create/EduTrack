@@ -182,9 +182,10 @@ export default function Settings() {
       if (schoolId) {
         try {
           const apiBase = (import.meta.env.VITE_BACKEND_URL || '').replace(/\/$/, '');
+          const authToken = localStorage.getItem('portal_jwt_token') || localStorage.getItem('jwt_token') || localStorage.getItem('auth_token') || localStorage.getItem('token');
           await fetch(`${apiBase}/neon-db/update-school-branding`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}) },
             body: JSON.stringify({
               school_id: schoolId,
               logo_url: formData.school_logo,
