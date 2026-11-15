@@ -1381,11 +1381,17 @@ const EFFECTIVE_DATABASE_URL = (ENV_DATABASE_URL && !ENV_DATABASE_URL.includes(B
       // Operational tables: add branch_id for branch-level isolation and consolidated view
       const BRANCH_TABLES = [
         'students', 'teachers', 'subjects', 'study_rooms', 'class_schedules',
-        'expenses', 'fee_payments', 'student_fees', 'system_admins', 'system_settings'
+        'expenses', 'fee_payments', 'student_fees', 'system_admins', 'system_settings', 'staff_members'
       ];
       for (const tbl of BRANCH_TABLES) {
         await sql.query(`ALTER TABLE ${tbl} ADD COLUMN IF NOT EXISTS branch_id UUID`).catch(()=>{});
         await sql.query(`CREATE INDEX IF NOT EXISTS idx_${tbl}_branch_id ON ${tbl}(branch_id)`).catch(()=>{});
+      }
+
+      for (const tbl of ['students', 'teachers', 'staff_members']) {
+        await sql.query(`ALTER TABLE ${tbl} ADD COLUMN IF NOT EXISTS academic_year_id TEXT`).catch(err => {
+          console.error(`[neon] ${tbl} academic_year_id migration failed:`, err.message);
+        });
       }
 
       // Resolve (or create) each school's main branch, then attach every
@@ -1902,6 +1908,62 @@ async function dbQuery(queryStr, params = []) {
     return [];
   }
   return sql.query(queryStr, params);
+}
+
+const DEFAULT_ACADEMIC_YEAR_ID = '2025-2026';
+
+async function getActiveAcademicYearId(schoolId) {
+  if (schoolId) {
+    try {
+      const rows = await dbQuery(
+        `SELECT academic_year FROM system_settings
+         WHERE school_id::text = $1 AND NULLIF(BTRIM(academic_year), '') IS NOT NULL
+         ORDER BY updated_at DESC NULLS LAST, created_at DESC
+         LIMIT 1`,
+        [String(schoolId)]
+      );
+      if (rows[0]?.academic_year) {
+        const year = String(rows[0].academic_year).trim();
+        const range = year.match(/(20\d{2})\s*[-–—/]\s*(20\d{2})/);
+        if (range) return `${range[1]}-${range[2]}`;
+      }
+    } catch { /* use the configured academic-year fallback */ }
+  }
+  return DEFAULT_ACADEMIC_YEAR_ID;
+}
+
+async function resolveSchoolIdForRegistration(requestedSchoolId, schoolName) {
+  if (requestedSchoolId) {
+    const byId = await dbQuery(
+      `SELECT id FROM schools WHERE id::text = $1 LIMIT 1`,
+      [String(requestedSchoolId)]
+    ).catch(() => []);
+    if (byId[0]?.id) return byId[0].id;
+  }
+  if (schoolName) {
+    const byName = await dbQuery(
+      `SELECT id FROM schools WHERE name = $1 OR name_ar = $1 OR name_en = $1 LIMIT 1`,
+      [String(schoolName).trim()]
+    ).catch(() => []);
+    if (byName[0]?.id) return byName[0].id;
+  }
+  return null;
+}
+
+async function resolveBranchForSchool(schoolId, requestedBranchId = null) {
+  if (!schoolId) return null;
+  if (requestedBranchId && requestedBranchId !== 'all') {
+    const selected = await dbQuery(
+      `SELECT id FROM school_branches WHERE id::text = $1 AND school_id::text = $2 LIMIT 1`,
+      [String(requestedBranchId), String(schoolId)]
+    ).catch(() => []);
+    if (selected[0]?.id) return selected[0].id;
+  }
+  const main = await dbQuery(
+    `SELECT id FROM school_branches WHERE school_id::text = $1 AND is_main = true LIMIT 1`,
+    [String(schoolId)]
+  ).catch(() => []);
+  return main[0]?.id || null;
 }
 
 // ── Login rate limiting ──────────────────────────────────────────────────────
@@ -3272,22 +3334,24 @@ const rows = await dbQuery(
         const hashedPassword = hashPassword(password);
         const studentId = `STU-${Date.now().toString().slice(-6)}`;
         const indStudentId = `IND-${Date.now().toString().slice(-6)}-${Math.random().toString(36).slice(2, 6)}`;
-        // Resolve school from registration request (لا طلاب مستقلون — كل طالب تحت مدرسة)
-        let resolvedSchoolId = school_id || null;
-        if (!resolvedSchoolId && reg.school_name) {
-          const schRows = await dbQuery('SELECT id FROM schools WHERE name = ', [reg.school_name]);
-          if (schRows.length > 0) resolvedSchoolId = schRows[0].id;
+        const resolvedSchoolId = await resolveSchoolIdForRegistration(
+          reg.school_id || school_id,
+          reg.school_name
+        );
+        if (!resolvedSchoolId) {
+          res.statusCode = 400;
+          return res.end(JSON.stringify({ error: 'School context is required to approve this student' }));
         }
+        const branchId = await resolveBranchForSchool(resolvedSchoolId, reg.branch_id);
+        const academicYearId = await getActiveAcademicYearId(resolvedSchoolId);
 
-
-        // Founder approval is ALWAYS the independent flow: force school detachment + independent type
         // Check if student already exists with this user_email
         const existing = await dbQuery('SELECT id FROM students WHERE user_email = $1', [username.trim().toLowerCase()]);
         if (existing.length > 0) {
           await dbQuery(
             `UPDATE students
-             SET full_name = $1, phone = $2, grade = $3, parent_name = $4, parent_phone = $5, parent_email = $6, school_name = $7, city = $8, portal_password = $9, portal_password_plain = $10, student_type = 'school', status = 'active', school_id = $11, username = $12, independent_student_id = $13
-             WHERE user_email = $14`,
+             SET full_name = $1, phone = $2, grade = $3, parent_name = $4, parent_phone = $5, parent_email = $6, school_name = $7, city = $8, portal_password = $9, portal_password_plain = $10, student_type = 'school', status = 'active', school_id = $11, branch_id = $12, academic_year_id = $13, username = $14, independent_student_id = $15
+             WHERE user_email = $16`,
             [
               reg.full_name || 'طالب',
               reg.phone || null,
@@ -3300,6 +3364,8 @@ const rows = await dbQuery(
               hashedPassword,
               password,
               resolvedSchoolId,
+              branchId,
+              academicYearId,
               username.trim().toLowerCase(),
               indStudentId,
               username.trim().toLowerCase()
@@ -3307,8 +3373,8 @@ const rows = await dbQuery(
           );
         } else {
           await dbQuery(
-            `INSERT INTO students (full_name, user_email, student_id, phone, grade, parent_name, parent_phone, parent_email, school_name, city, status, portal_password, portal_password_plain, student_type, school_id, username, independent_student_id)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'active', $11, $12, 'school', $13, $14, $15)`,
+            `INSERT INTO students (full_name, user_email, student_id, phone, grade, parent_name, parent_phone, parent_email, school_name, city, status, portal_password, portal_password_plain, student_type, school_id, username, independent_student_id, branch_id, academic_year_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'active', $11, $12, 'school', $13, $14, $15, $16, $17)`,
             [
               reg.full_name || 'طالب جديد',
               username.trim().toLowerCase(),
@@ -3324,7 +3390,9 @@ const rows = await dbQuery(
               password,
               resolvedSchoolId,
               username.trim().toLowerCase(),
-              indStudentId
+              indStudentId,
+              branchId,
+              academicYearId
             ]
           );
         }
@@ -3370,14 +3438,20 @@ const rows = await dbQuery(
         const hashedPassword = hashPassword(password);
         const empId = `TCH-${Date.now().toString().slice(-6)}`;
         const indTeacherId = `IND-${Date.now().toString().slice(-6)}-${Math.random().toString(36).slice(2, 6)}`;
+        const resolvedSchoolId = await resolveSchoolIdForRegistration(
+          reg.school_id || school_id,
+          reg.school_name
+        );
+        const branchId = await resolveBranchForSchool(resolvedSchoolId, reg.branch_id);
+        const academicYearId = await getActiveAcademicYearId(resolvedSchoolId);
+        const teacherType = resolvedSchoolId ? 'school' : 'independent';
 
-        // Founder approval is ALWAYS the independent flow: force school detachment + independent type
         const existing = await dbQuery('SELECT id FROM teachers WHERE email = $1', [username.trim().toLowerCase()]);
         if (existing.length > 0) {
           await dbQuery(
             `UPDATE teachers
-             SET full_name = $1, phone = $2, subjects = $3, experience_years = $4, bio = $5, portal_password = $6, portal_password_plain = $7, teacher_type = 'school', status = 'active', school_id = $8, username = $9, independent_teacher_id = $10
-WHERE email = $10`,
+             SET full_name = $1, phone = $2, subjects = $3, experience_years = $4, bio = $5, portal_password = $6, portal_password_plain = $7, teacher_type = $8, status = 'active', school_id = $9, branch_id = $10, academic_year_id = $11, username = $12, independent_teacher_id = $13
+             WHERE email = $14`,
              [
                reg.full_name || 'معلم',
                reg.phone || null,
@@ -3386,6 +3460,10 @@ WHERE email = $10`,
                reg.bio || null,
                hashedPassword,
                password,
+               teacherType,
+               resolvedSchoolId,
+               branchId,
+               academicYearId,
                username.trim().toLowerCase(),
                indTeacherId,
                username.trim().toLowerCase()
@@ -3393,8 +3471,8 @@ WHERE email = $10`,
            );
         } else {
           await dbQuery(
-            `INSERT INTO teachers (full_name, email, employee_id, phone, subjects, experience_years, bio, status, portal_password, portal_password_plain, teacher_type, school_id, username, independent_teacher_id)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, 'active', $8, $9, 'independent', NULL, $10, $11)`,
+            `INSERT INTO teachers (full_name, email, employee_id, phone, subjects, experience_years, bio, status, portal_password, portal_password_plain, teacher_type, school_id, username, independent_teacher_id, branch_id, academic_year_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, 'active', $8, $9, $10, $11, $12, $13, $14, $15)`,
             [
               reg.full_name || 'معلم جديد',
               username.trim().toLowerCase(),
@@ -3405,8 +3483,12 @@ WHERE email = $10`,
               reg.bio || null,
               hashedPassword,
               password,
+              teacherType,
+              resolvedSchoolId,
               username.trim().toLowerCase(),
-              indTeacherId
+              indTeacherId,
+              branchId,
+              academicYearId
             ]
           );
         }
@@ -4793,7 +4875,8 @@ WHERE email = $10`,
           // Branch slug → parent school (public-school GET resolves branches the same way,
           // otherwise the form loads but submit would 404)
           const bRows = await dbQuery(
-            `SELECT s.id, s.name, s.name_ar, s.name_en, s.slug, s.domain_subdomain, s.logo_url, s.subscription_status
+            `SELECT s.id, s.name, s.name_ar, s.name_en, s.slug, s.domain_subdomain, s.logo_url, s.subscription_status,
+                    b.id AS branch_id
              FROM school_branches b
              JOIN schools s ON s.id::text = b.school_id::text
              WHERE (b.slug = $1 OR b.id::text = $1)
@@ -4837,6 +4920,8 @@ WHERE email = $10`,
           try {
             const school = await resolveSchoolPublicEarly(slug);
             if (!school) { res.statusCode = 404; return res.end(JSON.stringify({ error: 'المدرسة غير موجودة أو غير نشطة' })); }
+            const branchId = await resolveBranchForSchool(school.id, school.branch_id);
+            const academicYearId = await getActiveAcademicYearId(school.id);
             const body = await parseBody(req);
             const { 
               full_name, user_email, phone, grade, section, date_of_birth,
@@ -4862,7 +4947,7 @@ WHERE email = $10`,
                 has_chronic_conditions, chronic_conditions_details,
                 has_surgeries, surgery_details,
                 has_regular_medications, medication_details,
-                portal_password, portal_password_plain, status
+                portal_password, portal_password_plain, branch_id, academic_year_id, status
               )
                VALUES (
                 $1, $2, $3, $4, $5, $6, $7,
@@ -4871,7 +4956,7 @@ WHERE email = $10`,
                 $18, $19,
                 $20, $21,
                 $22, $23,
-                $24, $25, 'active'
+                $24, $25, $26, $27, 'active'
               )
                RETURNING id`,
               [
@@ -4899,7 +4984,9 @@ WHERE email = $10`,
                 !!has_regular_medications,
                 (medication_details || '').trim() || null,
                 hashedPassword,
-                portalPassword
+                portalPassword,
+                branchId,
+                academicYearId
               ]
               );
               return sid;
@@ -4917,6 +5004,8 @@ WHERE email = $10`,
           try {
             const school = await resolveSchoolPublicEarly(slug);
             if (!school) { res.statusCode = 404; return res.end(JSON.stringify({ error: 'المدرسة غير موجودة أو غير نشطة' })); }
+            const branchId = await resolveBranchForSchool(school.id, school.branch_id);
+            const academicYearId = await getActiveAcademicYearId(school.id);
             const body = await parseBody(req);
             const { full_name, email, phone, subjects, experience_years, bio, city, notes, cv_document_url, certificates_urls } = body;
             if (!full_name) { res.statusCode = 400; return res.end(JSON.stringify({ error: 'الاسم الكامل مطلوب' })); }
@@ -4932,10 +5021,10 @@ WHERE email = $10`,
             await insertWithIdRetry(async () => {
               empId = await nextPublicId('teachers', 'TCH', school.id, 'employee_id');
               await dbQuery(
-              `INSERT INTO teachers (full_name, email, employee_id, phone, subjects, experience_years, bio, city, notes, cv_document_url, certificates_urls, school_id, portal_password, portal_password_plain, status)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, 'active')
+              `INSERT INTO teachers (full_name, email, employee_id, phone, subjects, experience_years, bio, city, notes, cv_document_url, certificates_urls, school_id, portal_password, portal_password_plain, status, branch_id, academic_year_id)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, 'active', $15, $16)
                RETURNING id`,
-              [full_name.trim(), (email || '').trim().toLowerCase() || null, empId, (phone || '').trim() || null, (subjects || '').trim() || null, experience_years ? parseInt(experience_years) : null, (bio || '').trim() || null, (city || '').trim() || null, (notes || '').trim() || null, cv_document_url || null, certsValue, school.id, hashedPassword, portalPassword]
+              [full_name.trim(), (email || '').trim().toLowerCase() || null, empId, (phone || '').trim() || null, (subjects || '').trim() || null, experience_years ? parseInt(experience_years) : null, (bio || '').trim() || null, (city || '').trim() || null, (notes || '').trim() || null, cv_document_url || null, certsValue, school.id, hashedPassword, portalPassword, branchId, academicYearId]
             );
             });
             return res.end(JSON.stringify({ success: true, message: 'تم التسجيل بنجاح', employee_id: empId, portal_password: portalPassword, school_name: school.name_ar || school.name }));
@@ -4951,6 +5040,8 @@ WHERE email = $10`,
           try {
             const school = await resolveSchoolPublicEarly(slug);
             if (!school) { res.statusCode = 404; return res.end(JSON.stringify({ error: 'المدرسة غير موجودة أو غير نشطة' })); }
+            const branchId = await resolveBranchForSchool(school.id, school.branch_id);
+            const academicYearId = await getActiveAcademicYearId(school.id);
             const body = await parseBody(req);
             const { full_name, email, phone, role, notes, date_of_birth, specialty, cv_document_url, certificates_urls } = body;
             if (!full_name) { res.statusCode = 400; return res.end(JSON.stringify({ error: 'الاسم الكامل مطلوب' })); }
@@ -4972,10 +5063,10 @@ WHERE email = $10`,
             await insertWithIdRetry(async () => {
               staffId = await nextPublicId('staff_members', 'STF', school.id, 'employee_id');
               await dbQuery(
-              `INSERT INTO staff_members (full_name, employee_id, email, phone, role, notes, date_of_birth, specialty, cv_document_url, certificates_urls, school_id, portal_password, status)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'active')
+              `INSERT INTO staff_members (full_name, employee_id, email, phone, role, notes, date_of_birth, specialty, cv_document_url, certificates_urls, school_id, portal_password, status, branch_id, academic_year_id)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'active', $13, $14)
                RETURNING id`,
-              [full_name.trim(), staffId, (email || '').trim().toLowerCase() || null, (phone || '').trim() || null, staffRole, (notes || '').trim() || null, date_of_birth || null, (specialty || '').trim() || null, cv_document_url || null, certsValue, school.id, hashedPassword]
+              [full_name.trim(), staffId, (email || '').trim().toLowerCase() || null, (phone || '').trim() || null, staffRole, (notes || '').trim() || null, date_of_birth || null, (specialty || '').trim() || null, cv_document_url || null, certsValue, school.id, hashedPassword, branchId, academicYearId]
             );
             });
             return res.end(JSON.stringify({ success: true, message: 'تم التسجيل بنجاح', staff_id: staffId, portal_password: portalPassword, school_name: school.name_ar || school.name }));
@@ -5127,6 +5218,7 @@ WHERE email = $10`,
          const TENANT_TABLES_SET = new Set(['students','teachers','attendance','subjects','library_books','financial_records','activity_posts','activity_comments','activity_chats','audit_logs','bus_drivers','bus_driver_reports','card_top_ups','class_schedules','donations','friend_requests','store_items','purchases','study_rooms','study_groups','study_group_posts','study_materials','student_awards','student_grades','student_reports','supervisors','staff_members','teacher_ratings','teacher_tasks','portal_access_configs','portal_groups','portal_group_messages','portal_notifications','private_messages','room_messages','room_videos','book_reviews','message_read_receipts','typing_indicators','fines','parent_link_requests','virtual_sessions','session_participants','official_announcements','counseling_cases','case_assessments','intervention_plans','follow_ups','case_visibility_logs','fee_structures','student_fees','fee_payments','activity_fees','student_activity_fees','student_wallet','wallet_transactions','hall_rentals','other_revenue','expenses','salary_records','purchase_orders','visitors','system_admins','system_settings','student_teacher_bonds','bond_payments','school_subscriptions','school_branches']);
          const isTenantTable = TENANT_TABLES_SET.has(table);
         const tenantId = req.user?.school_id || null;
+        const ACADEMIC_YEAR_SCOPED_TABLES = new Set(['students', 'teachers', 'staff_members']);
 
         // CRIT-2: Reject requests for tenant tables when JWT has no school_id (prevents cross-tenant data leak)
         if (isTenantTable && !tenantId && req.user && req.user.role !== 'founder') {
@@ -5474,6 +5566,12 @@ WHERE email = $10`,
             values.push(tenantId);
             paramIdx++;
           }
+          if (ACADEMIC_YEAR_SCOPED_TABLES.has(table)) {
+            const academicYearId = await getActiveAcademicYearId(tenantId);
+            conditions.push(`(academic_year_id = $${paramIdx} OR academic_year_id IS NULL)`);
+            values.push(academicYearId);
+            paramIdx++;
+          }
           // Recorded videos: a teacher JWT only ever lists its own rows (the
           // filter value can't be spoofed — it comes from the token, not the
           // query string). School admins fall back to school scoping.
@@ -5495,23 +5593,28 @@ WHERE email = $10`,
           const activeBranchFilter = (branchHeader && branchHeader !== 'all') ? branchHeader : (branchParam && branchParam !== 'all' ? branchParam : null);
           const BRANCH_SCOPED_TABLES = new Set([
             'students', 'teachers', 'subjects', 'study_rooms', 'class_schedules',
-            'expenses', 'fee_payments', 'student_fees', 'system_admins', 'system_settings'
+            'expenses', 'fee_payments', 'student_fees', 'system_admins', 'system_settings', 'staff_members'
           ]);
           if (BRANCH_SCOPED_TABLES.has(table) && activeBranchFilter) {
-            // Records with no branch assigned belong to the school and must never
-            // silently vanish. When the selected branch IS the school's main
-            // branch, include them; otherwise keep strict per-branch isolation.
-            const isMainBranchView = (await dbQuery(
-              `SELECT id FROM school_branches WHERE id = $1 AND is_main = true LIMIT 1`,
-              [activeBranchFilter]
+            const selectedBranch = (await dbQuery(
+              `SELECT id, school_id FROM school_branches WHERE id = $1${tenantId ? ' AND school_id = $2' : ''} LIMIT 1`,
+              tenantId ? [activeBranchFilter, tenantId] : [activeBranchFilter]
             ).catch(() => []))[0];
-            if (isMainBranchView) {
-              conditions.push(`(branch_id = $${paramIdx} OR branch_id IS NULL)`);
+            if (selectedBranch) {
+              const mainBranch = (await dbQuery(
+                `SELECT id FROM school_branches WHERE school_id = $1 AND is_main = true LIMIT 1`,
+                [selectedBranch.school_id]
+              ).catch(() => []))[0];
+              const visibleBranchIds = [...new Set([activeBranchFilter, mainBranch?.id].filter(Boolean).map(String))];
+              const branchPlaceholders = visibleBranchIds.map((_, index) => `$${paramIdx + index}`);
+              conditions.push(`(branch_id IN (${branchPlaceholders.join(', ')}) OR branch_id IS NULL)`);
+              values.push(...visibleBranchIds);
+              paramIdx += visibleBranchIds.length;
             } else {
               conditions.push(`branch_id = $${paramIdx}`);
+              values.push(activeBranchFilter);
+              paramIdx++;
             }
-            values.push(activeBranchFilter);
-            paramIdx++;
           }
 
           if (table === 'gateway_accounts' && tenantId) {
@@ -5540,8 +5643,20 @@ WHERE email = $10`,
         // ===== GET ONE =====
         if (req.method === 'GET' && entityId) {
           let rows;
-          if (isTenantTable && tenantId) {
+          if (isTenantTable && tenantId && ACADEMIC_YEAR_SCOPED_TABLES.has(table)) {
+            const academicYearId = await getActiveAcademicYearId(tenantId);
+            rows = await dbQuery(
+              `SELECT * FROM ${table} WHERE id = $1 AND school_id = $2 AND (academic_year_id = $3 OR academic_year_id IS NULL)`,
+              [entityId, tenantId, academicYearId]
+            );
+          } else if (isTenantTable && tenantId) {
             rows = await dbQuery(`SELECT * FROM ${table} WHERE id = $1 AND school_id = $2`, [entityId, tenantId]);
+          } else if (ACADEMIC_YEAR_SCOPED_TABLES.has(table)) {
+            const academicYearId = await getActiveAcademicYearId(null);
+            rows = await dbQuery(
+              `SELECT * FROM ${table} WHERE id = $1 AND (academic_year_id = $2 OR academic_year_id IS NULL)`,
+              [entityId, academicYearId]
+            );
           } else if (table === 'gateway_accounts' && tenantId) {
             rows = await dbQuery(`SELECT * FROM ${table} WHERE id = $1 AND school_id = $2`, [entityId, tenantId]);
           } else {
@@ -5597,29 +5712,23 @@ WHERE email = $10`,
               if (sch.length > 0) body.school_name = sch[0].name;
             } catch (e) { /* ignore */ }
           }
+          if (['students', 'teachers', 'staff_members'].includes(table)) {
+            body.academic_year_id = await getActiveAcademicYearId(body.school_id || tenantIdFromUser);
+          }
           // Gateway lock accounts: scope to the admin's school automatically (Option A shared credential)
           // Multi-branch: حقن branch_id إن وُجد في الطلب أو الترويسة
           const BRANCH_SCOPED_TABLES_POST = new Set([
             'students', 'teachers', 'subjects', 'study_rooms', 'class_schedules',
-            'expenses', 'fee_payments', 'student_fees', 'system_admins', 'system_settings'
+            'expenses', 'fee_payments', 'student_fees', 'system_admins', 'system_settings', 'staff_members'
           ]);
           const branchHeaderPost = req.headers['x-branch-id'];
           const branchFromUser = req.user?.branch_id;
-          let targetBranchId = body.branch_id || (branchHeaderPost && branchHeaderPost !== 'all' ? branchHeaderPost : null) || branchFromUser || null;
-          // Never orphan a branch-scoped record: when no branch was supplied, fall
-          // back to the school's main branch so branch-filtered lists always see it.
-          if (!targetBranchId && BRANCH_SCOPED_TABLES_POST.has(table)) {
-            const schoolIdForBranch = body.school_id || tenantIdFromUser;
-            if (schoolIdForBranch) {
-              const mainBranch = (await dbQuery(
-                `SELECT id FROM school_branches WHERE school_id = $1 AND is_main = true LIMIT 1`,
-                [schoolIdForBranch]
-              ).catch(() => []))[0];
-              if (mainBranch) targetBranchId = mainBranch.id;
-            }
-          }
-          if (BRANCH_SCOPED_TABLES_POST.has(table) && targetBranchId) {
-            body.branch_id = targetBranchId;
+          if (BRANCH_SCOPED_TABLES_POST.has(table)) {
+            const requestedBranchId = branchFromUser || (branchHeaderPost && branchHeaderPost !== 'all' ? branchHeaderPost : null) || body.branch_id;
+            const schoolIdForBranch = tenantIdFromUser || body.school_id;
+            const targetBranchId = await resolveBranchForSchool(schoolIdForBranch, requestedBranchId);
+            if (targetBranchId) body.branch_id = targetBranchId;
+            else delete body.branch_id;
           }
 
           if (table === 'gateway_accounts' && tenantIdFromUser) {
@@ -5934,7 +6043,7 @@ WHERE email = $10`,
             res.statusCode = 403; return res.end(JSON.stringify({ error: 'Admin or founder role required' }));
           }
           const body = await parseBody(req);
-          const { requestId, username, password } = body;
+          const { requestId, username, password, school_id } = body;
           if (!requestId || !username || !password) {
             res.statusCode = 400;
             return res.end(JSON.stringify({ error: 'requestId, username, and password are required' }));
@@ -5951,11 +6060,19 @@ WHERE email = $10`,
           }
           const reg = reqRows[0];
 
-          // Verify the approver belongs to the same school as the registration request
-          if (approver.school_id && reg.school_id && approver.school_id !== reg.school_id && approver.role !== 'founder') {
+          const resolvedSchoolId = approver.role === 'founder'
+            ? await resolveSchoolIdForRegistration(reg.school_id || school_id, reg.school_name)
+            : approver.school_id;
+          if (approver.role !== 'founder' && !resolvedSchoolId) {
+            res.statusCode = 403;
+            return res.end(JSON.stringify({ error: 'School context is required to approve this teacher' }));
+          }
+          if (approver.role !== 'founder' && reg.school_id && String(approver.school_id) !== String(reg.school_id)) {
             res.statusCode = 403;
             return res.end(JSON.stringify({ error: 'Cannot approve teacher for another school' }));
           }
+          const branchId = await resolveBranchForSchool(resolvedSchoolId, reg.branch_id || approver.branch_id);
+          const academicYearId = await getActiveAcademicYearId(resolvedSchoolId);
 
           // Check username uniqueness
           const existingTeacher = await dbQuery(
@@ -5973,9 +6090,9 @@ WHERE email = $10`,
           const subjects = Array.isArray(reg.subjects) ? reg.subjects.join(', ') : (reg.subjects || '');
 
            await dbQuery(
-             `INSERT INTO teachers (id, full_name, email, employee_id, subjects, status, portal_password, school_id, created_at)
-              VALUES ($1, $2, $3, $4, $5, 'active', $6, $7, NOW())`,
-             [teacherId, reg.full_name, reg.email, username, subjects, hashedPassword, reg.school_id || null]
+             `INSERT INTO teachers (id, full_name, email, employee_id, subjects, status, portal_password, school_id, created_at, branch_id, academic_year_id)
+              VALUES ($1, $2, $3, $4, $5, 'active', $6, $7, NOW(), $8, $9)`,
+             [teacherId, reg.full_name, reg.email, username, subjects, hashedPassword, resolvedSchoolId, branchId, academicYearId]
            );
 
           // Mark registration request as accepted
@@ -6006,7 +6123,7 @@ WHERE email = $10`,
             res.statusCode = 403; return res.end(JSON.stringify({ error: 'Admin or founder role required' }));
           }
           const body = await parseBody(req);
-          const { requestId, username, password } = body;
+          const { requestId, username, password, school_id } = body;
           if (!requestId || !username || !password) {
             res.statusCode = 400;
             return res.end(JSON.stringify({ error: 'requestId, username, and password are required' }));
@@ -6022,11 +6139,19 @@ WHERE email = $10`,
           }
           const reg = reqRows[0];
 
-          // Verify the approver belongs to the same school as the registration request
-          if (approver.school_id && reg.school_id && approver.school_id !== reg.school_id && approver.role !== 'founder') {
+          const resolvedSchoolId = approver.role === 'founder'
+            ? await resolveSchoolIdForRegistration(reg.school_id || school_id, reg.school_name)
+            : approver.school_id;
+          if (approver.role !== 'founder' && !resolvedSchoolId) {
+            res.statusCode = 403;
+            return res.end(JSON.stringify({ error: 'School context is required to approve this student' }));
+          }
+          if (approver.role !== 'founder' && reg.school_id && String(approver.school_id) !== String(reg.school_id)) {
             res.statusCode = 403;
             return res.end(JSON.stringify({ error: 'Cannot approve student for another school' }));
           }
+          const branchId = await resolveBranchForSchool(resolvedSchoolId, reg.branch_id || approver.branch_id);
+          const academicYearId = await getActiveAcademicYearId(resolvedSchoolId);
 
           const existingStudent = await dbQuery(
             `SELECT id FROM students WHERE user_email = $1 OR student_id = $1`,
@@ -6041,9 +6166,9 @@ WHERE email = $10`,
           const hashedPassword = hashPassword(password);
 
            await dbQuery(
-             `INSERT INTO students (id, full_name, user_email, student_id, phone, grade, parent_name, parent_phone, parent_email, school_name, city, status, portal_password, school_id, created_at)
-              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'active', $12, $13, NOW())`,
-             [studentId, reg.full_name, reg.email, username, reg.phone, reg.grade || null, reg.director_name || null, null, reg.email, reg.school_name || null, reg.country || null, hashedPassword, reg.school_id || null]
+             `INSERT INTO students (id, full_name, user_email, student_id, phone, grade, parent_name, parent_phone, parent_email, school_name, city, status, portal_password, school_id, created_at, branch_id, academic_year_id)
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'active', $12, $13, NOW(), $14, $15)`,
+             [studentId, reg.full_name, reg.email, username, reg.phone, reg.grade || null, reg.director_name || null, null, reg.email, reg.school_name || null, reg.country || null, hashedPassword, resolvedSchoolId, branchId, academicYearId]
            );
 
           await dbQuery(

@@ -10,6 +10,14 @@ const API_BASE = BACKEND
   ? `${BACKEND.replace(/\/$/, '')}/neon-db/entities`
   : '/neon-db/entities';
 
+function normalizeFilters(filters) {
+  if (!filters || typeof filters !== 'object' || Array.isArray(filters)) return filters;
+  return Object.fromEntries(Object.entries(filters).map(([key, value]) => [
+    key,
+    typeof value === 'string' && ['all', 'الكل'].includes(value.trim().toLowerCase()) ? null : value,
+  ]));
+}
+
 // Warn once in dev if backend URL is missing (common cause of "Failed to fetch")
 if (typeof window !== 'undefined' && !BACKEND && import.meta.env.DEV) {
   console.warn('[dbClient] VITE_BACKEND_URL is not set; API calls will use relative /neon-db/entities (requires Vite dev server).');
@@ -79,7 +87,7 @@ class EntityClient {
 
     const params = new URLSearchParams();
     if (order) params.set('order', order);
-    if (filters) params.set('filters', JSON.stringify(filters));
+    if (filters) params.set('filters', JSON.stringify(normalizeFilters(filters)));
     params.set('limit', limit.toString());
     params.set('offset', finalOffset.toString());
 
@@ -101,11 +109,16 @@ class EntityClient {
 
       throw new Error(err.error || `Failed to list ${this.entityName} (HTTP ${response.status})`);
     }
+    let rows;
     try {
-      return await response.json();
+      rows = await response.json();
     } catch {
       throw new Error('فشل في قراءة استجابة الخادم (Backend غير متاح أو خطأ في الـ deploy). استخدم الوضع المحلي أو أعد ضبط VITE_BACKEND_URL');
     }
+    if (!Array.isArray(rows)) {
+      throw new Error(`Unexpected list response for ${this.entityName}: expected an array`);
+    }
+    return rows;
   }
 
   async get(id) {
