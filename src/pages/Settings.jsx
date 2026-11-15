@@ -253,8 +253,8 @@ export default function Settings() {
         try {
           const toastId = toast.loading(isRTL ? 'جاري ضغط الصورة...' : 'Compressing image...');
           const compressed = await compressImage(fullDataUri, field === 'school_background_image' ? 1200 : field === 'sidebar_logo' ? 400 : 600);
-          const cacheBusted = compressed + (compressed.includes('?') ? '&' : '?') + 't=' + Date.now();
-          setFormData(prev => ({ ...prev, [field]: cacheBusted }));
+          // Do NOT append cache-busting query params to data: URIs (corrupts them)
+          setFormData(prev => ({ ...prev, [field]: compressed }));
           toast.success(isRTL ? 'تم حفظ الصورة بنجاح' : 'Image saved', { id: toastId });
         } catch (err) {
           toast.error(isRTL ? 'فشل معالجة الصورة' : 'Failed to process image');
